@@ -376,6 +376,10 @@ if (!signInVc.includes("Continuar com Google") || !signInVc.includes("Entrar com
 if (!sessionBoot.includes("__Host-grok-auth.session_token") || !sessionBoot.includes("migrateCookieToKeychainIfNeeded")) {
   errors.push("Tem de migrar o cookie Cap → bearer no Keychain.");
 }
+// Build 104: WKWebsiteDataStore init off-main → WTFCrashWithInfo. Keep migration MainActor-bound.
+if (!sessionBoot.includes("@MainActor") || !sessionBoot.includes("Thread.isMainThread")) {
+  errors.push("NativeSessionBootstrap tem de ser @MainActor e guardar Thread.isMainThread antes de WKWebsiteDataStore.");
+}
 if (!notebookList.includes("NativeSignInViewController") || !notebookList.includes("Terminar sessão")) {
   errors.push("O Caderno tem de abrir o login nativo e permitir terminar sessão.");
 }
