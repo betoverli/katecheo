@@ -176,13 +176,13 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
         if let me {
             nameLabel.text = me.displayName.isEmpty ? "Sem nome" : me.displayName
             let handle = me.prefs.handle
-            handleLabel.text = handle.isEmpty ? "Define um @utilizador" : "@\(handle)"
+            handleLabel.text = handle.isEmpty ? "Defina um @usuário" : "@\(handle)"
             emailLabel.text = me.email ?? me.prefs.profileEmail
             tableView.tableHeaderView?.isHidden = false
             loadAvatar(urlString: me.prefs.avatarUrl)
         } else {
             nameLabel.text = "Conta Verse2Note"
-            handleLabel.text = NativeAPIClient.hasBearer ? (loadError ?? "A carregar…") : "Entra para ver o teu perfil."
+            handleLabel.text = NativeAPIClient.hasBearer ? (loadError ?? "Carregando…") : "Entre para ver seu perfil."
             emailLabel.text = ""
             avatarView.image = UIImage(systemName: "person.crop.circle.fill")
             avatarView.contentMode = .scaleAspectFit
@@ -273,13 +273,13 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
                 config.secondaryText = languageLabel(me?.prefs.locale ?? "pt")
                 config.image = UIImage(systemName: "globe")
             case .bible:
-                config.text = "App da Bíblia"
+                config.text = "App de Bíblia"
                 config.secondaryText = bibleAppLabel(me?.prefs.appId ?? "youversion")
                 config.image = UIImage(systemName: "book")
             case .notifications:
-                config.text = "Notificações"
+                config.text = "Avisos"
                 let devices = me?.notify.apnsDevices ?? 0
-                config.secondaryText = devices > 0 ? "\(devices) dispositivo(s)" : "Gerir alertas"
+                config.secondaryText = devices > 0 ? "\(devices) dispositivo(s)" : "Configurar alertas"
                 config.image = UIImage(systemName: "bell")
             case .help:
                 config.text = "Sobre e ajuda"
@@ -291,11 +291,11 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
             cell.accessoryType = .none
             switch row {
             case .signOut:
-                config.text = "Terminar sessão"
+                config.text = "Sair da conta"
                 config.textProperties.color = .label
                 config.image = UIImage(systemName: "rectangle.portrait.and.arrow.right")
             case .exportData:
-                config.text = "Exportar dados"
+                config.text = "Baixar meus dados"
                 config.image = UIImage(systemName: "square.and.arrow.up")
             case .deleteAccount:
                 config.text = "Apagar conta"
@@ -358,12 +358,12 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
 
     private func confirmSignOut() {
         let alert = UIAlertController(
-            title: "Terminar sessão?",
-            message: "Vais sair desta conta neste dispositivo.",
+            title: "Sair da conta?",
+            message: "Você vai sair desta conta neste dispositivo.",
             preferredStyle: .actionSheet
         )
         alert.addAction(UIAlertAction(title: "Cancelar", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Terminar sessão", style: .destructive) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: "Sair da conta", style: .destructive) { [weak self] _ in
             Task { @MainActor in
                 await NativeLoginService.shared.signOut()
                 NotificationCenter.default.post(name: .nativeSessionDidChange, object: nil)
@@ -401,7 +401,7 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
     private func confirmDeleteAccount() {
         let alert = UIAlertController(
             title: "Apagar conta?",
-            message: "Isto remove permanentemente as tuas notas, grupos e preferências. Não pode ser anulado.",
+            message: "Isso remove permanentemente suas notas, grupos e preferências. Não pode ser desfeito.",
             preferredStyle: .actionSheet
         )
         alert.addAction(UIAlertAction(title: "Cancelar", style: .cancel))
@@ -426,7 +426,7 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
                 updateHeader()
                 let done = UIAlertController(
                     title: "Conta apagada",
-                    message: "A tua conta foi removida.",
+                    message: "Sua conta foi removida.",
                     preferredStyle: .alert
                 )
                 done.addAction(UIAlertAction(title: "OK", style: .default) { [weak self] _ in

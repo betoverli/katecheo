@@ -39,11 +39,11 @@ enum ProfileBibleCatalog {
 private func presentSaveError(on vc: UIViewController, _ error: Error) {
     let message: String
     if let api = error as? NativeAPIClient.APIError, case .http(let code, _) = api, code == 409 {
-        message = "Este @utilizador já está em uso."
+        message = "Esse @ já está em uso."
     } else {
         message = error.localizedDescription
     }
-    let alert = UIAlertController(title: "Não foi possível guardar", message: message, preferredStyle: .alert)
+    let alert = UIAlertController(title: "Não foi possível salvar", message: message, preferredStyle: .alert)
     alert.addAction(UIAlertAction(title: "OK", style: .default))
     vc.present(alert, animated: true)
 }
@@ -76,7 +76,7 @@ final class ProfileEditViewController: UITableViewController {
         super.viewDidLoad()
         title = "Editar perfil"
         navigationItem.rightBarButtonItem = UIBarButtonItem(
-            title: "Guardar",
+            title: "Salvar",
             style: .done,
             target: self,
             action: #selector(save)
@@ -89,7 +89,7 @@ final class ProfileEditViewController: UITableViewController {
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int { 4 }
 
     override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        "Nome e contacto"
+        "Nome e contato"
     }
 
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
@@ -110,11 +110,11 @@ final class ProfileEditViewController: UITableViewController {
             field.text = firstName
             field.textContentType = .givenName
         case 1:
-            field.placeholder = "Apelido"
+            field.placeholder = "Sobrenome"
             field.text = lastName
             field.textContentType = .familyName
         case 2:
-            field.placeholder = "utilizador"
+            field.placeholder = "usuario"
             field.text = handle
             field.autocapitalizationType = .none
             field.autocorrectionType = .no
@@ -126,7 +126,7 @@ final class ProfileEditViewController: UITableViewController {
             field.leftView = prefix
             field.leftViewMode = .always
         default:
-            field.placeholder = "Email"
+            field.placeholder = "E-mail"
             field.text = email
             field.keyboardType = .emailAddress
             field.autocapitalizationType = .none
@@ -215,7 +215,7 @@ final class ProfileThemeViewController: UITableViewController {
     }
 
     override func tableView(_ tableView: UITableView, titleForFooterInSection section: Int) -> String? {
-        "A aparência aplica-se às vistas nativas. O tema fica guardado na tua conta."
+        "A aparência se aplica às telas nativas. O tema fica salvo na sua conta."
     }
 
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
@@ -292,7 +292,7 @@ final class ProfileLanguageViewController: UITableViewController {
     }
 
     override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        section == 0 ? "Idioma da interface" : "Idioma das citações"
+        section == 0 ? "Navegação" : "Referências"
     }
 
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
@@ -344,7 +344,7 @@ final class ProfileBibleViewController: UITableViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        title = "App da Bíblia"
+        title = "App de Bíblia"
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "bible")
     }
 
@@ -360,7 +360,7 @@ final class ProfileBibleViewController: UITableViewController {
 
     override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
         switch section {
-        case 0: return "Aplicação"
+        case 0: return "Aplicativo"
         case 1: return "Tradução"
         default: return "Abertura"
         }
@@ -380,10 +380,10 @@ final class ProfileBibleViewController: UITableViewController {
             cell.accessoryType = prefs.translationId == tr.id ? .checkmark : .none
         default:
             if indexPath.row == 0 {
-                config.text = "Preferir app nativo"
+                config.text = "Preferir o app"
                 cell.accessoryType = prefs.preferNative ? .checkmark : .none
             } else {
-                config.text = "Preferir versão web"
+                config.text = "Preferir a web"
                 cell.accessoryType = !prefs.preferNative ? .checkmark : .none
             }
         }
@@ -426,10 +426,10 @@ final class ProfileNotifyViewController: UITableViewController {
     private let onSaved: () -> Void
 
     private let rows: [(key: String, title: String, subtitle: String)] = [
-        ("reading", "Planos de leitura", "Lembretes dos teus planos"),
+        ("reading", "Planos de leitura", "Lembretes dos seus planos"),
         ("friends", "Amigos", "Pedidos e aceitações"),
-        ("shares", "Partilhas", "Notas e coleções partilhadas"),
-        ("groups", "Grupos", "Actividade nos teus grupos"),
+        ("shares", "Compartilhamentos", "Notas e coleções compartilhadas"),
+        ("groups", "Grupos", "Atividade nos seus grupos"),
     ]
 
     init(notify: NativeAPIClient.NotifyPrefsDTO, onSaved: @escaping () -> Void) {
@@ -443,7 +443,7 @@ final class ProfileNotifyViewController: UITableViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        title = "Notificações"
+        title = "Avisos"
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "notify")
     }
 
@@ -462,7 +462,7 @@ final class ProfileNotifyViewController: UITableViewController {
             let count = notify.apnsDevices ?? 0
             return count > 0
                 ? "Este dispositivo pode receber notificações push (APNs)."
-                : "Activa as notificações nas Definições do iOS se quiseres alertas push."
+                : "Ative as notificações nas Configurações do iOS se quiser alertas push."
         }
         return nil
     }
@@ -473,7 +473,7 @@ final class ProfileNotifyViewController: UITableViewController {
         if indexPath.section == 0 {
             let count = notify.apnsDevices ?? 0
             config.text = "Push neste dispositivo"
-            config.secondaryText = count > 0 ? "Registado (\(count))" : "Não registado"
+            config.secondaryText = count > 0 ? "Registrado (\(count))" : "Não registrado"
             cell.accessoryType = .none
             cell.selectionStyle = .none
             cell.contentConfiguration = config

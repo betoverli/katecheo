@@ -431,12 +431,12 @@ if (!authRouter.includes("group-notes") || !authRouter.includes('"groups"')) {
 
 // Phase 3: native Perfil / Configurações tab (not Coming Soon).
 if (!rootTabs.includes("ProfileViewController") || rootTabs.includes('titleText: "Perfil"')) {
-  errors.push("Phase 3: o separador Perfil tem de usar ProfileViewController (não Em breve).");
+  errors.push("Phase 3: a aba Perfil tem de usar ProfileViewController (não Em breve).");
 }
 try {
   const profile = read("ios/App/App/ProfileViewController.swift");
-  if (!profile.includes("Terminar sessão") || !profile.includes("Apagar conta") || !profile.includes("getMe")) {
-    errors.push("ProfileViewController tem de mostrar perfil, terminar sessão e apagar conta.");
+  if (!profile.includes("Sair da conta") || !profile.includes("Apagar conta") || !profile.includes("getMe")) {
+    errors.push("ProfileViewController tem de mostrar perfil, sair da conta e apagar conta.");
   }
   const settings = read("ios/App/App/ProfileSettingsScreens.swift");
   if (
@@ -444,10 +444,10 @@ try {
     !settings.includes("ProfileThemeViewController") ||
     !settings.includes("ProfileNotifyViewController")
   ) {
-    errors.push("Faltam ecrãs nativos de editar perfil / aparência / notificações.");
+    errors.push("Faltam telas nativas de editar perfil / aparência / avisos.");
   }
 } catch {
-  errors.push("Ficheiro Phase 3 em falta: ProfileViewController.swift / ProfileSettingsScreens.swift");
+  errors.push("Arquivo Phase 3 em falta: ProfileViewController.swift / ProfileSettingsScreens.swift");
 }
 if (!project.includes("ProfileViewController.swift in Sources") || !project.includes("ProfileSettingsScreens.swift in Sources")) {
   errors.push("ProfileViewController / ProfileSettingsScreens têm de estar no target Xcode.");

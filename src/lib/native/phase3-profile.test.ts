@@ -51,11 +51,13 @@ describe("Phase 3 native Profile UI", () => {
     assert.match(tabs, /ProfileViewController/);
     assert.doesNotMatch(tabs, /titleText:\s*"Perfil"/);
     const profile = read("ios/App/App/ProfileViewController.swift");
-    assert.match(profile, /Terminar sessão/);
+    assert.match(profile, /Sair da conta/);
     assert.match(profile, /Apagar conta/);
+    assert.match(profile, /Baixar meus dados/);
     assert.match(profile, /getMe/);
     assert.match(profile, /signOut/);
     assert.match(profile, /deleteAccount/);
+    assert.doesNotMatch(profile, /utilizador|Terminar sessão|Gerir |Activa|Definições/);
   });
 
   it("ships edit + theme + language + bible + notify screens", () => {
@@ -68,6 +70,9 @@ describe("Phase 3 native Profile UI", () => {
     assert.match(settings, /patchMe/);
     assert.match(settings, /patchPrefs/);
     assert.match(settings, /patchNotifyPrefs/);
+    assert.match(settings, /Salvar/);
+    assert.match(settings, /Configurações do iOS/);
+    assert.doesNotMatch(settings, /utilizador|contacto|Actividade|Activa |Definições|Partilhas|Guardar/);
   });
 
   it("exposes profile methods on NativeAPIClient", () => {
