@@ -39,6 +39,8 @@
 		F5A2C0102FED796500168570 /* GroupsListViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A2C0112FED796500168570 /* GroupsListViewController.swift */; };
 		F5A3D0102FED796500168580 /* ProfileViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A3D0112FED796500168580 /* ProfileViewController.swift */; };
 		F5A3D0122FED796500168580 /* ProfileSettingsScreens.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A3D0132FED796500168580 /* ProfileSettingsScreens.swift */; };
+		F5A4E0102FED796500168590 /* VersesHomeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A4E0112FED796500168590 /* VersesHomeViewController.swift */; };
+		F5A4E0122FED796500168590 /* VersesScreens.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A4E0132FED796500168590 /* VersesScreens.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -78,6 +80,8 @@
 		F5A2C0112FED796500168570 /* GroupsListViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupsListViewController.swift; sourceTree = "<group>"; };
 		F5A3D0112FED796500168580 /* ProfileViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileViewController.swift; sourceTree = "<group>"; };
 		F5A3D0132FED796500168580 /* ProfileSettingsScreens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileSettingsScreens.swift; sourceTree = "<group>"; };
+		F5A4E0112FED796500168590 /* VersesHomeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersesHomeViewController.swift; sourceTree = "<group>"; };
+		F5A4E0132FED796500168590 /* VersesScreens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersesScreens.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -135,6 +139,8 @@
 				F5A2C0112FED796500168570 /* GroupsListViewController.swift */,
 				F5A3D0112FED796500168580 /* ProfileViewController.swift */,
 				F5A3D0132FED796500168580 /* ProfileSettingsScreens.swift */,
+				F5A4E0112FED796500168590 /* VersesHomeViewController.swift */,
+				F5A4E0132FED796500168590 /* VersesScreens.swift */,
 				A1C0DE032FED796500168520 /* LiquidGlassMaterial.m */,
 				A1C0DE052FED796500168520 /* LiquidGlassMaterial.h */,
 				A1C0DE062FED796500168520 /* App-Bridging-Header.h */,
@@ -256,6 +262,8 @@
 				F5A2C0102FED796500168570 /* GroupsListViewController.swift in Sources */,
 				F5A3D0102FED796500168580 /* ProfileViewController.swift in Sources */,
 				F5A3D0122FED796500168580 /* ProfileSettingsScreens.swift in Sources */,
+				F5A4E0102FED796500168590 /* VersesHomeViewController.swift in Sources */,
+				F5A4E0122FED796500168590 /* VersesScreens.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

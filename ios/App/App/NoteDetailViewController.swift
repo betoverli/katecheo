@@ -58,6 +58,17 @@ final class NoteDetailViewController: UIViewController, WKScriptMessageHandler, 
 
         let url = NativeAPIClient.baseURL.appendingPathComponent("native-editor")
         webView.load(URLRequest(url: url))
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(noteDidChangeExternally(_:)),
+            name: .nativeNoteDidChange,
+            object: nil
+        )
+        Task { await refreshFromAPI() }
+    }
+
+    @objc private func noteDidChangeExternally(_ note: Notification) {
+        guard let id = note.object as? String, id == noteId else { return }
         Task { await refreshFromAPI() }
     }
 

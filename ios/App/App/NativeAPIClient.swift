@@ -647,4 +647,329 @@ enum NativeAPIClient {
         guard let decoded = try? JSONDecoder().decode(NotesResponse.self, from: data) else { return nil }
         return decoded.notes?.count
     }
+
+    // MARK: - Verses / bible (Phase 4)
+
+    struct BibleBookDTO: Codable, Equatable {
+        var id: String
+        var testament: String
+        var name: String
+        var abbr: String
+        var chapters: Int
+        var verses: [Int]
+    }
+
+    struct BibleAppDTO: Codable, Equatable {
+        var id: String
+        var name: String
+        var blurb: String?
+        var hasWeb: Bool?
+        var hasNative: Bool?
+        var usesTranslation: Bool?
+    }
+
+    struct BibleTranslationDTO: Codable, Equatable {
+        var id: String
+        var locale: String?
+        var abbr: String
+        var name: String
+    }
+
+    struct PassageDTO: Codable, Equatable {
+        var bookId: String
+        var chapter: Int
+        var verseStart: Int?
+        var verseEnd: Int?
+
+        var labelHint: String {
+            if let verseStart {
+                if let verseEnd, verseEnd != verseStart {
+                    return "\(bookId) \(chapter):\(verseStart)–\(verseEnd)"
+                }
+                return "\(bookId) \(chapter):\(verseStart)"
+            }
+            return "\(bookId) \(chapter)"
+        }
+    }
+
+    struct LinkItemDTO: Codable, Equatable {
+        var input: String?
+        var label: String
+        var url: String
+        var markdown: String?
+        var html: String?
+        var plain: String?
+    }
+
+    struct ThemeCardDTO: Codable, Equatable {
+        var id: String
+        var name: String
+        var count: Int?
+        var snippet: String?
+    }
+
+    struct CategoryCardDTO: Codable, Equatable {
+        var id: String
+        var name: String
+        var count: Int?
+    }
+
+    struct ThemePassageDTO: Codable, Equatable {
+        var bookId: String
+        var chapter: Int
+        var verseStart: Int?
+        var verseEnd: Int?
+        var label: String?
+        var snippet: String?
+
+        var asPassage: PassageDTO {
+            PassageDTO(bookId: bookId, chapter: chapter, verseStart: verseStart, verseEnd: verseEnd)
+        }
+    }
+
+    struct UserCollectionDTO: Codable, Equatable {
+        var id: String
+        var title: String
+        var slug: String?
+        var visibility: String?
+        var sourceId: String?
+        var passages: [PassageDTO]?
+        var updatedAt: String?
+    }
+
+    private struct BooksResponse: Decodable {
+        let ok: Bool?
+        let books: [BibleBookDTO]?
+        let error: String?
+    }
+
+    private struct AppsResponse: Decodable {
+        let ok: Bool?
+        let apps: [BibleAppDTO]?
+        let translations: [BibleTranslationDTO]?
+        let error: String?
+    }
+
+    private struct LinkResponse: Decodable {
+        let ok: Bool?
+        let items: [LinkItemDTO]?
+        let plain: String?
+        let markdown: String?
+        let error: String?
+    }
+
+    private struct ThemesIndexResponse: Decodable {
+        let ok: Bool?
+        let kind: String?
+        let themeTotal: Int?
+        let categories: [CategoryCardDTO]?
+        let themes: [ThemeCardDTO]?
+        let theme: ThemeCardDTO?
+        let passages: [ThemePassageDTO]?
+        let items: [LinkItemDTO]?
+        let error: String?
+    }
+
+    private struct AppendVerseResponse: Decodable {
+        let ok: Bool?
+        let note: NoteDocument?
+        let label: String?
+        let error: String?
+    }
+
+    private struct CollectionsResponse: Decodable {
+        let ok: Bool?
+        let collections: [UserCollectionDTO]?
+        let collection: UserCollectionDTO?
+        let error: String?
+    }
+
+    private static func publicRequest(path: String, method: String = "GET", body: Data? = nil, query: [URLQueryItem] = []) throws -> URLRequest {
+        var components = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
+        if !query.isEmpty { components.queryItems = query }
+        guard let url = components.url else { throw APIError.invalidResponse }
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let token = KeychainStore.bearerToken(), !token.isEmpty {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        if let body {
+            request.httpBody = body
+            request.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
+        }
+        return request
+    }
+
+    static func fetchBibleBooks(locale: String = "pt") async throws -> [BibleBookDTO] {
+        let request = try publicRequest(
+            path: "api/native/v1/bible/books",
+            query: [URLQueryItem(name: "locale", value: locale)]
+        )
+        let (status, data) = try await perform(request)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(BooksResponse.self, from: data),
+              let books = decoded.books
+        else { throw APIError.decoding }
+        return books
+    }
+
+    static func fetchBibleApps(locale: String = "pt") async throws -> (apps: [BibleAppDTO], translations: [BibleTranslationDTO]) {
+        let request = try publicRequest(
+            path: "api/native/v1/bible/apps",
+            query: [URLQueryItem(name: "locale", value: locale)]
+        )
+        let (status, data) = try await perform(request)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(AppsResponse.self, from: data),
+              let apps = decoded.apps
+        else { throw APIError.decoding }
+        return (apps, decoded.translations ?? [])
+    }
+
+    static func resolveBibleLink(passage: PassageDTO, appId: String? = nil, translationId: String? = nil, preferNative: Bool? = nil) async throws -> LinkItemDTO {
+        var payload: [String: Any] = [
+            "ref": passage.labelHint.replacingOccurrences(of: "–", with: "-"),
+            "locale": "pt",
+        ]
+        // Prefer structured fields via refs that parse — also send book-style via label.
+        if let appId { payload["app"] = appId }
+        if let translationId { payload["translation"] = translationId }
+        if let preferNative { payload["native"] = preferNative }
+        // Use POST with bookId-style ref string João… Prefer building from ids:
+        payload["refs"] = [formatRefForLink(passage)]
+        let body = try JSONSerialization.data(withJSONObject: payload)
+        let request = try publicRequest(path: "api/native/v1/bible/link", method: "POST", body: body)
+        let (status, data) = try await perform(request)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(LinkResponse.self, from: data),
+              let item = decoded.items?.first
+        else { throw APIError.decoding }
+        return item
+    }
+
+    static func formatRefForLink(_ passage: PassageDTO) -> String {
+        // OSIS-ish English ids parse poorly for pt locale; send "JHN 3:16" which parseReference accepts.
+        if let verseStart = passage.verseStart {
+            if let verseEnd = passage.verseEnd, verseEnd != verseStart {
+                return "\(passage.bookId) \(passage.chapter):\(verseStart)-\(verseEnd)"
+            }
+            return "\(passage.bookId) \(passage.chapter):\(verseStart)"
+        }
+        return "\(passage.bookId) \(passage.chapter)"
+    }
+
+    static func fetchThemes(categoryId: String? = nil, themeId: String? = nil, query: String? = nil) async throws -> ThemesIndexResponseProxy {
+        var items: [URLQueryItem] = [URLQueryItem(name: "locale", value: "pt")]
+        if let categoryId { items.append(URLQueryItem(name: "category", value: categoryId)) }
+        if let themeId { items.append(URLQueryItem(name: "id", value: themeId)) }
+        if let query, !query.isEmpty { items.append(URLQueryItem(name: "q", value: query)) }
+        let request = try publicRequest(path: "api/native/v1/bible/themes", query: items)
+        let (status, data) = try await perform(request)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(ThemesIndexResponse.self, from: data) else {
+            throw APIError.decoding
+        }
+        return ThemesIndexResponseProxy(
+            kind: decoded.kind ?? "",
+            themeTotal: decoded.themeTotal,
+            categories: decoded.categories ?? [],
+            themes: decoded.themes ?? [],
+            theme: decoded.theme,
+            passages: decoded.passages ?? [],
+            items: decoded.items ?? []
+        )
+    }
+
+    struct ThemesIndexResponseProxy {
+        var kind: String
+        var themeTotal: Int?
+        var categories: [CategoryCardDTO]
+        var themes: [ThemeCardDTO]
+        var theme: ThemeCardDTO?
+        var passages: [ThemePassageDTO]
+        var items: [LinkItemDTO]
+    }
+
+    static func appendVerse(_ passage: PassageDTO, noteId: String? = nil) async throws -> (note: NoteDocument, label: String) {
+        var payload: [String: Any] = [
+            "bookId": passage.bookId,
+            "chapter": passage.chapter,
+        ]
+        if let verseStart = passage.verseStart { payload["verseStart"] = verseStart }
+        if let verseEnd = passage.verseEnd { payload["verseEnd"] = verseEnd }
+        if let noteId { payload["noteId"] = noteId }
+        let body = try JSONSerialization.data(withJSONObject: payload)
+        let request = try authorizedRequest(path: "api/native/v1/verses/append", method: "POST", body: body)
+        let (status, data) = try await perform(request)
+        if status == 401 { throw APIError.unauthorized }
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(AppendVerseResponse.self, from: data),
+              let note = decoded.note
+        else { throw APIError.decoding }
+        LocalNoteCache.upsertNote(note)
+        NotificationCenter.default.post(name: .nativeNoteDidChange, object: note.id)
+        return (note, decoded.label ?? passage.labelHint)
+    }
+
+    static func listMyCollections() async throws -> [UserCollectionDTO] {
+        let request = try authorizedRequest(path: "api/native/v1/my-collections", method: "GET")
+        let (status, data) = try await perform(request)
+        if status == 401 { throw APIError.unauthorized }
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(CollectionsResponse.self, from: data),
+              let collections = decoded.collections
+        else { throw APIError.decoding }
+        return collections
+    }
+
+    static func createMyCollection(title: String) async throws -> UserCollectionDTO {
+        let body = try JSONSerialization.data(withJSONObject: ["title": title, "passages": []])
+        let request = try authorizedRequest(path: "api/native/v1/my-collections", method: "POST", body: body)
+        let (status, data) = try await perform(request)
+        if status == 401 { throw APIError.unauthorized }
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(CollectionsResponse.self, from: data),
+              let collection = decoded.collection
+        else { throw APIError.decoding }
+        return collection
+    }
+
+    static func savePassageToCollection(passage: PassageDTO, collectionId: String? = nil, title: String? = nil) async throws -> UserCollectionDTO {
+        var passageObj: [String: Any] = [
+            "bookId": passage.bookId,
+            "chapter": passage.chapter,
+        ]
+        if let verseStart = passage.verseStart { passageObj["verseStart"] = verseStart }
+        if let verseEnd = passage.verseEnd { passageObj["verseEnd"] = verseEnd }
+        var payload: [String: Any] = ["passage": passageObj]
+        if let collectionId { payload["collectionId"] = collectionId }
+        if let title { payload["title"] = title }
+        let body = try JSONSerialization.data(withJSONObject: payload)
+        let request = try authorizedRequest(path: "api/native/v1/my-collections/save", method: "POST", body: body)
+        let (status, data) = try await perform(request)
+        if status == 401 { throw APIError.unauthorized }
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(CollectionsResponse.self, from: data),
+              let collection = decoded.collection
+        else { throw APIError.decoding }
+        return collection
+    }
 }
+

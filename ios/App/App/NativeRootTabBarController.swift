@@ -1,6 +1,6 @@
 import UIKit
 
-/// Phase 1–3 root: native Caderno + Grupos + Perfil; Versículos/Leitura still placeholders.
+/// Phase 1–4 root: native Caderno + Grupos + Perfil + Versículos; Leitura still placeholder.
 final class NativeRootTabBarController: UITabBarController {
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -13,13 +13,7 @@ final class NativeRootTabBarController: UITabBarController {
             selectedImage: UIImage(systemName: "note.text")
         )
 
-        let verses = UINavigationController(
-            rootViewController: ComingSoonTabViewController(
-                titleText: "Versículos",
-                systemImage: "book",
-                sitePath: "/app"
-            )
-        )
+        let verses = UINavigationController(rootViewController: VersesHomeViewController())
         verses.tabBarItem = UITabBarItem(title: "Versículos", image: UIImage(systemName: "book"), tag: 1)
 
         let groups = UINavigationController(rootViewController: GroupsListViewController())
