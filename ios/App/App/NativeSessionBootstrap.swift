@@ -2,6 +2,10 @@ import Foundation
 import WebKit
 
 /// Silent cookie → Keychain bearer migration for users who signed in via classic Cap.
+/// MUST run on the main thread: the first touch of `WKWebsiteDataStore` initializes
+/// WebKit, and WebKit traps (WTFCrashWithInfo) if that happens off-main — that was the
+/// build 104 launch crash. `@MainActor` pins every call here to the main thread.
+@MainActor
 enum NativeSessionBootstrap {
     static let sessionCookieName = "__Host-grok-auth.session_token"
     static let migratedFlagKey = "verse2note.cookieBearerMigrated.v1"
@@ -21,7 +25,8 @@ enum NativeSessionBootstrap {
     }
 
     static func readSessionCookieToken() async -> String? {
-        await withCheckedContinuation { continuation in
+        guard Thread.isMainThread else { return nil } // defensive: never init WebKit off-main
+        return await withCheckedContinuation { continuation in
             WKWebsiteDataStore.default().httpCookieStore.getAllCookies { cookies in
                 let candidates = cookies.filter { cookie in
                     cookie.name == sessionCookieName &&
