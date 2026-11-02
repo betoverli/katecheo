@@ -198,6 +198,11 @@ final class NoteDetailViewController: UIViewController, WKScriptMessageHandler, 
         sheet.addAction(UIAlertAction(title: "Speakers…", style: .default) { [weak self] _ in
             self?.openSpeakerPicker()
         })
+        if NativeAPIClient.hasBearer {
+            sheet.addAction(UIAlertAction(title: "Mover para grupo…", style: .default) { [weak self] _ in
+                self?.moveToGroup()
+            })
+        }
         sheet.addAction(UIAlertAction(title: "Partilhar", style: .default) { [weak self] _ in
             self?.shareNote()
         })
@@ -209,6 +214,61 @@ final class NoteDetailViewController: UIViewController, WKScriptMessageHandler, 
             pop.barButtonItem = navigationItem.rightBarButtonItem
         }
         present(sheet, animated: true)
+    }
+
+    private func moveToGroup() {
+        Task { @MainActor in
+            do {
+                // Persist latest chrome/body before publishing the association.
+                _ = try await NativeAPIClient.upsertNote(note)
+                let groups = try await NativeAPIClient.listGroupsForNote(noteId: noteId)
+                let eligible = groups.filter { $0.canPost }
+                guard !eligible.isEmpty else {
+                    let empty = UIAlertController(
+                        title: "Sem grupos",
+                        message: "Cria ou junta-te a um grupo no separador Grupos.",
+                        preferredStyle: .alert
+                    )
+                    empty.addAction(UIAlertAction(title: "OK", style: .default))
+                    present(empty, animated: true)
+                    return
+                }
+                let sheet = UIAlertController(title: "Mover para grupo", message: nil, preferredStyle: .actionSheet)
+                for group in eligible {
+                    let title = (group.published == true) ? "✓ \(group.name)" : group.name
+                    sheet.addAction(UIAlertAction(title: title, style: .default) { [weak self] _ in
+                        self?.togglePublish(group)
+                    })
+                }
+                sheet.addAction(UIAlertAction(title: "Cancelar", style: .cancel))
+                if let pop = sheet.popoverPresentationController {
+                    pop.barButtonItem = navigationItem.rightBarButtonItem
+                }
+                present(sheet, animated: true)
+            } catch {
+                let err = UIAlertController(title: "Erro", message: error.localizedDescription, preferredStyle: .alert)
+                err.addAction(UIAlertAction(title: "OK", style: .default))
+                present(err, animated: true)
+            }
+        }
+    }
+
+    private func togglePublish(_ group: NativeAPIClient.GroupDTO) {
+        Task { @MainActor in
+            do {
+                if group.published == true {
+                    try await NativeAPIClient.unpublishNote(noteId: noteId, fromGroupId: group.id)
+                    statusLabel.text = "Retirada de «\(group.name)»"
+                } else {
+                    try await NativeAPIClient.publishNote(noteId: noteId, toGroupId: group.id)
+                    statusLabel.text = "Movida para «\(group.name)»"
+                }
+            } catch {
+                let err = UIAlertController(title: "Erro", message: error.localizedDescription, preferredStyle: .alert)
+                err.addAction(UIAlertAction(title: "OK", style: .default))
+                present(err, animated: true)
+            }
+        }
     }
 
     private func openSettings() {

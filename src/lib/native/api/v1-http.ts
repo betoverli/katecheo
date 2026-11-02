@@ -174,6 +174,73 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
       return json(result);
     }
 
+    const groupsApi = await import("./v1-groups.server");
+
+    if (route.kind === "groups") {
+      if (!route.groupId) {
+        if (method === "GET") return json({ ok: true, groups: await groupsApi.listGroupsForUser(user.id) });
+        const body = await readBody(request);
+        if (body === Symbol.for("invalid-json")) return json({ ok: false, error: "invalid_json" }, 400);
+        const result = await groupsApi.createGroupForUser(user.id, body);
+        if (!result.ok) return json(result, result.error === "limit" ? 409 : 400);
+        return json(result, 201);
+      }
+      if (method === "GET") {
+        const group = await groupsApi.getGroupForUser(user.id, route.groupId);
+        if (!group) return json({ ok: false, error: "missing" }, 404);
+        return json({ ok: true, group });
+      }
+      if (method === "DELETE") {
+        const result = await groupsApi.deleteGroupForUser(user.id, route.groupId);
+        if (!result.ok) {
+          return json(result, result.error === "missing" ? 404 : 403);
+        }
+        return json(result);
+      }
+      const body = await readBody(request);
+      if (body === Symbol.for("invalid-json")) return json({ ok: false, error: "invalid_json" }, 400);
+      const result = await groupsApi.updateGroupForUser(user.id, route.groupId, body);
+      if (!result.ok) {
+        const status = result.error === "missing" ? 404 : result.error === "forbidden" ? 403 : 400;
+        return json(result, status);
+      }
+      return json(result);
+    }
+
+    if (route.kind === "group-notes") {
+      if (!route.noteId) {
+        if (method === "GET") {
+          const result = await groupsApi.listNotesInGroupForUser(user.id, route.groupId);
+          if (!result.ok) return json(result, 403);
+          return json(result);
+        }
+        const body = await readBody(request);
+        if (body === Symbol.for("invalid-json")) return json({ ok: false, error: "invalid_json" }, 400);
+        const noteId =
+          body && typeof body === "object" && typeof (body as { noteId?: unknown }).noteId === "string"
+            ? (body as { noteId: string }).noteId.trim()
+            : "";
+        if (!noteId) return json({ ok: false, error: "invalid" }, 400);
+        const result = await groupsApi.publishNoteIdToGroup(user.id, route.groupId, noteId);
+        if (!result.ok) {
+          const status =
+            result.error === "missing" ? 404 : result.error === "limit" ? 409 : 403;
+          return json(result, status);
+        }
+        return json(result, 201);
+      }
+      if (method === "DELETE") {
+        const result = await groupsApi.unpublishNoteFromGroupForUser(user.id, route.groupId, route.noteId);
+        if (!result.ok) return json(result, 403);
+        return json(result);
+      }
+    }
+
+    if (route.kind === "note-groups") {
+      const groups = await groupsApi.listGroupsForNote(user.id, route.noteId);
+      return json({ ok: true, groups });
+    }
+
     return json({ ok: false, error: "not_found" }, 404);
   } catch (error) {
     if (error instanceof UnauthorizedError) {
