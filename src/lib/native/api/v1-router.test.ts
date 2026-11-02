@@ -41,10 +41,19 @@ describe("matchNativeV1Route", () => {
     assert.deepEqual(matchNativeV1Route("notes/n1/groups"), { kind: "note-groups", noteId: "n1" });
   });
 
+  it("maps profile, prefs, and account endpoints", () => {
+    assert.deepEqual(matchNativeV1Route("me"), { kind: "me" });
+    assert.deepEqual(matchNativeV1Route("prefs"), { kind: "prefs" });
+    assert.deepEqual(matchNativeV1Route("notify-prefs"), { kind: "notify-prefs" });
+    assert.deepEqual(matchNativeV1Route("account/export"), { kind: "account-export" });
+    assert.deepEqual(matchNativeV1Route("account/delete"), { kind: "account-delete" });
+  });
+
   it("rejects unknown paths", () => {
     assert.equal(matchNativeV1Route("plans").kind, "not-found");
     assert.equal(matchNativeV1Route("notes/a/b").kind, "not-found");
     assert.equal(matchNativeV1Route("auth/other").kind, "not-found");
+    assert.equal(matchNativeV1Route("account").kind, "not-found");
   });
 });
 
@@ -84,6 +93,18 @@ describe("methodAllowed", () => {
     assert.equal(methodAllowed({ kind: "group-notes", groupId: "g" }, "POST"), true);
     assert.equal(methodAllowed({ kind: "group-notes", groupId: "g", noteId: "n" }, "DELETE"), true);
     assert.equal(methodAllowed({ kind: "note-groups", noteId: "n" }, "GET"), true);
+  });
+
+  it("allows profile prefs and account delete", () => {
+    assert.equal(methodAllowed({ kind: "me" }, "GET"), true);
+    assert.equal(methodAllowed({ kind: "me" }, "PATCH"), true);
+    assert.equal(methodAllowed({ kind: "prefs" }, "GET"), true);
+    assert.equal(methodAllowed({ kind: "prefs" }, "PATCH"), true);
+    assert.equal(methodAllowed({ kind: "notify-prefs" }, "POST"), true);
+    assert.equal(methodAllowed({ kind: "account-export" }, "GET"), true);
+    assert.equal(methodAllowed({ kind: "account-delete" }, "POST"), true);
+    assert.equal(methodAllowed({ kind: "account-delete" }, "DELETE"), true);
+    assert.equal(methodAllowed({ kind: "me" }, "DELETE"), false);
   });
 });
 

@@ -1,6 +1,6 @@
 import UIKit
 
-/// Phase 1–2 root: native Caderno + Grupos; other tabs still placeholders.
+/// Phase 1–3 root: native Caderno + Grupos + Perfil; Versículos/Leitura still placeholders.
 final class NativeRootTabBarController: UITabBarController {
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -34,13 +34,7 @@ final class NativeRootTabBarController: UITabBarController {
         )
         reading.tabBarItem = UITabBarItem(title: "Leitura", image: UIImage(systemName: "calendar"), tag: 3)
 
-        let profile = UINavigationController(
-            rootViewController: ComingSoonTabViewController(
-                titleText: "Perfil",
-                systemImage: "person",
-                sitePath: "/profile"
-            )
-        )
+        let profile = UINavigationController(rootViewController: ProfileViewController())
         profile.tabBarItem = UITabBarItem(title: "Perfil", image: UIImage(systemName: "person"), tag: 4)
 
         viewControllers = [verses, groups, notebook, reading, profile]

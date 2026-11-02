@@ -200,6 +200,69 @@ enum NativeAPIClient {
         let error: String?
     }
 
+    // MARK: - Profile / prefs (Phase 3)
+
+    struct PrefsDTO: Codable, Equatable {
+        var locale: String
+        var copyLocale: String
+        var appId: String
+        var translationId: String
+        var preferNative: Bool
+        var copyFormat: String
+        var citeBook: String
+        var citeSep: String
+        var booksCompact: Bool
+        var theme: String
+        var activePlans: [String]?
+        var avatarId: String
+        var avatarUrl: String
+        var handle: String
+        var firstName: String
+        var lastName: String
+        var profileEmail: String
+
+        var displayName: String {
+            let full = "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
+            if !full.isEmpty { return full }
+            if !handle.isEmpty { return "@\(handle)" }
+            return profileEmail
+        }
+    }
+
+    struct NotifyPrefsDTO: Codable, Equatable {
+        var reading: Bool
+        var friends: Bool
+        var shares: Bool
+        var groups: Bool
+        var apnsDevices: Int?
+    }
+
+    struct MeDTO: Codable, Equatable {
+        var id: String
+        var email: String?
+        var displayName: String
+        var prefs: PrefsDTO
+        var notify: NotifyPrefsDTO
+    }
+
+    struct MeResponse: Decodable {
+        let ok: Bool?
+        let me: MeDTO?
+        let error: String?
+    }
+
+    struct PrefsResponse: Decodable {
+        let ok: Bool?
+        let prefs: PrefsDTO?
+        let error: String?
+    }
+
+    struct NotifyPrefsResponse: Decodable {
+        let ok: Bool?
+        let notify: NotifyPrefsDTO?
+        let error: String?
+    }
+
     // MARK: - Requests
 
     private static func authorizedRequest(path: String, method: String, body: Data? = nil) throws -> URLRequest {
@@ -470,6 +533,108 @@ enum NativeAPIClient {
               let groups = decoded.groups
         else { throw APIError.decoding }
         return groups
+    }
+
+    // MARK: - Profile (Phase 3)
+
+    static func getMe() async throws -> MeDTO {
+        let request = try authorizedRequest(path: "api/native/v1/me", method: "GET")
+        let (status, data) = try await perform(request)
+        if status == 401 { throw APIError.unauthorized }
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(MeResponse.self, from: data),
+              let me = decoded.me
+        else { throw APIError.decoding }
+        return me
+    }
+
+    static func patchMe(_ patch: [String: Any]) async throws -> MeDTO {
+        let body = try JSONSerialization.data(withJSONObject: patch)
+        let request = try authorizedRequest(path: "api/native/v1/me", method: "PATCH", body: body)
+        let (status, data) = try await perform(request)
+        if status == 401 { throw APIError.unauthorized }
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(MeResponse.self, from: data),
+              let me = decoded.me
+        else { throw APIError.decoding }
+        return me
+    }
+
+    static func getPrefs() async throws -> PrefsDTO {
+        let request = try authorizedRequest(path: "api/native/v1/prefs", method: "GET")
+        let (status, data) = try await perform(request)
+        if status == 401 { throw APIError.unauthorized }
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(PrefsResponse.self, from: data),
+              let prefs = decoded.prefs
+        else { throw APIError.decoding }
+        return prefs
+    }
+
+    static func patchPrefs(_ patch: [String: Any]) async throws -> PrefsDTO {
+        let body = try JSONSerialization.data(withJSONObject: patch)
+        let request = try authorizedRequest(path: "api/native/v1/prefs", method: "PATCH", body: body)
+        let (status, data) = try await perform(request)
+        if status == 401 { throw APIError.unauthorized }
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(PrefsResponse.self, from: data),
+              let prefs = decoded.prefs
+        else { throw APIError.decoding }
+        return prefs
+    }
+
+    static func getNotifyPrefs() async throws -> NotifyPrefsDTO {
+        let request = try authorizedRequest(path: "api/native/v1/notify-prefs", method: "GET")
+        let (status, data) = try await perform(request)
+        if status == 401 { throw APIError.unauthorized }
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(NotifyPrefsResponse.self, from: data),
+              let notify = decoded.notify
+        else { throw APIError.decoding }
+        return notify
+    }
+
+    static func patchNotifyPrefs(_ patch: [String: Bool]) async throws -> NotifyPrefsDTO {
+        let body = try JSONSerialization.data(withJSONObject: patch)
+        let request = try authorizedRequest(path: "api/native/v1/notify-prefs", method: "PATCH", body: body)
+        let (status, data) = try await perform(request)
+        if status == 401 { throw APIError.unauthorized }
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(NotifyPrefsResponse.self, from: data),
+              let notify = decoded.notify
+        else { throw APIError.decoding }
+        return notify
+    }
+
+    static func exportAccount() async throws -> Data {
+        let request = try authorizedRequest(path: "api/native/v1/account/export", method: "GET")
+        let (status, data) = try await perform(request)
+        if status == 401 { throw APIError.unauthorized }
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        return data
+    }
+
+    static func deleteAccount() async throws {
+        let request = try authorizedRequest(path: "api/native/v1/account/delete", method: "POST")
+        let (status, data) = try await perform(request)
+        if status == 401 { throw APIError.unauthorized }
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
     }
 
     // Phase 0 smoke helpers
