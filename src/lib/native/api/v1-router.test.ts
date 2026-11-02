@@ -49,11 +49,26 @@ describe("matchNativeV1Route", () => {
     assert.deepEqual(matchNativeV1Route("account/delete"), { kind: "account-delete" });
   });
 
+  it("maps bible catalog, append, and my-collections", () => {
+    assert.deepEqual(matchNativeV1Route("bible/books"), { kind: "bible-books" });
+    assert.deepEqual(matchNativeV1Route("bible/apps"), { kind: "bible-apps" });
+    assert.deepEqual(matchNativeV1Route("bible/link"), { kind: "bible-link" });
+    assert.deepEqual(matchNativeV1Route("bible/themes"), { kind: "bible-themes" });
+    assert.deepEqual(matchNativeV1Route("verses/append"), { kind: "verses-append" });
+    assert.deepEqual(matchNativeV1Route("my-collections"), { kind: "my-collections" });
+    assert.deepEqual(matchNativeV1Route("my-collections/save"), { kind: "my-collections-save" });
+    assert.deepEqual(matchNativeV1Route("my-collections/c1"), {
+      kind: "my-collections",
+      collectionId: "c1",
+    });
+  });
+
   it("rejects unknown paths", () => {
     assert.equal(matchNativeV1Route("plans").kind, "not-found");
     assert.equal(matchNativeV1Route("notes/a/b").kind, "not-found");
     assert.equal(matchNativeV1Route("auth/other").kind, "not-found");
     assert.equal(matchNativeV1Route("account").kind, "not-found");
+    assert.equal(matchNativeV1Route("bible").kind, "not-found");
   });
 });
 
@@ -106,6 +121,15 @@ describe("methodAllowed", () => {
     assert.equal(methodAllowed({ kind: "account-delete" }, "DELETE"), true);
     assert.equal(methodAllowed({ kind: "me" }, "DELETE"), false);
   });
+
+  it("allows bible GET and verses append POST", () => {
+    assert.equal(methodAllowed({ kind: "bible-books" }, "GET"), true);
+    assert.equal(methodAllowed({ kind: "bible-link" }, "POST"), true);
+    assert.equal(methodAllowed({ kind: "bible-themes" }, "GET"), true);
+    assert.equal(methodAllowed({ kind: "verses-append" }, "POST"), true);
+    assert.equal(methodAllowed({ kind: "my-collections-save" }, "POST"), true);
+    assert.equal(methodAllowed({ kind: "my-collections" }, "POST"), true);
+  });
 });
 
 describe("isPublicNativeAuthRoute", () => {
@@ -115,5 +139,12 @@ describe("isPublicNativeAuthRoute", () => {
     assert.equal(isPublicNativeAuthRoute({ kind: "catalog" }), true);
     assert.equal(isPublicNativeAuthRoute({ kind: "notes" }), false);
     assert.equal(isPublicNativeAuthRoute({ kind: "auth-sign-out" }), false);
+  });
+
+  it("marks bible catalog public and append private", () => {
+    assert.equal(isPublicNativeAuthRoute({ kind: "bible-books" }), true);
+    assert.equal(isPublicNativeAuthRoute({ kind: "bible-themes" }), true);
+    assert.equal(isPublicNativeAuthRoute({ kind: "verses-append" }), false);
+    assert.equal(isPublicNativeAuthRoute({ kind: "my-collections" }), false);
   });
 });

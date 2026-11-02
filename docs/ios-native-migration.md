@@ -411,9 +411,8 @@ Principles: **small**, **user-visible or foundational**, **reversible feature fl
 
 ### Phase 4 — Native verses + reading
 
-- Verse picker, collection browser, reading plans, day marks.
-- Reuse public `/api/collections` + `/api/plans` + native marks API.
-- Bible app open via `UIApplication.open`.
+- **Shipped (Versículos):** native picker (livro → capítulo → versículo), temas/coleções, abrir na Bíblia (`UIApplication.open` + prefs do Perfil), compartilhar/copiar, adicionar `bibleRef` à nota de hoje (`POST /verses/append` → NoteDocumentV1), minhas listas (`/my-collections*`). API pública: `/bible/books|apps|link|themes`.
+- Reading plans + day marks — follow-up (aba Leitura ainda Em breve).
 
 ### Phase 5 — Remove Capacitor site host
 
@@ -497,3 +496,4 @@ Principles: **small**, **user-visible or foundational**, **reversible feature fl
 | 2026-11-01 | Phase 0 merged (TF 95). **Phase 1:** native Caderno default (`hybrid`); Cap site hidden fallback. |
 | 2026-11-01 | Phase 1 TF 98: add **native login** (Google ASWebAuth, Apple ASAuthorization, email) + cookie→Keychain migration + sign-out. |
 | 2026-11-02 | Phase 2 Grupos merged (#41). **Phase 3:** native Perfil + Configurações (`/me`, `/prefs`, `/notify-prefs`, `/account/delete|export`). |
+| 2026-11-02 | **Phase 4 Versículos:** native picker + temas + append `bibleRef` (`/bible/*`, `/verses/append`, `/my-collections*`). Leitura (plans) fica para follow-up. |

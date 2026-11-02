@@ -55,6 +55,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
 extension Notification.Name {
     static let nativeSessionDidChange = Notification.Name("verse2note.nativeSessionDidChange")
+    static let nativeNoteDidChange = Notification.Name("verse2note.nativeNoteDidChange")
 }
 
 /// WKWebView writes cookies asynchronously. Reading the store is what pushes

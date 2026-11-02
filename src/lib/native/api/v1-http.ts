@@ -53,6 +53,73 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
   }
 
   try {
+    // Public bible catalog (no bearer required — same as /api/link + /api/collections).
+    if (
+      route.kind === "bible-books" ||
+      route.kind === "bible-apps" ||
+      route.kind === "bible-link" ||
+      route.kind === "bible-themes"
+    ) {
+      const versesApi = await import("./v1-verses.server");
+      const url = new URL(request.url);
+      if (route.kind === "bible-books") {
+        return json(versesApi.listBibleBooks(url.searchParams.get("locale") ?? undefined));
+      }
+      if (route.kind === "bible-apps") {
+        return json(versesApi.listBibleApps(url.searchParams.get("locale") ?? undefined));
+      }
+      if (route.kind === "bible-themes") {
+        const { queryCollectionsFromSearch } = await import("@/lib/bible/collections-api");
+        return json(versesApi.resolveNativeThemes(queryCollectionsFromSearch(url.searchParams)));
+      }
+      // bible-link
+      let linkQuery: {
+        refs: string[];
+        app?: string;
+        translation?: string;
+        locale?: string;
+        native?: boolean;
+      };
+      if (request.method.toUpperCase() === "POST") {
+        const body = await readBody(request);
+        if (body === Symbol.for("invalid-json")) return json({ ok: false, error: "invalid_json" }, 400);
+        const payload = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+        const { collectRefs } = await import("@/lib/bible/link-api");
+        const refs = collectRefs([
+          payload.ref as string | undefined,
+          payload.refs as string | string[] | undefined,
+        ]);
+        const nativeRaw = payload.native;
+        linkQuery = {
+          refs,
+          app: typeof payload.app === "string" ? payload.app : undefined,
+          translation: typeof payload.translation === "string" ? payload.translation : undefined,
+          locale: typeof payload.locale === "string" ? payload.locale : undefined,
+          native:
+            nativeRaw === true || nativeRaw === 1 || nativeRaw === "1" || nativeRaw === "true"
+              ? true
+              : nativeRaw === false || nativeRaw === 0 || nativeRaw === "0" || nativeRaw === "false"
+                ? false
+                : undefined,
+        };
+      } else {
+        const { queryFromSearch } = await import("@/lib/bible/link-api");
+        linkQuery = queryFromSearch(url.searchParams);
+        if (!url.searchParams.has("native")) linkQuery.native = undefined;
+      }
+      // Optional bearer → merge user prefs.
+      let userId: string | null = null;
+      try {
+        const { resolveNativeUser } = await import("./v1.server");
+        const user = await resolveNativeUser(request);
+        userId = user.id;
+      } catch {
+        userId = null;
+      }
+      const result = await versesApi.resolveNativeLink(userId, linkQuery);
+      return json(result, result.ok ? 200 : 400);
+    }
+
     // Public auth endpoints (no bearer yet). Catalog already returned above.
     if (
       route.kind === "auth-providers" ||
@@ -283,6 +350,57 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
     if (route.kind === "account-delete") {
       const result = await profileApi.deleteAccountForUser(user.id);
       if (!result.ok) return json(result, 429);
+      return json(result);
+    }
+
+    const versesApi = await import("./v1-verses.server");
+
+    if (route.kind === "verses-append") {
+      const body = await readBody(request);
+      if (body === Symbol.for("invalid-json")) return json({ ok: false, error: "invalid_json" }, 400);
+      const result = await versesApi.appendVerseForUser(user.id, body);
+      if (!result.ok) {
+        const status = result.error === "missing" ? 404 : result.error === "limit" ? 409 : 400;
+        return json(result, status);
+      }
+      return json(result, 201);
+    }
+
+    if (route.kind === "my-collections-save") {
+      const body = await readBody(request);
+      if (body === Symbol.for("invalid-json")) return json({ ok: false, error: "invalid_json" }, 400);
+      const result = await versesApi.savePassageToCollectionForUser(user.id, body);
+      if (!result.ok) {
+        const status = result.error === "missing" ? 404 : result.error === "limit" ? 409 : 400;
+        return json(result, status);
+      }
+      return json(result);
+    }
+
+    if (route.kind === "my-collections") {
+      if (!route.collectionId) {
+        if (method === "GET") {
+          return json({ ok: true, collections: await versesApi.listMyCollectionsForUser(user.id) });
+        }
+        const body = await readBody(request);
+        if (body === Symbol.for("invalid-json")) return json({ ok: false, error: "invalid_json" }, 400);
+        const result = await versesApi.createMyCollectionForUser(user.id, body);
+        if (!result.ok) return json(result, result.error === "limit" ? 409 : 400);
+        return json(result, 201);
+      }
+      if (method === "GET") {
+        const collection = await versesApi.getMyCollectionForUser(user.id, route.collectionId);
+        if (!collection) return json({ ok: false, error: "missing" }, 404);
+        return json({ ok: true, collection });
+      }
+      if (method === "DELETE") {
+        const result = await versesApi.deleteMyCollectionForUser(user.id, route.collectionId);
+        return json(result, result.ok ? 200 : 404);
+      }
+      const body = await readBody(request);
+      if (body === Symbol.for("invalid-json")) return json({ ok: false, error: "invalid_json" }, 400);
+      const result = await versesApi.updateMyCollectionForUser(user.id, route.collectionId, body);
+      if (!result.ok) return json(result, result.error === "missing" ? 404 : 400);
       return json(result);
     }
 

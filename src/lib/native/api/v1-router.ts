@@ -22,6 +22,13 @@ export type NativeV1Route =
   | { kind: "notify-prefs" }
   | { kind: "account-export" }
   | { kind: "account-delete" }
+  | { kind: "bible-books" }
+  | { kind: "bible-apps" }
+  | { kind: "bible-link" }
+  | { kind: "bible-themes" }
+  | { kind: "verses-append" }
+  | { kind: "my-collections"; collectionId?: string }
+  | { kind: "my-collections-save" }
   | { kind: "not-found"; path: string };
 
 /**
@@ -65,6 +72,19 @@ export function matchNativeV1Route(splat: string): NativeV1Route {
   if (a === "account" && b === "export" && parts.length === 2) return { kind: "account-export" };
   if (a === "account" && b === "delete" && parts.length === 2) return { kind: "account-delete" };
 
+  if (a === "bible" && b === "books" && parts.length === 2) return { kind: "bible-books" };
+  if (a === "bible" && b === "apps" && parts.length === 2) return { kind: "bible-apps" };
+  if (a === "bible" && b === "link" && parts.length === 2) return { kind: "bible-link" };
+  if (a === "bible" && b === "themes" && parts.length === 2) return { kind: "bible-themes" };
+  if (a === "verses" && b === "append" && parts.length === 2) return { kind: "verses-append" };
+  if (a === "my-collections" && b === "save" && parts.length === 2) {
+    return { kind: "my-collections-save" };
+  }
+  if (a === "my-collections" && parts.length === 1) return { kind: "my-collections" };
+  if (a === "my-collections" && parts.length === 2 && b) {
+    return { kind: "my-collections", collectionId: b };
+  }
+
   return { kind: "not-found", path: raw };
 }
 
@@ -76,7 +96,11 @@ export function isPublicNativeAuthRoute(route: NativeV1Route): boolean {
     route.kind === "auth-email" ||
     route.kind === "auth-apple" ||
     route.kind === "auth-from-cookie" ||
-    route.kind === "catalog"
+    route.kind === "catalog" ||
+    route.kind === "bible-books" ||
+    route.kind === "bible-apps" ||
+    route.kind === "bible-link" ||
+    route.kind === "bible-themes"
   );
 }
 
@@ -122,6 +146,18 @@ export function methodAllowed(route: NativeV1Route, method: string): boolean {
       return m === "GET";
     case "account-delete":
       return m === "POST" || m === "DELETE";
+    case "bible-books":
+    case "bible-apps":
+    case "bible-themes":
+      return m === "GET";
+    case "bible-link":
+      return m === "GET" || m === "POST";
+    case "verses-append":
+    case "my-collections-save":
+      return m === "POST";
+    case "my-collections":
+      if (!route.collectionId) return m === "GET" || m === "POST";
+      return m === "GET" || m === "PATCH" || m === "PUT" || m === "DELETE";
     case "not-found":
       return false;
   }

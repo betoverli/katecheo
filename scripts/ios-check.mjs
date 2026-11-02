@@ -433,6 +433,35 @@ if (!authRouter.includes("group-notes") || !authRouter.includes('"groups"')) {
 if (!rootTabs.includes("ProfileViewController") || rootTabs.includes('titleText: "Perfil"')) {
   errors.push("Phase 3: a aba Perfil tem de usar ProfileViewController (não Em breve).");
 }
+// Phase 4: native Versículos tab (not Coming Soon).
+if (!rootTabs.includes("VersesHomeViewController") || rootTabs.includes('titleText: "Versículos"')) {
+  errors.push("Phase 4: a aba Versículos tem de usar VersesHomeViewController (não Em breve).");
+}
+try {
+  const versesHome = read("ios/App/App/VersesHomeViewController.swift");
+  if (!versesHome.includes("Temas") || !versesHome.includes("fetchBibleBooks")) {
+    errors.push("VersesHomeViewController tem de listar livros e abrir Temas.");
+  }
+  const versesScreens = read("ios/App/App/VersesScreens.swift");
+  if (
+    !versesScreens.includes("VerseActionsViewController") ||
+    !versesScreens.includes("appendVerse") ||
+    !versesScreens.includes("Adicionar à nota")
+  ) {
+    errors.push("Faltam telas nativas de ações de versículo / adicionar à nota.");
+  }
+  if (/Partilhar|Guardar|utilizador|Definições/.test(versesScreens) || /Partilhar|Guardar|utilizador|Definições/.test(versesHome)) {
+    errors.push("Strings de Versículos têm de ser pt-BR (não Partilhar/Guardar/utilizador/Definições).");
+  }
+} catch {
+  errors.push("Arquivo Phase 4 em falta: VersesHomeViewController.swift / VersesScreens.swift");
+}
+if (!project.includes("VersesHomeViewController.swift in Sources") || !project.includes("VersesScreens.swift in Sources")) {
+  errors.push("VersesHomeViewController / VersesScreens têm de estar no target Xcode.");
+}
+if (!authRouter.includes("bible-books") || !authRouter.includes("verses-append") || !authRouter.includes("my-collections")) {
+  errors.push("Faltam rotas /api/native/v1/bible*|verses/append|my-collections no router nativo.");
+}
 try {
   const profile = read("ios/App/App/ProfileViewController.swift");
   if (!profile.includes("Sair da conta") || !profile.includes("Apagar conta") || !profile.includes("getMe")) {
@@ -459,6 +488,9 @@ const apiClient = read("ios/App/App/NativeAPIClient.swift");
 if (!apiClient.includes("func getMe(") || !apiClient.includes("func deleteAccount(")) {
   errors.push("NativeAPIClient tem de expor getMe e deleteAccount.");
 }
+if (!apiClient.includes("func fetchBibleBooks(") || !apiClient.includes("func appendVerse(")) {
+  errors.push("NativeAPIClient tem de expor fetchBibleBooks e appendVerse.");
+}
 
 for (const path of [
   "ios/App/App/NativeShell.swift",
@@ -478,6 +510,9 @@ for (const path of [
   "ios/App/App/ProfileViewController.swift",
   "ios/App/App/ProfileSettingsScreens.swift",
   "src/lib/native/api/v1-profile.server.ts",
+  "ios/App/App/VersesHomeViewController.swift",
+  "ios/App/App/VersesScreens.swift",
+  "src/lib/native/api/v1-verses.server.ts",
 ]) {
   try {
     read(path);

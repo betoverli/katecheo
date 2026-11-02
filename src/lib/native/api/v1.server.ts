@@ -264,6 +264,20 @@ export function nativeV1Catalog() {
       { method: "PATCH", path: "/notify-prefs", auth: true, body: "{ reading?, friends?, shares?, groups? }" },
       { method: "GET", path: "/account/export", auth: true },
       { method: "POST", path: "/account/delete", auth: true },
+      { method: "GET", path: "/bible/books", auth: false, returns: "book catalog + verse counts" },
+      { method: "GET", path: "/bible/apps", auth: false, returns: "apps + translations" },
+      { method: "GET|POST", path: "/bible/link", auth: false, note: "optional Bearer merges prefs" },
+      { method: "GET", path: "/bible/themes", auth: false, note: "wraps /api/collections" },
+      {
+        method: "POST",
+        path: "/verses/append",
+        auth: true,
+        body: "{ bookId, chapter, verseStart?, verseEnd?, noteId? }",
+        note: "appends bibleRef span to today's note (NoteDocumentV1)",
+      },
+      { method: "GET|POST", path: "/my-collections", auth: true },
+      { method: "GET|PATCH|DELETE", path: "/my-collections/:id", auth: true },
+      { method: "POST", path: "/my-collections/save", auth: true, body: "{ passage, collectionId? }" },
     ],
   };
 }
