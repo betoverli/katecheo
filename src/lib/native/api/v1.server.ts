@@ -256,6 +256,14 @@ export function nativeV1Catalog() {
       { method: "POST", path: "/groups/:id/notes", auth: true, body: "{ noteId }" },
       { method: "DELETE", path: "/groups/:id/notes/:noteId", auth: true },
       { method: "GET", path: "/notes/:id/groups", auth: true },
+      { method: "GET", path: "/me", auth: true, returns: "{ me: profile+prefs+notify }" },
+      { method: "PATCH", path: "/me", auth: true, body: "partial profile/prefs" },
+      { method: "GET", path: "/prefs", auth: true },
+      { method: "PATCH", path: "/prefs", auth: true, body: "CloudPrefs fields" },
+      { method: "GET", path: "/notify-prefs", auth: true },
+      { method: "PATCH", path: "/notify-prefs", auth: true, body: "{ reading?, friends?, shares?, groups? }" },
+      { method: "GET", path: "/account/export", auth: true },
+      { method: "POST", path: "/account/delete", auth: true },
     ],
   };
 }

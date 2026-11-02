@@ -429,6 +429,37 @@ if (!authRouter.includes("group-notes") || !authRouter.includes('"groups"')) {
   errors.push("Faltam rotas /api/native/v1/groups* no router nativo.");
 }
 
+// Phase 3: native Perfil / Configurações tab (not Coming Soon).
+if (!rootTabs.includes("ProfileViewController") || rootTabs.includes('titleText: "Perfil"')) {
+  errors.push("Phase 3: a aba Perfil tem de usar ProfileViewController (não Em breve).");
+}
+try {
+  const profile = read("ios/App/App/ProfileViewController.swift");
+  if (!profile.includes("Sair da conta") || !profile.includes("Apagar conta") || !profile.includes("getMe")) {
+    errors.push("ProfileViewController tem de mostrar perfil, sair da conta e apagar conta.");
+  }
+  const settings = read("ios/App/App/ProfileSettingsScreens.swift");
+  if (
+    !settings.includes("ProfileEditViewController") ||
+    !settings.includes("ProfileThemeViewController") ||
+    !settings.includes("ProfileNotifyViewController")
+  ) {
+    errors.push("Faltam telas nativas de editar perfil / aparência / avisos.");
+  }
+} catch {
+  errors.push("Arquivo Phase 3 em falta: ProfileViewController.swift / ProfileSettingsScreens.swift");
+}
+if (!project.includes("ProfileViewController.swift in Sources") || !project.includes("ProfileSettingsScreens.swift in Sources")) {
+  errors.push("ProfileViewController / ProfileSettingsScreens têm de estar no target Xcode.");
+}
+if (!authRouter.includes('"me"') || !authRouter.includes("account-delete") || !authRouter.includes("notify-prefs")) {
+  errors.push("Faltam rotas /api/native/v1/me|prefs|account* no router nativo.");
+}
+const apiClient = read("ios/App/App/NativeAPIClient.swift");
+if (!apiClient.includes("func getMe(") || !apiClient.includes("func deleteAccount(")) {
+  errors.push("NativeAPIClient tem de expor getMe e deleteAccount.");
+}
+
 for (const path of [
   "ios/App/App/NativeShell.swift",
   "ios/App/App.xcodeproj/xcshareddata/xcschemes/App.xcscheme",
@@ -444,6 +475,9 @@ for (const path of [
   "ios/App/App/NativeSignInViewController.swift",
   "ios/App/App/NativeLoginService.swift",
   "ios/App/App/NativeSessionBootstrap.swift",
+  "ios/App/App/ProfileViewController.swift",
+  "ios/App/App/ProfileSettingsScreens.swift",
+  "src/lib/native/api/v1-profile.server.ts",
 ]) {
   try {
     read(path);

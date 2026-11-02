@@ -405,10 +405,9 @@ Principles: **small**, **user-visible or foundational**, **reversible feature fl
 
 ### Phase 3 — Native profile, settings, friends, APNs UI
 
-- Profile, edit, language, theme, bible app prefs, notify settings.
-- Friends search/request/accept.
-- Delete account / export via API.
-- Push permission + device registration (already partially native).
+- **Shipped (this phase):** Profile hub, edit name/handle/email, language, theme, bible app prefs, notify toggles, sign-out (Keychain), delete account + export via `/api/native/v1/me|prefs|notify-prefs|account/*`.
+- Friends search/request/accept — follow-up (still web / Em breve).
+- Push permission + device registration (already partially native; notify screen shows APNs device count).
 
 ### Phase 4 — Native verses + reading
 
@@ -497,3 +496,4 @@ Principles: **small**, **user-visible or foundational**, **reversible feature fl
 | 2026-11-01 | **Final Phase 7:** note editor fully native (no WebView). Content = versioned platform-neutral JSON from Phase 0 (`NoteDocumentV1`), not HTML. |
 | 2026-11-01 | Phase 0 merged (TF 95). **Phase 1:** native Caderno default (`hybrid`); Cap site hidden fallback. |
 | 2026-11-01 | Phase 1 TF 98: add **native login** (Google ASWebAuth, Apple ASAuthorization, email) + cookie→Keychain migration + sign-out. |
+| 2026-11-02 | Phase 2 Grupos merged (#41). **Phase 3:** native Perfil + Configurações (`/me`, `/prefs`, `/notify-prefs`, `/account/delete|export`). |

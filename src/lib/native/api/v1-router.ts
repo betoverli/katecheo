@@ -17,6 +17,11 @@ export type NativeV1Route =
   | { kind: "auth-sign-out" }
   | { kind: "groups"; groupId?: string }
   | { kind: "group-notes"; groupId: string; noteId?: string }
+  | { kind: "me" }
+  | { kind: "prefs" }
+  | { kind: "notify-prefs" }
+  | { kind: "account-export" }
+  | { kind: "account-delete" }
   | { kind: "not-found"; path: string };
 
 /**
@@ -53,6 +58,12 @@ export function matchNativeV1Route(splat: string): NativeV1Route {
   if (a === "groups" && b && c === "notes" && d && parts.length === 4) {
     return { kind: "group-notes", groupId: b, noteId: d };
   }
+
+  if (a === "me" && parts.length === 1) return { kind: "me" };
+  if (a === "prefs" && parts.length === 1) return { kind: "prefs" };
+  if (a === "notify-prefs" && parts.length === 1) return { kind: "notify-prefs" };
+  if (a === "account" && b === "export" && parts.length === 2) return { kind: "account-export" };
+  if (a === "account" && b === "delete" && parts.length === 2) return { kind: "account-delete" };
 
   return { kind: "not-found", path: raw };
 }
@@ -101,6 +112,16 @@ export function methodAllowed(route: NativeV1Route, method: string): boolean {
     case "group-notes":
       if (!route.noteId) return m === "GET" || m === "POST";
       return m === "DELETE";
+    case "me":
+      return m === "GET" || m === "PATCH" || m === "PUT";
+    case "prefs":
+      return m === "GET" || m === "PATCH" || m === "PUT" || m === "POST";
+    case "notify-prefs":
+      return m === "GET" || m === "PATCH" || m === "PUT" || m === "POST";
+    case "account-export":
+      return m === "GET";
+    case "account-delete":
+      return m === "POST" || m === "DELETE";
     case "not-found":
       return false;
   }

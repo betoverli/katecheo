@@ -241,6 +241,51 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
       return json({ ok: true, groups });
     }
 
+    const profileApi = await import("./v1-profile.server");
+
+    if (route.kind === "me") {
+      if (method === "GET") {
+        return json({ ok: true, me: await profileApi.getMeForUser(user.id, user.email) });
+      }
+      const body = await readBody(request);
+      if (body === Symbol.for("invalid-json")) return json({ ok: false, error: "invalid_json" }, 400);
+      const result = await profileApi.patchMeForUser(user.id, body);
+      if (!result.ok) return json(result, result.error === "handle" ? 409 : 400);
+      return json(result);
+    }
+
+    if (route.kind === "prefs") {
+      if (method === "GET") {
+        return json({ ok: true, prefs: await profileApi.getPrefsForUser(user.id) });
+      }
+      const body = await readBody(request);
+      if (body === Symbol.for("invalid-json")) return json({ ok: false, error: "invalid_json" }, 400);
+      const result = await profileApi.savePrefsForUser(user.id, body);
+      if (!result.ok) return json(result, result.error === "handle" ? 409 : 400);
+      return json(result);
+    }
+
+    if (route.kind === "notify-prefs") {
+      if (method === "GET") {
+        return json({ ok: true, notify: await profileApi.getNotifyPrefsForUser(user.id) });
+      }
+      const body = await readBody(request);
+      if (body === Symbol.for("invalid-json")) return json({ ok: false, error: "invalid_json" }, 400);
+      const result = await profileApi.saveNotifyPrefsForUser(user.id, body);
+      if (!result.ok) return json(result, 400);
+      return json(result);
+    }
+
+    if (route.kind === "account-export") {
+      return json(await profileApi.exportAccountForUser(user.id));
+    }
+
+    if (route.kind === "account-delete") {
+      const result = await profileApi.deleteAccountForUser(user.id);
+      if (!result.ok) return json(result, 429);
+      return json(result);
+    }
+
     return json({ ok: false, error: "not_found" }, 404);
   } catch (error) {
     if (error instanceof UnauthorizedError) {
