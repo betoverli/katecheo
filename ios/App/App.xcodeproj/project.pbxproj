@@ -36,6 +36,7 @@
 		E4F1B0102FED796500168560 /* NativeSessionBootstrap.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4F1B0112FED796500168560 /* NativeSessionBootstrap.swift */; };
 		E4F1B0122FED796500168560 /* NativeLoginService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4F1B0132FED796500168560 /* NativeLoginService.swift */; };
 		E4F1B0142FED796500168560 /* NativeSignInViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4F1B0152FED796500168560 /* NativeSignInViewController.swift */; };
+		F5A2C0102FED796500168570 /* GroupsListViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A2C0112FED796500168570 /* GroupsListViewController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -72,6 +73,7 @@
 		E4F1B0112FED796500168560 /* NativeSessionBootstrap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeSessionBootstrap.swift; sourceTree = "<group>"; };
 		E4F1B0132FED796500168560 /* NativeLoginService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeLoginService.swift; sourceTree = "<group>"; };
 		E4F1B0152FED796500168560 /* NativeSignInViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeSignInViewController.swift; sourceTree = "<group>"; };
+		F5A2C0112FED796500168570 /* GroupsListViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupsListViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -126,6 +128,7 @@
 				E4F1B0112FED796500168560 /* NativeSessionBootstrap.swift */,
 				E4F1B0132FED796500168560 /* NativeLoginService.swift */,
 				E4F1B0152FED796500168560 /* NativeSignInViewController.swift */,
+				F5A2C0112FED796500168570 /* GroupsListViewController.swift */,
 				A1C0DE032FED796500168520 /* LiquidGlassMaterial.m */,
 				A1C0DE052FED796500168520 /* LiquidGlassMaterial.h */,
 				A1C0DE062FED796500168520 /* App-Bridging-Header.h */,
@@ -244,6 +247,7 @@
 				E4F1B0102FED796500168560 /* NativeSessionBootstrap.swift in Sources */,
 				E4F1B0122FED796500168560 /* NativeLoginService.swift in Sources */,
 				E4F1B0142FED796500168560 /* NativeSignInViewController.swift in Sources */,
+				F5A2C0102FED796500168570 /* GroupsListViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

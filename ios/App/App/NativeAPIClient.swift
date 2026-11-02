@@ -132,6 +132,74 @@ enum NativeAPIClient {
         let email: String?
     }
 
+    struct GroupDTO: Codable, Equatable {
+        var id: String
+        var name: String
+        var description: String
+        var visibility: String
+        var postPolicy: String
+        var createdBy: String
+        var memberCount: Int
+        var myRole: String?
+        var myStatus: String?
+        var updatedAt: String
+        var published: Bool?
+
+        var isAdmin: Bool { myRole == "admin" && myStatus == "accepted" }
+        var isAccepted: Bool { myStatus == "accepted" }
+        var canPost: Bool {
+            guard isAccepted else { return false }
+            if postPolicy == "admins" { return isAdmin }
+            return true
+        }
+    }
+
+    struct GroupAuthorDTO: Codable, Equatable {
+        var userId: String
+        var handle: String
+        var firstName: String
+        var lastName: String
+
+        var displayName: String {
+            let full = "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
+            if !full.isEmpty { return full }
+            if !handle.isEmpty { return "@\(handle)" }
+            return "Membro"
+        }
+    }
+
+    struct GroupNoteCardDTO: Codable, Equatable {
+        struct NoteMeta: Codable, Equatable {
+            var id: String
+            var title: String
+            var happenedAt: String
+            var updatedAt: String
+        }
+
+        var note: NoteMeta
+        var author: GroupAuthorDTO
+        var owned: Bool
+        var document: NoteDocument?
+    }
+
+    struct GroupsResponse: Decodable {
+        let ok: Bool?
+        let groups: [GroupDTO]?
+        let error: String?
+    }
+
+    struct GroupResponse: Decodable {
+        let ok: Bool?
+        let group: GroupDTO?
+        let error: String?
+    }
+
+    struct GroupNotesResponse: Decodable {
+        let ok: Bool?
+        let notes: [GroupNoteCardDTO]?
+        let error: String?
+    }
+
     // MARK: - Requests
 
     private static func authorizedRequest(path: String, method: String, body: Data? = nil) throws -> URLRequest {
@@ -282,6 +350,126 @@ enum NativeAPIClient {
                 LineBlock(id: UUID().uuidString.replacingOccurrences(of: "-", with: ""), type: "paragraph", spans: [], speakerId: nil, title: nil, collapsed: nil, blocks: nil),
             ])
         )
+    }
+
+    // MARK: - Groups (Phase 2)
+
+    static func listGroups() async throws -> [GroupDTO] {
+        let request = try authorizedRequest(path: "api/native/v1/groups", method: "GET")
+        let (status, data) = try await perform(request)
+        if status == 401 { throw APIError.unauthorized }
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(GroupsResponse.self, from: data),
+              let groups = decoded.groups
+        else { throw APIError.decoding }
+        return groups
+    }
+
+    static func getGroup(id: String) async throws -> GroupDTO {
+        let request = try authorizedRequest(path: "api/native/v1/groups/\(id)", method: "GET")
+        let (status, data) = try await perform(request)
+        if status == 401 { throw APIError.unauthorized }
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(GroupResponse.self, from: data),
+              let group = decoded.group
+        else { throw APIError.decoding }
+        return group
+    }
+
+    static func createGroup(name: String, visibility: String = "private", description: String = "") async throws -> GroupDTO {
+        struct Body: Encodable {
+            let name: String
+            let visibility: String
+            let description: String
+        }
+        let body = try JSONEncoder().encode(Body(name: name, visibility: visibility, description: description))
+        let request = try authorizedRequest(path: "api/native/v1/groups", method: "POST", body: body)
+        let (status, data) = try await perform(request)
+        if status == 401 { throw APIError.unauthorized }
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(GroupResponse.self, from: data),
+              let group = decoded.group
+        else { throw APIError.decoding }
+        return group
+    }
+
+    static func updateGroup(id: String, name: String?, visibility: String? = nil, description: String? = nil) async throws -> GroupDTO {
+        var payload: [String: String] = [:]
+        if let name { payload["name"] = name }
+        if let visibility { payload["visibility"] = visibility }
+        if let description { payload["description"] = description }
+        let body = try JSONSerialization.data(withJSONObject: payload)
+        let request = try authorizedRequest(path: "api/native/v1/groups/\(id)", method: "PATCH", body: body)
+        let (status, data) = try await perform(request)
+        if status == 401 { throw APIError.unauthorized }
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(GroupResponse.self, from: data),
+              let group = decoded.group
+        else { throw APIError.decoding }
+        return group
+    }
+
+    static func deleteGroup(id: String) async throws {
+        let request = try authorizedRequest(path: "api/native/v1/groups/\(id)", method: "DELETE")
+        let (status, data) = try await perform(request)
+        if status == 401 { throw APIError.unauthorized }
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+    }
+
+    static func listGroupNotes(groupId: String) async throws -> [GroupNoteCardDTO] {
+        let request = try authorizedRequest(path: "api/native/v1/groups/\(groupId)/notes", method: "GET")
+        let (status, data) = try await perform(request)
+        if status == 401 { throw APIError.unauthorized }
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(GroupNotesResponse.self, from: data),
+              let notes = decoded.notes
+        else { throw APIError.decoding }
+        return notes
+    }
+
+    static func publishNote(noteId: String, toGroupId groupId: String) async throws {
+        struct Body: Encodable { let noteId: String }
+        let body = try JSONEncoder().encode(Body(noteId: noteId))
+        let request = try authorizedRequest(path: "api/native/v1/groups/\(groupId)/notes", method: "POST", body: body)
+        let (status, data) = try await perform(request)
+        if status == 401 { throw APIError.unauthorized }
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+    }
+
+    static func unpublishNote(noteId: String, fromGroupId groupId: String) async throws {
+        let request = try authorizedRequest(path: "api/native/v1/groups/\(groupId)/notes/\(noteId)", method: "DELETE")
+        let (status, data) = try await perform(request)
+        if status == 401 { throw APIError.unauthorized }
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+    }
+
+    static func listGroupsForNote(noteId: String) async throws -> [GroupDTO] {
+        let request = try authorizedRequest(path: "api/native/v1/notes/\(noteId)/groups", method: "GET")
+        let (status, data) = try await perform(request)
+        if status == 401 { throw APIError.unauthorized }
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(GroupsResponse.self, from: data),
+              let groups = decoded.groups
+        else { throw APIError.decoding }
+        return groups
     }
 
     // Phase 0 smoke helpers

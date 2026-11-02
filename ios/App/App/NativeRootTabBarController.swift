@@ -1,6 +1,6 @@
 import UIKit
 
-/// Phase 1 root: native notebook + placeholder tabs for the rest of the app.
+/// Phase 1–2 root: native Caderno + Grupos; other tabs still placeholders.
 final class NativeRootTabBarController: UITabBarController {
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -22,13 +22,7 @@ final class NativeRootTabBarController: UITabBarController {
         )
         verses.tabBarItem = UITabBarItem(title: "Versículos", image: UIImage(systemName: "book"), tag: 1)
 
-        let groups = UINavigationController(
-            rootViewController: ComingSoonTabViewController(
-                titleText: "Grupos",
-                systemImage: "person.2",
-                sitePath: "/groups"
-            )
-        )
+        let groups = UINavigationController(rootViewController: GroupsListViewController())
         groups.tabBarItem = UITabBarItem(title: "Grupos", image: UIImage(systemName: "person.2"), tag: 2)
 
         let reading = UINavigationController(

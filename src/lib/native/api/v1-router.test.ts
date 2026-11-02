@@ -29,8 +29,20 @@ describe("matchNativeV1Route", () => {
     assert.deepEqual(matchNativeV1Route("auth/sign-out"), { kind: "auth-sign-out" });
   });
 
+  it("maps groups collection, item, and notes", () => {
+    assert.deepEqual(matchNativeV1Route("groups"), { kind: "groups" });
+    assert.deepEqual(matchNativeV1Route("groups/g1"), { kind: "groups", groupId: "g1" });
+    assert.deepEqual(matchNativeV1Route("groups/g1/notes"), { kind: "group-notes", groupId: "g1" });
+    assert.deepEqual(matchNativeV1Route("groups/g1/notes/n1"), {
+      kind: "group-notes",
+      groupId: "g1",
+      noteId: "n1",
+    });
+    assert.deepEqual(matchNativeV1Route("notes/n1/groups"), { kind: "note-groups", noteId: "n1" });
+  });
+
   it("rejects unknown paths", () => {
-    assert.equal(matchNativeV1Route("groups").kind, "not-found");
+    assert.equal(matchNativeV1Route("plans").kind, "not-found");
     assert.equal(matchNativeV1Route("notes/a/b").kind, "not-found");
     assert.equal(matchNativeV1Route("auth/other").kind, "not-found");
   });
@@ -61,6 +73,17 @@ describe("methodAllowed", () => {
     assert.equal(methodAllowed({ kind: "catalog" }, "OPTIONS"), true);
     assert.equal(methodAllowed({ kind: "devices-apns" }, "OPTIONS"), true);
     assert.equal(methodAllowed({ kind: "auth-email" }, "OPTIONS"), true);
+  });
+
+  it("allows groups CRUD and note publish", () => {
+    assert.equal(methodAllowed({ kind: "groups" }, "GET"), true);
+    assert.equal(methodAllowed({ kind: "groups" }, "POST"), true);
+    assert.equal(methodAllowed({ kind: "groups", groupId: "g" }, "PATCH"), true);
+    assert.equal(methodAllowed({ kind: "groups", groupId: "g" }, "DELETE"), true);
+    assert.equal(methodAllowed({ kind: "group-notes", groupId: "g" }, "GET"), true);
+    assert.equal(methodAllowed({ kind: "group-notes", groupId: "g" }, "POST"), true);
+    assert.equal(methodAllowed({ kind: "group-notes", groupId: "g", noteId: "n" }, "DELETE"), true);
+    assert.equal(methodAllowed({ kind: "note-groups", noteId: "n" }, "GET"), true);
   });
 });
 

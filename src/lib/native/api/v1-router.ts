@@ -6,6 +6,7 @@ export type NativeV1Route =
   | { kind: "catalog" }
   | { kind: "session" }
   | { kind: "notes"; noteId?: string }
+  | { kind: "note-groups"; noteId: string }
   | { kind: "speakers"; speakerId?: string }
   | { kind: "devices-apns" }
   | { kind: "auth-providers" }
@@ -14,6 +15,8 @@ export type NativeV1Route =
   | { kind: "auth-apple" }
   | { kind: "auth-from-cookie" }
   | { kind: "auth-sign-out" }
+  | { kind: "groups"; groupId?: string }
+  | { kind: "group-notes"; groupId: string; noteId?: string }
   | { kind: "not-found"; path: string };
 
 /**
@@ -24,11 +27,14 @@ export function matchNativeV1Route(splat: string): NativeV1Route {
   if (!raw) return { kind: "catalog" };
 
   const parts = raw.split("/").filter(Boolean);
-  const [a, b] = parts;
+  const [a, b, c, d] = parts;
 
   if (a === "session" && parts.length === 1) return { kind: "session" };
   if (a === "notes" && parts.length === 1) return { kind: "notes" };
   if (a === "notes" && parts.length === 2 && b) return { kind: "notes", noteId: b };
+  if (a === "notes" && b && c === "groups" && parts.length === 3) {
+    return { kind: "note-groups", noteId: b };
+  }
   if (a === "speakers" && parts.length === 1) return { kind: "speakers" };
   if (a === "speakers" && parts.length === 2 && b) return { kind: "speakers", speakerId: b };
   if (a === "devices" && b === "apns" && parts.length === 2) return { kind: "devices-apns" };
@@ -38,6 +44,15 @@ export function matchNativeV1Route(splat: string): NativeV1Route {
   if (a === "auth" && b === "apple" && parts.length === 2) return { kind: "auth-apple" };
   if (a === "auth" && b === "from-cookie" && parts.length === 2) return { kind: "auth-from-cookie" };
   if (a === "auth" && b === "sign-out" && parts.length === 2) return { kind: "auth-sign-out" };
+
+  if (a === "groups" && parts.length === 1) return { kind: "groups" };
+  if (a === "groups" && parts.length === 2 && b) return { kind: "groups", groupId: b };
+  if (a === "groups" && b && c === "notes" && parts.length === 3) {
+    return { kind: "group-notes", groupId: b };
+  }
+  if (a === "groups" && b && c === "notes" && d && parts.length === 4) {
+    return { kind: "group-notes", groupId: b, noteId: d };
+  }
 
   return { kind: "not-found", path: raw };
 }
@@ -65,6 +80,8 @@ export function methodAllowed(route: NativeV1Route, method: string): boolean {
     case "notes":
       if (!route.noteId) return m === "GET" || m === "POST";
       return m === "GET" || m === "PATCH" || m === "PUT" || m === "DELETE";
+    case "note-groups":
+      return m === "GET";
     case "speakers":
       if (!route.speakerId) return m === "GET" || m === "POST";
       return m === "DELETE";
@@ -78,6 +95,12 @@ export function methodAllowed(route: NativeV1Route, method: string): boolean {
     case "auth-from-cookie":
     case "auth-sign-out":
       return m === "POST";
+    case "groups":
+      if (!route.groupId) return m === "GET" || m === "POST";
+      return m === "GET" || m === "PATCH" || m === "PUT" || m === "DELETE";
+    case "group-notes":
+      if (!route.noteId) return m === "GET" || m === "POST";
+      return m === "DELETE";
     case "not-found":
       return false;
   }

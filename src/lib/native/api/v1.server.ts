@@ -247,6 +247,15 @@ export function nativeV1Catalog() {
       { method: "DELETE", path: "/speakers/:id", auth: true },
       { method: "POST", path: "/devices/apns", auth: true, body: "{ token, sandbox? }" },
       { method: "DELETE", path: "/devices/apns", auth: true, body: "{ token? }" },
+      { method: "GET", path: "/groups", auth: true },
+      { method: "POST", path: "/groups", auth: true, body: "{ name, description?, visibility? }" },
+      { method: "GET", path: "/groups/:id", auth: true },
+      { method: "PATCH", path: "/groups/:id", auth: true, body: "{ name?, description?, visibility?, postPolicy? }" },
+      { method: "DELETE", path: "/groups/:id", auth: true },
+      { method: "GET", path: "/groups/:id/notes", auth: true },
+      { method: "POST", path: "/groups/:id/notes", auth: true, body: "{ noteId }" },
+      { method: "DELETE", path: "/groups/:id/notes/:noteId", auth: true },
+      { method: "GET", path: "/notes/:id/groups", auth: true },
     ],
   };
 }

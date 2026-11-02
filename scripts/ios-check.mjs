@@ -402,6 +402,33 @@ if (!project.includes("NativeSignInViewController.swift in Sources") || !project
   errors.push("Login nativo tem de estar no target Xcode.");
 }
 
+// Phase 2: native Grupos tab (not Coming Soon).
+const rootTabs = read("ios/App/App/NativeRootTabBarController.swift");
+if (!rootTabs.includes("GroupsListViewController") || rootTabs.includes('titleText: "Grupos"')) {
+  errors.push("Phase 2: o separador Grupos tem de usar GroupsListViewController (não Em breve).");
+}
+try {
+  const groupsList = read("ios/App/App/GroupsListViewController.swift");
+  if (!groupsList.includes("Novo grupo") || !groupsList.includes("listGroups")) {
+    errors.push("GroupsListViewController tem de listar e criar grupos.");
+  }
+} catch {
+  errors.push("Ficheiro Phase 2 em falta: GroupsListViewController.swift");
+}
+if (!project.includes("GroupsListViewController.swift in Sources")) {
+  errors.push("GroupsListViewController tem de estar no target Xcode.");
+}
+if (!notebookList.includes("convenience init(group:") || !notebookList.includes("listGroupNotes")) {
+  errors.push("O Caderno nativo tem de reutilizar a lista para notas de um grupo.");
+}
+const noteDetail = read("ios/App/App/NoteDetailViewController.swift");
+if (!noteDetail.includes("Mover para grupo") || !noteDetail.includes("listGroupsForNote")) {
+  errors.push("A nota ⋯ tem de permitir Mover para grupo.");
+}
+if (!authRouter.includes("group-notes") || !authRouter.includes('"groups"')) {
+  errors.push("Faltam rotas /api/native/v1/groups* no router nativo.");
+}
+
 for (const path of [
   "ios/App/App/NativeShell.swift",
   "ios/App/App.xcodeproj/xcshareddata/xcschemes/App.xcscheme",
