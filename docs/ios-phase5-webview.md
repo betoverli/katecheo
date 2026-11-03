@@ -22,13 +22,16 @@
 - Bridge: `WKScriptMessageHandler` name `v2n`.
 - Hosted by `NoteDetailViewController` (native chrome: nav, ⋯, settings, share).
 
-`ios-check` fails CI if any other Swift file under `ios/App/App` contains
-`WKWebView`, `CAPBridge`, `import Capacitor`, or `CAPPlugin`.
+`ios-check` fails CI if Cap bridges reappear, or if `WKWebView` appears outside
+`NoteMioloEditorView` and the Phase 6 one-time `LegacyWebStorageImporter`.
 
-## Still using WebKit (not a UI WebView)
+## Still using WebKit (not a product UI WebView)
 
 - `NativeSessionBootstrap` — one-time cookie → Keychain migration via
   `WKWebsiteDataStore` (**must** run on the main thread).
+- `LegacyWebStorageImporter` (Phase 6) — hidden `WKWebView` once, to read
+  leftover `localStorage` (`cita-settings`, `verse2note-outbox`) from the old
+  Cap `https://verse2note.com` host.
 
 ## Phase 7
 

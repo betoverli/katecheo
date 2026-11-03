@@ -38,14 +38,18 @@ describe("Phase 5 — remove Capacitor site host", () => {
       "NoteMioloEditorView.swift",
       "NativeSessionBootstrap.swift",
       "SceneDelegate.swift",
+      "LegacyWebStorageImporter.swift",
     ]);
+    const allowedWkWebView = new Set(["NoteMioloEditorView.swift", "LegacyWebStorageImporter.swift"]);
+    const stripComments = (source: string) =>
+      source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
     for (const name of readdirSync(appDir)) {
       if (!/\.(swift|m|h)$/.test(name)) continue;
-      const body = read(`ios/App/App/${name}`);
+      const body = stripComments(read(`ios/App/App/${name}`));
       assert.doesNotMatch(body, /\bimport\s+Capacitor\b/, name);
       assert.doesNotMatch(body, /\bCAPPlugin\b|\bCAPBridgeViewController\b/, name);
       if (/\bWKWebView\b/.test(body)) {
-        assert.equal(name, "NoteMioloEditorView.swift", `WKWebView in ${name}`);
+        assert.ok(allowedWkWebView.has(name), `WKWebView in ${name}`);
       }
       if (/\bimport\s+WebKit\b/.test(body)) {
         assert.ok(allowedWebKit.has(name), `import WebKit in ${name}`);

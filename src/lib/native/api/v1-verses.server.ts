@@ -293,15 +293,30 @@ export async function createMyCollectionForUser(
   if (!title) return { ok: false, error: "invalid" };
   const passages = cleanPassages(body.passages ?? []);
   const sourceId = typeof body.sourceId === "string" ? body.sourceId.slice(0, 64) : "";
+  const visibility =
+    typeof body.visibility === "string" ? asVisibility(body.visibility) : ("private" as CollectionVisibility);
+  // Phase 6 import: accept a client id so Cap localStorage → native upsert is idempotent.
+  const requestedId =
+    typeof body.id === "string" ? body.id.trim().replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 40) : "";
+  if (requestedId) {
+    const existing = await getMyCollectionForUser(userId, requestedId);
+    if (existing) {
+      return updateMyCollectionForUser(userId, requestedId, {
+        title,
+        passages,
+        visibility,
+      });
+    }
+  }
   const sql = await getSql();
   const count = await sql<{ n: string }>`
     select count(*)::text as n from user_collections where user_id = ${userId}
   `;
   if (Number(count[0]?.n ?? 0) >= MAX_COLLECTIONS) return { ok: false, error: "limit" };
-  const id = newId();
+  const id = requestedId || newId();
   await sql`
     insert into user_collections (id, user_id, title, visibility, passages, source_id, updated_at)
-    values (${id}, ${userId}, ${title}, ${"private"}, ${JSON.stringify(passages)}, ${sourceId}, now())
+    values (${id}, ${userId}, ${title}, ${visibility}, ${JSON.stringify(passages)}, ${sourceId}, now())
   `;
   const collection = await getMyCollectionForUser(userId, id);
   if (!collection) return { ok: false, error: "invalid" };

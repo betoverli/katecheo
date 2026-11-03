@@ -30,7 +30,7 @@ final class NativeSignInViewController: UIViewController {
         title.textAlignment = .center
 
         let subtitle = UILabel()
-        subtitle.text = "Entra para ver o teu caderno."
+        subtitle.text = "Entre para ver seu caderno."
         subtitle.font = .preferredFont(forTextStyle: .body)
         subtitle.textColor = .secondaryLabel
         subtitle.textAlignment = .center
@@ -56,7 +56,7 @@ final class NativeSignInViewController: UIViewController {
         emailField.borderStyle = .roundedRect
         emailField.textContentType = .username
 
-        passwordField.placeholder = "Palavra-passe"
+        passwordField.placeholder = "Senha"
         passwordField.isSecureTextEntry = true
         passwordField.borderStyle = .roundedRect
         passwordField.textContentType = .password
@@ -109,7 +109,7 @@ final class NativeSignInViewController: UIViewController {
 
     @objc private func tapGoogle() {
         guard !busy else { return }
-        setBusy(true, message: "A abrir Google…")
+        setBusy(true, message: "Abrindo Google…")
         Task { @MainActor in
             do {
                 try await NativeLoginService.shared.signInWithGoogle(from: self)
@@ -142,10 +142,10 @@ final class NativeSignInViewController: UIViewController {
         let email = (emailField.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         let password = passwordField.text ?? ""
         guard !email.isEmpty, !password.isEmpty else {
-            statusLabel.text = "Preenche email e palavra-passe."
+            statusLabel.text = "Preencha email e senha."
             return
         }
-        setBusy(true, message: "A entrar…")
+        setBusy(true, message: "Entrando…")
         Task { @MainActor in
             do {
                 try await NativeLoginService.shared.signInWithEmail(email: email, password: password)
@@ -158,8 +158,11 @@ final class NativeSignInViewController: UIViewController {
 
     private func finishSignedIn() {
         setBusy(false, message: "Sessão iniciada.")
+        NotificationCenter.default.post(name: .nativeSessionDidChange, object: nil)
         Task { @MainActor in
             _ = await NativePushService.shared.enable()
+            await LegacyWebStorageImporter.runIfNeeded()
+            await NativeOutbox.flushIfPossible()
         }
         if presentingViewController != nil {
             dismiss(animated: true) { [weak self] in self?.onSignedIn?() }

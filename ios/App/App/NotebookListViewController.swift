@@ -125,17 +125,17 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 if group != nil {
                     groupCards = []
                     applyFilter()
-                    statusBanner.text = "Inicia sessão para ver as notas do grupo."
+                    statusBanner.text = "Faça login para ver as notas do grupo."
                     signInButton.isHidden = false
-                    emptyLabel.text = "Entra para sincronizar este grupo."
+                    emptyLabel.text = "Entre para sincronizar este grupo."
                     emptyLabel.isHidden = false
                     return
                 }
                 notes = LocalNoteCache.loadNotes()
                 applyFilter()
-                statusBanner.text = notes.isEmpty ? "Inicia sessão para sincronizar o caderno." : "Offline / sem sessão — cache local."
+                statusBanner.text = notes.isEmpty ? "Faça login para sincronizar o caderno." : "Offline / sem sessão — cache local."
                 signInButton.isHidden = false
-                emptyLabel.text = notes.isEmpty ? "Nenhuma nota ainda.\nEntra para ver o teu caderno." : nil
+                emptyLabel.text = notes.isEmpty ? "Nenhuma nota ainda.\nEntre para ver seu caderno." : nil
                 emptyLabel.isHidden = !notes.isEmpty
                 // Fresh install / no session: present native sign-in once.
                 if notes.isEmpty, presentedViewController == nil {
@@ -162,16 +162,19 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 statusBanner.text = "\(notes.count) notas · sincronizado"
                 applyFilter()
             } catch NativeAPIClient.APIError.unauthorized {
-                statusBanner.text = "Sessão expirada."
+                statusBanner.text = "Sessão expirada. Entre novamente."
                 signInButton.isHidden = false
                 if group == nil {
                     notes = LocalNoteCache.loadNotes()
                 }
                 applyFilter()
+                showSignIn(auto: true)
             } catch {
                 if group == nil {
                     notes = LocalNoteCache.loadNotes()
-                    statusBanner.text = "Sem rede — a mostrar cache. \(error.localizedDescription)"
+                    let pending = NativeOutbox.pendingCount
+                    let pendingHint = pending > 0 ? " · \(pending) pendente(s)" : ""
+                    statusBanner.text = "Sem rede — mostrando cache\(pendingHint)."
                 } else {
                     statusBanner.text = "Sem rede. \(error.localizedDescription)"
                 }
@@ -216,10 +219,10 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
         }
         if filtered.isEmpty {
             if !NativeAPIClient.hasBearer && notes.isEmpty {
-                emptyLabel.text = "Nenhuma nota ainda.\nEntra para ver o teu caderno."
+                emptyLabel.text = "Nenhuma nota ainda.\nEntre para ver seu caderno."
                 emptyLabel.isHidden = false
             } else if NativeAPIClient.hasBearer || !notes.isEmpty {
-                emptyLabel.text = q.isEmpty ? "Nenhuma nota ainda." : "Nenhum resultado."
+                emptyLabel.text = q.isEmpty ? "Nenhuma nota ainda.\nToque em + para criar a primeira." : "Nenhum resultado."
                 emptyLabel.isHidden = false
             }
         } else {
@@ -258,7 +261,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             guard card.owned, let doc = card.document else {
                 let alert = UIAlertController(
                     title: card.note.title.isEmpty ? "Reunião" : card.note.title,
-                    message: "Nota de \(card.author.displayName). Só o autor a pode editar neste ecrã nativo.",
+                    message: "Nota de \(card.author.displayName). Só o autor pode editar nesta tela nativa.",
                     preferredStyle: .alert
                 )
                 alert.addAction(UIAlertAction(title: "OK", style: .default))
@@ -288,7 +291,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             return UISwipeActionsConfiguration(actions: [remove])
         }
         let note = filtered[indexPath.row]
-        let delete = UIContextualAction(style: .destructive, title: "Apagar") { [weak self] _, _, done in
+        let delete = UIContextualAction(style: .destructive, title: "Excluir") { [weak self] _, _, done in
             self?.confirmDelete(note) { done($0) }
         }
         delete.image = UIImage(systemName: "trash")
@@ -349,24 +352,26 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     }
 
     private func confirmDelete(_ note: NativeAPIClient.NoteDocument, completion: @escaping (Bool) -> Void) {
-        let alert = UIAlertController(title: nil, message: "Apagar esta nota?", preferredStyle: .actionSheet)
+        let alert = UIAlertController(title: nil, message: "Excluir esta nota?", preferredStyle: .actionSheet)
         alert.addAction(UIAlertAction(title: "Cancelar", style: .cancel) { _ in completion(false) })
-        alert.addAction(UIAlertAction(title: "Apagar nota", style: .destructive) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: "Excluir nota", style: .destructive) { [weak self] _ in
             Task { @MainActor in
                 do {
                     if NativeAPIClient.hasBearer {
                         try await NativeAPIClient.deleteNote(id: note.id)
                     } else {
                         LocalNoteCache.removeNote(id: note.id)
+                        NativeOutbox.enqueueNoteDelete(id: note.id)
                     }
                     self?.notes.removeAll { $0.id == note.id }
                     self?.applyFilter()
                     completion(true)
                 } catch {
-                    completion(false)
-                    let err = UIAlertController(title: "Erro", message: error.localizedDescription, preferredStyle: .alert)
-                    err.addAction(UIAlertAction(title: "OK", style: .default))
-                    self?.present(err, animated: true)
+                    LocalNoteCache.removeNote(id: note.id)
+                    NativeOutbox.enqueueNoteDelete(id: note.id)
+                    self?.notes.removeAll { $0.id == note.id }
+                    self?.applyFilter()
+                    completion(true)
                 }
             }
         })
@@ -421,7 +426,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             sheet.addAction(UIAlertAction(title: "Renomear grupo…", style: .default) { [weak self] _ in
                 self?.promptRenameGroup()
             })
-            sheet.addAction(UIAlertAction(title: "Apagar grupo…", style: .destructive) { [weak self] _ in
+            sheet.addAction(UIAlertAction(title: "Excluir grupo…", style: .destructive) { [weak self] _ in
                 self?.confirmDeleteGroup()
             })
         }
@@ -434,7 +439,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 self?.present(nav, animated: true)
             })
             if NativeAPIClient.hasBearer {
-                sheet.addAction(UIAlertAction(title: "Terminar sessão", style: .destructive) { [weak self] _ in
+                sheet.addAction(UIAlertAction(title: "Sair", style: .destructive) { [weak self] _ in
                     Task { @MainActor in
                         await NativeLoginService.shared.signOut()
                         self?.notes = LocalNoteCache.loadNotes()
@@ -463,7 +468,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             field.autocapitalizationType = .sentences
         }
         alert.addAction(UIAlertAction(title: "Cancelar", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Guardar", style: .default) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: "Salvar", style: .default) { [weak self] _ in
             let name = (alert.textFields?.first?.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             guard name.count >= 2 else { return }
             Task { @MainActor in
@@ -484,12 +489,12 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     private func confirmDeleteGroup() {
         guard let group else { return }
         let alert = UIAlertController(
-            title: "Apagar «\(group.name)»?",
-            message: "Esta ação remove o grupo e as publicações. Não se pode desfazer.",
+            title: "Excluir «\(group.name)»?",
+            message: "Esta ação remove o grupo e as publicações. Não dá para desfazer.",
             preferredStyle: .actionSheet
         )
         alert.addAction(UIAlertAction(title: "Cancelar", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Apagar grupo", style: .destructive) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: "Excluir grupo", style: .destructive) { [weak self] _ in
             Task { @MainActor in
                 do {
                     try await NativeAPIClient.deleteGroup(id: group.id)

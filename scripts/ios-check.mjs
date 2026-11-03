@@ -176,9 +176,15 @@ if (!noteDetail.includes("NoteMioloEditorView")) {
   errors.push("NoteDetailViewController tem de hospedar NoteMioloEditorView.");
 }
 
-// Guard: no Cap / WKWebView surfaces outside the editor (+ bootstrap cookie migration).
+// Guard: no Cap / WKWebView surfaces outside the editor (+ bootstrap + Phase 6 one-time import).
 const appDir = join(root, "ios/App/App");
-const allowedWebKit = new Set(["NoteMioloEditorView.swift", "NativeSessionBootstrap.swift", "SceneDelegate.swift"]);
+const allowedWebKit = new Set([
+  "NoteMioloEditorView.swift",
+  "NativeSessionBootstrap.swift",
+  "SceneDelegate.swift",
+  "LegacyWebStorageImporter.swift",
+]);
+const allowedWkWebView = new Set(["NoteMioloEditorView.swift", "LegacyWebStorageImporter.swift"]);
 const allowedCookieFlush = new Set(["SceneDelegate.swift", "NativeSessionBootstrap.swift"]);
 /** Strip line/block comments so docstrings don't trip Cap/WebView guards. */
 function stripComments(source) {
@@ -195,8 +201,8 @@ for (const name of readdirSync(appDir)) {
   if (/\bimport\s+Capacitor\b/.test(body) || /\bCAPBridgeViewController\b/.test(body) || /\bCAPPlugin\b/.test(body)) {
     errors.push(`Phase 5: ${name} não pode usar Capacitor/CAPPlugin.`);
   }
-  if (/\bWKWebView\b/.test(body) && name !== "NoteMioloEditorView.swift") {
-    errors.push(`Phase 5: WKWebView só é permitido em NoteMioloEditorView.swift (encontrado em ${name}).`);
+  if (/\bWKWebView\b/.test(body) && !allowedWkWebView.has(name)) {
+    errors.push(`Phase 5/6: WKWebView só em NoteMioloEditorView ou LegacyWebStorageImporter (encontrado em ${name}).`);
   }
   if (/\bimport\s+WebKit\b/.test(body) && !allowedWebKit.has(name)) {
     errors.push(`Phase 5: import WebKit fora do permitido (${name}).`);
@@ -204,6 +210,22 @@ for (const name of readdirSync(appDir)) {
   if (/\bWKWebsiteDataStore\b/.test(body) && !allowedCookieFlush.has(name)) {
     errors.push(`Phase 5: WKWebsiteDataStore só para migração de cookies (${name}).`);
   }
+}
+
+const legacyImport = read("ios/App/App/LegacyWebStorageImporter.swift");
+if (!legacyImport.includes("@MainActor") || !legacyImport.includes("Thread.isMainThread")) {
+  errors.push("LegacyWebStorageImporter tem de ser @MainActor e exigir Thread.isMainThread.");
+}
+if (!legacyImport.includes("cita-settings") || !legacyImport.includes("verse2note-outbox")) {
+  errors.push("LegacyWebStorageImporter tem de ler cita-settings e verse2note-outbox.");
+}
+if (!legacyImport.includes("NoteDocument") && !legacyImport.includes("LegacyNoteConverter")) {
+  errors.push("LegacyWebStorageImporter tem de converter para NoteDocumentV1.");
+}
+
+const outbox = read("ios/App/App/NativeOutbox.swift");
+if (!outbox.includes("enqueueNoteUpsert") || !outbox.includes("flushIfPossible") || !outbox.includes("nextAttemptAt")) {
+  errors.push("NativeOutbox tem de ter enqueue + flush com backoff (nextAttemptAt).");
 }
 
 for (const dead of [
@@ -278,8 +300,8 @@ if (notebookList.includes("Site clássico") || notebookList.includes("capacitorS
 if (!notebookList.includes("UIActivityViewController") || !notebookList.includes("trailingSwipeActions")) {
   errors.push("A lista nativa tem de ter swipe e partilha nativa.");
 }
-if (!notebookList.includes("NativeSignInViewController") || !notebookList.includes("Terminar sessão")) {
-  errors.push("O Caderno tem de abrir o login nativo e permitir terminar sessão.");
+if (!notebookList.includes("NativeSignInViewController") || !(notebookList.includes("Sair") || notebookList.includes("Terminar sessão"))) {
+  errors.push("O Caderno tem de abrir o login nativo e permitir sair da sessão.");
 }
 if (/#selector\s*\(\s*presentSignIn\s*\)/.test(notebookList) || /func presentSignIn\s*\(\s*\)/.test(notebookList)) {
   errors.push("NotebookList: use presentSignInTapped + showSignIn(auto:) — não sobrecarregar presentSignIn.");
@@ -342,8 +364,8 @@ if (!project.includes("VersesHomeViewController.swift in Sources") || !project.i
 
 try {
   const profile = read("ios/App/App/ProfileViewController.swift");
-  if (!profile.includes("Sair da conta") || !profile.includes("Apagar conta") || !profile.includes("getMe")) {
-    errors.push("ProfileViewController tem de mostrar perfil, sair da conta e apagar conta.");
+  if (!profile.includes("Sair da conta") || !(profile.includes("Apagar conta") || profile.includes("Excluir conta")) || !profile.includes("getMe")) {
+    errors.push("ProfileViewController tem de mostrar perfil, sair da conta e excluir conta.");
   }
   const settings = read("ios/App/App/ProfileSettingsScreens.swift");
   if (
@@ -389,6 +411,12 @@ if (!apiClient.includes("func fetchBibleBooks(") || !apiClient.includes("func ap
 }
 if (!apiClient.includes("func saveApnsDevice(") || !apiClient.includes("func dropApnsDevice(")) {
   errors.push("NativeAPIClient tem de expor saveApnsDevice / dropApnsDevice.");
+}
+if (!apiClient.includes("handleUnauthorized") || !apiClient.includes("nativeSessionDidExpire")) {
+  errors.push("NativeAPIClient tem de limpar sessão em 401 (handleUnauthorized).");
+}
+if (!apiClient.includes("upsertMyCollection")) {
+  errors.push("NativeAPIClient tem de expor upsertMyCollection para o import Phase 6.");
 }
 
 const nativeV1Router = read("src/lib/native/api/v1-router.ts");

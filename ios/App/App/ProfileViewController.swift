@@ -298,7 +298,7 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
                 config.text = "Baixar meus dados"
                 config.image = UIImage(systemName: "square.and.arrow.up")
             case .deleteAccount:
-                config.text = "Apagar conta"
+                config.text = "Excluir conta"
                 config.textProperties.color = .systemRed
                 config.image = UIImage(systemName: "trash")
                 config.imageProperties.tintColor = .systemRed
@@ -400,12 +400,12 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
 
     private func confirmDeleteAccount() {
         let alert = UIAlertController(
-            title: "Apagar conta?",
+            title: "Excluir conta?",
             message: "Isso remove permanentemente suas notas, grupos e preferências. Não pode ser desfeito.",
             preferredStyle: .actionSheet
         )
         alert.addAction(UIAlertAction(title: "Cancelar", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Apagar conta", style: .destructive) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: "Excluir conta", style: .destructive) { [weak self] _ in
             self?.performDeleteAccount()
         })
         if let pop = alert.popoverPresentationController {
