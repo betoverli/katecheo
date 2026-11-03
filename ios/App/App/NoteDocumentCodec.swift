@@ -37,8 +37,9 @@ enum NoteDocumentCodec {
     // MARK: - Document → Attributed
 
     /// Apple Notes style: first paragraph is the title (large), then body blocks.
-    static func attributedString(from document: NativeAPIClient.NoteDocument) -> NSAttributedString {
+    static func attributedString(from document: NativeAPIClient.NoteDocument, speakers: [NativeAPIClient.SpeakerDTO] = []) -> NSAttributedString {
         precondition(Thread.isMainThread)
+        let speakerMap = Dictionary(uniqueKeysWithValues: speakers.map { ($0.id, $0) })
         let result = NSMutableAttributedString()
         appendLine(
             to: result,
@@ -46,25 +47,35 @@ enum NoteDocumentCodec {
             id: "title",
             spans: [.init(type: "text", text: document.title, marks: nil, bookId: nil, chapter: nil, verseStart: nil, verseEnd: nil, href: nil)],
             checked: nil,
-            speakerId: nil
+            speakerId: nil,
+            speakers: speakerMap
         )
         for block in document.body.blocks {
-            appendBlock(block, to: result)
+            appendBlock(block, to: result, speakers: speakerMap)
         }
         if result.length == 0 {
-            appendLine(to: result, type: "paragraph", id: newId(), spans: [], checked: nil, speakerId: nil)
+            appendLine(to: result, type: "paragraph", id: newId(), spans: [], checked: nil, speakerId: nil, speakers: speakerMap)
         }
         return result
     }
 
-    private static func appendBlock(_ block: NativeAPIClient.LineBlock, to result: NSMutableAttributedString) {
+    private static func appendBlock(
+        _ block: NativeAPIClient.LineBlock,
+        to result: NSMutableAttributedString,
+        speakers: [String: NativeAPIClient.SpeakerDTO]
+    ) {
         if block.type == "speakerSection" {
+            let speakerName: String = {
+                if let sid = block.speakerId, let speaker = speakers[sid] { return speaker.name }
+                if let title = block.title, !title.isEmpty { return title }
+                return String(localized: "Speaker")
+            }()
             let titleSpans: [NativeAPIClient.TextSpan] = [
-                .init(type: "text", text: block.title?.isEmpty == false ? (block.title ?? "") : "Speaker", marks: ["bold"], bookId: nil, chapter: nil, verseStart: nil, verseEnd: nil, href: nil),
+                .init(type: "text", text: speakerName, marks: ["bold"], bookId: nil, chapter: nil, verseStart: nil, verseEnd: nil, href: nil),
             ]
-            appendLine(to: result, type: "speakerSection", id: block.id, spans: titleSpans, checked: nil, speakerId: block.speakerId)
+            appendLine(to: result, type: "speakerSection", id: block.id, spans: titleSpans, checked: nil, speakerId: block.speakerId, speakers: speakers)
             for child in block.blocks ?? [] {
-                appendBlock(child, to: result)
+                appendBlock(child, to: result, speakers: speakers)
             }
             return
         }
@@ -74,7 +85,8 @@ enum NoteDocumentCodec {
             id: block.id,
             spans: block.spans ?? [],
             checked: block.checked,
-            speakerId: nil
+            speakerId: nil,
+            speakers: speakers
         )
     }
 
@@ -84,12 +96,13 @@ enum NoteDocumentCodec {
         id: String,
         spans: [NativeAPIClient.TextSpan],
         checked: Bool?,
-        speakerId: String?
+        speakerId: String?,
+        speakers: [String: NativeAPIClient.SpeakerDTO]
     ) {
         if result.length > 0 {
             result.append(NSAttributedString(string: "\n"))
         }
-        let base = baseAttributes(type: type, id: id, checked: checked, speakerId: speakerId)
+        let base = baseAttributes(type: type, id: id, checked: checked, speakerId: speakerId, speakers: speakers)
         if spans.isEmpty {
             result.append(NSAttributedString(string: "", attributes: base))
             return
@@ -109,11 +122,7 @@ enum NoteDocumentCodec {
                 verseEnd: span.verseEnd,
                 text: span.text
             )
-            let label = displayText(for: payload)
-            attrs[.foregroundColor] = V2NDesign.bookmark
-            attrs[.underlineStyle] = NSUnderlineStyle.single.rawValue
-            attrs[bibleRefKey] = payload
-            return NSAttributedString(string: label, attributes: attrs)
+            return bibleRefPill(payload: payload, base: attrs)
         }
         if span.type == "link" {
             let text = span.text?.isEmpty == false ? (span.text ?? "") : (span.href ?? "")
@@ -141,14 +150,32 @@ enum NoteDocumentCodec {
         return NSAttributedString(string: text, attributes: attrs)
     }
 
-    private static func baseAttributes(type: String, id: String, checked: Bool?, speakerId: String?) -> [NSAttributedString.Key: Any] {
+    private static func baseAttributes(
+        type: String,
+        id: String,
+        checked: Bool?,
+        speakerId: String?,
+        speakers: [String: NativeAPIClient.SpeakerDTO]
+    ) -> [NSAttributedString.Key: Any] {
         let style = NSMutableParagraphStyle()
         style.lineSpacing = 3
         var font = UIFont.preferredFont(forTextStyle: .body)
+        var foreground: UIColor = .label
         switch type {
-        case "heading", "speakerSection":
-            font = UIFont.preferredFont(forTextStyle: type == "heading" && id == "title" ? .title1 : .title2)
+        case "heading":
+            font = UIFont.preferredFont(forTextStyle: id == "title" ? .title1 : .title2)
             style.paragraphSpacingBefore = id == "title" ? 0 : 8
+        case "speakerSection":
+            font = V2NDesign.preferred(.title3, weight: .semibold)
+            style.paragraphSpacingBefore = 14
+            style.paragraphSpacing = 4
+            style.headIndent = 12
+            style.firstLineHeadIndent = 12
+            if let speakerId, let speaker = speakers[speakerId], let color = UIColor(v2nHex: speaker.color) {
+                foreground = color
+            } else {
+                foreground = UIColor(red: 0.77, green: 0.65, blue: 0.45, alpha: 1) // #c4a574
+            }
         case "bullet", "numbered", "check":
             style.headIndent = 22
             style.firstLineHeadIndent = 0
@@ -161,7 +188,7 @@ enum NoteDocumentCodec {
         }
         var attrs: [NSAttributedString.Key: Any] = [
             .font: font,
-            .foregroundColor: UIColor.label,
+            .foregroundColor: foreground,
             .paragraphStyle: style,
             blockTypeKey: type,
             blockIdKey: id,
@@ -172,7 +199,47 @@ enum NoteDocumentCodec {
         if let speakerId {
             attrs[speakerIdKey] = speakerId
         }
+        if type == "speakerSection" {
+            attrs[.backgroundColor] = V2NDesign.accentSoft
+        }
         return attrs
+    }
+
+    static func bibleRefPill(payload: BibleRefPayload, base: [NSAttributedString.Key: Any] = [:]) -> NSAttributedString {
+        let label = displayText(for: payload)
+        let kind = refKind(bookId: payload.bookId)
+        let attachment = BibleRefPillAttachment(payload: payload, label: label, kind: kind)
+        let result = NSMutableAttributedString(attachment: attachment)
+        var attrs = base
+        attrs[bibleRefKey] = payload
+        attrs[.foregroundColor] = UIColor.clear
+        // Keep block metadata on the attachment character for round-trip.
+        result.addAttributes(attrs, range: NSRange(location: 0, length: result.length))
+        // Soft spaces around the pill so typing stays readable.
+        let pad = NSAttributedString(string: "\u{200B}", attributes: base)
+        let out = NSMutableAttributedString()
+        out.append(pad)
+        out.append(result)
+        out.append(pad)
+        return out
+    }
+
+    static func refKind(bookId: String) -> BibleRefKind {
+        switch bookId.uppercased() {
+        case "MAT", "MRK", "LUK", "JHN":
+            return .gospel
+        default:
+            // NT books after Malachi id set — Gospels already handled; use testament heuristic via known NT ids.
+            let nt: Set<String> = [
+                "MAT", "MRK", "LUK", "JHN", "ACT", "ROM", "1CO", "2CO", "GAL", "EPH", "PHP", "COL",
+                "1TH", "2TH", "1TI", "2TI", "TIT", "PHM", "HEB", "JAS", "1PE", "2PE", "1JN", "2JN", "3JN", "JUD", "REV",
+            ]
+            return nt.contains(bookId.uppercased()) ? .nt : .ot
+        }
+    }
+
+    enum BibleRefKind {
+        case gospel, nt, ot
     }
 
     static func displayText(for ref: BibleRefPayload) -> String {
@@ -281,6 +348,20 @@ enum NoteDocumentCodec {
         attributed.enumerateAttributes(in: full, options: []) { attrs, range, _ in
             let text = (attributed.string as NSString).substring(with: range)
             if text.isEmpty { return }
+            if let attachment = attrs[.attachment] as? BibleRefPillAttachment {
+                let payload = attachment.payload
+                out.append(NativeAPIClient.TextSpan(
+                    type: "bibleRef",
+                    text: payload.text ?? displayText(for: payload),
+                    marks: nil,
+                    bookId: payload.bookId,
+                    chapter: payload.chapter,
+                    verseStart: payload.verseStart,
+                    verseEnd: payload.verseEnd,
+                    href: nil
+                ))
+                return
+            }
             if let payload = attrs[bibleRefKey] as? BibleRefPayload {
                 out.append(NativeAPIClient.TextSpan(
                     type: "bibleRef",
@@ -294,6 +375,8 @@ enum NoteDocumentCodec {
                 ))
                 return
             }
+            // Zero-width pads around pills
+            if text == "\u{200B}" { return }
             if let href = attrs[linkKey] as? String {
                 out.append(NativeAPIClient.TextSpan(
                     type: "link",
