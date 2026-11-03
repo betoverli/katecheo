@@ -19,6 +19,8 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     private var speakers: [NativeAPIClient.SpeakerDTO] = []
     private var applyingRemote = false
     private(set) var isReady = true
+    private var baseBottomInset: CGFloat = V2NDesign.Space.lg
+    private var triggerMenu: NoteEditorTriggerMenuView?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -28,6 +30,10 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
     private func setup() {
         precondition(Thread.isMainThread, "NativeNoteEditorView must be created on the main thread")
         backgroundColor = V2NDesign.canvas
@@ -35,7 +41,12 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         textView.translatesAutoresizingMaskIntoConstraints = false
         textView.delegate = self
         textView.backgroundColor = V2NDesign.canvas
-        textView.textContainerInset = UIEdgeInsets(top: V2NDesign.Space.md, left: V2NDesign.Space.md, bottom: V2NDesign.Space.lg, right: V2NDesign.Space.md)
+        textView.textContainerInset = UIEdgeInsets(
+            top: V2NDesign.Space.md,
+            left: V2NDesign.Space.md,
+            bottom: baseBottomInset,
+            right: V2NDesign.Space.md
+        )
         textView.alwaysBounceVertical = true
         textView.keyboardDismissMode = .interactive
         textView.adjustsFontForContentSizeCategory = true
@@ -60,6 +71,72 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         let tap = UITapGestureRecognizer(target: self, action: #selector(handleTap(_:)))
         tap.delegate = self
         textView.addGestureRecognizer(tap)
+
+        observeKeyboard()
+    }
+
+    private func observeKeyboard() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(keyboardFrameWillChange(_:)),
+            name: UIResponder.keyboardWillChangeFrameNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(keyboardWillHide(_:)),
+            name: UIResponder.keyboardWillHideNotification,
+            object: nil
+        )
+    }
+
+    @objc private func keyboardFrameWillChange(_ notification: Notification) {
+        applyKeyboard(notification: notification, hiding: false)
+    }
+
+    @objc private func keyboardWillHide(_ notification: Notification) {
+        applyKeyboard(notification: notification, hiding: true)
+    }
+
+    private func applyKeyboard(notification: Notification, hiding: Bool = false) {
+        guard let userInfo = notification.userInfo,
+              let endFrame = userInfo[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect
+        else { return }
+        let duration = (userInfo[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double) ?? 0.25
+        let curveRaw = (userInfo[UIResponder.keyboardAnimationCurveUserInfoKey] as? UInt) ?? 7
+        let options = UIView.AnimationOptions(rawValue: curveRaw << 16)
+
+        let overlap: CGFloat
+        if hiding {
+            overlap = 0
+        } else {
+            let frameInView = convert(endFrame, from: nil)
+            overlap = max(0, bounds.maxY - frameInView.minY)
+        }
+
+        // Accessory bar sits above the keyboard; add a little breathing room for the caret.
+        let accessoryH = textView.isFirstResponder ? accessory.bounds.height : 0
+        let bottom = overlap + (overlap > 0 ? max(accessoryH, 0) + V2NDesign.Space.md : 0)
+
+        UIView.animate(withDuration: duration, delay: 0, options: options) {
+            self.textView.contentInset.bottom = bottom
+            self.textView.verticalScrollIndicatorInsets.bottom = bottom
+            self.textView.textContainerInset.bottom = self.baseBottomInset + (overlap > 0 ? V2NDesign.Space.sm : 0)
+        } completion: { _ in
+            self.scrollCaretVisible(animated: true)
+        }
+    }
+
+    private func scrollCaretVisible(animated: Bool) {
+        guard textView.isFirstResponder else { return }
+        let range = textView.selectedRange
+        if animated {
+            textView.scrollRangeToVisible(range)
+        } else {
+            UIView.performWithoutAnimation {
+                textView.scrollRangeToVisible(range)
+            }
+        }
     }
 
     /// Load / replace the document currently shown.
@@ -68,6 +145,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         documentBase = note
         self.speakers = speakers
         applyingRemote = true
+        dismissTriggerMenu()
         let attributed = NoteDocumentCodec.attributedString(from: note, speakers: speakers)
         textView.attributedText = attributed
         textView.selectedRange = NSRange(location: 0, length: 0)
@@ -83,8 +161,9 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
     func insertBibleRef(_ ref: NoteDocumentCodec.BibleRefPayload) {
         precondition(Thread.isMainThread)
+        dismissTriggerMenu()
         var base = textView.typingAttributes
-        base[NoteDocumentCodec.blockTypeKey] = currentBlockType()
+        base[NoteDocumentCodec.blockTypeKey] = currentBlockType() == "speakerSection" ? "paragraph" : currentBlockType()
         base[NoteDocumentCodec.blockIdKey] = currentBlockId()
         let piece = NoteDocumentCodec.bibleRefPill(payload: ref, base: base)
         textView.textStorage.replaceCharacters(in: textView.selectedRange, with: piece)
@@ -92,26 +171,20 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         textView.selectedRange = NSRange(location: end, length: 0)
         textView.typingAttributes = baseTypingAttributes()
         emitChange()
+        scrollCaretVisible(animated: true)
     }
 
     func insertSpeakerSection(speakerId: String, name: String) {
         precondition(Thread.isMainThread)
+        dismissTriggerMenu()
         let id = NoteDocumentCodec.newId()
-        let style = NSMutableParagraphStyle()
-        style.paragraphSpacingBefore = 14
-        style.headIndent = 12
-        style.firstLineHeadIndent = 12
-        let color = speakers.first(where: { $0.id == speakerId }).flatMap { UIColor(v2nHex: $0.color) }
-            ?? UIColor(red: 0.77, green: 0.65, blue: 0.45, alpha: 1)
-        let header = NSAttributedString(string: name, attributes: [
-            .font: V2NDesign.preferred(.title3, weight: .semibold),
-            .foregroundColor: color,
-            .backgroundColor: V2NDesign.accentSoft,
-            .paragraphStyle: style,
-            NoteDocumentCodec.blockTypeKey: "speakerSection",
-            NoteDocumentCodec.blockIdKey: id,
-            NoteDocumentCodec.speakerIdKey: speakerId,
-        ])
+        let colorHex = speakers.first(where: { $0.id == speakerId })?.color
+        let header = NoteDocumentCodec.speakerSectionHeader(
+            name: name,
+            speakerId: speakerId,
+            colorHex: colorHex,
+            blockId: id
+        )
         let bodyStyle = NSMutableParagraphStyle()
         bodyStyle.lineSpacing = 3
         let body = NSAttributedString(string: "\n", attributes: [
@@ -128,9 +201,11 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         chunk.append(header)
         chunk.append(body)
         textView.textStorage.replaceCharacters(in: textView.selectedRange, with: chunk)
-        let end = (textView.selectedRange.location) + chunk.length
+        let end = textView.selectedRange.location + chunk.length
         textView.selectedRange = NSRange(location: end, length: 0)
+        textView.typingAttributes = baseTypingAttributes()
         emitChange()
+        scrollCaretVisible(animated: true)
     }
 
     // MARK: - UITextViewDelegate
@@ -138,22 +213,61 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     func textViewDidChange(_ textView: UITextView) {
         guard !applyingRemote else { return }
         emitChange()
+        scrollCaretVisible(animated: false)
+    }
+
+    func textViewDidChangeSelection(_ textView: UITextView) {
+        if triggerMenu != nil {
+            // Keep menu anchored while typing filter text after @ /
+        }
     }
 
     func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
         if text == "\n" {
+            dismissTriggerMenu()
             let type = currentBlockType()
             if type == "speakerSection" {
                 DispatchQueue.main.async { [weak self] in
                     self?.applyBlockType("paragraph", preserveChecked: false)
                 }
-            } else {
+            } else if type == "bullet" || type == "numbered" || type == "check" || type == "quote" {
+                // Continue the same list / block on the next paragraph.
                 DispatchQueue.main.async { [weak self] in
                     self?.applyBlockType(type, preserveChecked: true)
                 }
             }
+            return true
         }
+
+        if text == "@" || text == "/" {
+            let beforeOK = isTriggerPrefixAllowed(before: range)
+            if beforeOK {
+                // Insert the character first? Original strips it. Consume without inserting and open menu.
+                DispatchQueue.main.async { [weak self] in
+                    guard let self else { return }
+                    if text == "@" {
+                        self.showAtMenu(at: range.location)
+                    } else {
+                        self.showSlashMenu(at: range.location)
+                    }
+                }
+                return false
+            }
+        }
+
+        if triggerMenu != nil, text.isEmpty, range.length > 0 {
+            // Backspace while menu open — dismiss.
+            dismissTriggerMenu()
+        }
+
         return true
+    }
+
+    private func isTriggerPrefixAllowed(before range: NSRange) -> Bool {
+        if range.location == 0 { return true }
+        let ns = (textView.text as NSString)
+        let prev = ns.substring(with: NSRange(location: range.location - 1, length: 1))
+        return prev.rangeOfCharacter(from: .whitespacesAndNewlines) != nil
     }
 
     private func emitChange() {
@@ -165,6 +279,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     // MARK: - Accessory
 
     private func handleAccessory(_ action: NoteEditorAccessoryBar.Action) {
+        dismissTriggerMenu()
         switch action {
         case .bold: toggleBoldMark()
         case .italic: toggleItalicMark()
@@ -185,12 +300,14 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     // MARK: - Formatting
 
     private func baseTypingAttributes() -> [NSAttributedString.Key: Any] {
-        [
-            .font: UIFont.preferredFont(forTextStyle: .body),
-            .foregroundColor: UIColor.label,
-            NoteDocumentCodec.blockTypeKey: currentBlockType() == "speakerSection" ? "paragraph" : currentBlockType(),
-            NoteDocumentCodec.blockIdKey: currentBlockId(),
-        ]
+        let type = currentBlockType() == "speakerSection" ? "paragraph" : currentBlockType()
+        return NoteDocumentCodec.baseAttributesPublic(
+            type: type,
+            id: currentBlockId(),
+            checked: type == "check" ? false : nil,
+            speakerId: nil,
+            speakers: [:]
+        )
     }
 
     private func currentBlockType() -> String {
@@ -213,13 +330,30 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         return ns.paragraphRange(for: NSRange(location: loc, length: 0))
     }
 
+    /// Apply a line block type to the current paragraph(s), including empty lines.
     private func applyBlockType(_ type: String, preserveChecked: Bool) {
-        let range = paragraphRange()
-        guard range.length >= 0, textView.textStorage.length >= range.location else { return }
+        // Never restyle the speaker card header itself into a list/heading.
+        if currentBlockType() == "speakerSection", type != "speakerSection" {
+            return
+        }
+
+        var range = paragraphRange()
+        let storage = textView.textStorage
+
+        // Empty paragraph at EOF: ensure there is a character run we can attribute.
+        if range.length == 0 {
+            let placeholder = NSAttributedString(string: "\u{200B}", attributes: baseTypingAttributes())
+            storage.replaceCharacters(in: range, with: placeholder)
+            range = NSRange(location: range.location, length: 1)
+            textView.selectedRange = NSRange(location: range.location + 1, length: 0)
+        }
+
+        guard storage.length >= range.location + range.length else { return }
+
         let checked: Bool?
         if type == "check" {
             if preserveChecked, range.length > 0 {
-                let attrs = textView.textStorage.attributes(at: range.location, effectiveRange: nil)
+                let attrs = storage.attributes(at: range.location, effectiveRange: nil)
                 checked = (attrs[NoteDocumentCodec.checkedKey] as? Bool) ?? false
             } else {
                 checked = false
@@ -227,46 +361,114 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         } else {
             checked = nil
         }
+
         let id = NoteDocumentCodec.newId()
-        textView.textStorage.enumerateAttributes(in: range, options: []) { _, sub, _ in
-            textView.textStorage.addAttribute(NoteDocumentCodec.blockTypeKey, value: type, range: sub)
-            textView.textStorage.addAttribute(NoteDocumentCodec.blockIdKey, value: id, range: sub)
-            if let checked {
-                textView.textStorage.addAttribute(NoteDocumentCodec.checkedKey, value: checked, range: sub)
-            } else {
-                textView.textStorage.removeAttribute(NoteDocumentCodec.checkedKey, range: sub)
+        let styled = NoteDocumentCodec.baseAttributesPublic(
+            type: type,
+            id: id,
+            checked: checked,
+            speakerId: nil,
+            speakers: [:]
+        )
+
+        // Strip any existing display-only list marker at the start of the paragraph.
+        range = stripListMarker(in: range)
+
+        let listNumber = numberedIndex(forParagraphStartingAt: range.location, promotingToNumbered: type == "numbered")
+        if let marker = NoteDocumentCodec.listMarkerString(type: type, checked: checked, number: listNumber) {
+            var markerAttrs = styled
+            markerAttrs[NoteDocumentCodec.listMarkerKey] = true
+            markerAttrs[.foregroundColor] = UIColor.secondaryLabel
+            let markerAttr = NSAttributedString(string: marker, attributes: markerAttrs)
+            storage.insert(markerAttr, at: range.location)
+            range = NSRange(location: range.location, length: range.length + markerAttr.length)
+            // Keep caret after the marker when the line was empty / caret at start.
+            if textView.selectedRange.length == 0, textView.selectedRange.location <= range.location + markerAttr.length {
+                textView.selectedRange = NSRange(location: range.location + markerAttr.length, length: 0)
             }
         }
-        let font: UIFont
-        let style = NSMutableParagraphStyle()
-        style.lineSpacing = 3
-        switch type {
-        case "heading":
-            font = UIFont.preferredFont(forTextStyle: .title2)
-        case "quote":
-            font = UIFont.preferredFont(forTextStyle: .body)
-            style.headIndent = 16
-            style.firstLineHeadIndent = 16
-        case "bullet", "numbered", "check":
-            font = UIFont.preferredFont(forTextStyle: .body)
-            style.headIndent = 22
-        default:
-            font = UIFont.preferredFont(forTextStyle: .body)
+
+        storage.enumerateAttributes(in: range, options: []) { attrs, sub, _ in
+            if attrs[NoteDocumentCodec.listMarkerKey] as? Bool == true {
+                var markerOnly = attrs
+                for (key, value) in styled where key != .foregroundColor {
+                    if key == .font { continue }
+                    markerOnly[key] = value
+                }
+                markerOnly[NoteDocumentCodec.listMarkerKey] = true
+                markerOnly[NoteDocumentCodec.blockTypeKey] = type
+                markerOnly[NoteDocumentCodec.blockIdKey] = id
+                storage.setAttributes(markerOnly, range: sub)
+                return
+            }
+            var next = attrs
+            for (key, value) in styled {
+                if key == .font, attrs[.attachment] != nil { continue }
+                if key == .foregroundColor, attrs[.attachment] != nil { continue }
+                next[key] = value
+            }
+            if type != "check" {
+                next.removeValue(forKey: NoteDocumentCodec.checkedKey)
+            }
+            storage.setAttributes(next, range: sub)
         }
-        if range.length > 0 {
-            textView.textStorage.addAttribute(.font, value: font, range: range)
-            textView.textStorage.addAttribute(.paragraphStyle, value: style, range: range)
-            textView.textStorage.removeAttribute(.backgroundColor, range: range)
-            textView.textStorage.addAttribute(.foregroundColor, value: UIColor.label, range: range)
+
+        if let para = styled[.paragraphStyle] {
+            storage.addAttribute(.paragraphStyle, value: para, range: range)
         }
-        var typing = textView.typingAttributes
+        storage.addAttribute(NoteDocumentCodec.blockTypeKey, value: type, range: range)
+        storage.addAttribute(NoteDocumentCodec.blockIdKey, value: id, range: range)
+        if let checked {
+            storage.addAttribute(NoteDocumentCodec.checkedKey, value: checked, range: range)
+        } else {
+            storage.removeAttribute(NoteDocumentCodec.checkedKey, range: range)
+        }
+        storage.removeAttribute(.backgroundColor, range: range)
+
+        var typing = styled
         typing[NoteDocumentCodec.blockTypeKey] = type
         typing[NoteDocumentCodec.blockIdKey] = id
-        typing[.font] = font
-        typing[.paragraphStyle] = style
         if let checked { typing[NoteDocumentCodec.checkedKey] = checked }
         textView.typingAttributes = typing
         emitChange()
+    }
+
+    private func stripListMarker(in range: NSRange) -> NSRange {
+        let storage = textView.textStorage
+        guard range.length > 0 else { return range }
+        var markerLen = 0
+        storage.enumerateAttribute(NoteDocumentCodec.listMarkerKey, in: range, options: []) { value, sub, stop in
+            if value as? Bool == true, sub.location == range.location {
+                markerLen = sub.length
+                stop.pointee = true
+            } else {
+                stop.pointee = true
+            }
+        }
+        if markerLen > 0 {
+            storage.deleteCharacters(in: NSRange(location: range.location, length: markerLen))
+            return NSRange(location: range.location, length: max(0, range.length - markerLen))
+        }
+        return range
+    }
+
+    private func numberedIndex(forParagraphStartingAt location: Int, promotingToNumbered: Bool) -> Int {
+        guard promotingToNumbered else { return 1 }
+        let ns = textView.text as NSString
+        var idx = 1
+        var cursor = location
+        while cursor > 0 {
+            let prevRange = ns.paragraphRange(for: NSRange(location: cursor - 1, length: 0))
+            if prevRange.length == 0 || prevRange.location >= cursor { break }
+            let attrs = textView.textStorage.attributes(at: prevRange.location, effectiveRange: nil)
+            if (attrs[NoteDocumentCodec.blockTypeKey] as? String) == "numbered" {
+                idx += 1
+                cursor = prevRange.location
+            } else {
+                break
+            }
+        }
+        return idx
     }
 
     private func toggleMark(_ apply: (inout [NSAttributedString.Key: Any], UIFont) -> Void) {
@@ -301,12 +503,13 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
     @objc private func toggleCheck() {
         if currentBlockType() == "check" {
+            // Flip checked state and refresh the ☐/☑ marker.
             let range = paragraphRange()
             if range.length > 0 {
                 let attrs = textView.textStorage.attributes(at: range.location, effectiveRange: nil)
                 let checked = !((attrs[NoteDocumentCodec.checkedKey] as? Bool) ?? false)
                 textView.textStorage.addAttribute(NoteDocumentCodec.checkedKey, value: checked, range: range)
-                emitChange()
+                applyBlockType("check", preserveChecked: true)
                 return
             }
         }
@@ -360,10 +563,12 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     }
 
     @objc private func presentBibleRefPicker() {
+        dismissTriggerMenu()
         delegate?.nativeNoteEditorRequestInsertBibleRef(self)
     }
 
     @objc private func presentSpeakerPicker() {
+        dismissTriggerMenu()
         delegate?.nativeNoteEditorRequestSpeaker(self)
     }
 
@@ -377,37 +582,376 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         emitChange()
     }
 
+    // MARK: - Hit testing (bible pills vs speaker / text)
+
     @objc private func handleTap(_ gesture: UITapGestureRecognizer) {
         guard gesture.state == .ended else { return }
+        dismissTriggerMenu()
         let point = gesture.location(in: textView)
-        var fraction: CGFloat = 0
-        let index = textView.layoutManager.characterIndex(
-            for: point,
-            in: textView.textContainer,
-            fractionOfDistanceBetweenInsertionPoints: &fraction
-        )
-        guard index < textView.textStorage.length else { return }
-        let attrs = textView.textStorage.attributes(at: index, effectiveRange: nil)
-        if let attachment = attrs[.attachment] as? BibleRefPillAttachment {
-            delegate?.nativeNoteEditor(self, openBibleRef: attachment.payload)
+
+        if let speaker = speakerAttachment(at: point) {
+            // Speaker card — do not open Bible; leave caret near the section.
+            _ = speaker
             return
         }
-        if let ref = attrs[NoteDocumentCodec.bibleRefKey] as? NoteDocumentCodec.BibleRefPayload {
+
+        if let ref = bibleRef(at: point) {
             delegate?.nativeNoteEditor(self, openBibleRef: ref)
             return
         }
-        if let type = attrs[NoteDocumentCodec.blockTypeKey] as? String, type == "check" {
-            let range = (textView.text as NSString).paragraphRange(for: NSRange(location: index, length: 0))
-            let checked = !((attrs[NoteDocumentCodec.checkedKey] as? Bool) ?? false)
-            textView.textStorage.addAttribute(NoteDocumentCodec.checkedKey, value: checked, range: range)
-            emitChange()
+
+        // Checklist toggle when tapping the line (not a pill).
+        if let index = characterIndex(at: point, requireHitBounds: false),
+           index < textView.textStorage.length
+        {
+            let attrs = textView.textStorage.attributes(at: index, effectiveRange: nil)
+            if let type = attrs[NoteDocumentCodec.blockTypeKey] as? String, type == "check" {
+                let range = (textView.text as NSString).paragraphRange(for: NSRange(location: index, length: 0))
+                let checked = !((attrs[NoteDocumentCodec.checkedKey] as? Bool) ?? false)
+                textView.textStorage.addAttribute(NoteDocumentCodec.checkedKey, value: checked, range: range)
+                emitChange()
+            }
         }
+    }
+
+    private func textPoint(_ point: CGPoint) -> CGPoint {
+        CGPoint(
+            x: point.x - textView.textContainerInset.left,
+            y: point.y - textView.textContainerInset.top
+        )
+    }
+
+    private func characterIndex(at point: CGPoint, requireHitBounds: Bool) -> Int? {
+        let p = textPoint(point)
+        var fraction: CGFloat = 0
+        let index = textView.layoutManager.characterIndex(
+            for: p,
+            in: textView.textContainer,
+            fractionOfDistanceBetweenInsertionPoints: &fraction
+        )
+        guard index < textView.textStorage.length else { return nil }
+        if requireHitBounds {
+            let glyphIndex = textView.layoutManager.glyphIndexForCharacter(at: index)
+            var rect = textView.layoutManager.boundingRect(
+                forGlyphRange: NSRange(location: glyphIndex, length: 1),
+                in: textView.textContainer
+            )
+            rect.origin.x += textView.textContainerInset.left
+            rect.origin.y += textView.textContainerInset.top
+            guard rect.insetBy(dx: -6, dy: -6).contains(point) else { return nil }
+        }
+        return index
+    }
+
+    private func glyphRect(forCharacter index: Int) -> CGRect {
+        let glyphIndex = textView.layoutManager.glyphIndexForCharacter(at: index)
+        var rect = textView.layoutManager.boundingRect(
+            forGlyphRange: NSRange(location: glyphIndex, length: 1),
+            in: textView.textContainer
+        )
+        rect.origin.x += textView.textContainerInset.left
+        rect.origin.y += textView.textContainerInset.top
+        return rect
+    }
+
+    private func bibleRef(at point: CGPoint) -> NoteDocumentCodec.BibleRefPayload? {
+        let storage = textView.textStorage
+        guard storage.length > 0 else { return nil }
+        let p = textPoint(point)
+        var fraction: CGFloat = 0
+        let rawIndex = textView.layoutManager.characterIndex(
+            for: p,
+            in: textView.textContainer,
+            fractionOfDistanceBetweenInsertionPoints: &fraction
+        )
+        // Search the hit character and immediate neighbors (ZWSP pads around pills).
+        var candidates = Set<Int>()
+        for offset in -2...2 {
+            let i = rawIndex + offset
+            if i >= 0, i < storage.length { candidates.insert(i) }
+        }
+        for i in candidates.sorted() {
+            let attrs = storage.attributes(at: i, effectiveRange: nil)
+            if attrs[.attachment] is SpeakerSectionAttachment { continue }
+            if let attachment = attrs[.attachment] as? BibleRefPillAttachment {
+                let rect = glyphRect(forCharacter: i).insetBy(dx: -8, dy: -8)
+                if rect.contains(point) {
+                    return attachment.payload
+                }
+            }
+            if let payload = attrs[NoteDocumentCodec.bibleRefKey] as? NoteDocumentCodec.BibleRefPayload {
+                let rect = glyphRect(forCharacter: i).insetBy(dx: -8, dy: -8)
+                if rect.contains(point) {
+                    return payload
+                }
+            }
+        }
+        return nil
+    }
+
+    private func speakerAttachment(at point: CGPoint) -> SpeakerSectionAttachment? {
+        let storage = textView.textStorage
+        guard storage.length > 0 else { return nil }
+        let p = textPoint(point)
+        var fraction: CGFloat = 0
+        let rawIndex = textView.layoutManager.characterIndex(
+            for: p,
+            in: textView.textContainer,
+            fractionOfDistanceBetweenInsertionPoints: &fraction
+        )
+        for offset in -1...1 {
+            let i = rawIndex + offset
+            guard i >= 0, i < storage.length else { continue }
+            if let attachment = storage.attribute(.attachment, at: i, effectiveRange: nil) as? SpeakerSectionAttachment {
+                let rect = glyphRect(forCharacter: i).insetBy(dx: -4, dy: -4)
+                if rect.contains(point) {
+                    return attachment
+                }
+            }
+        }
+        return nil
+    }
+
+    // MARK: - @ and / trigger menus
+
+    private func caretAnchorPoint() -> CGPoint {
+        let range = textView.selectedRange
+        let start = min(range.location, max(0, textView.textStorage.length))
+        var rect = textView.caretRect(for: textView.position(from: textView.beginningOfDocument, offset: start) ?? textView.endOfDocument)
+        if rect.isNull || rect.isInfinite {
+            rect = CGRect(x: textView.textContainerInset.left, y: textView.textContainerInset.top, width: 1, height: 20)
+        }
+        // Convert to this view's coordinates.
+        return textView.convert(CGPoint(x: rect.minX, y: rect.maxY + 4), to: self)
+    }
+
+    private func showAtMenu(at location: Int) {
+        textView.selectedRange = NSRange(location: location, length: 0)
+        let items: [NoteEditorTriggerMenuView.Item] = speakers.map { speaker in
+            NoteEditorTriggerMenuView.Item(
+                id: speaker.id,
+                title: speaker.name,
+                systemImage: "person.fill",
+                tint: UIColor(v2nHex: speaker.color)
+            ) { [weak self] in
+                guard let self else { return }
+                self.insertSpeakerSection(speakerId: speaker.id, name: speaker.name)
+            }
+        } + [
+            NoteEditorTriggerMenuView.Item(
+                id: "__add__",
+                title: String(localized: "Adicionar speaker"),
+                systemImage: "plus",
+                tint: V2NDesign.accent
+            ) { [weak self] in
+                self?.presentSpeakerPicker()
+            },
+        ]
+        presentTriggerMenu(title: String(localized: "Speakers"), items: items)
+    }
+
+    private func showSlashMenu(at location: Int) {
+        textView.selectedRange = NSRange(location: location, length: 0)
+        // Original web `/` opened the bible picker; also offer common blocks (user expectation).
+        let items: [NoteEditorTriggerMenuView.Item] = [
+            .init(id: "ref", title: String(localized: "Referência bíblica"), systemImage: "book", tint: V2NDesign.accent) { [weak self] in
+                self?.presentBibleRefPicker()
+            },
+            .init(id: "heading", title: String(localized: "Título"), systemImage: "textformat.size", tint: nil) { [weak self] in
+                self?.dismissTriggerMenu()
+                self?.applyBlockType("heading", preserveChecked: false)
+            },
+            .init(id: "bullet", title: String(localized: "Lista"), systemImage: "list.bullet", tint: nil) { [weak self] in
+                self?.dismissTriggerMenu()
+                self?.applyBlockType("bullet", preserveChecked: false)
+            },
+            .init(id: "numbered", title: String(localized: "Numerada"), systemImage: "list.number", tint: nil) { [weak self] in
+                self?.dismissTriggerMenu()
+                self?.applyBlockType("numbered", preserveChecked: false)
+            },
+            .init(id: "check", title: String(localized: "Checklist"), systemImage: "checklist", tint: nil) { [weak self] in
+                self?.dismissTriggerMenu()
+                self?.applyBlockType("check", preserveChecked: false)
+            },
+            .init(id: "quote", title: String(localized: "Citação"), systemImage: "text.quote", tint: nil) { [weak self] in
+                self?.dismissTriggerMenu()
+                self?.applyBlockType("quote", preserveChecked: false)
+            },
+            .init(id: "speaker", title: String(localized: "Speaker"), systemImage: "person.wave.2", tint: nil) { [weak self] in
+                self?.presentSpeakerPicker()
+            },
+        ]
+        presentTriggerMenu(title: String(localized: "Inserir"), items: items)
+    }
+
+    private func presentTriggerMenu(title: String, items: [NoteEditorTriggerMenuView.Item]) {
+        dismissTriggerMenu()
+        let menu = NoteEditorTriggerMenuView(title: title, items: items) { [weak self] in
+            self?.dismissTriggerMenu()
+        }
+        let anchor = caretAnchorPoint()
+        menu.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(menu)
+        triggerMenu = menu
+
+        let width: CGFloat = min(280, bounds.width - 24)
+        let leading = max(12, min(anchor.x, bounds.width - width - 12))
+        let top = min(max(anchor.y, 8), bounds.height - 220)
+        NSLayoutConstraint.activate([
+            menu.leadingAnchor.constraint(equalTo: leadingAnchor, constant: leading),
+            menu.topAnchor.constraint(equalTo: topAnchor, constant: top),
+            menu.widthAnchor.constraint(equalToConstant: width),
+            menu.heightAnchor.constraint(lessThanOrEqualToConstant: 280),
+        ])
+        V2NHaptics.selection()
+    }
+
+    private func dismissTriggerMenu() {
+        triggerMenu?.removeFromSuperview()
+        triggerMenu = nil
     }
 }
 
 extension NativeNoteEditorView: UIGestureRecognizerDelegate {
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
         true
+    }
+}
+
+// MARK: - Codec helpers exposed for typing attributes
+
+extension NoteDocumentCodec {
+    /// Public wrapper so the editor can build paragraph styles (incl. NSTextList) consistently.
+    static func baseAttributesPublic(
+        type: String,
+        id: String,
+        checked: Bool?,
+        speakerId: String?,
+        speakers: [String: NativeAPIClient.SpeakerDTO]
+    ) -> [NSAttributedString.Key: Any] {
+        // Mirror private baseAttributes by round-tripping a tiny attributed string.
+        let style = NSMutableParagraphStyle()
+        style.lineSpacing = 3
+        var font = UIFont.preferredFont(forTextStyle: .body)
+        var foreground: UIColor = .label
+        switch type {
+        case "heading":
+            font = UIFont.preferredFont(forTextStyle: id == "title" ? .title1 : .title2)
+            style.paragraphSpacingBefore = id == "title" ? 0 : 8
+        case "bullet", "numbered", "check":
+            style.headIndent = 22
+            style.firstLineHeadIndent = 0
+        case "quote":
+            style.headIndent = 16
+            style.firstLineHeadIndent = 16
+            if let descriptor = font.fontDescriptor.withSymbolicTraits(font.fontDescriptor.symbolicTraits.union(.traitItalic)) {
+                font = UIFont(descriptor: descriptor, size: font.pointSize)
+            }
+        default:
+            break
+        }
+        var attrs: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: foreground,
+            .paragraphStyle: style,
+            blockTypeKey: type,
+            blockIdKey: id,
+        ]
+        if type == "check" {
+            attrs[checkedKey] = checked ?? false
+        }
+        if let speakerId {
+            attrs[speakerIdKey] = speakerId
+        }
+        _ = speakers
+        return attrs
+    }
+}
+
+// MARK: - Inline @ / / popup
+
+@MainActor
+final class NoteEditorTriggerMenuView: UIView, UITableViewDelegate, UITableViewDataSource {
+    struct Item {
+        let id: String
+        let title: String
+        let systemImage: String
+        let tint: UIColor?
+        let action: () -> Void
+    }
+
+    private let items: [Item]
+    private let onDismiss: () -> Void
+    private let table = UITableView(frame: .zero, style: .plain)
+    private let titleLabel = UILabel()
+
+    init(title: String, items: [Item], onDismiss: @escaping () -> Void) {
+        self.items = items
+        self.onDismiss = onDismiss
+        super.init(frame: .zero)
+        backgroundColor = V2NDesign.surface
+        layer.cornerRadius = V2NDesign.Radius.md
+        layer.cornerCurve = .continuous
+        layer.borderWidth = 0.5
+        layer.borderColor = V2NDesign.separator.cgColor
+        layer.shadowColor = UIColor.black.cgColor
+        layer.shadowOpacity = 0.12
+        layer.shadowRadius = 12
+        layer.shadowOffset = CGSize(width: 0, height: 4)
+
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        titleLabel.text = title
+        titleLabel.font = V2NDesign.caption()
+        titleLabel.textColor = .secondaryLabel
+
+        table.translatesAutoresizingMaskIntoConstraints = false
+        table.delegate = self
+        table.dataSource = self
+        table.register(UITableViewCell.self, forCellReuseIdentifier: "row")
+        table.backgroundColor = .clear
+        table.separatorInset = UIEdgeInsets(top: 0, left: 44, bottom: 0, right: 0)
+        table.rowHeight = 44
+        table.isScrollEnabled = items.count > 6
+
+        addSubview(titleLabel)
+        addSubview(table)
+        NSLayoutConstraint.activate([
+            titleLabel.topAnchor.constraint(equalTo: topAnchor, constant: 10),
+            titleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14),
+            titleLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -14),
+
+            table.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 4),
+            table.leadingAnchor.constraint(equalTo: leadingAnchor),
+            table.trailingAnchor.constraint(equalTo: trailingAnchor),
+            table.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -4),
+            table.heightAnchor.constraint(equalToConstant: CGFloat(min(items.count, 6)) * 44),
+        ])
+        accessibilityViewIsModal = true
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int { items.count }
+
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "row", for: indexPath)
+        let item = items[indexPath.row]
+        var config = cell.defaultContentConfiguration()
+        config.text = item.title
+        config.image = UIImage(systemName: item.systemImage)
+        config.imageProperties.tintColor = item.tint ?? V2NDesign.accent
+        config.textProperties.font = V2NDesign.preferred(.body, weight: .medium)
+        cell.contentConfiguration = config
+        cell.backgroundColor = .clear
+        return cell
+    }
+
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        tableView.deselectRow(at: indexPath, animated: true)
+        let item = items[indexPath.row]
+        onDismiss()
+        item.action()
     }
 }
 

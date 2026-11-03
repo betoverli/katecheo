@@ -82,19 +82,21 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
         booksPanel.translatesAutoresizingMaskIntoConstraints = false
         booksPanel.backgroundColor = .clear
 
-        let layout = makeLayout()
+        let layout = V2NBookGridLayout.make(isCompact: { [weak self] in
+            self?.booksCompact ?? false
+        })
         collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
         collectionView.translatesAutoresizingMaskIntoConstraints = false
         collectionView.backgroundColor = .clear
         collectionView.delegate = self
         collectionView.dataSource = self
         collectionView.alwaysBounceVertical = true
-        collectionView.register(BookNameCell.self, forCellWithReuseIdentifier: BookNameCell.reuseId)
-        collectionView.register(BookAbbrCell.self, forCellWithReuseIdentifier: BookAbbrCell.reuseId)
+        collectionView.register(V2NBookNameCell.self, forCellWithReuseIdentifier: V2NBookNameCell.reuseId)
+        collectionView.register(V2NBookAbbrCell.self, forCellWithReuseIdentifier: V2NBookAbbrCell.reuseId)
         collectionView.register(
-            SectionHeaderView.self,
+            V2NBookSectionHeaderView.self,
             forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader,
-            withReuseIdentifier: SectionHeaderView.reuseId
+            withReuseIdentifier: V2NBookSectionHeaderView.reuseId
         )
         let refresh = UIRefreshControl()
         refresh.addTarget(self, action: #selector(reload), for: .valueChanged)
@@ -329,32 +331,6 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
         collectionView.reloadData()
     }
 
-    private func makeLayout() -> UICollectionViewCompositionalLayout {
-        UICollectionViewCompositionalLayout { [weak self] _, env in
-            let compact = self?.booksCompact ?? false
-            let columns: CGFloat = compact ? (env.container.effectiveContentSize.width > 500 ? 8 : 5) : 2
-            let itemSize = NSCollectionLayoutSize(
-                widthDimension: .fractionalWidth(1 / columns),
-                heightDimension: .absolute(compact ? 52 : 56)
-            )
-            let item = NSCollectionLayoutItem(layoutSize: itemSize)
-            item.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4)
-            let groupSize = NSCollectionLayoutSize(
-                widthDimension: .fractionalWidth(1),
-                heightDimension: .absolute(compact ? 52 : 56)
-            )
-            let group = NSCollectionLayoutGroup.horizontal(layoutSize: groupSize, subitems: [item])
-            let section = NSCollectionLayoutSection(group: group)
-            section.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 12, bottom: 12, trailing: 12)
-            let header = NSCollectionLayoutBoundarySupplementaryItem(
-                layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1), heightDimension: .absolute(32)),
-                elementKind: UICollectionView.elementKindSectionHeader,
-                alignment: .top
-            )
-            section.boundarySupplementaryItems = [header]
-            return section
-        }
-    }
 
     // MARK: - Collection
 
@@ -367,11 +343,11 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let book = (indexPath.section == 0 ? otBooks : ntBooks)[indexPath.item]
         if booksCompact {
-            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: BookAbbrCell.reuseId, for: indexPath) as! BookAbbrCell
+            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NBookAbbrCell.reuseId, for: indexPath) as! V2NBookAbbrCell
             cell.configure(abbr: book.abbr, accessibilityName: book.name)
             return cell
         }
-        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: BookNameCell.reuseId, for: indexPath) as! BookNameCell
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NBookNameCell.reuseId, for: indexPath) as! V2NBookNameCell
         cell.configure(name: book.name, abbr: book.abbr)
         return cell
     }
@@ -383,9 +359,9 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
     ) -> UICollectionReusableView {
         let header = collectionView.dequeueReusableSupplementaryView(
             ofKind: kind,
-            withReuseIdentifier: SectionHeaderView.reuseId,
+            withReuseIdentifier: V2NBookSectionHeaderView.reuseId,
             for: indexPath
-        ) as! SectionHeaderView
+        ) as! V2NBookSectionHeaderView
         header.configure(
             title: indexPath.section == 0
                 ? String(localized: "Antigo Testamento")
@@ -398,114 +374,5 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
         V2NHaptics.selection()
         let book = (indexPath.section == 0 ? otBooks : ntBooks)[indexPath.item]
         navigationController?.pushViewController(VerseChapterViewController(book: book, prefs: prefs), animated: true)
-    }
-}
-
-// MARK: - Cells
-
-private final class BookNameCell: UICollectionViewCell {
-    static let reuseId = "BookNameCell"
-    private let nameLabel = UILabel()
-    private let abbrLabel = UILabel()
-
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        contentView.backgroundColor = V2NDesign.surface
-        contentView.layer.cornerRadius = V2NDesign.Radius.sm
-        contentView.layer.cornerCurve = .continuous
-        contentView.layer.borderWidth = 0.5
-        contentView.layer.borderColor = V2NDesign.separator.cgColor
-
-        nameLabel.font = V2NDesign.preferred(.subheadline, weight: .medium)
-        nameLabel.textColor = .label
-        nameLabel.lineBreakMode = .byTruncatingTail
-        nameLabel.adjustsFontForContentSizeCategory = true
-        nameLabel.translatesAutoresizingMaskIntoConstraints = false
-
-        abbrLabel.font = V2NDesign.caption()
-        abbrLabel.textColor = .secondaryLabel
-        abbrLabel.setContentHuggingPriority(.required, for: .horizontal)
-        abbrLabel.translatesAutoresizingMaskIntoConstraints = false
-
-        contentView.addSubview(nameLabel)
-        contentView.addSubview(abbrLabel)
-        NSLayoutConstraint.activate([
-            nameLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 10),
-            nameLabel.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
-            abbrLabel.leadingAnchor.constraint(equalTo: nameLabel.trailingAnchor, constant: 6),
-            abbrLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -10),
-            abbrLabel.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
-        ])
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-
-    func configure(name: String, abbr: String) {
-        nameLabel.text = name
-        abbrLabel.text = abbr
-        accessibilityLabel = "\(name), \(abbr)"
-        isAccessibilityElement = true
-    }
-}
-
-private final class BookAbbrCell: UICollectionViewCell {
-    static let reuseId = "BookAbbrCell"
-    private let label = UILabel()
-
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        contentView.backgroundColor = V2NDesign.surface
-        contentView.layer.cornerRadius = V2NDesign.Radius.sm
-        contentView.layer.cornerCurve = .continuous
-        contentView.layer.borderWidth = 0.5
-        contentView.layer.borderColor = V2NDesign.separator.cgColor
-
-        label.font = V2NDesign.preferred(.footnote, weight: .semibold)
-        label.textColor = .label
-        label.textAlignment = .center
-        label.adjustsFontForContentSizeCategory = true
-        label.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(label)
-        NSLayoutConstraint.activate([
-            label.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
-            label.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
-            label.leadingAnchor.constraint(greaterThanOrEqualTo: contentView.leadingAnchor, constant: 2),
-            label.trailingAnchor.constraint(lessThanOrEqualTo: contentView.trailingAnchor, constant: -2),
-        ])
-        isAccessibilityElement = true
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-
-    func configure(abbr: String, accessibilityName: String) {
-        label.text = abbr
-        accessibilityLabel = accessibilityName
-    }
-}
-
-private final class SectionHeaderView: UICollectionReusableView {
-    static let reuseId = "SectionHeaderView"
-    private let label = UILabel()
-
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        label.font = V2NDesign.sectionHeader()
-        label.textColor = .secondaryLabel
-        label.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(label)
-        NSLayoutConstraint.activate([
-            label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
-            label.trailingAnchor.constraint(equalTo: trailingAnchor),
-            label.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -4),
-        ])
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-
-    func configure(title: String) {
-        label.text = title.uppercased()
     }
 }

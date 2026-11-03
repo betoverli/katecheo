@@ -14,9 +14,16 @@ lendo/gravando **NoteDocumentV1**. Não há mais `WKWebView` de produto para not
 ## UX (pt-BR)
 
 - Primeira linha = título (estilo Notas da Apple); restante = corpo.
+  O título **não** aparece na navigation bar (só no corpo).
 - Toolbar acima do teclado: título, listas, checklist, citação, negrito/itálico/
-  sublinhado/riscado, inserir referência bíblica (picker nativo da Fase 4).
-- Toque em `bibleRef` → abre a Bíblia (`resolveBibleLink` + prefs do Perfil).
+  sublinhado/riscado, inserir referência bíblica (grid de siglas como em Versículos).
+- Secção de speaker: cartão com barra de cor, avatar (inicial) e nome.
+- Listas com marcadores `•` / `1.` / ☐ (persistidos como `bullet`/`numbered`/`check` no V1;
+  os glifos de marcador são só de apresentação).
+- `@` abre menu inline de speakers; `/` abre menu inline (referência + blocos).
+- Toque em `bibleRef` → abre a Bíblia (`resolveBibleLink` + prefs do Perfil);
+  hit-test distingue o pill do texto/speaker ao lado.
+- Insets do teclado + scroll do caret para o fim da nota continuar editável.
 - Undo/redo do sistema; autosave com debounce → `LocalNoteCache` + outbox.
 - Dynamic Type, dark mode, labels de VoiceOver.
 

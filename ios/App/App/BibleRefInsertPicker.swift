@@ -1,16 +1,22 @@
 import UIKit
 
-/// Lightweight book → chapter → verse picker that returns a bibleRef for the note editor.
+/// Book → chapter → verse picker for inserting a `bibleRef` pill.
+/// Book step reuses the Versículos abbreviation-square grid (`V2NBookAbbrCell`).
 @MainActor
-final class BibleRefInsertPicker: UITableViewController {
+final class BibleRefInsertPicker: UIViewController, UICollectionViewDelegate, UICollectionViewDataSource, UISearchResultsUpdating {
     private let onPick: (NoteDocumentCodec.BibleRefPayload) -> Void
     private var books: [NativeAPIClient.BibleBookDTO] = []
     private var filtered: [NativeAPIClient.BibleBookDTO] = []
     private let search = UISearchController(searchResultsController: nil)
+    private var collectionView: UICollectionView!
+    private let statusLabel = UILabel()
+
+    private var otBooks: [NativeAPIClient.BibleBookDTO] { filtered.filter { $0.testament == "ot" } }
+    private var ntBooks: [NativeAPIClient.BibleBookDTO] { filtered.filter { $0.testament == "nt" } }
 
     init(onPick: @escaping (NoteDocumentCodec.BibleRefPayload) -> Void) {
         self.onPick = onPick
-        super.init(style: .insetGrouped)
+        super.init(nibName: nil, bundle: nil)
     }
 
     @available(*, unavailable)
@@ -18,14 +24,55 @@ final class BibleRefInsertPicker: UITableViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        v2nApplyGroupedChrome()
+        V2NChrome.styleCanvas(view)
         title = String(localized: "Inserir referência")
-        navigationItem.leftBarButtonItem = UIBarButtonItem(title: String(localized: "Cancelar"), style: .plain, target: self, action: #selector(cancel))
+        navigationItem.leftBarButtonItem = UIBarButtonItem(
+            title: String(localized: "Cancelar"),
+            style: .plain,
+            target: self,
+            action: #selector(cancel)
+        )
+
         search.searchResultsUpdater = self
         search.obscuresBackgroundDuringPresentation = false
         search.searchBar.placeholder = String(localized: "Buscar livro")
         navigationItem.searchController = search
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "book")
+        definesPresentationContext = true
+
+        statusLabel.translatesAutoresizingMaskIntoConstraints = false
+        statusLabel.font = V2NDesign.caption()
+        statusLabel.textColor = .secondaryLabel
+        statusLabel.textAlignment = .center
+        statusLabel.text = String(localized: "Carregando…")
+        statusLabel.adjustsFontForContentSizeCategory = true
+
+        collectionView = UICollectionView(frame: .zero, collectionViewLayout: V2NBookGridLayout.make(compact: true))
+        collectionView.translatesAutoresizingMaskIntoConstraints = false
+        collectionView.backgroundColor = .clear
+        collectionView.delegate = self
+        collectionView.dataSource = self
+        collectionView.alwaysBounceVertical = true
+        collectionView.keyboardDismissMode = .onDrag
+        collectionView.register(V2NBookAbbrCell.self, forCellWithReuseIdentifier: V2NBookAbbrCell.reuseId)
+        collectionView.register(
+            V2NBookSectionHeaderView.self,
+            forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader,
+            withReuseIdentifier: V2NBookSectionHeaderView.reuseId
+        )
+
+        view.addSubview(statusLabel)
+        view.addSubview(collectionView)
+        NSLayoutConstraint.activate([
+            statusLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: V2NDesign.Space.xxs),
+            statusLabel.leadingAnchor.constraint(equalTo: view.layoutMarginsGuide.leadingAnchor),
+            statusLabel.trailingAnchor.constraint(equalTo: view.layoutMarginsGuide.trailingAnchor),
+
+            collectionView.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: V2NDesign.Space.xs),
+            collectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
+
         Task { await loadBooks() }
     }
 
@@ -36,46 +83,22 @@ final class BibleRefInsertPicker: UITableViewController {
     private func loadBooks() async {
         do {
             books = try await NativeAPIClient.fetchBibleBooks(locale: AppLocale.apiCode)
-            filtered = books
-            tableView.reloadData()
+            applyFilter()
+            statusLabel.text = String(localized: "Toque no livro")
+            statusLabel.textColor = V2NDesign.accent
         } catch {
+            statusLabel.text = error.localizedDescription
+            statusLabel.textColor = V2NDesign.danger
             let alert = UIAlertController(title: String(localized: "Erro"), message: error.localizedDescription, preferredStyle: .alert)
-            alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default) { [weak self] _ in self?.dismiss(animated: true) })
+            alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default) { [weak self] _ in
+                self?.dismiss(animated: true)
+            })
             present(alert, animated: true)
         }
     }
 
-    override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        filtered.count
-    }
-
-    override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "book", for: indexPath)
-        let book = filtered[indexPath.row]
-        var config = cell.defaultContentConfiguration()
-        config.text = book.name
-        config.secondaryText = book.abbr
-        cell.contentConfiguration = config
-        cell.accessoryType = .disclosureIndicator
-        return cell
-    }
-
-    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        tableView.deselectRow(at: indexPath, animated: true)
-        let book = filtered[indexPath.row]
-        navigationController?.pushViewController(
-            BibleRefChapterPicker(book: book, onPick: { [weak self] ref in
-                self?.onPick(ref)
-                self?.dismiss(animated: true)
-            }),
-            animated: true
-        )
-    }
-}
-
-extension BibleRefInsertPicker: UISearchResultsUpdating {
-    func updateSearchResults(for searchController: UISearchController) {
-        let q = (searchController.searchBar.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    private func applyFilter() {
+        let q = (search.searchBar.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if q.isEmpty {
             filtered = books
         } else {
@@ -83,7 +106,54 @@ extension BibleRefInsertPicker: UISearchResultsUpdating {
                 $0.name.lowercased().contains(q) || $0.abbr.lowercased().contains(q) || $0.id.lowercased().contains(q)
             }
         }
-        tableView.reloadData()
+        collectionView.reloadData()
+    }
+
+    func updateSearchResults(for searchController: UISearchController) {
+        applyFilter()
+    }
+
+    func numberOfSections(in collectionView: UICollectionView) -> Int { 2 }
+
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        section == 0 ? otBooks.count : ntBooks.count
+    }
+
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        let book = (indexPath.section == 0 ? otBooks : ntBooks)[indexPath.item]
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NBookAbbrCell.reuseId, for: indexPath) as! V2NBookAbbrCell
+        cell.configure(abbr: book.abbr, accessibilityName: book.name)
+        return cell
+    }
+
+    func collectionView(
+        _ collectionView: UICollectionView,
+        viewForSupplementaryElementOfKind kind: String,
+        at indexPath: IndexPath
+    ) -> UICollectionReusableView {
+        let header = collectionView.dequeueReusableSupplementaryView(
+            ofKind: kind,
+            withReuseIdentifier: V2NBookSectionHeaderView.reuseId,
+            for: indexPath
+        ) as! V2NBookSectionHeaderView
+        header.configure(
+            title: indexPath.section == 0
+                ? String(localized: "Antigo Testamento")
+                : String(localized: "Novo Testamento")
+        )
+        return header
+    }
+
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        V2NHaptics.selection()
+        let book = (indexPath.section == 0 ? otBooks : ntBooks)[indexPath.item]
+        navigationController?.pushViewController(
+            BibleRefChapterPicker(book: book, onPick: { [weak self] ref in
+                self?.onPick(ref)
+                self?.dismiss(animated: true)
+            }),
+            animated: true
+        )
     }
 }
 
