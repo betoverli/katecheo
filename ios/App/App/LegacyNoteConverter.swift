@@ -26,6 +26,7 @@ enum LegacyNoteConverter {
                 speakerId: nil,
                 title: nil,
                 collapsed: nil,
+                checked: nil,
                 blocks: nil
             )]
             : Array(blocks)
@@ -88,7 +89,7 @@ enum LegacyNoteConverter {
             let children = ((row["children"] as? [Any]) ?? []).compactMap(convertLine).prefix(80)
             let childBlocks = children.isEmpty
                 ? [NativeAPIClient.LineBlock(
-                    id: newId(), type: "paragraph", spans: [], speakerId: nil, title: nil, collapsed: nil, blocks: nil
+                    id: newId(), type: "paragraph", spans: [], speakerId: nil, title: nil, collapsed: nil, checked: nil, blocks: nil
                 )]
                 : Array(children)
             return NativeAPIClient.LineBlock(
@@ -98,6 +99,7 @@ enum LegacyNoteConverter {
                 speakerId: String(speakerId.prefix(40)),
                 title: row["title"] as? String,
                 collapsed: row["collapsed"] as? Bool,
+                checked: nil,
                 blocks: childBlocks
             )
         }
@@ -137,6 +139,7 @@ enum LegacyNoteConverter {
             speakerId: nil,
             title: nil,
             collapsed: nil,
+            checked: nil,
             blocks: nil
         )
     }

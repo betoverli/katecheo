@@ -20,7 +20,7 @@ describe("Phase 1 native notebook shell (updated Phase 5)", () => {
     assert.match(scene, /AppRoot\.makeRootViewController/);
   });
 
-  it("ships native list + note chrome + isolated miolo", () => {
+  it("ships native list + note chrome + native editor", () => {
     for (const file of [
       "ios/App/App/NotebookListViewController.swift",
       "ios/App/App/NoteDetailViewController.swift",
@@ -28,7 +28,8 @@ describe("Phase 1 native notebook shell (updated Phase 5)", () => {
       "ios/App/App/SpeakerPickerViewController.swift",
       "ios/App/App/NativeRootTabBarController.swift",
       "ios/App/App/LocalNoteCache.swift",
-      "ios/App/App/NoteMioloEditorView.swift",
+      "ios/App/App/NativeNoteEditorView.swift",
+      "ios/App/App/NoteDocumentCodec.swift",
     ]) {
       const body = read(file);
       assert.ok(body.length > 100, file);
@@ -40,11 +41,11 @@ describe("Phase 1 native notebook shell (updated Phase 5)", () => {
     assert.match(list, /UIActivityViewController/);
     assert.doesNotMatch(list, /Site clássico|capacitorSite/);
     const detail = read("ios/App/App/NoteDetailViewController.swift");
-    assert.match(detail, /NoteMioloEditorView/);
+    assert.match(detail, /NativeNoteEditorView/);
     assert.match(detail, /NoteDocument/);
-    const miolo = read("ios/App/App/NoteMioloEditorView.swift");
-    assert.match(miolo, /WKScriptMessageHandler/);
-    assert.match(miolo, /native-editor/);
+    const editor = read("ios/App/App/NativeNoteEditorView.swift");
+    assert.match(editor, /UITextView/);
+    assert.doesNotMatch(editor, /WKWebView/);
   });
 
   it("does not offer Capacitor classic fallback", () => {
@@ -57,7 +58,8 @@ describe("Phase 1 native notebook shell (updated Phase 5)", () => {
     for (const name of [
       "NotebookListViewController.swift in Sources",
       "NoteDetailViewController.swift in Sources",
-      "NoteMioloEditorView.swift in Sources",
+      "NativeNoteEditorView.swift in Sources",
+      "NoteDocumentCodec.swift in Sources",
       "AppRoot.swift in Sources",
       "NativeRootTabBarController.swift in Sources",
     ]) {

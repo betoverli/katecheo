@@ -430,19 +430,19 @@ Principles: **small**, **user-visible or foundational**, **reversible feature fl
 - Native outbox with exponential backoff; 401 → clear Keychain + re-login.
 - Empty/error copy in **pt-BR**; main-thread guards kept for WebKit.
 
-### Phase 7 — FINAL: native note editor (no WebView)
+### Phase 7 — FINAL: native note editor (no WebView) — **shipped**
 
-**Goal:** Delete the last WKWebView. Note body editing is 100% Swift/SwiftUI (or UIKit TextKit), reading/writing **`NoteDocumentV1`** via `/api/native/v1`.
+**Goal:** Delete the last product WKWebView for notes. Body editing is UIKit `UITextView` + **`NoteDocumentV1`** via `/api/native/v1`.
 
-**Scope:**
+**Shipped:**
 
-1. Native block editor: paragraphs, headings, lists, text marks, bible-ref chips, speaker sections, caret/selection, undo.
-2. Open/save/autosave against the same API schema (no conversion to HTML).
-3. Remove `/native-editor` WebView spike and any embedded miolo WebView from Phase 1.
-4. Document Android parity: same JSON schema; no iOS-only storage quirks.
-5. Optional later: bump `schemaVersion` only if the native editor needs breaking fields (prefer additive).
+1. `NativeNoteEditorView` — paragraphs, headings, lists, checklists, quotes, marks (bold/italic/underline/strikethrough), tappable `bibleRef`, toolbar, undo, autosave/outbox.
+2. Schema docs: `docs/note-document-v1.md` (+ check/quote/`bibleRef.text` additive fields).
+3. Server: V1 storage envelope in `blocks`, HTML→V1 lazy migration with `blocks_backup`.
+4. Removed `NoteMioloEditorView` / app dependency on `/native-editor`.
+5. See `docs/ios-phase7-native-editor.md`.
 
-**Exit criteria:** A TestFlight build with **zero WKWebView** can create and edit a note end-to-end; exported JSON opens on a second client (future Android) without HTML scraping.
+**Exit criteria:** TestFlight build edits notes with **zero note WebView**; JSON is Android-ready.
 
 ---
 
@@ -501,3 +501,5 @@ Principles: **small**, **user-visible or foundational**, **reversible feature fl
 | 2026-11-02 | Phase 2 Grupos merged (#41). **Phase 3:** native Perfil + Configurações (`/me`, `/prefs`, `/notify-prefs`, `/account/delete|export`). |
 | 2026-11-02 | **Phase 4 Versículos:** native picker + temas + append `bibleRef` (`/bible/*`, `/verses/append`, `/my-collections*`). Leitura (plans) fica para follow-up. |
 | 2026-11-03 | **Phase 5:** Capacitor site host removed. App is native tabs + isolated `NoteMioloEditorView`. Push/UL/sign-in/offline stay native. |
+| 2026-11-03 | **Phase 6:** localStorage import + outbox hardening (#45). |
+| 2026-11-03 | **Phase 7:** `NativeNoteEditorView` (UITextView) replaces miolo WebView; `NoteDocumentV1` docs + HTML→V1 migration + `blocks_backup`. |

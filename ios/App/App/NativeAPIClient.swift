@@ -62,6 +62,7 @@ enum NativeAPIClient {
         var speakerId: String?
         var title: String?
         var collapsed: Bool?
+        var checked: Bool?
         var blocks: [LineBlock]?
     }
 
@@ -424,7 +425,7 @@ enum NativeAPIClient {
             visibility: "private",
             updatedAt: now,
             body: NoteBody(blocks: [
-                LineBlock(id: UUID().uuidString.replacingOccurrences(of: "-", with: ""), type: "paragraph", spans: [], speakerId: nil, title: nil, collapsed: nil, blocks: nil),
+                LineBlock(id: UUID().uuidString.replacingOccurrences(of: "-", with: ""), type: "paragraph", spans: [], speakerId: nil, title: nil, collapsed: nil, checked: nil, blocks: nil),
             ])
         )
     }

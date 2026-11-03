@@ -32,12 +32,14 @@
 		F5A3D0122FED796500168580 /* ProfileSettingsScreens.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A3D0132FED796500168580 /* ProfileSettingsScreens.swift */; };
 		F5A4E0102FED796500168590 /* VersesHomeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A4E0112FED796500168590 /* VersesHomeViewController.swift */; };
 		F5A4E0122FED796500168590 /* VersesScreens.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A4E0132FED796500168590 /* VersesScreens.swift */; };
-		F5A5E0102FED7965001685A0 /* NoteMioloEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A5E0112FED7965001685A0 /* NoteMioloEditorView.swift */; };
 		F5A5E0122FED7965001685A0 /* NativeDeepLinkRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A5E0132FED7965001685A0 /* NativeDeepLinkRouter.swift */; };
 		F5A5E0142FED7965001685A0 /* NativePushService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A5E0152FED7965001685A0 /* NativePushService.swift */; };
 		F6A6E0102FED7965001685B0 /* LegacyNoteConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6A6E0112FED7965001685B0 /* LegacyNoteConverter.swift */; };
 		F6A6E0122FED7965001685B0 /* NativeOutbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6A6E0132FED7965001685B0 /* NativeOutbox.swift */; };
 		F6A6E0142FED7965001685B0 /* LegacyWebStorageImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6A6E0152FED7965001685B0 /* LegacyWebStorageImporter.swift */; };
+		F7A7E0102FED7965001685C0 /* NativeNoteEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7A7E0112FED7965001685C0 /* NativeNoteEditorView.swift */; };
+		F7A7E0122FED7965001685C0 /* NoteDocumentCodec.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7A7E0132FED7965001685C0 /* NoteDocumentCodec.swift */; };
+		F7A7E0142FED7965001685C0 /* BibleRefInsertPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7A7E0152FED7965001685C0 /* BibleRefInsertPicker.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -71,12 +73,14 @@
 		F5A3D0132FED796500168580 /* ProfileSettingsScreens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileSettingsScreens.swift; sourceTree = "<group>"; };
 		F5A4E0112FED796500168590 /* VersesHomeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersesHomeViewController.swift; sourceTree = "<group>"; };
 		F5A4E0132FED796500168590 /* VersesScreens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersesScreens.swift; sourceTree = "<group>"; };
-		F5A5E0112FED7965001685A0 /* NoteMioloEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteMioloEditorView.swift; sourceTree = "<group>"; };
 		F5A5E0132FED7965001685A0 /* NativeDeepLinkRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeDeepLinkRouter.swift; sourceTree = "<group>"; };
 		F5A5E0152FED7965001685A0 /* NativePushService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativePushService.swift; sourceTree = "<group>"; };
 		F6A6E0112FED7965001685B0 /* LegacyNoteConverter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyNoteConverter.swift; sourceTree = "<group>"; };
 		F6A6E0132FED7965001685B0 /* NativeOutbox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeOutbox.swift; sourceTree = "<group>"; };
 		F6A6E0152FED7965001685B0 /* LegacyWebStorageImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyWebStorageImporter.swift; sourceTree = "<group>"; };
+		F7A7E0112FED7965001685C0 /* NativeNoteEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeNoteEditorView.swift; sourceTree = "<group>"; };
+		F7A7E0132FED7965001685C0 /* NoteDocumentCodec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteDocumentCodec.swift; sourceTree = "<group>"; };
+		F7A7E0152FED7965001685C0 /* BibleRefInsertPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleRefInsertPicker.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -111,7 +115,9 @@
 			isa = PBXGroup;
 			children = (
 				9582B6822FE993A50072D4E8 /* SceneDelegate.swift */,
-				F5A5E0112FED7965001685A0 /* NoteMioloEditorView.swift */,
+				F7A7E0112FED7965001685C0 /* NativeNoteEditorView.swift */,
+				F7A7E0132FED7965001685C0 /* NoteDocumentCodec.swift */,
+				F7A7E0152FED7965001685C0 /* BibleRefInsertPicker.swift */,
 				F5A5E0132FED7965001685A0 /* NativeDeepLinkRouter.swift */,
 				F5A5E0152FED7965001685A0 /* NativePushService.swift */,
 				D3E0F0002FED796500168540 /* KeychainStore.swift */,
@@ -226,7 +232,9 @@
 			files = (
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
-				F5A5E0102FED7965001685A0 /* NoteMioloEditorView.swift in Sources */,
+				F7A7E0102FED7965001685C0 /* NativeNoteEditorView.swift in Sources */,
+				F7A7E0122FED7965001685C0 /* NoteDocumentCodec.swift in Sources */,
+				F7A7E0142FED7965001685C0 /* BibleRefInsertPicker.swift in Sources */,
 				F5A5E0122FED7965001685A0 /* NativeDeepLinkRouter.swift in Sources */,
 				F5A5E0142FED7965001685A0 /* NativePushService.swift in Sources */,
 				A1C0DE042FED796500168520 /* LiquidGlassMaterial.m in Sources */,

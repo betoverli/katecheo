@@ -3,7 +3,7 @@
  * Checks the iOS shell without a Mac. The unsigned compile itself runs on the
  * macOS GitHub Actions runner (see .github/workflows/ios.yml).
  *
- * Phase 5: Capacitor site host removed. The only WKWebView is NoteMioloEditorView.
+ * Phase 7: Capacitor site host removed; note editor is fully native (no product WKWebView).
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -23,8 +23,8 @@ if (/server\s*:\s*\{[\s\S]*?url\s*:/.test(config)) {
 if (config.includes("NSAllowsArbitraryLoads") || config.includes("capacitorHttp")) {
   errors.push("Não ligar HTTP livre nem o proxy CapacitorHttp.");
 }
-if (!config.includes("NoteMioloEditorView") && !config.includes("native-editor")) {
-  errors.push("capacitor.config.ts tem de documentar o miolo NoteMioloEditorView / native-editor.");
+if (!config.includes("NativeNoteEditorView") && !config.includes("Phase 7")) {
+  errors.push("capacitor.config.ts tem de documentar o editor nativo (Phase 7 / NativeNoteEditorView).");
 }
 
 const launchScreen = read("ios/App/App/Base.lproj/LaunchScreen.storyboard");
@@ -94,8 +94,14 @@ if (!releaseTarget.includes("VERSE2NOTE_UNIVERSAL_LINKS = YES") || !releaseTarge
 if (project.includes("CapApp-SPM") || project.includes("NativeShell.swift") || project.includes("LiquidChrome.swift")) {
   errors.push("Phase 5: o target Xcode não pode ligar CapApp-SPM nem NativeShell/LiquidChrome.");
 }
-if (!project.includes("NoteMioloEditorView.swift in Sources")) {
-  errors.push("NoteMioloEditorView tem de estar no target Xcode.");
+if (project.includes("NoteMioloEditorView.swift")) {
+  errors.push("Phase 7: NoteMioloEditorView tem de ser removido do target Xcode.");
+}
+if (!project.includes("NativeNoteEditorView.swift in Sources") || !project.includes("NoteDocumentCodec.swift in Sources")) {
+  errors.push("NativeNoteEditorView / NoteDocumentCodec têm de estar no target Xcode.");
+}
+if (!project.includes("BibleRefInsertPicker.swift in Sources")) {
+  errors.push("BibleRefInsertPicker tem de estar no target Xcode.");
 }
 if (!project.includes("NativePushService.swift in Sources") || !project.includes("NativeDeepLinkRouter.swift in Sources")) {
   errors.push("NativePushService / NativeDeepLinkRouter têm de estar no target Xcode.");
@@ -160,31 +166,45 @@ if (!shellMode.includes("nativePrimary") || !shellMode.includes("return .nativeP
   errors.push("NativeShellMode tem de defaultar / forçar nativePrimary.");
 }
 
-const miolo = read("ios/App/App/NoteMioloEditorView.swift");
-if (!miolo.includes("WKWebView") || !miolo.includes("native-editor") || !miolo.includes("KeychainStore.bearerToken")) {
-  errors.push("NoteMioloEditorView tem de ser o miolo WKWebView com Bearer do Keychain.");
+const editor = read("ios/App/App/NativeNoteEditorView.swift");
+if (!editor.includes("UITextView") || editor.includes("WKWebView") || editor.includes("import WebKit")) {
+  errors.push("NativeNoteEditorView tem de ser UITextView nativo (sem WebKit).");
 }
-if (!miolo.includes("Única") && !miolo.includes("única") && !miolo.includes("Phase 5") && !miolo.includes("Fase 5")) {
-  errors.push("NoteMioloEditorView tem de documentar que é a única superfície WebView.");
+if (!editor.includes("inputAccessoryView") || !editor.includes("Referência bíblica")) {
+  errors.push("NativeNoteEditorView tem de ter toolbar com referência bíblica (pt-BR).");
+}
+if (!editor.includes("@MainActor") && !editor.includes("Thread.isMainThread")) {
+  errors.push("NativeNoteEditorView tem de exigir main thread / @MainActor.");
+}
+
+const codec = read("ios/App/App/NoteDocumentCodec.swift");
+if (!codec.includes("attributedString(from") || !codec.includes("func document(") || !codec.includes("bibleRef")) {
+  errors.push("NoteDocumentCodec tem de round-trip NoteDocument ↔ attributed string com bibleRef.");
 }
 
 const noteDetail = read("ios/App/App/NoteDetailViewController.swift");
-if (noteDetail.includes("WKWebView") || noteDetail.includes("import WebKit")) {
-  errors.push("NoteDetailViewController não pode criar WKWebView — só NoteMioloEditorView.");
+if (noteDetail.includes("WKWebView") || noteDetail.includes("import WebKit") || noteDetail.includes("NoteMioloEditorView")) {
+  errors.push("NoteDetailViewController não pode usar WebView / NoteMioloEditorView.");
 }
-if (!noteDetail.includes("NoteMioloEditorView")) {
-  errors.push("NoteDetailViewController tem de hospedar NoteMioloEditorView.");
+if (!noteDetail.includes("NativeNoteEditorView")) {
+  errors.push("NoteDetailViewController tem de hospedar NativeNoteEditorView.");
 }
 
-// Guard: no Cap / WKWebView surfaces outside the editor (+ bootstrap + Phase 6 one-time import).
+try {
+  read("ios/App/App/NoteMioloEditorView.swift");
+  errors.push("Phase 7: NoteMioloEditorView.swift ainda existe — remover.");
+} catch {
+  /* expected missing */
+}
+
+// Guard: no Cap / product WKWebView surfaces (bootstrap + Phase 6 import only).
 const appDir = join(root, "ios/App/App");
 const allowedWebKit = new Set([
-  "NoteMioloEditorView.swift",
   "NativeSessionBootstrap.swift",
   "SceneDelegate.swift",
   "LegacyWebStorageImporter.swift",
 ]);
-const allowedWkWebView = new Set(["NoteMioloEditorView.swift", "LegacyWebStorageImporter.swift"]);
+const allowedWkWebView = new Set(["LegacyWebStorageImporter.swift"]);
 const allowedCookieFlush = new Set(["SceneDelegate.swift", "NativeSessionBootstrap.swift"]);
 /** Strip line/block comments so docstrings don't trip Cap/WebView guards. */
 function stripComments(source) {
@@ -202,10 +222,10 @@ for (const name of readdirSync(appDir)) {
     errors.push(`Phase 5: ${name} não pode usar Capacitor/CAPPlugin.`);
   }
   if (/\bWKWebView\b/.test(body) && !allowedWkWebView.has(name)) {
-    errors.push(`Phase 5/6: WKWebView só em NoteMioloEditorView ou LegacyWebStorageImporter (encontrado em ${name}).`);
+    errors.push(`Phase 7: WKWebView de produto proibido (só LegacyWebStorageImporter); encontrado em ${name}.`);
   }
   if (/\bimport\s+WebKit\b/.test(body) && !allowedWebKit.has(name)) {
-    errors.push(`Phase 5: import WebKit fora do permitido (${name}).`);
+    errors.push(`Phase 7: import WebKit fora do permitido (${name}).`);
   }
   if (/\bWKWebsiteDataStore\b/.test(body) && !allowedCookieFlush.has(name)) {
     errors.push(`Phase 5: WKWebsiteDataStore só para migração de cookies (${name}).`);
@@ -234,10 +254,11 @@ for (const dead of [
   "ios/App/App/NativeMenus.swift",
   "ios/App/App/NativePhase0Plugin.swift",
   "ios/App/App/NoteEditorSpikeViewController.swift",
+  "ios/App/App/NoteMioloEditorView.swift",
 ]) {
   try {
     read(dead);
-    errors.push(`Phase 5: ficheiro Cap morto ainda presente: ${dead}`);
+    errors.push(`Ficheiro Cap/WebView morto ainda presente: ${dead}`);
   } catch {
     /* expected missing */
   }
@@ -245,8 +266,10 @@ for (const dead of [
 
 try {
   read("docs/ios-phase5-webview.md");
-} catch {
-  errors.push("Falta docs/ios-phase5-webview.md.");
+  read("docs/ios-phase7-native-editor.md");
+  read("docs/note-document-v1.md");
+} catch (e) {
+  errors.push(`Falta doc Phase 5/7: ${e.message || e}`);
 }
 
 const material = read("ios/App/App/LiquidGlassMaterial.m");
@@ -418,6 +441,9 @@ if (!apiClient.includes("handleUnauthorized") || !apiClient.includes("nativeSess
 if (!apiClient.includes("upsertMyCollection")) {
   errors.push("NativeAPIClient tem de expor upsertMyCollection para o import Phase 6.");
 }
+if (!apiClient.includes("checked")) {
+  errors.push("NativeAPIClient.LineBlock tem de incluir checked (checklist NoteDocumentV1).");
+}
 
 const nativeV1Router = read("src/lib/native/api/v1-router.ts");
 const noteDocument = read("src/lib/native/api/note-document.ts");
@@ -427,6 +453,9 @@ if (!nativeV1Router.includes("devices-apns") || !read("src/routes/api/native/v1/
 }
 if (!noteDocument.includes("NOTE_DOCUMENT_SCHEMA_VERSION") || !noteDocument.includes("noteToDocument")) {
   errors.push("NoteDocumentV1 (schemaVersion + conversão legacy) é obrigatório.");
+}
+if (!noteDocument.includes('"check"') || !noteDocument.includes("strikethrough") || !noteDocument.includes("encodeDocumentStorage")) {
+  errors.push("NoteDocumentV1 Phase 7: check/strikethrough/storage envelope obrigatórios.");
 }
 if (!migrationPlan.includes("Phase 7") || !migrationPlan.includes("NoteDocumentV1") || !migrationPlan.includes("Phase 5")) {
   errors.push("O plano tem de documentar Phase 5/7 e NoteDocumentV1.");
@@ -449,10 +478,14 @@ for (const path of [
   "ios/App/App.xcodeproj/xcshareddata/xcschemes/App.xcscheme",
   "docs/ios-native-migration.md",
   "docs/ios-phase5-webview.md",
-  "src/routes/native-editor.tsx",
+  "docs/ios-phase7-native-editor.md",
+  "docs/note-document-v1.md",
+  "migrations/0021_note_blocks_backup.sql",
   "ios/App/App/NotebookListViewController.swift",
   "ios/App/App/NoteDetailViewController.swift",
-  "ios/App/App/NoteMioloEditorView.swift",
+  "ios/App/App/NativeNoteEditorView.swift",
+  "ios/App/App/NoteDocumentCodec.swift",
+  "ios/App/App/BibleRefInsertPicker.swift",
   "ios/App/App/AppRoot.swift",
   "ios/App/App/NativeSignInViewController.swift",
   "ios/App/App/NativeLoginService.swift",
@@ -465,6 +498,7 @@ for (const path of [
   "ios/App/App/VersesScreens.swift",
   "src/lib/native/api/v1-profile.server.ts",
   "src/lib/native/api/v1-verses.server.ts",
+  "src/lib/native/api/html-to-document.ts",
 ]) {
   try {
     read(path);
@@ -478,4 +512,4 @@ if (errors.length) {
   console.error(errors.join("\n"));
   process.exit(1);
 }
-console.log("ios-check: projeto iOS coerente (Phase 5 — sem Cap host; compilação no runner macOS).");
+console.log("ios-check: projeto iOS coerente (Phase 7 — editor nativo; sem Cap host / miolo WebView).");

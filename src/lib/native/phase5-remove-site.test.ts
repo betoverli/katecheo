@@ -21,26 +21,24 @@ describe("Phase 5 — remove Capacitor site host", () => {
     assert.doesNotMatch(scene, /import Capacitor|SceneDelegateProxy/);
   });
 
-  it("isolates WKWebView in NoteMioloEditorView with Keychain Bearer", () => {
-    const miolo = read("ios/App/App/NoteMioloEditorView.swift");
-    assert.match(miolo, /WKWebView/);
-    assert.match(miolo, /native-editor/);
-    assert.match(miolo, /KeychainStore\.bearerToken/);
-    assert.match(miolo, /__V2N_EDITOR__/);
+  it("uses native note editor (Phase 7) without product WKWebView", () => {
+    assert.equal(existsSync(new URL("ios/App/App/NoteMioloEditorView.swift", root)), false);
+    const editor = read("ios/App/App/NativeNoteEditorView.swift");
+    assert.match(editor, /UITextView/);
+    assert.doesNotMatch(editor, /WKWebView|import WebKit/);
     const detail = read("ios/App/App/NoteDetailViewController.swift");
-    assert.match(detail, /NoteMioloEditorView/);
-    assert.doesNotMatch(detail, /WKWebView|import WebKit/);
+    assert.match(detail, /NativeNoteEditorView/);
+    assert.doesNotMatch(detail, /WKWebView|import WebKit|NoteMioloEditorView/);
   });
 
-  it("forbids Cap / extra WKWebView surfaces under ios/App/App", () => {
+  it("forbids Cap / product WKWebView surfaces under ios/App/App", () => {
     const appDir = new URL("ios/App/App/", root);
     const allowedWebKit = new Set([
-      "NoteMioloEditorView.swift",
       "NativeSessionBootstrap.swift",
       "SceneDelegate.swift",
       "LegacyWebStorageImporter.swift",
     ]);
-    const allowedWkWebView = new Set(["NoteMioloEditorView.swift", "LegacyWebStorageImporter.swift"]);
+    const allowedWkWebView = new Set(["LegacyWebStorageImporter.swift"]);
     const stripComments = (source: string) =>
       source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
     for (const name of readdirSync(appDir)) {
@@ -61,6 +59,7 @@ describe("Phase 5 — remove Capacitor site host", () => {
       "ios/App/App/NativeMenus.swift",
       "ios/App/App/NativePhase0Plugin.swift",
       "ios/App/App/NoteEditorSpikeViewController.swift",
+      "ios/App/App/NoteMioloEditorView.swift",
     ]) {
       assert.equal(existsSync(new URL(dead, root)), false, dead);
     }
@@ -98,18 +97,20 @@ describe("Phase 5 — remove Capacitor site host", () => {
     assert.doesNotMatch(cap, /server\s*:\s*\{[\s\S]*?url\s*:/);
     const pbx = read("ios/App/App.xcodeproj/project.pbxproj");
     assert.doesNotMatch(pbx, /CapApp-SPM/);
-    assert.match(pbx, /NoteMioloEditorView\.swift in Sources/);
+    assert.match(pbx, /NativeNoteEditorView\.swift in Sources/);
+    assert.doesNotMatch(pbx, /NoteMioloEditorView/);
     assert.match(pbx, /NativePushService\.swift in Sources/);
     assert.match(pbx, /NativeDeepLinkRouter\.swift in Sources/);
     const workflow = read(".github/workflows/ios.yml");
     assert.doesNotMatch(workflow, /cap sync/);
   });
 
-  it("documents Phase 5 WebView isolation", () => {
+  it("documents Phase 5 WebView isolation and Phase 7 replacement", () => {
     const doc = read("docs/ios-phase5-webview.md");
-    assert.match(doc, /NoteMioloEditorView/);
-    assert.match(doc, /Keychain/);
     assert.match(doc, /Phase 7/);
+    assert.match(doc, /NativeNoteEditorView/);
+    const phase7 = read("docs/ios-phase7-native-editor.md");
+    assert.match(phase7, /NativeNoteEditorView/);
   });
 });
 
