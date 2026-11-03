@@ -11,6 +11,8 @@ enum NativeDeepLinkRouter {
         case verses
         case themes
         case reading
+        case readingPlan(id: String)
+        case readingInvite(groupId: String)
         case profile
         case signIn
         case unknown
@@ -43,12 +45,15 @@ enum NativeDeepLinkRouter {
             if parts.count >= 2, !parts[1].isEmpty { return .group(id: parts[1]) }
             return .groups
         case "g":
-            // Plan-group invite — Leitura ainda Em breve; open reading tab.
+            if parts.count >= 2, !parts[1].isEmpty { return .readingInvite(groupId: parts[1]) }
             return .reading
         case "app", "collections", "c":
             if parts[0] == "collections" { return .themes }
             return .verses
         case "reading":
+            if parts.count >= 2, !parts[1].isEmpty, parts[1] != "all", parts[1] != "category" {
+                return .readingPlan(id: parts[1])
+            }
             return .reading
         case "profile", "u", "inbox":
             return .profile
@@ -124,6 +129,32 @@ enum NativeDeepLinkRouter {
             }
         case .reading:
             tabs.selectedIndex = 3
+            if let nav = tabs.selectedViewController as? UINavigationController {
+                nav.popToRootViewController(animated: false)
+            }
+        case .readingPlan(let id):
+            tabs.selectedIndex = 3
+            if let nav = tabs.selectedViewController as? UINavigationController {
+                nav.popToRootViewController(animated: false)
+                nav.pushViewController(ReadingPlanDetailViewController(planId: id), animated: animated)
+            }
+        case .readingInvite(let groupId):
+            tabs.selectedIndex = 3
+            if let nav = tabs.selectedViewController as? UINavigationController {
+                nav.popToRootViewController(animated: false)
+                Task { @MainActor in
+                    do {
+                        if NativeAPIClient.hasBearer {
+                            let planId = try await NativeAPIClient.joinReadingPlanGroup(groupId: groupId)
+                            nav.pushViewController(ReadingPlanDetailViewController(planId: planId), animated: animated)
+                        } else {
+                            NotificationCenter.default.post(name: .nativeOpenSignIn, object: nil)
+                        }
+                    } catch {
+                        // Stay on Leitura home if join fails.
+                    }
+                }
+            }
         case .profile, .signIn:
             tabs.selectedIndex = 4
             if destination == .signIn, !NativeAPIClient.hasBearer {

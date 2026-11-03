@@ -29,6 +29,14 @@ export type NativeV1Route =
   | { kind: "verses-append" }
   | { kind: "my-collections"; collectionId?: string }
   | { kind: "my-collections-save" }
+  | { kind: "plans" }
+  | { kind: "plans-mark" }
+  | { kind: "plans-reset" }
+  | { kind: "plans-start" }
+  | { kind: "plans-stop" }
+  | { kind: "plans-invite" }
+  | { kind: "plans-join" }
+  | { kind: "plans-group"; groupId: string }
   | { kind: "not-found"; path: string };
 
 /**
@@ -85,6 +93,17 @@ export function matchNativeV1Route(splat: string): NativeV1Route {
     return { kind: "my-collections", collectionId: b };
   }
 
+  if (a === "plans" && parts.length === 1) return { kind: "plans" };
+  if (a === "plans" && b === "mark" && parts.length === 2) return { kind: "plans-mark" };
+  if (a === "plans" && b === "reset" && parts.length === 2) return { kind: "plans-reset" };
+  if (a === "plans" && b === "start" && parts.length === 2) return { kind: "plans-start" };
+  if (a === "plans" && b === "stop" && parts.length === 2) return { kind: "plans-stop" };
+  if (a === "plans" && b === "invite" && parts.length === 2) return { kind: "plans-invite" };
+  if (a === "plans" && b === "join" && parts.length === 2) return { kind: "plans-join" };
+  if (a === "plans" && b === "groups" && c && parts.length === 3) {
+    return { kind: "plans-group", groupId: c };
+  }
+
   return { kind: "not-found", path: raw };
 }
 
@@ -100,7 +119,8 @@ export function isPublicNativeAuthRoute(route: NativeV1Route): boolean {
     route.kind === "bible-books" ||
     route.kind === "bible-apps" ||
     route.kind === "bible-link" ||
-    route.kind === "bible-themes"
+    route.kind === "bible-themes" ||
+    route.kind === "plans"
   );
 }
 
@@ -158,6 +178,16 @@ export function methodAllowed(route: NativeV1Route, method: string): boolean {
     case "my-collections":
       if (!route.collectionId) return m === "GET" || m === "POST";
       return m === "GET" || m === "PATCH" || m === "PUT" || m === "DELETE";
+    case "plans":
+    case "plans-group":
+      return m === "GET";
+    case "plans-mark":
+    case "plans-reset":
+    case "plans-start":
+    case "plans-stop":
+    case "plans-invite":
+    case "plans-join":
+      return m === "POST";
     case "not-found":
       return false;
   }

@@ -26,13 +26,7 @@ final class NativeRootTabBarController: UITabBarController {
         groups.tabBarItem = UITabBarItem(title: String(localized: "Grupos"), image: UIImage(systemName: "person.2"), tag: 2)
         groups.tabBarItem.accessibilityLabel = String(localized: "Grupos")
 
-        let reading = UINavigationController(
-            rootViewController: ComingSoonTabViewController(
-                titleText: String(localized: "Leitura"),
-                systemImage: "calendar",
-                detailText: String(localized: "Planos de leitura em breve nativo.\nOs outros separadores já estão no app.")
-            )
-        )
+        let reading = UINavigationController(rootViewController: ReadingHomeViewController())
         V2NChrome.style(navigationController: reading)
         reading.tabBarItem = UITabBarItem(title: String(localized: "Leitura"), image: UIImage(systemName: "calendar"), tag: 3)
         reading.tabBarItem.accessibilityLabel = String(localized: "Leitura")

@@ -229,6 +229,7 @@ enum NativeAPIClient {
         var booksCompact: Bool
         var theme: String
         var activePlans: [String]?
+        var planProgress: [String: [Int]]?
         var avatarId: String
         var avatarUrl: String
         var handle: String
@@ -1055,5 +1056,169 @@ enum NativeAPIClient {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
     }
+
+    // MARK: - Reading plans (Leitura)
+
+    struct PlanCardDTO: Codable, Equatable {
+        var id: String
+        var name: String
+        var days: Int
+        var chapters: Int?
+        var description: String?
+        var categoryIds: [String]?
+    }
+
+    struct PlanCategoryDTO: Codable, Equatable {
+        var id: String
+        var name: String
+        var count: Int?
+    }
+
+    struct PlanDayDTO: Codable, Equatable {
+        var day: Int
+        var labels: [String]
+    }
+
+    struct PlansIndexResponse: Decodable {
+        let ok: Bool?
+        let kind: String?
+        let planTotal: Int?
+        let categories: [PlanCategoryDTO]?
+        let plans: [PlanCardDTO]?
+        let plan: PlanCardDTO?
+        let days: [PlanDayDTO]?
+        let day: Int?
+        let labels: [String]?
+        let items: [LinkItemDTO]?
+        let error: String?
+    }
+
+    struct PlansIndexProxy {
+        var kind: String
+        var planTotal: Int?
+        var categories: [PlanCategoryDTO]
+        var plans: [PlanCardDTO]
+        var plan: PlanCardDTO?
+        var days: [PlanDayDTO]
+        var day: Int?
+        var labels: [String]
+        var items: [LinkItemDTO]
+    }
+
+    static func fetchReadingPlans(
+        query: String? = nil,
+        categoryId: String? = nil,
+        planId: String? = nil,
+        day: Int? = nil
+    ) async throws -> PlansIndexProxy {
+        var items: [URLQueryItem] = [URLQueryItem(name: "locale", value: AppLocale.apiCode)]
+        if let query, !query.isEmpty { items.append(URLQueryItem(name: "q", value: query)) }
+        if let categoryId { items.append(URLQueryItem(name: "category", value: categoryId)) }
+        if let planId { items.append(URLQueryItem(name: "id", value: planId)) }
+        if let day { items.append(URLQueryItem(name: "day", value: String(day))) }
+        let request = try publicRequest(path: "api/native/v1/plans", query: items)
+        let (status, data) = try await perform(request)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(PlansIndexResponse.self, from: data) else {
+            throw APIError.decoding
+        }
+        return PlansIndexProxy(
+            kind: decoded.kind ?? "",
+            planTotal: decoded.planTotal,
+            categories: decoded.categories ?? [],
+            plans: decoded.plans ?? [],
+            plan: decoded.plan,
+            days: decoded.days ?? [],
+            day: decoded.day,
+            labels: decoded.labels ?? [],
+            items: decoded.items ?? []
+        )
+    }
+
+    static func startReadingPlan(_ planId: String) async throws -> PrefsDTO {
+        let body = try JSONSerialization.data(withJSONObject: ["planId": planId])
+        let request = try authorizedRequest(path: "api/native/v1/plans/start", method: "POST", body: body)
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        struct Resp: Decodable { let ok: Bool?; let prefs: PrefsDTO? }
+        guard let decoded = try? JSONDecoder().decode(Resp.self, from: data), let prefs = decoded.prefs else {
+            throw APIError.decoding
+        }
+        return prefs
+    }
+
+    static func stopReadingPlan(_ planId: String) async throws -> PrefsDTO {
+        let body = try JSONSerialization.data(withJSONObject: ["planId": planId])
+        let request = try authorizedRequest(path: "api/native/v1/plans/stop", method: "POST", body: body)
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        struct Resp: Decodable { let ok: Bool?; let prefs: PrefsDTO? }
+        guard let decoded = try? JSONDecoder().decode(Resp.self, from: data), let prefs = decoded.prefs else {
+            throw APIError.decoding
+        }
+        return prefs
+    }
+
+    static func markReadingPlanDay(planId: String, day: Int, on: Bool) async throws {
+        let body = try JSONSerialization.data(withJSONObject: ["planId": planId, "day": day, "on": on])
+        let request = try authorizedRequest(path: "api/native/v1/plans/mark", method: "POST", body: body)
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        if status == 429 {
+            throw APIError.http(429, String(localized: "Limite de 2 marcações por dia."))
+        }
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+    }
+
+    static func resetReadingPlanMarks(planId: String) async throws {
+        let body = try JSONSerialization.data(withJSONObject: ["planId": planId])
+        let request = try authorizedRequest(path: "api/native/v1/plans/reset", method: "POST", body: body)
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+    }
+
+    static func createReadingPlanInvite(planId: String) async throws -> String {
+        let body = try JSONSerialization.data(withJSONObject: ["planId": planId])
+        let request = try authorizedRequest(path: "api/native/v1/plans/invite", method: "POST", body: body)
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        struct Resp: Decodable { let ok: Bool?; let id: String? }
+        guard let decoded = try? JSONDecoder().decode(Resp.self, from: data), let id = decoded.id else {
+            throw APIError.decoding
+        }
+        return id
+    }
+
+    static func joinReadingPlanGroup(groupId: String) async throws -> String {
+        let body = try JSONSerialization.data(withJSONObject: ["id": groupId])
+        let request = try authorizedRequest(path: "api/native/v1/plans/join", method: "POST", body: body)
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        struct Resp: Decodable { let ok: Bool?; let planId: String? }
+        guard let decoded = try? JSONDecoder().decode(Resp.self, from: data), let planId = decoded.planId else {
+            throw APIError.decoding
+        }
+        return planId
+    }
+
 }
 

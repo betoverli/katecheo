@@ -45,6 +45,7 @@
 		F7A7E0142FED7965001685C0 /* BibleRefInsertPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7A7E0152FED7965001685C0 /* BibleRefInsertPicker.swift */; };
 		F8B8E0102FED7965001685D0 /* V2NDesign.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8B8E0112FED7965001685D0 /* V2NDesign.swift */; };
 		F8B8E0122FED7965001685D0 /* V2NComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8B8E0132FED7965001685D0 /* V2NComponents.swift */; };
+		C9D0E0102FED7965001685E0 /* ReadingScreens.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9D0E0112FED7965001685E0 /* ReadingScreens.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -91,6 +92,7 @@
 		F7A7E0152FED7965001685C0 /* BibleRefInsertPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleRefInsertPicker.swift; sourceTree = "<group>"; };
 		F8B8E0112FED7965001685D0 /* V2NDesign.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2NDesign.swift; sourceTree = "<group>"; };
 		F8B8E0132FED7965001685D0 /* V2NComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2NComponents.swift; sourceTree = "<group>"; };
+		C9D0E0112FED7965001685E0 /* ReadingScreens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadingScreens.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -157,6 +159,7 @@
 				F5A3D0132FED796500168580 /* ProfileSettingsScreens.swift */,
 				F5A4E0112FED796500168590 /* VersesHomeViewController.swift */,
 				F5A4E0132FED796500168590 /* VersesScreens.swift */,
+				C9D0E0112FED7965001685E0 /* ReadingScreens.swift */,
 				A1C0DE032FED796500168520 /* LiquidGlassMaterial.m */,
 				A1C0DE052FED796500168520 /* LiquidGlassMaterial.h */,
 				A1C0DE062FED796500168520 /* App-Bridging-Header.h */,
@@ -282,6 +285,7 @@
 				F5A3D0122FED796500168580 /* ProfileSettingsScreens.swift in Sources */,
 				F5A4E0102FED796500168590 /* VersesHomeViewController.swift in Sources */,
 				F5A4E0122FED796500168590 /* VersesScreens.swift in Sources */,
+				C9D0E0102FED7965001685E0 /* ReadingScreens.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

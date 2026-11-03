@@ -53,6 +53,14 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
   }
 
   try {
+    // Public reading plans catalog (same data as /api/plans).
+    if (route.kind === "plans") {
+      const plansApi = await import("./v1-plans.server");
+      const url = new URL(request.url);
+      const result = plansApi.resolveNativePlans(url.searchParams);
+      return json(result, result.ok ? 200 : 400);
+    }
+
     // Public bible catalog (no bearer required — same as /api/link + /api/collections).
     if (
       route.kind === "bible-books" ||
@@ -402,6 +410,56 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
       const result = await versesApi.updateMyCollectionForUser(user.id, route.collectionId, body);
       if (!result.ok) return json(result, result.error === "missing" ? 404 : 400);
       return json(result);
+    }
+
+    const plansApi = await import("./v1-plans.server");
+
+    if (
+      route.kind === "plans-mark" ||
+      route.kind === "plans-reset" ||
+      route.kind === "plans-start" ||
+      route.kind === "plans-stop" ||
+      route.kind === "plans-invite" ||
+      route.kind === "plans-join"
+    ) {
+      const body = await readBody(request);
+      if (body === Symbol.for("invalid-json")) return json({ ok: false, error: "invalid_json" }, 400);
+      const payload = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+      if (route.kind === "plans-mark") {
+        const planId = typeof payload.planId === "string" ? payload.planId : "";
+        const day = typeof payload.day === "number" ? payload.day : Number(payload.day);
+        const on = payload.on !== false;
+        const result = await plansApi.markPlanDayForUser(user.id, planId, day, on);
+        return json(result, result.ok ? 200 : result.error === "pace" ? 429 : 400);
+      }
+      if (route.kind === "plans-reset") {
+        const planId = typeof payload.planId === "string" ? payload.planId : "";
+        return json(await plansApi.resetPlanMarksForUser(user.id, planId));
+      }
+      if (route.kind === "plans-start") {
+        const planId = typeof payload.planId === "string" ? payload.planId : "";
+        const result = await plansApi.startPlanForUser(user.id, planId);
+        return json(result, result.ok ? 200 : 404);
+      }
+      if (route.kind === "plans-stop") {
+        const planId = typeof payload.planId === "string" ? payload.planId : "";
+        const result = await plansApi.stopPlanForUser(user.id, planId);
+        return json(result, result.ok ? 200 : 404);
+      }
+      if (route.kind === "plans-invite") {
+        const planId = typeof payload.planId === "string" ? payload.planId : "";
+        const result = await plansApi.createPlanInviteForUser(user.id, planId);
+        return json(result, result.ok ? 200 : 404);
+      }
+      const groupId = typeof payload.id === "string" ? payload.id : typeof payload.groupId === "string" ? payload.groupId : "";
+      const result = await plansApi.joinPlanGroupForUser(user.id, groupId);
+      return json(result, result.ok ? 200 : 404);
+    }
+
+    if (route.kind === "plans-group") {
+      const group = await plansApi.getPlanGroupPreviewForUser(route.groupId, user.id);
+      if (!group) return json({ ok: false, error: "missing" }, 404);
+      return json({ ok: true, group });
     }
 
     return json({ ok: false, error: "not_found" }, 404);

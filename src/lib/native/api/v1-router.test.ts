@@ -63,8 +63,19 @@ describe("matchNativeV1Route", () => {
     });
   });
 
+  it("maps reading plans endpoints", () => {
+    assert.deepEqual(matchNativeV1Route("plans"), { kind: "plans" });
+    assert.deepEqual(matchNativeV1Route("plans/mark"), { kind: "plans-mark" });
+    assert.deepEqual(matchNativeV1Route("plans/reset"), { kind: "plans-reset" });
+    assert.deepEqual(matchNativeV1Route("plans/start"), { kind: "plans-start" });
+    assert.deepEqual(matchNativeV1Route("plans/stop"), { kind: "plans-stop" });
+    assert.deepEqual(matchNativeV1Route("plans/invite"), { kind: "plans-invite" });
+    assert.deepEqual(matchNativeV1Route("plans/join"), { kind: "plans-join" });
+    assert.deepEqual(matchNativeV1Route("plans/groups/g1"), { kind: "plans-group", groupId: "g1" });
+  });
+
   it("rejects unknown paths", () => {
-    assert.equal(matchNativeV1Route("plans").kind, "not-found");
+    assert.equal(matchNativeV1Route("plans/other").kind, "not-found");
     assert.equal(matchNativeV1Route("notes/a/b").kind, "not-found");
     assert.equal(matchNativeV1Route("auth/other").kind, "not-found");
     assert.equal(matchNativeV1Route("account").kind, "not-found");
@@ -141,7 +152,9 @@ describe("isPublicNativeAuthRoute", () => {
     assert.equal(isPublicNativeAuthRoute({ kind: "auth-sign-out" }), false);
   });
 
-  it("marks bible catalog public and append private", () => {
+  it("marks bible catalog and plans index public", () => {
+    assert.equal(isPublicNativeAuthRoute({ kind: "plans" }), true);
+    assert.equal(isPublicNativeAuthRoute({ kind: "plans-mark" }), false);
     assert.equal(isPublicNativeAuthRoute({ kind: "bible-books" }), true);
     assert.equal(isPublicNativeAuthRoute({ kind: "bible-themes" }), true);
     assert.equal(isPublicNativeAuthRoute({ kind: "verses-append" }), false);

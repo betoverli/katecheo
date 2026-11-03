@@ -372,6 +372,12 @@ if (!rootTabs.includes("ProfileViewController") || rootTabs.includes('titleText:
 if (!rootTabs.includes("VersesHomeViewController") || rootTabs.includes('titleText: "Versículos"')) {
   errors.push("Phase 4: a aba Versículos tem de usar VersesHomeViewController.");
 }
+if (!rootTabs.includes("ReadingHomeViewController") || rootTabs.includes('titleText: "Leitura"')) {
+  errors.push("A aba Leitura tem de usar ReadingHomeViewController (não ComingSoon).");
+}
+if (!project.includes("ReadingScreens.swift in Sources")) {
+  errors.push("ReadingScreens.swift tem de estar no target Xcode.");
+}
 
 try {
   const groupsList = read("ios/App/App/GroupsListViewController.swift");
@@ -450,6 +456,9 @@ if (!authRouter.includes("bible-books") || !authRouter.includes("verses-append")
 if (!authRouter.includes("devices-apns")) {
   errors.push("Falta devices/apns no router nativo.");
 }
+if (!authRouter.includes("plans-mark") || !authRouter.includes("plans-start")) {
+  errors.push("Faltam rotas /api/native/v1/plans* no router nativo.");
+}
 
 const apiClient = read("ios/App/App/NativeAPIClient.swift");
 if (!apiClient.includes("func getMe(") || !apiClient.includes("func deleteAccount(")) {
@@ -522,6 +531,7 @@ for (const path of [
   "ios/App/App/ProfileSettingsScreens.swift",
   "ios/App/App/VersesHomeViewController.swift",
   "ios/App/App/VersesScreens.swift",
+  "ios/App/App/ReadingScreens.swift",
   "src/lib/native/api/v1-profile.server.ts",
   "src/lib/native/api/v1-verses.server.ts",
   "src/lib/native/api/html-to-document.ts",
