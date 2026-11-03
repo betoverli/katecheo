@@ -36,7 +36,7 @@ describe("Phase 1 native login", () => {
     assert.match(boot, /migrateCookieToKeychainIfNeeded/);
     const list = read("ios/App/App/NotebookListViewController.swift");
     assert.match(list, /NativeSignInViewController/);
-    assert.match(list, /Terminar sessão/);
+    assert.match(list, /Sair|Terminar sessão/);
     // Avoid #selector(presentSignIn) ambiguity with presentSignIn(auto:) overloads.
     assert.match(list, /presentSignInTapped/);
     assert.match(list, /showSignIn\(auto/);

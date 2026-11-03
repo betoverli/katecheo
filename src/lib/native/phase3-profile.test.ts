@@ -52,7 +52,7 @@ describe("Phase 3 native Profile UI", () => {
     assert.doesNotMatch(tabs, /titleText:\s*"Perfil"/);
     const profile = read("ios/App/App/ProfileViewController.swift");
     assert.match(profile, /Sair da conta/);
-    assert.match(profile, /Apagar conta/);
+    assert.match(profile, /Apagar conta|Excluir conta/);
     assert.match(profile, /Baixar meus dados/);
     assert.match(profile, /getMe/);
     assert.match(profile, /signOut/);

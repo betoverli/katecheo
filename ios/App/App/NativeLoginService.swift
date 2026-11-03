@@ -147,7 +147,7 @@ final class NativeLoginService: NSObject {
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         let decoded = try? JSONDecoder().decode(TokenResponse.self, from: data)
         guard status >= 200, status < 300, let token = decoded?.token, !token.isEmpty else {
-            throw LoginError.failed(decoded?.error == "credentials" ? "Email ou palavra-passe incorretos." : (decoded?.error ?? "Falha no login."))
+            throw LoginError.failed(decoded?.error == "credentials" ? "Email ou senha incorretos." : (decoded?.error ?? "Falha no login."))
         }
         _ = KeychainStore.setBearerToken(token)
     }

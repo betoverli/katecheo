@@ -14,7 +14,7 @@ protocol NoteMioloEditorViewDelegate: AnyObject {
 ///
 /// Carrega só `/native-editor` (miolo da nota). Autenticação via Bearer do Keychain
 /// injectado em `localStorage`/`sessionStorage` — **não** usa cookies do host web
-/// antigo nem a bridge Cap. Qualquer outro ecrã deve ser nativo puro.
+/// antigo nem a bridge Cap. Qualquer outra tela deve ser nativa pura.
 ///
 /// Removido na Fase 7 (editor nativo). Ver `docs/ios-phase5-webview.md`.
 @MainActor

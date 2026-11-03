@@ -422,11 +422,13 @@ Principles: **small**, **user-visible or foundational**, **reversible feature fl
 - Native APNs (`NativePushService`), universal links / push taps (`NativeDeepLinkRouter`), Share via `UIActivityViewController`.
 - `ios-check` fails if a new Cap/WKWebView surface appears outside the miolo.
 
-### Phase 6 — Hardening (pre-final editor)
+### Phase 6 — Hardening + data import — **shipped**
 
-- Sync conflicts, migration from WebView localStorage/outbox → native DB (one-time import).
-- Performance, accessibility, TestFlight rollout.
-- Confirm all note I/O uses `NoteDocumentV1` only (no HTML paths left in native clients).
+- One-time `LegacyWebStorageImporter`: Cap WebView `localStorage` (`cita-settings`,
+  `verse2note-outbox`, bearer) → `LocalNoteCache` + `NativeOutbox` + `/api/native/v1`
+  as **NoteDocumentV1** (idempotent; never deletes server data). See `docs/ios-phase6-hardening.md`.
+- Native outbox with exponential backoff; 401 → clear Keychain + re-login.
+- Empty/error copy in **pt-BR**; main-thread guards kept for WebKit.
 
 ### Phase 7 — FINAL: native note editor (no WebView)
 

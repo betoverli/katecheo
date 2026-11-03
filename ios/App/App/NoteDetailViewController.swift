@@ -30,7 +30,7 @@ final class NoteDetailViewController: UIViewController, NoteMioloEditorViewDeleg
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
         statusLabel.font = .preferredFont(forTextStyle: .caption2)
         statusLabel.textColor = .secondaryLabel
-        statusLabel.text = "A carregar…"
+        statusLabel.text = "Carregando…"
         view.addSubview(statusLabel)
 
         editor.delegate = self
@@ -135,7 +135,7 @@ final class NoteDetailViewController: UIViewController, NoteMioloEditorViewDeleg
         }
         saveWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.45, execute: work)
-        statusLabel.text = "A guardar…"
+        statusLabel.text = "Salvando…"
     }
 
     private func persist() async {
@@ -143,11 +143,17 @@ final class NoteDetailViewController: UIViewController, NoteMioloEditorViewDeleg
             let saved = try await NativeAPIClient.upsertNote(note)
             await MainActor.run {
                 self.note = saved
-                self.statusLabel.text = "Guardado"
+                self.statusLabel.text = "Salvo"
+            }
+        } catch NativeAPIClient.APIError.unauthorized {
+            NativeOutbox.enqueueNoteUpsert(note)
+            await MainActor.run {
+                self.statusLabel.text = "Sessão expirada — alteração guardada no aparelho."
             }
         } catch {
+            NativeOutbox.enqueueNoteUpsert(note)
             await MainActor.run {
-                self.statusLabel.text = "Guardado localmente · \(error.localizedDescription)"
+                self.statusLabel.text = "Salvo no aparelho — sincroniza quando houver rede."
             }
         }
     }
@@ -168,7 +174,7 @@ final class NoteDetailViewController: UIViewController, NoteMioloEditorViewDeleg
         sheet.addAction(UIAlertAction(title: "Compartilhar", style: .default) { [weak self] _ in
             self?.shareNote()
         })
-        sheet.addAction(UIAlertAction(title: "Apagar nota", style: .destructive) { [weak self] _ in
+        sheet.addAction(UIAlertAction(title: "Excluir nota", style: .destructive) { [weak self] _ in
             self?.confirmDelete()
         })
         sheet.addAction(UIAlertAction(title: "Cancelar", style: .cancel))
@@ -187,7 +193,7 @@ final class NoteDetailViewController: UIViewController, NoteMioloEditorViewDeleg
                 guard !eligible.isEmpty else {
                     let empty = UIAlertController(
                         title: "Sem grupos",
-                        message: "Cria ou junta-te a um grupo no separador Grupos.",
+                        message: "Crie ou entre em um grupo na aba Grupos.",
                         preferredStyle: .alert
                     )
                     empty.addAction(UIAlertAction(title: "OK", style: .default))
@@ -275,18 +281,22 @@ final class NoteDetailViewController: UIViewController, NoteMioloEditorViewDeleg
     }
 
     private func confirmDelete() {
-        let alert = UIAlertController(title: nil, message: "Apagar esta nota?", preferredStyle: .actionSheet)
+        let alert = UIAlertController(title: nil, message: "Excluir esta nota?", preferredStyle: .actionSheet)
         alert.addAction(UIAlertAction(title: "Cancelar", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Apagar nota", style: .destructive) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: "Excluir nota", style: .destructive) { [weak self] _ in
             guard let self else { return }
             Task { @MainActor in
                 do {
                     try await NativeAPIClient.deleteNote(id: self.noteId)
                     self.navigationController?.popViewController(animated: true)
+                } catch NativeAPIClient.APIError.unauthorized {
+                    LocalNoteCache.removeNote(id: self.noteId)
+                    NativeOutbox.enqueueNoteDelete(id: self.noteId)
+                    self.navigationController?.popViewController(animated: true)
                 } catch {
-                    let err = UIAlertController(title: "Erro", message: error.localizedDescription, preferredStyle: .alert)
-                    err.addAction(UIAlertAction(title: "OK", style: .default))
-                    self.present(err, animated: true)
+                    LocalNoteCache.removeNote(id: self.noteId)
+                    NativeOutbox.enqueueNoteDelete(id: self.noteId)
+                    self.navigationController?.popViewController(animated: true)
                 }
             }
         })

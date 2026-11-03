@@ -35,6 +35,9 @@
 		F5A5E0102FED7965001685A0 /* NoteMioloEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A5E0112FED7965001685A0 /* NoteMioloEditorView.swift */; };
 		F5A5E0122FED7965001685A0 /* NativeDeepLinkRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A5E0132FED7965001685A0 /* NativeDeepLinkRouter.swift */; };
 		F5A5E0142FED7965001685A0 /* NativePushService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A5E0152FED7965001685A0 /* NativePushService.swift */; };
+		F6A6E0102FED7965001685B0 /* LegacyNoteConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6A6E0112FED7965001685B0 /* LegacyNoteConverter.swift */; };
+		F6A6E0122FED7965001685B0 /* NativeOutbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6A6E0132FED7965001685B0 /* NativeOutbox.swift */; };
+		F6A6E0142FED7965001685B0 /* LegacyWebStorageImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6A6E0152FED7965001685B0 /* LegacyWebStorageImporter.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -71,6 +74,9 @@
 		F5A5E0112FED7965001685A0 /* NoteMioloEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteMioloEditorView.swift; sourceTree = "<group>"; };
 		F5A5E0132FED7965001685A0 /* NativeDeepLinkRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeDeepLinkRouter.swift; sourceTree = "<group>"; };
 		F5A5E0152FED7965001685A0 /* NativePushService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativePushService.swift; sourceTree = "<group>"; };
+		F6A6E0112FED7965001685B0 /* LegacyNoteConverter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyNoteConverter.swift; sourceTree = "<group>"; };
+		F6A6E0132FED7965001685B0 /* NativeOutbox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeOutbox.swift; sourceTree = "<group>"; };
+		F6A6E0152FED7965001685B0 /* LegacyWebStorageImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyWebStorageImporter.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -113,6 +119,9 @@
 				D3E0F0042FED796500168540 /* NativeAPIClient.swift */,
 				E4F1A0112FED796500168550 /* AppRoot.swift */,
 				E4F1A0132FED796500168550 /* LocalNoteCache.swift */,
+				F6A6E0112FED7965001685B0 /* LegacyNoteConverter.swift */,
+				F6A6E0132FED7965001685B0 /* NativeOutbox.swift */,
+				F6A6E0152FED7965001685B0 /* LegacyWebStorageImporter.swift */,
 				E4F1A0152FED796500168550 /* NativeRootTabBarController.swift */,
 				E4F1A0172FED796500168550 /* ComingSoonTabViewController.swift */,
 				E4F1A0192FED796500168550 /* NotebookListViewController.swift */,
@@ -226,6 +235,9 @@
 				D3E0F0052FED796500168540 /* NativeAPIClient.swift in Sources */,
 				E4F1A0102FED796500168550 /* AppRoot.swift in Sources */,
 				E4F1A0122FED796500168550 /* LocalNoteCache.swift in Sources */,
+				F6A6E0102FED7965001685B0 /* LegacyNoteConverter.swift in Sources */,
+				F6A6E0122FED7965001685B0 /* NativeOutbox.swift in Sources */,
+				F6A6E0142FED7965001685B0 /* LegacyWebStorageImporter.swift in Sources */,
 				E4F1A0142FED796500168550 /* NativeRootTabBarController.swift in Sources */,
 				E4F1A0162FED796500168550 /* ComingSoonTabViewController.swift in Sources */,
 				E4F1A0182FED796500168550 /* NotebookListViewController.swift in Sources */,

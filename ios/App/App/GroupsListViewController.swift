@@ -106,9 +106,9 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
             guard NativeAPIClient.hasBearer else {
                 groups = []
                 applyFilter()
-                statusBanner.text = "Inicia sessão para ver os teus grupos."
+                statusBanner.text = "Faça login para ver seus grupos."
                 signInButton.isHidden = false
-                emptyLabel.text = "Nenhum grupo ainda.\nEntra para sincronizar."
+                emptyLabel.text = "Nenhum grupo ainda.\nEntre para sincronizar."
                 emptyLabel.isHidden = false
                 return
             }
@@ -118,7 +118,7 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
                 statusBanner.text = "\(groups.count) grupos · sincronizado"
                 applyFilter()
             } catch NativeAPIClient.APIError.unauthorized {
-                statusBanner.text = "Sessão expirada."
+                statusBanner.text = "Sessão expirada. Entre novamente."
                 signInButton.isHidden = false
                 groups = []
                 applyFilter()
@@ -140,8 +140,8 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
         }
         if filtered.isEmpty {
             emptyLabel.text = NativeAPIClient.hasBearer
-                ? (q.isEmpty ? "Ainda não tens grupos.\nCria um com «Novo grupo»." : "Nenhum resultado.")
-                : "Nenhum grupo ainda.\nEntra para sincronizar."
+                ? (q.isEmpty ? "Você ainda não tem grupos.\nCrie um com «Novo grupo»." : "Nenhum resultado.")
+                : "Nenhum grupo ainda.\nEntre para sincronizar."
             emptyLabel.isHidden = false
         } else {
             emptyLabel.isHidden = true
@@ -181,7 +181,7 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
             done(true)
         }
         rename.backgroundColor = .systemBlue
-        let delete = UIContextualAction(style: .destructive, title: "Apagar") { [weak self] _, _, done in
+        let delete = UIContextualAction(style: .destructive, title: "Excluir") { [weak self] _, _, done in
             self?.confirmDelete(group) { done($0) }
         }
         return UISwipeActionsConfiguration(actions: [delete, rename])
@@ -212,7 +212,7 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
     private func submitCreate(name: String, visibility: String) {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.count >= 2 else {
-            let err = UIAlertController(title: "Nome demasiado curto", message: "Usa pelo menos 2 caracteres.", preferredStyle: .alert)
+            let err = UIAlertController(title: "Nome muito curto", message: "Use pelo menos 2 caracteres.", preferredStyle: .alert)
             err.addAction(UIAlertAction(title: "OK", style: .default))
             present(err, animated: true)
             return
@@ -239,7 +239,7 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
             field.autocapitalizationType = .sentences
         }
         alert.addAction(UIAlertAction(title: "Cancelar", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Guardar", style: .default) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: "Salvar", style: .default) { [weak self] _ in
             let name = alert.textFields?.first?.text ?? ""
             self?.rename(group, to: name)
         })
@@ -266,12 +266,12 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
 
     private func confirmDelete(_ group: NativeAPIClient.GroupDTO, completion: @escaping (Bool) -> Void) {
         let alert = UIAlertController(
-            title: "Apagar «\(group.name)»?",
-            message: "Esta ação remove o grupo e as publicações. Não se pode desfazer.",
+            title: "Excluir «\(group.name)»?",
+            message: "Esta ação remove o grupo e as publicações. Não dá para desfazer.",
             preferredStyle: .actionSheet
         )
         alert.addAction(UIAlertAction(title: "Cancelar", style: .cancel) { _ in completion(false) })
-        alert.addAction(UIAlertAction(title: "Apagar grupo", style: .destructive) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: "Excluir grupo", style: .destructive) { [weak self] _ in
             Task { @MainActor in
                 do {
                     try await NativeAPIClient.deleteGroup(id: group.id)

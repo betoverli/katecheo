@@ -20,11 +20,25 @@ enum NativeAPIClient {
 
         var errorDescription: String? {
             switch self {
-            case .unauthorized: return "Sessão necessária."
+            case .unauthorized: return "Sessão expirada. Entre novamente."
             case .http(let code, let body): return "HTTP \(code): \(body)"
             case .decoding: return "Resposta inválida."
             case .invalidResponse: return "Sem resposta."
             }
+        }
+    }
+
+    /// Clear Keychain bearer and notify UI to re-login. Idempotent.
+    static func handleUnauthorized() {
+        KeychainStore.deleteBearerToken()
+        NotificationCenter.default.post(name: .nativeSessionDidExpire, object: nil)
+        NotificationCenter.default.post(name: .nativeSessionDidChange, object: nil)
+    }
+
+    private static func throwIfUnauthorized(_ status: Int) throws {
+        if status == 401 {
+            handleUnauthorized()
+            throw APIError.unauthorized
         }
     }
 
@@ -297,7 +311,7 @@ enum NativeAPIClient {
     static func getSession() async throws -> SessionUser {
         let request = try authorizedRequest(path: "api/native/v1/session", method: "GET")
         let (status, data) = try await perform(request)
-        if status == 401 { throw APIError.unauthorized }
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
@@ -310,7 +324,7 @@ enum NativeAPIClient {
     static func listNotes() async throws -> [NoteDocument] {
         let request = try authorizedRequest(path: "api/native/v1/notes", method: "GET")
         let (status, data) = try await perform(request)
-        if status == 401 { throw APIError.unauthorized }
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
@@ -324,7 +338,7 @@ enum NativeAPIClient {
     static func getNote(id: String) async throws -> (note: NoteDocument, speakers: [SpeakerDTO]) {
         let request = try authorizedRequest(path: "api/native/v1/notes/\(id)", method: "GET")
         let (status, data) = try await perform(request)
-        if status == 401 { throw APIError.unauthorized }
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
@@ -342,7 +356,7 @@ enum NativeAPIClient {
         let body = try JSONEncoder().encode(payload)
         let request = try authorizedRequest(path: "api/native/v1/notes", method: "POST", body: body)
         let (status, data) = try await perform(request)
-        if status == 401 { throw APIError.unauthorized }
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
@@ -356,7 +370,7 @@ enum NativeAPIClient {
     static func deleteNote(id: String) async throws {
         let request = try authorizedRequest(path: "api/native/v1/notes/\(id)", method: "DELETE")
         let (status, data) = try await perform(request)
-        if status == 401 { throw APIError.unauthorized }
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
@@ -366,7 +380,7 @@ enum NativeAPIClient {
     static func listSpeakers() async throws -> [SpeakerDTO] {
         let request = try authorizedRequest(path: "api/native/v1/speakers", method: "GET")
         let (status, data) = try await perform(request)
-        if status == 401 { throw APIError.unauthorized }
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
@@ -381,7 +395,7 @@ enum NativeAPIClient {
         let body = try JSONEncoder().encode(speaker)
         let request = try authorizedRequest(path: "api/native/v1/speakers", method: "POST", body: body)
         let (status, data) = try await perform(request)
-        if status == 401 { throw APIError.unauthorized }
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
@@ -390,7 +404,7 @@ enum NativeAPIClient {
     static func deleteSpeaker(id: String) async throws {
         let request = try authorizedRequest(path: "api/native/v1/speakers/\(id)", method: "DELETE")
         let (status, data) = try await perform(request)
-        if status == 401 { throw APIError.unauthorized }
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
@@ -420,7 +434,7 @@ enum NativeAPIClient {
     static func listGroups() async throws -> [GroupDTO] {
         let request = try authorizedRequest(path: "api/native/v1/groups", method: "GET")
         let (status, data) = try await perform(request)
-        if status == 401 { throw APIError.unauthorized }
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
@@ -433,7 +447,7 @@ enum NativeAPIClient {
     static func getGroup(id: String) async throws -> GroupDTO {
         let request = try authorizedRequest(path: "api/native/v1/groups/\(id)", method: "GET")
         let (status, data) = try await perform(request)
-        if status == 401 { throw APIError.unauthorized }
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
@@ -452,7 +466,7 @@ enum NativeAPIClient {
         let body = try JSONEncoder().encode(Body(name: name, visibility: visibility, description: description))
         let request = try authorizedRequest(path: "api/native/v1/groups", method: "POST", body: body)
         let (status, data) = try await perform(request)
-        if status == 401 { throw APIError.unauthorized }
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
@@ -470,7 +484,7 @@ enum NativeAPIClient {
         let body = try JSONSerialization.data(withJSONObject: payload)
         let request = try authorizedRequest(path: "api/native/v1/groups/\(id)", method: "PATCH", body: body)
         let (status, data) = try await perform(request)
-        if status == 401 { throw APIError.unauthorized }
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
@@ -483,7 +497,7 @@ enum NativeAPIClient {
     static func deleteGroup(id: String) async throws {
         let request = try authorizedRequest(path: "api/native/v1/groups/\(id)", method: "DELETE")
         let (status, data) = try await perform(request)
-        if status == 401 { throw APIError.unauthorized }
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
@@ -492,7 +506,7 @@ enum NativeAPIClient {
     static func listGroupNotes(groupId: String) async throws -> [GroupNoteCardDTO] {
         let request = try authorizedRequest(path: "api/native/v1/groups/\(groupId)/notes", method: "GET")
         let (status, data) = try await perform(request)
-        if status == 401 { throw APIError.unauthorized }
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
@@ -507,7 +521,7 @@ enum NativeAPIClient {
         let body = try JSONEncoder().encode(Body(noteId: noteId))
         let request = try authorizedRequest(path: "api/native/v1/groups/\(groupId)/notes", method: "POST", body: body)
         let (status, data) = try await perform(request)
-        if status == 401 { throw APIError.unauthorized }
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
@@ -516,7 +530,7 @@ enum NativeAPIClient {
     static func unpublishNote(noteId: String, fromGroupId groupId: String) async throws {
         let request = try authorizedRequest(path: "api/native/v1/groups/\(groupId)/notes/\(noteId)", method: "DELETE")
         let (status, data) = try await perform(request)
-        if status == 401 { throw APIError.unauthorized }
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
@@ -525,7 +539,7 @@ enum NativeAPIClient {
     static func listGroupsForNote(noteId: String) async throws -> [GroupDTO] {
         let request = try authorizedRequest(path: "api/native/v1/notes/\(noteId)/groups", method: "GET")
         let (status, data) = try await perform(request)
-        if status == 401 { throw APIError.unauthorized }
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
@@ -540,7 +554,7 @@ enum NativeAPIClient {
     static func getMe() async throws -> MeDTO {
         let request = try authorizedRequest(path: "api/native/v1/me", method: "GET")
         let (status, data) = try await perform(request)
-        if status == 401 { throw APIError.unauthorized }
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
@@ -554,7 +568,7 @@ enum NativeAPIClient {
         let body = try JSONSerialization.data(withJSONObject: patch)
         let request = try authorizedRequest(path: "api/native/v1/me", method: "PATCH", body: body)
         let (status, data) = try await perform(request)
-        if status == 401 { throw APIError.unauthorized }
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
@@ -567,7 +581,7 @@ enum NativeAPIClient {
     static func getPrefs() async throws -> PrefsDTO {
         let request = try authorizedRequest(path: "api/native/v1/prefs", method: "GET")
         let (status, data) = try await perform(request)
-        if status == 401 { throw APIError.unauthorized }
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
@@ -581,7 +595,7 @@ enum NativeAPIClient {
         let body = try JSONSerialization.data(withJSONObject: patch)
         let request = try authorizedRequest(path: "api/native/v1/prefs", method: "PATCH", body: body)
         let (status, data) = try await perform(request)
-        if status == 401 { throw APIError.unauthorized }
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
@@ -594,7 +608,7 @@ enum NativeAPIClient {
     static func getNotifyPrefs() async throws -> NotifyPrefsDTO {
         let request = try authorizedRequest(path: "api/native/v1/notify-prefs", method: "GET")
         let (status, data) = try await perform(request)
-        if status == 401 { throw APIError.unauthorized }
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
@@ -608,7 +622,7 @@ enum NativeAPIClient {
         let body = try JSONSerialization.data(withJSONObject: patch)
         let request = try authorizedRequest(path: "api/native/v1/notify-prefs", method: "PATCH", body: body)
         let (status, data) = try await perform(request)
-        if status == 401 { throw APIError.unauthorized }
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
@@ -621,7 +635,7 @@ enum NativeAPIClient {
     static func exportAccount() async throws -> Data {
         let request = try authorizedRequest(path: "api/native/v1/account/export", method: "GET")
         let (status, data) = try await perform(request)
-        if status == 401 { throw APIError.unauthorized }
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
@@ -631,7 +645,7 @@ enum NativeAPIClient {
     static func deleteAccount() async throws {
         let request = try authorizedRequest(path: "api/native/v1/account/delete", method: "POST")
         let (status, data) = try await perform(request)
-        if status == 401 { throw APIError.unauthorized }
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
@@ -910,7 +924,7 @@ enum NativeAPIClient {
         let body = try JSONSerialization.data(withJSONObject: payload)
         let request = try authorizedRequest(path: "api/native/v1/verses/append", method: "POST", body: body)
         let (status, data) = try await perform(request)
-        if status == 401 { throw APIError.unauthorized }
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
@@ -925,7 +939,7 @@ enum NativeAPIClient {
     static func listMyCollections() async throws -> [UserCollectionDTO] {
         let request = try authorizedRequest(path: "api/native/v1/my-collections", method: "GET")
         let (status, data) = try await perform(request)
-        if status == 401 { throw APIError.unauthorized }
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
@@ -939,7 +953,7 @@ enum NativeAPIClient {
         let body = try JSONSerialization.data(withJSONObject: ["title": title, "passages": []])
         let request = try authorizedRequest(path: "api/native/v1/my-collections", method: "POST", body: body)
         let (status, data) = try await perform(request)
-        if status == 401 { throw APIError.unauthorized }
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
@@ -947,6 +961,50 @@ enum NativeAPIClient {
               let collection = decoded.collection
         else { throw APIError.decoding }
         return collection
+    }
+
+    /// Idempotent upsert for legacy import / outbox — preserves client `id` when possible.
+    static func upsertMyCollection(_ collection: UserCollectionDTO) async throws -> UserCollectionDTO {
+        var payload: [String: Any] = [
+            "id": collection.id,
+            "title": collection.title,
+            "passages": (collection.passages ?? []).map { passage -> [String: Any] in
+                var row: [String: Any] = ["bookId": passage.bookId, "chapter": passage.chapter]
+                if let verseStart = passage.verseStart { row["verseStart"] = verseStart }
+                if let verseEnd = passage.verseEnd { row["verseEnd"] = verseEnd }
+                return row
+            },
+        ]
+        if let visibility = collection.visibility { payload["visibility"] = visibility }
+        if let sourceId = collection.sourceId { payload["sourceId"] = sourceId }
+        let body = try JSONSerialization.data(withJSONObject: payload)
+        let request = try authorizedRequest(path: "api/native/v1/my-collections", method: "POST", body: body)
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            // If POST-with-id isn't understood by an older deploy, attempt PATCH then create.
+            if !collection.id.isEmpty {
+                let patchBody = try JSONSerialization.data(withJSONObject: payload)
+                let patchReq = try authorizedRequest(
+                    path: "api/native/v1/my-collections/\(collection.id)",
+                    method: "PATCH",
+                    body: patchBody
+                )
+                let (patchStatus, patchData) = try await perform(patchReq)
+                try throwIfUnauthorized(patchStatus)
+                if patchStatus >= 200, patchStatus < 300,
+                   let decoded = try? JSONDecoder().decode(CollectionsResponse.self, from: patchData),
+                   let saved = decoded.collection
+                {
+                    return saved
+                }
+            }
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(CollectionsResponse.self, from: data),
+              let saved = decoded.collection
+        else { throw APIError.decoding }
+        return saved
     }
 
     static func savePassageToCollection(passage: PassageDTO, collectionId: String? = nil, title: String? = nil) async throws -> UserCollectionDTO {
@@ -962,7 +1020,7 @@ enum NativeAPIClient {
         let body = try JSONSerialization.data(withJSONObject: payload)
         let request = try authorizedRequest(path: "api/native/v1/my-collections/save", method: "POST", body: body)
         let (status, data) = try await perform(request)
-        if status == 401 { throw APIError.unauthorized }
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
@@ -981,7 +1039,7 @@ enum NativeAPIClient {
         ])
         let request = try authorizedRequest(path: "api/native/v1/devices/apns", method: "POST", body: body)
         let (status, data) = try await perform(request)
-        if status == 401 { throw APIError.unauthorized }
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
@@ -991,7 +1049,7 @@ enum NativeAPIClient {
         let body = try JSONSerialization.data(withJSONObject: ["token": token])
         let request = try authorizedRequest(path: "api/native/v1/devices/apns", method: "DELETE", body: body)
         let (status, data) = try await perform(request)
-        if status == 401 { throw APIError.unauthorized }
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }

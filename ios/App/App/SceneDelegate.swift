@@ -11,14 +11,34 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         window?.rootViewController = AppRoot.makeRootViewController()
         window?.makeKeyAndVisible()
 
-        // Existing Cap users: copy web session cookie into Keychain before notes load.
-        // Must stay on main — WKWebsiteDataStore init off-main crashes WebKit.
+        // Existing Cap users: cookie → Keychain, then one-time localStorage import.
+        // Must stay on main — WebKit data-store / importer init off-main crashes.
         Task { @MainActor in
             let migrated = await NativeSessionBootstrap.migrateCookieToKeychainIfNeeded()
             if migrated {
                 NotificationCenter.default.post(name: .nativeSessionDidChange, object: nil)
             }
+            await LegacyWebStorageImporter.runIfNeeded()
+            await NativeOutbox.flushIfPossible()
             NativePushService.shared.resumeIfNeeded()
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: .nativeSessionDidExpire,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.presentReLoginIfNeeded()
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: .nativeSessionDidChange,
+            object: nil,
+            queue: .main
+        ) { _ in
+            Task { @MainActor in
+                await NativeOutbox.flushIfPossible()
+            }
         }
 
         // Cold-start deep links / universal links / push taps.
@@ -64,6 +84,35 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     func sceneDidEnterBackground(_ scene: UIScene) {
         flushWebViewCookies()
+    }
+
+    func sceneDidBecomeActive(_ scene: UIScene) {
+        Task { @MainActor in
+            await NativeOutbox.flushIfPossible()
+        }
+    }
+
+    private func presentReLoginIfNeeded() {
+        guard let root = window?.rootViewController else { return }
+        var top = root
+        while let presented = top.presentedViewController { top = presented }
+        if top is NativeSignInViewController { return }
+        if let nav = top as? UINavigationController,
+           nav.viewControllers.first is NativeSignInViewController
+        {
+            return
+        }
+        let signIn = NativeSignInViewController()
+        signIn.onSignedIn = {
+            NotificationCenter.default.post(name: .nativeSessionDidChange, object: nil)
+            Task { @MainActor in
+                await LegacyWebStorageImporter.runIfNeeded()
+                await NativeOutbox.flushIfPossible()
+            }
+        }
+        let nav = UINavigationController(rootViewController: signIn)
+        nav.modalPresentationStyle = .fullScreen
+        top.present(nav, animated: true)
     }
 }
 
