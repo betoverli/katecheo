@@ -369,29 +369,6 @@
         }
       }
     },
-    "%lld livros · Bíblia: %@": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld livros · Bíblia: %@"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld books · Bible: %@"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld libros · Biblia: %@"
-          }
-        }
-      }
-    },
     "%lld membros · %@%@": {
       "extractionState": "manual",
       "localizations": {
@@ -2205,29 +2182,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bíblia Online"
-          }
-        }
-      }
-    },
-    "Cache local · %@": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cache local · %@"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Local cache · %@"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Caché local · %@"
           }
         }
       }
@@ -4160,29 +4114,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Editar perfil"
-          }
-        }
-      }
-    },
-    "Editor nativo": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Editor nativo"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Native editor"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Editor nativo"
           }
         }
       }
@@ -7679,29 +7610,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Todavía no hay grupos.\nEntra para sincronizar."
-          }
-        }
-      }
-    },
-    "Nenhum livro encontrado": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nenhum livro encontrado"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No books found"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No se encontraron libros"
           }
         }
       }
@@ -11547,29 +11455,6 @@
         }
       }
     },
-    "Salvo no aparelho — sincroniza quando houver rede.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Salvo no aparelho — sincroniza quando houver rede."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Saved on device — syncs when you’re online."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Guardado en el dispositivo — se sincroniza cuando haya red."
-          }
-        }
-      }
-    },
     "Se forem várias referências, use Adicionar e, no fim, Copiar lista.": {
       "extractionState": "manual",
       "localizations": {
@@ -11957,29 +11842,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sesión expirada"
-          }
-        }
-      }
-    },
-    "Sessão expirada — alteração guardada no aparelho.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sessão expirada — alteração guardada no aparelho."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Session expired — change saved on this device."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sesión expirada — cambio guardado en el dispositivo."
           }
         }
       }
@@ -12375,29 +12237,6 @@
         }
       }
     },
-    "Status da nota": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Status da nota"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Note status"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Estado de la nota"
-          }
-        }
-      }
-    },
     "Sua conta foi removida.": {
       "extractionState": "manual",
       "localizations": {
@@ -12693,29 +12532,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Intentar de nuevo"
-          }
-        }
-      }
-    },
-    "Tente outro nome ou abreviação.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tente outro nome ou abreviação."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Try another name or abbreviation."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Prueba otro nombre o abreviatura."
           }
         }
       }
@@ -14901,6 +14717,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "Toca un libro"
+          }
+        }
+      }
+    },
+    "Status da sincronização": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Status da sincronização"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sync status"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estado de sincronización"
+          }
+        }
+      }
+    },
+    "Salvo neste aparelho": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Salvo neste aparelho"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved on this device"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Guardado en este dispositivo"
           }
         }
       }

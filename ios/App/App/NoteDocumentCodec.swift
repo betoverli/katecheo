@@ -17,6 +17,10 @@ enum NoteDocumentCodec {
     static let speakerIdKey = NSAttributedString.Key("v2n.speakerId")
     /// Marks a leading "• " / "1. " glyph that is display-only (not part of NoteDocumentV1 text).
     static let listMarkerKey = NSAttributedString.Key("v2n.listMarker")
+    /// Left inset for speaker-section header + body (matches web `.note-speaker` padding-left).
+    static let speakerSectionContentInset: CGFloat = 14
+    /// Vertical rail width (matches web `border-left: 2px`).
+    static let speakerRailWidth: CGFloat = 2
 
     /// NSObject so it can live in NSAttributedString attribute values.
     final class BibleRefPayload: NSObject {
@@ -75,7 +79,6 @@ enum NoteDocumentCodec {
                 if let title = block.title, !title.isEmpty { return title }
                 return String(localized: "Speaker")
             }()
-            let colorHex = block.speakerId.flatMap { speakers[$0]?.color }
             if result.length > 0 {
                 result.append(NSAttributedString(string: "\n"))
             }
@@ -83,13 +86,19 @@ enum NoteDocumentCodec {
                 speakerSectionHeader(
                     name: speakerName,
                     speakerId: block.speakerId,
-                    colorHex: colorHex,
+                    colorHex: block.speakerId.flatMap { speakers[$0]?.color },
                     blockId: block.id
                 )
             )
             var childNumbered = 0
             for child in block.blocks ?? [] {
-                appendBlock(child, to: result, speakers: speakers, numberedIndex: &childNumbered)
+                appendBlock(
+                    child,
+                    to: result,
+                    speakers: speakers,
+                    numberedIndex: &childNumbered,
+                    inSpeakerSection: true
+                )
             }
             return
         }
@@ -106,7 +115,37 @@ enum NoteDocumentCodec {
             checked: block.checked,
             speakerId: nil,
             speakers: speakers,
-            listNumber: max(numberedIndex, 1)
+            listNumber: max(numberedIndex, 1),
+            inSpeakerSection: false
+        )
+    }
+
+    private static func appendBlock(
+        _ block: NativeAPIClient.LineBlock,
+        to result: NSMutableAttributedString,
+        speakers: [String: NativeAPIClient.SpeakerDTO],
+        numberedIndex: inout Int,
+        inSpeakerSection: Bool
+    ) {
+        if block.type == "speakerSection" {
+            appendBlock(block, to: result, speakers: speakers, numberedIndex: &numberedIndex)
+            return
+        }
+        if block.type == "numbered" {
+            numberedIndex += 1
+        } else {
+            numberedIndex = 0
+        }
+        appendLine(
+            to: result,
+            type: block.type,
+            id: block.id,
+            spans: block.spans ?? [],
+            checked: block.checked,
+            speakerId: nil,
+            speakers: speakers,
+            listNumber: max(numberedIndex, 1),
+            inSpeakerSection: inSpeakerSection
         )
     }
 
@@ -118,12 +157,16 @@ enum NoteDocumentCodec {
         checked: Bool?,
         speakerId: String?,
         speakers: [String: NativeAPIClient.SpeakerDTO],
-        listNumber: Int = 1
+        listNumber: Int = 1,
+        inSpeakerSection: Bool = false
     ) {
         if result.length > 0 {
             result.append(NSAttributedString(string: "\n"))
         }
-        let base = baseAttributes(type: type, id: id, checked: checked, speakerId: speakerId, speakers: speakers)
+        var base = baseAttributes(type: type, id: id, checked: checked, speakerId: speakerId, speakers: speakers)
+        if inSpeakerSection || type == "speakerSection" {
+            base = applyingSpeakerSectionInset(base)
+        }
         if let marker = listMarkerString(type: type, checked: checked, number: listNumber) {
             var markerAttrs = base
             markerAttrs[listMarkerKey] = true
@@ -137,6 +180,18 @@ enum NoteDocumentCodec {
         for span in spans {
             result.append(spanAttributed(span, base: base))
         }
+    }
+
+    /// Indent used so the left rail can sit beside section content (web `.note-speaker` padding).
+    static func applyingSpeakerSectionInset(_ attrs: [NSAttributedString.Key: Any]) -> [NSAttributedString.Key: Any] {
+        var next = attrs
+        let style = ((attrs[.paragraphStyle] as? NSParagraphStyle)?.mutableCopy() as? NSMutableParagraphStyle)
+            ?? NSMutableParagraphStyle()
+        let inset = speakerSectionContentInset
+        style.firstLineHeadIndent = max(style.firstLineHeadIndent, inset)
+        style.headIndent = max(style.headIndent, inset)
+        next[.paragraphStyle] = style
+        return next
     }
 
     static func listMarkerString(type: String, checked: Bool?, number: Int = 1) -> String? {
@@ -206,14 +261,12 @@ enum NoteDocumentCodec {
             font = UIFont.preferredFont(forTextStyle: id == "title" ? .title1 : .title2)
             style.paragraphSpacingBefore = id == "title" ? 0 : 8
         case "speakerSection":
+            // Name-only header (no "Speaker" label) — matches original web `.note-speaker-name`.
             font = V2NDesign.preferred(.title3, weight: .semibold)
-            style.paragraphSpacingBefore = 10
-            style.paragraphSpacing = 6
-            if let speakerId, let speaker = speakers[speakerId], let color = UIColor(v2nHex: speaker.color) {
-                foreground = color
-            } else {
-                foreground = UIColor(red: 0.77, green: 0.65, blue: 0.45, alpha: 1) // #c4a574
-            }
+            style.paragraphSpacingBefore = 12
+            style.paragraphSpacing = 2
+            foreground = .label
+            _ = speakers
         case "bullet", "numbered", "check":
             style.headIndent = 22
             style.firstLineHeadIndent = 0
@@ -240,32 +293,86 @@ enum NoteDocumentCodec {
         return attrs
     }
 
-    /// Speaker section header rendered as a card attachment (avatar + name + accent bar).
+    /// Speaker name as a plain header line (not a chip/card). Rail color comes from `speakerId`.
     static func speakerSectionHeader(
         name: String,
         speakerId: String?,
         colorHex: String?,
         blockId: String
     ) -> NSAttributedString {
-        let color = colorHex.flatMap { UIColor(v2nHex: $0) }
-            ?? UIColor(red: 0.77, green: 0.65, blue: 0.45, alpha: 1)
-        let attachment = SpeakerSectionAttachment(name: name, color: color, speakerId: speakerId)
-        let result = NSMutableAttributedString(attachment: attachment)
-        let style = NSMutableParagraphStyle()
-        style.paragraphSpacingBefore = 10
-        style.paragraphSpacing = 6
-        var attrs: [NSAttributedString.Key: Any] = [
-            .font: V2NDesign.preferred(.title3, weight: .semibold),
-            .foregroundColor: color,
-            .paragraphStyle: style,
-            blockTypeKey: "speakerSection",
-            blockIdKey: blockId,
-        ]
-        if let speakerId {
-            attrs[speakerIdKey] = speakerId
+        _ = colorHex // Color is used for the vertical rail, not the title text.
+        var attrs = baseAttributes(
+            type: "speakerSection",
+            id: blockId,
+            checked: nil,
+            speakerId: speakerId,
+            speakers: [:]
+        )
+        attrs = applyingSpeakerSectionInset(attrs)
+        let display = name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? String(localized: "Speaker")
+            : name
+        return NSAttributedString(string: display, attributes: attrs)
+    }
+
+    /// Character ranges + rail colors for every speaker section (header through body until next section).
+    static func speakerRailSpecs(
+        in attributed: NSAttributedString,
+        speakers: [NativeAPIClient.SpeakerDTO]
+    ) -> [(range: NSRange, color: UIColor)] {
+        let speakerMap = Dictionary(uniqueKeysWithValues: speakers.map { ($0.id, $0) })
+        let fallback = UIColor(red: 0.77, green: 0.65, blue: 0.45, alpha: 1)
+        var specs: [(NSRange, UIColor)] = []
+        let ns = attributed.string as NSString
+        var paragraphRanges: [NSRange] = []
+        ns.enumerateSubstrings(in: NSRange(location: 0, length: ns.length), options: [.byParagraphs, .substringNotRequired]) { _, range, _, _ in
+            paragraphRanges.append(range)
         }
-        result.addAttributes(attrs, range: NSRange(location: 0, length: result.length))
-        return result
+        if paragraphRanges.isEmpty {
+            return []
+        }
+        // Title is paragraph 0 in the Apple Notes–style editor — rails start after it.
+        var index = min(1, paragraphRanges.count)
+        while index < paragraphRanges.count {
+            let range = paragraphRanges[index]
+            let attrs: [NSAttributedString.Key: Any]
+            if range.length > 0 {
+                attrs = attributed.attributes(at: range.location, effectiveRange: nil)
+            } else if attributed.length > range.location {
+                attrs = attributed.attributes(at: min(range.location, attributed.length - 1), effectiveRange: nil)
+            } else {
+                attrs = [:]
+            }
+            let type = attrs[blockTypeKey] as? String
+            if type == "speakerSection" {
+                let start = range.location
+                let sid = attrs[speakerIdKey] as? String
+                let color = sid.flatMap { speakerMap[$0].flatMap { UIColor(v2nHex: $0.color) } } ?? fallback
+                var end = NSMaxRange(range)
+                var look = index + 1
+                while look < paragraphRanges.count {
+                    let next = paragraphRanges[look]
+                    let nextAttrs: [NSAttributedString.Key: Any]
+                    if next.length > 0 {
+                        nextAttrs = attributed.attributes(at: next.location, effectiveRange: nil)
+                    } else if attributed.length > next.location {
+                        nextAttrs = attributed.attributes(at: min(next.location, attributed.length - 1), effectiveRange: nil)
+                    } else {
+                        nextAttrs = [:]
+                    }
+                    if (nextAttrs[blockTypeKey] as? String) == "speakerSection" {
+                        break
+                    }
+                    end = NSMaxRange(next)
+                    look += 1
+                }
+                specs.append((NSRange(location: start, length: max(0, end - start)), color))
+                index = look
+                continue
+            }
+            index += 1
+        }
+        return specs
     }
 
     static func bibleRefPill(payload: BibleRefPayload, base: [NSAttributedString.Key: Any] = [:]) -> NSAttributedString {
@@ -347,19 +454,13 @@ enum NoteDocumentCodec {
             let id = (line.attributes[blockIdKey] as? String) ?? newId()
             if type == "speakerSection" {
                 flushSpeaker()
-                let speakerName: String = {
-                    if let attachment = line.attributes[.attachment] as? SpeakerSectionAttachment {
-                        return attachment.name
-                    }
-                    let raw = String(line.string).trimmingCharacters(in: .whitespacesAndNewlines)
-                    return raw.isEmpty ? String(localized: "Speaker") : raw
-                }()
+                let raw = String(line.string).trimmingCharacters(in: .whitespacesAndNewlines)
+                let speakerName = raw.isEmpty ? String(localized: "Speaker") : raw
                 currentSpeaker = NativeAPIClient.LineBlock(
                     id: id,
                     type: "speakerSection",
                     spans: nil,
-                    speakerId: line.attributes[speakerIdKey] as? String
-                        ?? (line.attributes[.attachment] as? SpeakerSectionAttachment)?.speakerId,
+                    speakerId: line.attributes[speakerIdKey] as? String,
                     title: speakerName,
                     collapsed: false,
                     checked: nil,
@@ -419,10 +520,6 @@ enum NoteDocumentCodec {
         attributed.enumerateAttributes(in: full, options: []) { attrs, range, _ in
             let text = (attributed.string as NSString).substring(with: range)
             if text.isEmpty { return }
-            if attrs[.attachment] is SpeakerSectionAttachment {
-                // Speaker header is a block, not an inline span.
-                return
-            }
             if let attachment = attrs[.attachment] as? BibleRefPillAttachment {
                 let payload = attachment.payload
                 out.append(NativeAPIClient.TextSpan(
@@ -560,98 +657,6 @@ private extension UIFont {
             return self
         }
         return UIFont(descriptor: descriptor, size: pointSize)
-    }
-}
-
-// MARK: - Speaker section card attachment
-
-/// Card-style speaker block header: left accent bar, color avatar, name.
-final class SpeakerSectionAttachment: NSTextAttachment {
-    let name: String
-    let color: UIColor
-    let speakerId: String?
-
-    init(name: String, color: UIColor, speakerId: String?) {
-        self.name = name
-        self.color = color
-        self.speakerId = speakerId
-        super.init(data: nil, ofType: nil)
-        refreshImage()
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-
-    func refreshImage() {
-        let nameFont = V2NDesign.preferred(.headline, weight: .semibold)
-        let metaFont = V2NDesign.caption()
-        let nameText = NSAttributedString(string: name, attributes: [
-            .font: nameFont,
-            .foregroundColor: UIColor.label,
-        ])
-        let meta = NSAttributedString(string: String(localized: "Speaker"), attributes: [
-            .font: metaFont,
-            .foregroundColor: UIColor.secondaryLabel,
-        ])
-        let nameSize = nameText.size()
-        let metaSize = meta.size()
-        let padX: CGFloat = 12
-        let padY: CGFloat = 10
-        let avatar: CGFloat = 32
-        let gap: CGFloat = 10
-        let accentW: CGFloat = 4
-        let contentW = max(nameSize.width, metaSize.width)
-        let width = min(max(accentW + padX + avatar + gap + contentW + padX, 160), UIScreen.main.bounds.width - 48)
-        let height = max(avatar, nameSize.height + 2 + metaSize.height) + padY * 2
-        let size = CGSize(width: ceil(width), height: ceil(height))
-        let renderer = UIGraphicsImageRenderer(size: size)
-        image = renderer.image { ctx in
-            let rect = CGRect(origin: .zero, size: size)
-            let bg = UIBezierPath(roundedRect: rect, cornerRadius: V2NDesign.Radius.md)
-            V2NDesign.surface.setFill()
-            bg.fill()
-
-            let accentRect = CGRect(x: 0, y: 0, width: accentW, height: size.height)
-            color.setFill()
-            UIBezierPath(roundedRect: accentRect, cornerRadius: 1).fill()
-            V2NDesign.surface.setFill()
-            UIBezierPath(rect: CGRect(x: accentW, y: 0, width: 2, height: size.height)).fill()
-
-            let avatarRect = CGRect(
-                x: accentW + padX,
-                y: (size.height - avatar) / 2,
-                width: avatar,
-                height: avatar
-            )
-            ctx.cgContext.saveGState()
-            UIBezierPath(ovalIn: avatarRect).addClip()
-            color.setFill()
-            UIBezierPath(ovalIn: avatarRect).fill()
-            let initial = String(name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(1)).uppercased()
-            let initialFont = V2NDesign.preferred(.subheadline, weight: .bold)
-            let initialAttr = NSAttributedString(string: initial.isEmpty ? "S" : initial, attributes: [
-                .font: initialFont,
-                .foregroundColor: UIColor.white,
-            ])
-            let iSize = initialAttr.size()
-            initialAttr.draw(at: CGPoint(
-                x: avatarRect.midX - iSize.width / 2,
-                y: avatarRect.midY - iSize.height / 2
-            ))
-            ctx.cgContext.restoreGState()
-
-            let textX = avatarRect.maxX + gap
-            let textBlockH = nameSize.height + 2 + metaSize.height
-            let textY = (size.height - textBlockH) / 2
-            nameText.draw(at: CGPoint(x: textX, y: textY))
-            meta.draw(at: CGPoint(x: textX, y: textY + nameSize.height + 2))
-
-            V2NDesign.separator.setStroke()
-            bg.lineWidth = 0.5
-            bg.stroke()
-        }
-        let font = V2NDesign.preferred(.headline, weight: .semibold)
-        bounds = CGRect(x: 0, y: font.descender - 4, width: size.width, height: size.height)
     }
 }
 

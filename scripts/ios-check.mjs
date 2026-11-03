@@ -185,6 +185,15 @@ const codec = read("ios/App/App/NoteDocumentCodec.swift");
 if (!codec.includes("attributedString(from") || !codec.includes("func document(") || !codec.includes("bibleRef")) {
   errors.push("NoteDocumentCodec tem de round-trip NoteDocument ↔ attributed string com bibleRef.");
 }
+if (codec.includes("final class SpeakerSectionAttachment")) {
+  errors.push("Remova SpeakerSectionAttachment — secção de speaker é header + barra lateral.");
+}
+if (!codec.includes("speakerRailSpecs") || !codec.includes("speakerSectionContentInset")) {
+  errors.push("NoteDocumentCodec tem de expor ranges/cores da barra lateral do speaker.");
+}
+if (!editor.includes("NoteSpeakerRailLayoutManager") || !editor.includes("refreshSpeakerRails")) {
+  errors.push("NativeNoteEditorView tem de desenhar a barra lateral do speaker (rail).");
+}
 
 const noteDetail = read("ios/App/App/NoteDetailViewController.swift");
 if (noteDetail.includes("WKWebView") || noteDetail.includes("import WebKit") || noteDetail.includes("NoteMioloEditorView")) {
@@ -192,6 +201,15 @@ if (noteDetail.includes("WKWebView") || noteDetail.includes("import WebKit") || 
 }
 if (!noteDetail.includes("NativeNoteEditorView")) {
   errors.push("NoteDetailViewController tem de hospedar NativeNoteEditorView.");
+}
+if (!noteDetail.includes("hidesBottomBarWhenPushed = true")) {
+  errors.push("A tela da nota tem de esconder a tab bar (hidesBottomBarWhenPushed).");
+}
+if (noteDetail.includes("Salvo no aparelho — sincroniza") || noteDetail.includes("Editor nativo") || noteDetail.includes('statusLabel.text')) {
+  errors.push("A nota não pode mostrar texto de sync no topo — use ícone discreto.");
+}
+if (!noteDetail.includes("checkmark.icloud") && !noteDetail.includes("icloud.and.arrow.up")) {
+  errors.push("A nota tem de expor sync só como ícone (icloud), não como label.");
 }
 
 try {
@@ -407,6 +425,18 @@ try {
   }
   if (!versesHome.includes("applyBooksCompact") || !versesHome.includes("booksCompact")) {
     errors.push("Versículos tem de manter Siglas/Nomes sincronizados com booksCompact no primeiro load.");
+  }
+  if (!versesHome.includes("refreshCollectionLayoutIfNeeded") || !versesHome.includes("pendingLayoutRefresh")) {
+    errors.push("Versículos tem de invalidar o grid só com bounds válidos (lista vazia no launch).");
+  }
+  if (versesHome.includes("UISearchController") || versesHome.includes("Buscar livro") || versesHome.includes("magnifyingglass")) {
+    errors.push("Remova a busca da tela Versículos (ícone e UISearchController).");
+  }
+  if (versesHome.includes("livros · Bíblia") || versesHome.includes("statusBanner")) {
+    errors.push("Remova o subtítulo «N livros · Bíblia: …» do header de Versículos.");
+  }
+  if (versesHome.includes("largeTitleDisplayMode = .always")) {
+    errors.push("Versículos tem de usar header compacto (largeTitleDisplayMode != .always).");
   }
   const groupsListSync = read("ios/App/App/GroupsListViewController.swift");
   if (groupsListSync.includes("grupos · sincronizado")) {
