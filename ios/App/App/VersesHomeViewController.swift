@@ -1,8 +1,8 @@
 import UIKit
 
 /// Native Versículos tab: book picker (names ↔ siglas), Temas / Listas chips.
-/// Chips keep title + filter chrome fixed and swap only the content below.
-final class VersesHomeViewController: UIViewController, UICollectionViewDelegate, UICollectionViewDataSource, UISearchResultsUpdating {
+/// Compact chrome; Siglas/Nomes lives with the book list (not in the nav header).
+final class VersesHomeViewController: UIViewController, UICollectionViewDelegate, UICollectionViewDataSource {
     private enum HomeFilter: String {
         case books = "books"
         case themes = "themes"
@@ -11,19 +11,20 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
 
     private let chips = V2NFilterChipsView()
     private let modeToggle = V2NModeToggle()
-    private let statusBanner = UILabel()
     private let emptyState = V2NEmptyStateView()
     private let contentHost = UIView()
     private let booksPanel = UIView()
     private var collectionView: UICollectionView!
-    private let search = UISearchController(searchResultsController: nil)
 
     private var books: [NativeAPIClient.BibleBookDTO] = []
     private var filtered: [NativeAPIClient.BibleBookDTO] = []
     private var prefs: NativeAPIClient.PrefsDTO?
     private var booksCompact = false
     private var homeFilter: HomeFilter = .books
-    private var searchVisible = false
+    /// Guards against overlapping reloads leaving the compositional layout stuck empty.
+    private var booksLoadToken = 0
+    /// When true, wait until the collection view has a real width before invalidating layout.
+    private var pendingLayoutRefresh = false
 
     private lazy var themesVC = ThemesHomeViewController(prefs: nil, embedded: true)
     private lazy var listsVC = MyCollectionsViewController(embedded: true)
@@ -35,8 +36,9 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
         super.viewDidLoad()
         V2NChrome.styleCanvas(view)
         title = String(localized: "Versículos")
-        navigationController?.navigationBar.prefersLargeTitles = true
-        navigationItem.largeTitleDisplayMode = .always
+        // Compact header like the original webapp — no large-title gap.
+        navigationItem.largeTitleDisplayMode = .never
+        navigationController?.navigationBar.prefersLargeTitles = false
 
         applyBooksCompact(resolvedInitialBooksCompact(), rebuild: false)
         modeToggle.onChange = { [weak self] compact in
@@ -45,18 +47,6 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
                 Task { try? await NativeAPIClient.patchPrefs(["booksCompact": compact]) }
             }
         }
-
-        search.searchResultsUpdater = self
-        search.obscuresBackgroundDuringPresentation = false
-        search.searchBar.placeholder = String(localized: "Buscar livro")
-        definesPresentationContext = true
-        navigationItem.searchController = nil
-        navigationItem.hidesSearchBarWhenScrolling = true
-
-        navigationItem.rightBarButtonItems = [
-            UIBarButtonItem(image: UIImage(systemName: "magnifyingglass"), style: .plain, target: self, action: #selector(toggleSearch)),
-        ]
-        navigationItem.rightBarButtonItem?.accessibilityLabel = String(localized: "Buscar")
 
         chips.configure(
             chips: [
@@ -69,13 +59,6 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
         chips.onSelect = { [weak self] id in
             self?.selectFilter(id)
         }
-
-        statusBanner.translatesAutoresizingMaskIntoConstraints = false
-        statusBanner.font = V2NDesign.caption()
-        statusBanner.textColor = .secondaryLabel
-        statusBanner.textAlignment = .center
-        statusBanner.numberOfLines = 2
-        statusBanner.adjustsFontForContentSizeCategory = true
 
         contentHost.translatesAutoresizingMaskIntoConstraints = false
         contentHost.backgroundColor = .clear
@@ -105,8 +88,8 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
         view.addSubview(chips)
         view.addSubview(contentHost)
         contentHost.addSubview(booksPanel)
+        // Toggle sits with the book list content (below chips), not in the nav header.
         booksPanel.addSubview(modeToggle)
-        booksPanel.addSubview(statusBanner)
         booksPanel.addSubview(collectionView)
         booksPanel.addSubview(emptyState)
 
@@ -129,16 +112,12 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
             modeToggle.trailingAnchor.constraint(equalTo: booksPanel.layoutMarginsGuide.trailingAnchor),
             modeToggle.leadingAnchor.constraint(greaterThanOrEqualTo: booksPanel.layoutMarginsGuide.leadingAnchor),
 
-            statusBanner.topAnchor.constraint(equalTo: modeToggle.bottomAnchor, constant: V2NDesign.Space.xxs),
-            statusBanner.leadingAnchor.constraint(equalTo: booksPanel.layoutMarginsGuide.leadingAnchor),
-            statusBanner.trailingAnchor.constraint(equalTo: booksPanel.layoutMarginsGuide.trailingAnchor),
-
-            collectionView.topAnchor.constraint(equalTo: statusBanner.bottomAnchor, constant: V2NDesign.Space.xs),
+            collectionView.topAnchor.constraint(equalTo: modeToggle.bottomAnchor, constant: V2NDesign.Space.xs),
             collectionView.leadingAnchor.constraint(equalTo: booksPanel.leadingAnchor),
             collectionView.trailingAnchor.constraint(equalTo: booksPanel.trailingAnchor),
             collectionView.bottomAnchor.constraint(equalTo: booksPanel.bottomAnchor),
 
-            emptyState.topAnchor.constraint(equalTo: statusBanner.bottomAnchor),
+            emptyState.topAnchor.constraint(equalTo: modeToggle.bottomAnchor),
             emptyState.leadingAnchor.constraint(equalTo: booksPanel.leadingAnchor),
             emptyState.trailingAnchor.constraint(equalTo: booksPanel.trailingAnchor),
             emptyState.bottomAnchor.constraint(equalTo: booksPanel.bottomAnchor),
@@ -148,12 +127,15 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
         embedChild(listsVC)
         themesVC.view.isHidden = true
         listsVC.view.isHidden = true
+        contentHost.bringSubviewToFront(booksPanel)
 
         _ = V2NGlassMaterial.sdkHasLiquidGlass()
     }
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        navigationItem.largeTitleDisplayMode = .never
+        navigationController?.navigationBar.prefersLargeTitles = false
         Task { @MainActor in
             if NativeAPIClient.hasBearer {
                 _ = await NativeSessionBootstrap.migrateCookieToKeychainIfNeeded()
@@ -163,6 +145,13 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
             case .themes: themesVC.reloadFromParent()
             case .lists: listsVC.reloadFromParent()
             }
+        }
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        if pendingLayoutRefresh, collectionView.bounds.width > 1 {
+            refreshCollectionLayoutIfNeeded(force: true)
         }
     }
 
@@ -191,24 +180,24 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
         modeToggle.setCompact(compact)
         UserDefaults.standard.set(compact, forKey: "v2n.booksCompact")
         if rebuild {
-            rebuildLayout()
+            refreshCollectionLayoutIfNeeded(force: true)
         }
     }
 
-    @objc private func toggleSearch() {
-        guard homeFilter == .books else { return }
-        searchVisible.toggle()
-        if searchVisible {
-            navigationItem.searchController = search
-            DispatchQueue.main.async { [weak self] in
-                self?.search.isActive = true
-                self?.search.searchBar.becomeFirstResponder()
-            }
-        } else {
-            search.isActive = false
-            search.searchBar.text = nil
-            navigationItem.searchController = nil
-            applyFilter()
+    /// Root cause of the empty-on-launch grid: `invalidateLayout()` while the
+    /// collection view still had zero width / empty data left Compositional Layout
+    /// stuck until Siglas/Nomes forced another invalidate. Only invalidate when we
+    /// have a real width; otherwise defer to `viewDidLayoutSubviews`.
+    private func refreshCollectionLayoutIfNeeded(force: Bool) {
+        guard collectionView != nil else { return }
+        if collectionView.bounds.width <= 1 {
+            pendingLayoutRefresh = true
+            return
+        }
+        pendingLayoutRefresh = false
+        collectionView.collectionViewLayout.invalidateLayout()
+        if force {
+            collectionView.reloadData()
         }
     }
 
@@ -221,39 +210,31 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
             booksPanel.isHidden = false
             themesVC.view.isHidden = true
             listsVC.view.isHidden = true
+            contentHost.bringSubviewToFront(booksPanel)
             applyFilter()
+            refreshCollectionLayoutIfNeeded(force: true)
         case .themes:
-            dismissBooksSearchIfNeeded()
+            emptyState.hide()
             booksPanel.isHidden = true
             themesVC.updatePrefs(prefs)
             themesVC.view.isHidden = false
             listsVC.view.isHidden = true
+            contentHost.bringSubviewToFront(themesVC.view)
             themesVC.reloadFromParent()
         case .lists:
-            dismissBooksSearchIfNeeded()
+            emptyState.hide()
             booksPanel.isHidden = true
             themesVC.view.isHidden = true
             listsVC.view.isHidden = false
+            contentHost.bringSubviewToFront(listsVC.view)
             listsVC.reloadFromParent()
         }
-    }
-
-    private func dismissBooksSearchIfNeeded() {
-        emptyState.hide()
-        guard searchVisible else { return }
-        searchVisible = false
-        search.isActive = false
-        search.searchBar.text = nil
-        navigationItem.searchController = nil
     }
 
     private func updateChromeForFilter() {
         switch homeFilter {
         case .books:
-            navigationItem.rightBarButtonItems = [
-                UIBarButtonItem(image: UIImage(systemName: "magnifyingglass"), style: .plain, target: self, action: #selector(toggleSearch)),
-            ]
-            navigationItem.rightBarButtonItem?.accessibilityLabel = String(localized: "Buscar")
+            navigationItem.rightBarButtonItems = nil
         case .lists:
             navigationItem.rightBarButtonItems = [
                 UIBarButtonItem(title: String(localized: "Nova"), style: .plain, target: self, action: #selector(createListFromParent)),
@@ -268,6 +249,8 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
     }
 
     @objc private func reload() {
+        booksLoadToken += 1
+        let token = booksLoadToken
         Task { @MainActor in
             defer { collectionView.refreshControl?.endRefreshing() }
             do {
@@ -275,18 +258,19 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
                 if NativeAPIClient.hasBearer {
                     prefs = try? await NativeAPIClient.getPrefs()
                     if let prefs {
-                        applyBooksCompact(prefs.booksCompact, rebuild: true)
+                        // Sync Siglas/Nomes from prefs without an early layout invalidate
+                        // (that was emptying the grid until the user tapped the toggle).
+                        applyBooksCompact(prefs.booksCompact, rebuild: false)
                         themesVC.updatePrefs(prefs)
                     }
                 }
-                books = try await booksTask
-                let appName = ProfileBibleCatalog.name(for: prefs?.appId ?? "youversion")
-                statusBanner.text = String(localized: "\(books.count) livros · Bíblia: \(appName)")
-                statusBanner.textColor = V2NDesign.accent
+                let loaded = try await booksTask
+                guard token == booksLoadToken else { return }
+                books = loaded
                 applyFilter()
+                refreshCollectionLayoutIfNeeded(force: true)
             } catch {
-                statusBanner.text = String(localized: "Não foi possível carregar. \(error.localizedDescription)")
-                statusBanner.textColor = V2NDesign.danger
+                guard token == booksLoadToken else { return }
                 applyFilter()
             }
         }
@@ -294,43 +278,22 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
 
     private func applyFilter() {
         guard homeFilter == .books else { return }
-        let q = (search.searchBar.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        if q.isEmpty {
-            filtered = books
-        } else {
-            filtered = books.filter {
-                $0.name.lowercased().contains(q) || $0.abbr.lowercased().contains(q) || $0.id.lowercased().contains(q)
-            }
-        }
+        filtered = books
         if filtered.isEmpty {
             collectionView.isHidden = true
-            if books.isEmpty {
-                emptyState.show(
-                    symbol: "book.closed",
-                    title: String(localized: "Não foi possível carregar"),
-                    message: String(localized: "Puxe para atualizar quando a rede voltar."),
-                    actionTitle: String(localized: "Tentar de novo"),
-                    action: { [weak self] in self?.reload() }
-                )
-            } else {
-                emptyState.show(symbol: "magnifyingglass", title: String(localized: "Nenhum livro encontrado"), message: String(localized: "Tente outro nome ou abreviação."))
-            }
+            emptyState.show(
+                symbol: "book.closed",
+                title: String(localized: "Não foi possível carregar"),
+                message: String(localized: "Puxe para atualizar quando a rede voltar."),
+                actionTitle: String(localized: "Tentar de novo"),
+                action: { [weak self] in self?.reload() }
+            )
         } else {
             emptyState.hide()
             collectionView.isHidden = false
         }
         collectionView.reloadData()
     }
-
-    func updateSearchResults(for searchController: UISearchController) {
-        applyFilter()
-    }
-
-    private func rebuildLayout() {
-        collectionView.collectionViewLayout.invalidateLayout()
-        collectionView.reloadData()
-    }
-
 
     // MARK: - Collection
 

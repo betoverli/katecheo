@@ -735,9 +735,10 @@ enum V2NBookGridLayout {
     static func make(isCompact: @escaping () -> Bool) -> UICollectionViewCompositionalLayout {
         UICollectionViewCompositionalLayout { _, env in
             let compact = isCompact()
-            let columns: CGFloat = compact ? (env.container.effectiveContentSize.width > 500 ? 8 : 5) : 2
+            let width = env.container.effectiveContentSize.width
+            let columns = max(1, Int(compact ? (width > 500 ? 8 : 5) : 2))
             let itemSize = NSCollectionLayoutSize(
-                widthDimension: .fractionalWidth(1 / columns),
+                widthDimension: .fractionalWidth(1 / CGFloat(columns)),
                 heightDimension: .absolute(compact ? 52 : 56)
             )
             let item = NSCollectionLayoutItem(layoutSize: itemSize)
@@ -746,7 +747,12 @@ enum V2NBookGridLayout {
                 widthDimension: .fractionalWidth(1),
                 heightDimension: .absolute(compact ? 52 : 56)
             )
-            let group = NSCollectionLayoutGroup.horizontal(layoutSize: groupSize, subitems: [item])
+            // `repeatingSubitem:` needs iOS 16+; deployment target is 15.0.
+            let group = NSCollectionLayoutGroup.horizontal(
+                layoutSize: groupSize,
+                subitem: item,
+                count: columns
+            )
             let section = NSCollectionLayoutSection(group: group)
             section.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 12, bottom: 12, trailing: 12)
             let header = NSCollectionLayoutBoundarySupplementaryItem(

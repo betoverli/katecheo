@@ -2,20 +2,31 @@ import UIKit
 
 /// Native note chrome + native miolo (`NativeNoteEditorView`).
 final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDelegate {
+    private enum SyncState {
+        case idle
+        case saving
+        case synced
+        case pendingLocal
+    }
+
     private let noteId: String
     private var note: NativeAPIClient.NoteDocument
     private var speakers: [NativeAPIClient.SpeakerDTO] = []
     private let editor = NativeNoteEditorView()
     private var saveWork: DispatchWorkItem?
-    private let statusLabel = UILabel()
     private let speakerChip = UIButton(type: .system)
     private let speakerChipRemove = UIButton(type: .system)
     private let speakerChipRow = UIStackView()
+    private let topChrome = UIStackView()
+    private let syncButton = UIButton(type: .system)
+    private var syncState: SyncState = .idle
 
     init(noteId: String, initial: NativeAPIClient.NoteDocument?) {
         self.noteId = noteId
         self.note = initial ?? NativeAPIClient.emptyNote(id: noteId)
         super.init(nibName: nil, bundle: nil)
+        // Hide the root tab bar for the whole push/pop transition (no flicker).
+        hidesBottomBarWhenPushed = true
     }
 
     @available(*, unavailable)
@@ -24,38 +35,52 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
     override func viewDidLoad() {
         super.viewDidLoad()
         V2NChrome.styleCanvas(view)
-        // Title lives in the editor body (first line) — keep the nav bar clear (matches original web editor).
+        // Title lives in the editor body (first line) — compact nav, no large-title gap.
         title = nil
         navigationItem.title = nil
         navigationItem.largeTitleDisplayMode = .never
+        navigationItem.backButtonDisplayMode = .minimal
+
+        syncButton.translatesAutoresizingMaskIntoConstraints = false
+        syncButton.addTarget(self, action: #selector(syncIconTapped), for: .touchUpInside)
+        syncButton.accessibilityLabel = String(localized: "Status da sincronização")
+        NSLayoutConstraint.activate([
+            syncButton.widthAnchor.constraint(equalToConstant: 28),
+            syncButton.heightAnchor.constraint(equalToConstant: 28),
+        ])
+        applySyncState(.idle)
 
         navigationItem.rightBarButtonItems = [
             UIBarButtonItem(image: UIImage(systemName: "ellipsis.circle"), style: .plain, target: self, action: #selector(openMore)),
+            UIBarButtonItem(customView: syncButton),
         ]
-        navigationItem.rightBarButtonItem?.accessibilityLabel = String(localized: "Mais opções da nota")
+        navigationItem.rightBarButtonItems?.first?.accessibilityLabel = String(localized: "Mais opções da nota")
 
-        statusLabel.translatesAutoresizingMaskIntoConstraints = false
-        statusLabel.font = V2NDesign.caption()
-        statusLabel.textColor = .secondaryLabel
-        statusLabel.text = String(localized: "Carregando…")
-        statusLabel.adjustsFontForContentSizeCategory = true
-        statusLabel.accessibilityLabel = String(localized: "Status da nota")
-        view.addSubview(statusLabel)
+        topChrome.axis = .vertical
+        topChrome.spacing = V2NDesign.Space.xxs
+        topChrome.alignment = .leading
+        topChrome.translatesAutoresizingMaskIntoConstraints = false
+        topChrome.isLayoutMarginsRelativeArrangement = true
+        topChrome.layoutMargins = UIEdgeInsets(
+            top: V2NDesign.Space.xxs,
+            left: V2NDesign.Space.md,
+            bottom: 0,
+            right: V2NDesign.Space.md
+        )
 
         speakerChipRow.axis = .horizontal
         speakerChipRow.spacing = V2NDesign.Space.xxs
         speakerChipRow.alignment = .center
-        speakerChipRow.translatesAutoresizingMaskIntoConstraints = false
         speakerChipRow.isHidden = true
 
         var chipConfig = UIButton.Configuration.filled()
         chipConfig.cornerStyle = .capsule
         chipConfig.baseBackgroundColor = V2NDesign.surface.withAlphaComponent(0.7)
         chipConfig.baseForegroundColor = .secondaryLabel
-        chipConfig.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12)
+        chipConfig.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 10, bottom: 6, trailing: 10)
         chipConfig.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
             var out = incoming
-            out.font = V2NDesign.preferred(.subheadline, weight: .medium)
+            out.font = V2NDesign.preferred(.footnote, weight: .medium)
             return out
         }
         speakerChip.configuration = chipConfig
@@ -63,31 +88,28 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         speakerChip.accessibilityLabel = String(localized: "Speaker da nota")
 
         speakerChipRemove.setTitle("×", for: .normal)
-        speakerChipRemove.titleLabel?.font = V2NDesign.preferred(.title2, weight: .regular)
+        speakerChipRemove.titleLabel?.font = V2NDesign.preferred(.title3, weight: .regular)
         speakerChipRemove.setTitleColor(.secondaryLabel, for: .normal)
         speakerChipRemove.addTarget(self, action: #selector(clearWholeSpeaker), for: .touchUpInside)
         speakerChipRemove.accessibilityLabel = String(localized: "Remover speaker")
-        speakerChipRemove.widthAnchor.constraint(equalToConstant: 44).isActive = true
-        speakerChipRemove.heightAnchor.constraint(equalToConstant: 44).isActive = true
+        speakerChipRemove.widthAnchor.constraint(equalToConstant: 36).isActive = true
+        speakerChipRemove.heightAnchor.constraint(equalToConstant: 36).isActive = true
 
         speakerChipRow.addArrangedSubview(speakerChip)
         speakerChipRow.addArrangedSubview(speakerChipRemove)
-        view.addSubview(speakerChipRow)
+        topChrome.addArrangedSubview(speakerChipRow)
 
         editor.delegate = self
         editor.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(topChrome)
         view.addSubview(editor)
 
         NSLayoutConstraint.activate([
-            statusLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: V2NDesign.Space.xxs),
-            statusLabel.leadingAnchor.constraint(equalTo: view.layoutMarginsGuide.leadingAnchor),
-            statusLabel.trailingAnchor.constraint(equalTo: view.layoutMarginsGuide.trailingAnchor),
+            topChrome.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            topChrome.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            topChrome.trailingAnchor.constraint(equalTo: view.trailingAnchor),
 
-            speakerChipRow.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: V2NDesign.Space.xs),
-            speakerChipRow.leadingAnchor.constraint(equalTo: view.layoutMarginsGuide.leadingAnchor),
-            speakerChipRow.trailingAnchor.constraint(lessThanOrEqualTo: view.layoutMarginsGuide.trailingAnchor),
-
-            editor.topAnchor.constraint(equalTo: speakerChipRow.bottomAnchor, constant: V2NDesign.Space.xxs),
+            editor.topAnchor.constraint(equalTo: topChrome.bottomAnchor),
             editor.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             editor.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             editor.bottomAnchor.constraint(equalTo: view.bottomAnchor),
@@ -95,7 +117,6 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
 
         editor.pushNote(note, speakers: speakers)
         refreshSpeakerChip()
-        statusLabel.text = String(localized: "Editor nativo")
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(noteDidChangeExternally(_:)),
@@ -103,6 +124,19 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
             object: nil
         )
         Task { await refreshFromAPI() }
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        // Keep the nav compact while editing (parent Caderno uses large titles).
+        navigationController?.navigationBar.prefersLargeTitles = false
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        if isMovingFromParent || isBeingDismissed {
+            navigationController?.navigationBar.prefersLargeTitles = true
+        }
     }
 
     @objc private func noteDidChangeExternally(_ note: Notification) {
@@ -115,9 +149,40 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
     }
 
     private func updateTitle() {
-        // Do not mirror the note title into the navigation bar (duplicates the body title).
         title = nil
         navigationItem.title = nil
+    }
+
+    private func applySyncState(_ state: SyncState) {
+        syncState = state
+        let symbol: String
+        let color: UIColor
+        let label: String
+        switch state {
+        case .idle, .synced:
+            symbol = "checkmark.icloud"
+            color = V2NDesign.accent.withAlphaComponent(state == .idle ? 0.35 : 0.85)
+            label = String(localized: "Nota sincronizada")
+        case .saving:
+            symbol = "arrow.triangle.2.circlepath.icloud"
+            color = .secondaryLabel
+            label = String(localized: "Salvando…")
+        case .pendingLocal:
+            symbol = "icloud.and.arrow.up"
+            color = V2NDesign.accent
+            label = String(localized: "Salvo neste aparelho")
+        }
+        let config = UIImage.SymbolConfiguration(pointSize: 15, weight: .medium)
+        syncButton.setImage(UIImage(systemName: symbol, withConfiguration: config), for: .normal)
+        syncButton.tintColor = color
+        syncButton.accessibilityLabel = label
+        syncButton.accessibilityValue = label
+    }
+
+    @objc private func syncIconTapped() {
+        // Subtle affordance only — no banner text. VoiceOver reads the accessibility label.
+        V2NHaptics.selection()
+        UIAccessibility.post(notification: .announcement, argument: syncButton.accessibilityLabel)
     }
 
     private func refreshFromAPI() async {
@@ -127,13 +192,13 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
                 self.note = packed.note
                 self.speakers = packed.speakers
                 self.updateTitle()
-                self.statusLabel.text = String(localized: "Nota sincronizada")
+                self.applySyncState(.synced)
                 self.editor.pushNote(self.note, speakers: self.speakers)
                 self.refreshSpeakerChip()
             }
         } catch {
             await MainActor.run {
-                self.statusLabel.text = String(localized: "Cache local · \(error.localizedDescription)")
+                self.applySyncState(.pendingLocal)
                 self.editor.pushNote(self.note, speakers: self.speakers)
                 self.refreshSpeakerChip()
             }
@@ -151,8 +216,8 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         var config = speakerChip.configuration ?? .filled()
         config.title = speaker.name
         config.image = UIImage(systemName: "circle.fill")
-        config.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 8, weight: .bold)
-        config.imagePadding = 8
+        config.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 7, weight: .bold)
+        config.imagePadding = 6
         if let color = UIColor(v2nHex: speaker.color) {
             config.imageColorTransformer = UIConfigurationColorTransformer { _ in color }
         }
@@ -180,7 +245,6 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         next.noteSpeakerId = note.noteSpeakerId
         next.visibility = note.visibility
         next.schemaVersion = 1
-        // Title comes from the first line of the editor.
         note = next
         updateTitle()
         LocalNoteCache.upsertNote(note)
@@ -204,12 +268,12 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
                     preferNative: prefs?.preferNative
                 )
                 guard let url = URL(string: link.url) else {
-                    statusLabel.text = String(localized: "Link da Bíblia indisponível")
+                    presentBriefAlert(String(localized: "Link da Bíblia indisponível"))
                     return
                 }
                 await UIApplication.shared.open(url)
             } catch {
-                statusLabel.text = String(localized: "Não abriu a Bíblia: \(error.localizedDescription)")
+                presentBriefAlert(String(localized: "Não abriu a Bíblia: \(error.localizedDescription)"))
             }
         }
     }
@@ -230,6 +294,12 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         openSpeakerPicker(forSection: true)
     }
 
+    private func presentBriefAlert(_ message: String) {
+        let alert = UIAlertController(title: nil, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
+        present(alert, animated: true)
+    }
+
     private func scheduleSave() {
         saveWork?.cancel()
         let work = DispatchWorkItem { [weak self] in
@@ -238,7 +308,7 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         }
         saveWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.45, execute: work)
-        statusLabel.text = String(localized: "Salvando…")
+        applySyncState(.saving)
     }
 
     private func persist() async {
@@ -246,17 +316,17 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
             let saved = try await NativeAPIClient.upsertNote(note)
             await MainActor.run {
                 self.note = saved
-                self.statusLabel.text = String(localized: "Salvo")
+                self.applySyncState(.synced)
             }
         } catch NativeAPIClient.APIError.unauthorized {
             NativeOutbox.enqueueNoteUpsert(note)
             await MainActor.run {
-                self.statusLabel.text = String(localized: "Sessão expirada — alteração guardada no aparelho.")
+                self.applySyncState(.pendingLocal)
             }
         } catch {
             NativeOutbox.enqueueNoteUpsert(note)
             await MainActor.run {
-                self.statusLabel.text = String(localized: "Salvo no aparelho — sincroniza quando houver rede.")
+                self.applySyncState(.pendingLocal)
             }
         }
     }
@@ -282,7 +352,7 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         })
         sheet.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
         if let pop = sheet.popoverPresentationController {
-            pop.barButtonItem = navigationItem.rightBarButtonItem
+            pop.barButtonItem = navigationItem.rightBarButtonItems?.first
         }
         present(sheet, animated: true)
     }
@@ -312,13 +382,11 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
                 }
                 sheet.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
                 if let pop = sheet.popoverPresentationController {
-                    pop.barButtonItem = navigationItem.rightBarButtonItem
+                    pop.barButtonItem = navigationItem.rightBarButtonItems?.first
                 }
                 present(sheet, animated: true)
             } catch {
-                let err = UIAlertController(title: String(localized: "Erro"), message: error.localizedDescription, preferredStyle: .alert)
-                err.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
-                present(err, animated: true)
+                presentBriefAlert(error.localizedDescription)
             }
         }
     }
@@ -328,21 +396,17 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
             do {
                 if group.published == true {
                     try await NativeAPIClient.unpublishNote(noteId: noteId, fromGroupId: group.id)
-                    statusLabel.text = String(localized: "Retirada de «\(group.name)»")
                 } else {
                     try await NativeAPIClient.publishNote(noteId: noteId, toGroupId: group.id)
-                    statusLabel.text = String(localized: "Movida para «\(group.name)»")
                 }
+                applySyncState(.synced)
             } catch {
-                let err = UIAlertController(title: String(localized: "Erro"), message: error.localizedDescription, preferredStyle: .alert)
-                err.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
-                present(err, animated: true)
+                presentBriefAlert(error.localizedDescription)
             }
         }
     }
 
     private func openSettings() {
-        // Keep chrome metadata in sync with first-line title before editing settings.
         note = editor.currentDocument()
         let settings = NoteSettingsViewController(note: note, speakers: speakers) { [weak self] updated in
             guard let self else { return }
@@ -397,7 +461,7 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         let url = NativeAPIClient.baseURL.appendingPathComponent("n/\(note.id)")
         let vc = UIActivityViewController(activityItems: [title, note.preview, url], applicationActivities: nil)
         if let pop = vc.popoverPresentationController {
-            pop.barButtonItem = navigationItem.rightBarButtonItem
+            pop.barButtonItem = navigationItem.rightBarButtonItems?.first
         }
         present(vc, animated: true)
     }
@@ -423,7 +487,7 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
             }
         })
         if let pop = alert.popoverPresentationController {
-            pop.barButtonItem = navigationItem.rightBarButtonItem
+            pop.barButtonItem = navigationItem.rightBarButtonItems?.first
         }
         present(alert, animated: true)
     }

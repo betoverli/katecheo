@@ -13,7 +13,8 @@ protocol NativeNoteEditorViewDelegate: AnyObject {
 final class NativeNoteEditorView: UIView, UITextViewDelegate {
     weak var delegate: NativeNoteEditorViewDelegate?
 
-    private let textView = UITextView()
+    private let textView: UITextView
+    private let railLayoutManager: NoteSpeakerRailLayoutManager
     private let accessory = NoteEditorAccessoryBar()
     private var documentBase: NativeAPIClient.NoteDocument = NativeAPIClient.emptyNote(id: "pending")
     private var speakers: [NativeAPIClient.SpeakerDTO] = []
@@ -23,6 +24,14 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     private var triggerMenu: NoteEditorTriggerMenuView?
 
     override init(frame: CGRect) {
+        let storage = NSTextStorage()
+        let layout = NoteSpeakerRailLayoutManager()
+        let container = NSTextContainer(size: .zero)
+        container.widthTracksTextView = true
+        layout.addTextContainer(container)
+        storage.addLayoutManager(layout)
+        railLayoutManager = layout
+        textView = UITextView(frame: .zero, textContainer: container)
         super.init(frame: frame)
         setup()
     }
@@ -73,6 +82,23 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         textView.addGestureRecognizer(tap)
 
         observeKeyboard()
+    }
+
+    private func refreshSpeakerRails() {
+        railLayoutManager.rails = NoteDocumentCodec.speakerRailSpecs(
+            in: textView.textStorage,
+            speakers: speakers
+        )
+        // Force background redraw so rails grow/shrink with typed text.
+        let length = textView.textStorage.length
+        if length > 0 {
+            railLayoutManager.invalidateLayout(
+                forCharacterRange: NSRange(location: 0, length: length),
+                actualCharacterRange: nil
+            )
+            textView.layoutManager.ensureLayout(for: textView.textContainer)
+        }
+        textView.setNeedsDisplay()
     }
 
     private func observeKeyboard() {
@@ -152,6 +178,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         textView.isEditable = !readOnly
         applyingRemote = false
         isReady = true
+        refreshSpeakerRails()
     }
 
     func currentDocument() -> NativeAPIClient.NoteDocument {
@@ -185,15 +212,15 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             colorHex: colorHex,
             blockId: id
         )
-        let bodyStyle = NSMutableParagraphStyle()
-        bodyStyle.lineSpacing = 3
-        let body = NSAttributedString(string: "\n", attributes: [
-            .font: UIFont.preferredFont(forTextStyle: .body),
-            .foregroundColor: UIColor.label,
-            .paragraphStyle: bodyStyle,
-            NoteDocumentCodec.blockTypeKey: "paragraph",
-            NoteDocumentCodec.blockIdKey: NoteDocumentCodec.newId(),
-        ])
+        var bodyAttrs = NoteDocumentCodec.baseAttributesPublic(
+            type: "paragraph",
+            id: NoteDocumentCodec.newId(),
+            checked: nil,
+            speakerId: nil,
+            speakers: [:]
+        )
+        bodyAttrs = NoteDocumentCodec.applyingSpeakerSectionInset(bodyAttrs)
+        let body = NSAttributedString(string: "\n", attributes: bodyAttrs)
         let chunk = NSMutableAttributedString()
         if textView.selectedRange.location > 0, textView.textStorage.length > 0 {
             chunk.append(NSAttributedString(string: "\n"))
@@ -203,8 +230,9 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         textView.textStorage.replaceCharacters(in: textView.selectedRange, with: chunk)
         let end = textView.selectedRange.location + chunk.length
         textView.selectedRange = NSRange(location: end, length: 0)
-        textView.typingAttributes = baseTypingAttributes()
+        textView.typingAttributes = NoteDocumentCodec.applyingSpeakerSectionInset(baseTypingAttributes())
         emitChange()
+        refreshSpeakerRails()
         scrollCaretVisible(animated: true)
     }
 
@@ -212,7 +240,18 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
     func textViewDidChange(_ textView: UITextView) {
         guard !applyingRemote else { return }
+        // Keep body lines inside a speaker section indented so the rail stays aligned.
+        if caretIsInsideSpeakerSection() {
+            var typing = textView.typingAttributes
+            typing = NoteDocumentCodec.applyingSpeakerSectionInset(typing)
+            if (typing[NoteDocumentCodec.blockTypeKey] as? String) == "speakerSection" {
+                typing[NoteDocumentCodec.blockTypeKey] = "paragraph"
+                typing[NoteDocumentCodec.blockIdKey] = NoteDocumentCodec.newId()
+            }
+            textView.typingAttributes = typing
+        }
         emitChange()
+        refreshSpeakerRails()
         scrollCaretVisible(animated: false)
     }
 
@@ -301,13 +340,47 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
     private func baseTypingAttributes() -> [NSAttributedString.Key: Any] {
         let type = currentBlockType() == "speakerSection" ? "paragraph" : currentBlockType()
-        return NoteDocumentCodec.baseAttributesPublic(
+        var attrs = NoteDocumentCodec.baseAttributesPublic(
             type: type,
             id: currentBlockId(),
             checked: type == "check" ? false : nil,
             speakerId: nil,
             speakers: [:]
         )
+        if caretIsInsideSpeakerSection() {
+            attrs = NoteDocumentCodec.applyingSpeakerSectionInset(attrs)
+        }
+        return attrs
+    }
+
+    /// True when the caret sits in a speaker header or any body paragraph of that section.
+    private func caretIsInsideSpeakerSection() -> Bool {
+        enclosingSpeakerSectionStart() != nil
+    }
+
+    private func enclosingSpeakerSectionStart() -> Int? {
+        let storage = textView.textStorage
+        guard storage.length > 0 else { return nil }
+        let loc = min(textView.selectedRange.location, max(0, storage.length - 1))
+        let ns = storage.string as NSString
+        var cursor = loc
+        while cursor >= 0 {
+            let para = ns.paragraphRange(for: NSRange(location: cursor, length: 0))
+            let attrs: [NSAttributedString.Key: Any]
+            if para.length > 0 {
+                attrs = storage.attributes(at: para.location, effectiveRange: nil)
+            } else if storage.length > para.location {
+                attrs = storage.attributes(at: min(para.location, storage.length - 1), effectiveRange: nil)
+            } else {
+                attrs = [:]
+            }
+            if (attrs[NoteDocumentCodec.blockTypeKey] as? String) == "speakerSection" {
+                return para.location
+            }
+            if para.location == 0 { break }
+            cursor = para.location - 1
+        }
+        return nil
     }
 
     private func currentBlockType() -> String {
@@ -332,13 +405,30 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
     /// Apply a line block type to the current paragraph(s), including empty lines.
     private func applyBlockType(_ type: String, preserveChecked: Bool) {
-        // Never restyle the speaker card header itself into a list/heading.
+        // Never restyle the speaker name header itself into a list/heading.
         if currentBlockType() == "speakerSection", type != "speakerSection" {
+            // Enter on the header → start a body paragraph under the same section.
+            let insertLoc = NSMaxRange(paragraphRange())
+            var attrs = NoteDocumentCodec.baseAttributesPublic(
+                type: "paragraph",
+                id: NoteDocumentCodec.newId(),
+                checked: nil,
+                speakerId: nil,
+                speakers: [:]
+            )
+            attrs = NoteDocumentCodec.applyingSpeakerSectionInset(attrs)
+            let piece = NSAttributedString(string: "\n", attributes: attrs)
+            textView.textStorage.replaceCharacters(in: NSRange(location: insertLoc, length: 0), with: piece)
+            textView.selectedRange = NSRange(location: insertLoc + 1, length: 0)
+            textView.typingAttributes = attrs
+            emitChange()
+            refreshSpeakerRails()
             return
         }
 
         var range = paragraphRange()
         let storage = textView.textStorage
+        let inSection = caretIsInsideSpeakerSection()
 
         // Empty paragraph at EOF: ensure there is a character run we can attribute.
         if range.length == 0 {
@@ -363,13 +453,16 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         }
 
         let id = NoteDocumentCodec.newId()
-        let styled = NoteDocumentCodec.baseAttributesPublic(
+        var styled = NoteDocumentCodec.baseAttributesPublic(
             type: type,
             id: id,
             checked: checked,
             speakerId: nil,
             speakers: [:]
         )
+        if inSection {
+            styled = NoteDocumentCodec.applyingSpeakerSectionInset(styled)
+        }
 
         // Strip any existing display-only list marker at the start of the paragraph.
         range = stripListMarker(in: range)
@@ -431,6 +524,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         if let checked { typing[NoteDocumentCodec.checkedKey] = checked }
         textView.typingAttributes = typing
         emitChange()
+        refreshSpeakerRails()
     }
 
     private func stripListMarker(in range: NSRange) -> NSRange {
@@ -589,12 +683,6 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         dismissTriggerMenu()
         let point = gesture.location(in: textView)
 
-        if let speaker = speakerAttachment(at: point) {
-            // Speaker card — do not open Bible; leave caret near the section.
-            _ = speaker
-            return
-        }
-
         if let ref = bibleRef(at: point) {
             delegate?.nativeNoteEditor(self, openBibleRef: ref)
             return
@@ -672,7 +760,8 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         }
         for i in candidates.sorted() {
             let attrs = storage.attributes(at: i, effectiveRange: nil)
-            if attrs[.attachment] is SpeakerSectionAttachment { continue }
+            // Speaker headers are plain text now — never treat them as bible pills.
+            if (attrs[NoteDocumentCodec.blockTypeKey] as? String) == "speakerSection" { continue }
             if let attachment = attrs[.attachment] as? BibleRefPillAttachment {
                 let rect = glyphRect(forCharacter: i).insetBy(dx: -8, dy: -8)
                 if rect.contains(point) {
@@ -683,29 +772,6 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
                 let rect = glyphRect(forCharacter: i).insetBy(dx: -8, dy: -8)
                 if rect.contains(point) {
                     return payload
-                }
-            }
-        }
-        return nil
-    }
-
-    private func speakerAttachment(at point: CGPoint) -> SpeakerSectionAttachment? {
-        let storage = textView.textStorage
-        guard storage.length > 0 else { return nil }
-        let p = textPoint(point)
-        var fraction: CGFloat = 0
-        let rawIndex = textView.layoutManager.characterIndex(
-            for: p,
-            in: textView.textContainer,
-            fractionOfDistanceBetweenInsertionPoints: &fraction
-        )
-        for offset in -1...1 {
-            let i = rawIndex + offset
-            guard i >= 0, i < storage.length else { continue }
-            if let attachment = storage.attribute(.attachment, at: i, effectiveRange: nil) as? SpeakerSectionAttachment {
-                let rect = glyphRect(forCharacter: i).insetBy(dx: -4, dy: -4)
-                if rect.contains(point) {
-                    return attachment
                 }
             }
         }
@@ -833,7 +899,7 @@ extension NoteDocumentCodec {
         let style = NSMutableParagraphStyle()
         style.lineSpacing = 3
         var font = UIFont.preferredFont(forTextStyle: .body)
-        var foreground: UIColor = .label
+        let foreground: UIColor = .label
         switch type {
         case "heading":
             font = UIFont.preferredFont(forTextStyle: id == "title" ? .title1 : .title2)
@@ -865,6 +931,46 @@ extension NoteDocumentCodec {
         }
         _ = speakers
         return attrs
+    }
+}
+
+// MARK: - Speaker section vertical rail
+
+/// Draws the left colored bar for speaker sections (web `.note-speaker { border-left }`).
+final class NoteSpeakerRailLayoutManager: NSLayoutManager {
+    var rails: [(range: NSRange, color: UIColor)] = []
+
+    override func drawBackground(forGlyphRange glyphsToShow: NSRange, at origin: CGPoint) {
+        super.drawBackground(forGlyphRange: glyphsToShow, at: origin)
+        guard let container = textContainers.first, !rails.isEmpty else { return }
+        let inset = NoteDocumentCodec.speakerSectionContentInset
+        let railW = NoteDocumentCodec.speakerRailWidth
+        for rail in rails {
+            guard rail.range.length > 0 else { continue }
+            let glyphRange = self.glyphRange(forCharacterRange: rail.range, actualCharacterRange: nil)
+            guard glyphRange.length > 0 else { continue }
+            var union = CGRect.null
+            enumerateLineFragments(forGlyphRange: glyphRange) { _, usedRect, _, _, _ in
+                if usedRect.height > 0 {
+                    union = union.isNull ? usedRect : union.union(usedRect)
+                }
+            }
+            if union.isNull {
+                let bounds = boundingRect(forGlyphRange: glyphRange, in: container)
+                guard bounds.height > 0 else { continue }
+                union = bounds
+            }
+            // Place the rail in the section’s left inset (padding-left of the web section).
+            let x = origin.x + max(0, union.minX - inset + 2)
+            let bar = CGRect(
+                x: x,
+                y: origin.y + union.minY,
+                width: railW,
+                height: max(union.height, 18)
+            )
+            rail.color.setFill()
+            UIBezierPath(roundedRect: bar, cornerRadius: 1).fill()
+        }
     }
 }
 
