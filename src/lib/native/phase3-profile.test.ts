@@ -72,7 +72,26 @@ describe("Phase 3 native Profile UI", () => {
     assert.match(settings, /patchNotifyPrefs/);
     assert.match(settings, /Salvar/);
     assert.match(settings, /Configurações do iOS/);
+    assert.match(settings, /AppLocale\.openSystemSettings|openSettingsURLString/);
+    assert.match(settings, /copyLocale/);
+    assert.match(settings, /Referências/);
     assert.doesNotMatch(settings, /utilizador|contacto|Actividade|Activa |Definições|Partilhas|Guardar/);
+  });
+
+  it("localizes UI via String Catalog (pt-BR / en / es) following the iPhone language", () => {
+    const catalog = read("ios/App/App/Localizable.xcstrings");
+    assert.match(catalog, /"sourceLanguage"\s*:\s*"pt-BR"/);
+    assert.match(catalog, /"en"/);
+    assert.match(catalog, /"es"/);
+    const locale = read("ios/App/App/AppLocale.swift");
+    assert.match(locale, /preferredLanguages/);
+    assert.match(locale, /apiCode/);
+    const project = read("ios/App/App.xcodeproj/project.pbxproj");
+    assert.match(project, /Localizable\.xcstrings in Resources/);
+    assert.match(project, /pt-BR/);
+    const profile = read("ios/App/App/ProfileViewController.swift");
+    assert.match(profile, /String\(localized:/);
+    assert.match(profile, /Segue o idioma do iPhone/);
   });
 
   it("exposes profile methods on NativeAPIClient", () => {

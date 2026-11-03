@@ -22,25 +22,27 @@ final class NoteSettingsViewController: UIViewController, UITableViewDelegate, U
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        title = "Configurações"
+        title = String(localized: "Configurações")
         V2NChrome.styleCanvas(view)
-        navigationItem.leftBarButtonItem = UIBarButtonItem(title: "Cancelar", style: .plain, target: self, action: #selector(cancel))
-        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Pronto", style: .done, target: self, action: #selector(done))
+        navigationItem.leftBarButtonItem = UIBarButtonItem(title: String(localized: "Cancelar"), style: .plain, target: self, action: #selector(cancel))
+        navigationItem.rightBarButtonItem = UIBarButtonItem(title: String(localized: "Pronto"), style: .done, target: self, action: #selector(done))
         navigationItem.rightBarButtonItem?.tintColor = V2NDesign.accent
 
-        titleField.placeholder = "Título"
+        titleField.placeholder = String(localized: "Título")
         titleField.text = note.title
         titleField.borderStyle = .roundedRect
         titleField.clearButtonMode = .whileEditing
 
         datePicker.datePickerMode = .date
         datePicker.preferredDatePickerStyle = .compact
+        datePicker.locale = .current
+        datePicker.calendar = .current
         let formatter = Self.dayFormatter
         if let date = formatter.date(from: note.happenedAt) {
             datePicker.date = date
         }
 
-        tagField.placeholder = "Tag"
+        tagField.placeholder = String(localized: "Tag")
         tagField.borderStyle = .roundedRect
         tagField.autocapitalizationType = .none
         tagField.returnKeyType = .done
@@ -100,10 +102,10 @@ final class NoteSettingsViewController: UIViewController, UITableViewDelegate, U
 
     func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
         switch section {
-        case 0: return "Título"
-        case 1: return "Data"
-        case 2: return "Tags"
-        case 3: return "Speaker da nota"
+        case 0: return String(localized: "Título")
+        case 1: return String(localized: "Data")
+        case 2: return String(localized: "Tags")
+        case 3: return String(localized: "Speaker da nota")
         default: return nil
         }
     }
@@ -133,7 +135,7 @@ final class NoteSettingsViewController: UIViewController, UITableViewDelegate, U
             if indexPath.row < note.tags.count {
                 var config = cell.defaultContentConfiguration()
                 config.text = "#\(note.tags[indexPath.row])"
-                config.secondaryText = "Toque para remover"
+                config.secondaryText = String(localized: "Toque para remover")
                 cell.contentConfiguration = config
             } else {
                 cell.selectionStyle = .none
@@ -146,7 +148,7 @@ final class NoteSettingsViewController: UIViewController, UITableViewDelegate, U
         case 3:
             if indexPath.row == 0 {
                 var config = cell.defaultContentConfiguration()
-                config.text = "Nenhum"
+                config.text = String(localized: "Nenhum")
                 cell.contentConfiguration = config
                 cell.accessoryType = note.noteSpeakerId == nil ? .checkmark : .none
             } else {

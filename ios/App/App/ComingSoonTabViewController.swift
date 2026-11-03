@@ -7,7 +7,7 @@ final class ComingSoonTabViewController: UIViewController {
     private let detailText: String
     private let empty = V2NEmptyStateView()
 
-    init(titleText: String, systemImage: String, detailText: String = "Em breve nativo.") {
+    init(titleText: String, systemImage: String, detailText: String = String(localized: "Em breve nativo.")) {
         self.titleText = titleText
         self.systemImage = systemImage
         self.detailText = detailText

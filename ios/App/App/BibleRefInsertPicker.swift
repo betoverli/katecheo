@@ -19,11 +19,11 @@ final class BibleRefInsertPicker: UITableViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         v2nApplyGroupedChrome()
-        title = "Inserir referência"
-        navigationItem.leftBarButtonItem = UIBarButtonItem(title: "Cancelar", style: .plain, target: self, action: #selector(cancel))
+        title = String(localized: "Inserir referência")
+        navigationItem.leftBarButtonItem = UIBarButtonItem(title: String(localized: "Cancelar"), style: .plain, target: self, action: #selector(cancel))
         search.searchResultsUpdater = self
         search.obscuresBackgroundDuringPresentation = false
-        search.searchBar.placeholder = "Buscar livro"
+        search.searchBar.placeholder = String(localized: "Buscar livro")
         navigationItem.searchController = search
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "book")
         Task { await loadBooks() }
@@ -35,12 +35,12 @@ final class BibleRefInsertPicker: UITableViewController {
 
     private func loadBooks() async {
         do {
-            books = try await NativeAPIClient.fetchBibleBooks(locale: "pt")
+            books = try await NativeAPIClient.fetchBibleBooks(locale: AppLocale.apiCode)
             filtered = books
             tableView.reloadData()
         } catch {
-            let alert = UIAlertController(title: "Erro", message: error.localizedDescription, preferredStyle: .alert)
-            alert.addAction(UIAlertAction(title: "OK", style: .default) { [weak self] _ in self?.dismiss(animated: true) })
+            let alert = UIAlertController(title: String(localized: "Erro"), message: error.localizedDescription, preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default) { [weak self] _ in self?.dismiss(animated: true) })
             present(alert, animated: true)
         }
     }
@@ -115,7 +115,7 @@ private final class BibleRefChapterPicker: UITableViewController {
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "chapter", for: indexPath)
         var config = cell.defaultContentConfiguration()
-        config.text = "Capítulo \(indexPath.row + 1)"
+        config.text = String(localized: "Capítulo \(indexPath.row + 1)")
         cell.contentConfiguration = config
         cell.accessoryType = .disclosureIndicator
         return cell
@@ -155,9 +155,9 @@ private final class BibleRefVersePicker: UITableViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         v2nApplyGroupedChrome()
-        title = "\(book.abbr) \(chapter)"
+        title = String(localized: "\(book.abbr) \(chapter)")
         navigationItem.rightBarButtonItem = UIBarButtonItem(
-            title: "Capítulo inteiro",
+            title: String(localized: "Capítulo inteiro"),
             style: .plain,
             target: self,
             action: #selector(wholeChapter)
@@ -171,9 +171,9 @@ private final class BibleRefVersePicker: UITableViewController {
 
     override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
         if let rangeStart, rangeEnd == nil {
-            return "Toque no versículo final (início: \(rangeStart))"
+            return String(localized: "Toque no versículo final (início: \(rangeStart))")
         }
-        return "Toque para escolher · segundo toque define o intervalo"
+        return String(localized: "Toque para escolher · segundo toque define o intervalo")
     }
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -184,7 +184,7 @@ private final class BibleRefVersePicker: UITableViewController {
         let cell = tableView.dequeueReusableCell(withIdentifier: "verse", for: indexPath)
         let verse = indexPath.row + 1
         var config = cell.defaultContentConfiguration()
-        config.text = "Versículo \(verse)"
+        config.text = String(localized: "Versículo \(verse)")
         cell.contentConfiguration = config
         let selected: Bool
         if let start = rangeStart, let end = rangeEnd {
@@ -216,12 +216,12 @@ private final class BibleRefVersePicker: UITableViewController {
         let label: String
         if let verseStart {
             if let verseEnd, verseEnd != verseStart {
-                label = "\(book.name) \(chapter):\(verseStart)–\(verseEnd)"
+                label = String(localized: "\(book.name) \(chapter):\(verseStart)–\(verseEnd)")
             } else {
-                label = "\(book.name) \(chapter):\(verseStart)"
+                label = String(localized: "\(book.name) \(chapter):\(verseStart)")
             }
         } else {
-            label = "\(book.name) \(chapter)"
+            label = String(localized: "\(book.name) \(chapter)")
         }
         onPick(NoteDocumentCodec.BibleRefPayload(
             bookId: book.id,

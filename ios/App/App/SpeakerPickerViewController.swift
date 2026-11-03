@@ -25,9 +25,9 @@ final class SpeakerPickerViewController: UIViewController, UITableViewDelegate, 
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        title = "Speakers"
+        title = String(localized: "Speakers")
         V2NChrome.styleCanvas(view)
-        navigationItem.leftBarButtonItem = UIBarButtonItem(title: "Fechar", style: .plain, target: self, action: #selector(close))
+        navigationItem.leftBarButtonItem = UIBarButtonItem(title: String(localized: "Fechar"), style: .plain, target: self, action: #selector(close))
         navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(addSpeaker))
 
         table.translatesAutoresizingMaskIntoConstraints = false
@@ -64,10 +64,10 @@ final class SpeakerPickerViewController: UIViewController, UITableViewDelegate, 
     }
 
     @objc private func addSpeaker() {
-        let alert = UIAlertController(title: "Novo speaker", message: nil, preferredStyle: .alert)
-        alert.addTextField { $0.placeholder = "Nome" }
-        alert.addAction(UIAlertAction(title: "Cancelar", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Criar", style: .default) { [weak self] _ in
+        let alert = UIAlertController(title: String(localized: "Novo speaker"), message: nil, preferredStyle: .alert)
+        alert.addTextField { $0.placeholder = String(localized: "Nome") }
+        alert.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
+        alert.addAction(UIAlertAction(title: String(localized: "Criar"), style: .default) { [weak self] _ in
             guard let name = alert.textFields?.first?.text?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty else { return }
             let colors = ["#c4a574", "#7a9e8a", "#8aa0b8", "#c4897a", "#9b8ab0", "#7aa8b0"]
             let speaker = NativeAPIClient.SpeakerDTO(
@@ -81,8 +81,8 @@ final class SpeakerPickerViewController: UIViewController, UITableViewDelegate, 
                     try await NativeAPIClient.upsertSpeaker(speaker)
                     self?.reload()
                 } catch {
-                    let err = UIAlertController(title: "Erro", message: error.localizedDescription, preferredStyle: .alert)
-                    err.addAction(UIAlertAction(title: "OK", style: .default))
+                    let err = UIAlertController(title: String(localized: "Erro"), message: error.localizedDescription, preferredStyle: .alert)
+                    err.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
                     self?.present(err, animated: true)
                 }
             }
@@ -106,7 +106,7 @@ final class SpeakerPickerViewController: UIViewController, UITableViewDelegate, 
             cell.accessoryType = .none
         case .pick(let selectedId):
             if indexPath.row == 0 {
-                config.text = "Nenhum"
+                config.text = String(localized: "Nenhum")
                 cell.accessoryType = selectedId == nil ? .checkmark : .none
             } else {
                 let speaker = speakers[indexPath.row - 1]
@@ -135,7 +135,7 @@ final class SpeakerPickerViewController: UIViewController, UITableViewDelegate, 
     ) -> UISwipeActionsConfiguration? {
         guard case .manage = mode else { return nil }
         let speaker = speakers[indexPath.row]
-        let delete = UIContextualAction(style: .destructive, title: "Excluir") { [weak self] _, _, done in
+        let delete = UIContextualAction(style: .destructive, title: String(localized: "Excluir")) { [weak self] _, _, done in
             Task { @MainActor in
                 do {
                     try await NativeAPIClient.deleteSpeaker(id: speaker.id)

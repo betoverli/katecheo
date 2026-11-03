@@ -13,21 +13,21 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
     override func viewDidLoad() {
         super.viewDidLoad()
         V2NChrome.styleCanvas(view)
-        title = "Grupos"
+        title = String(localized: "Grupos")
         navigationController?.navigationBar.prefersLargeTitles = true
         navigationItem.largeTitleDisplayMode = .always
 
         navigationItem.rightBarButtonItem = UIBarButtonItem(
-            title: "Novo grupo",
+            title: String(localized: "Novo grupo"),
             style: .plain,
             target: self,
             action: #selector(createGroup)
         )
-        navigationItem.rightBarButtonItem?.accessibilityLabel = "Novo grupo"
+        navigationItem.rightBarButtonItem?.accessibilityLabel = String(localized: "Novo grupo")
 
         search.searchResultsUpdater = self
         search.obscuresBackgroundDuringPresentation = false
-        search.searchBar.placeholder = "Pesquisar grupos"
+        search.searchBar.placeholder = String(localized: "Pesquisar grupos")
         navigationItem.searchController = search
         definesPresentationContext = true
 
@@ -84,12 +84,12 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
             guard NativeAPIClient.hasBearer else {
                 groups = []
                 applyFilter()
-                statusBanner.setStatus("Faça login para ver seus grupos.", kind: .warning)
+                statusBanner.setStatus(String(localized: "Faça login para ver seus grupos."), kind: .warning)
                 emptyState.show(
                     symbol: "person.2",
-                    title: "Nenhum grupo ainda",
-                    message: "Entre para sincronizar e criar grupos.",
-                    actionTitle: "Entrar",
+                    title: String(localized: "Nenhum grupo ainda"),
+                    message: String(localized: "Entre para sincronizar e criar grupos."),
+                    actionTitle: String(localized: "Entrar"),
                     action: { [weak self] in self?.presentSignInTapped() }
                 )
                 tableView.isHidden = true
@@ -97,14 +97,14 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
             }
             do {
                 groups = try await NativeAPIClient.listGroups()
-                statusBanner.setStatus("\(groups.count) grupos · sincronizado", kind: .success)
+                statusBanner.setStatus(String(localized: "\(groups.count) grupos · sincronizado"), kind: .success)
                 applyFilter()
             } catch NativeAPIClient.APIError.unauthorized {
-                statusBanner.setStatus("Sessão expirada. Entre novamente.", kind: .error)
+                statusBanner.setStatus(String(localized: "Sessão expirada. Entre novamente."), kind: .error)
                 groups = []
                 applyFilter()
             } catch {
-                statusBanner.setStatus("Sem rede. \(error.localizedDescription)", kind: .error)
+                statusBanner.setStatus(String(localized: "Sem rede. \(error.localizedDescription)"), kind: .error)
                 applyFilter()
             }
         }
@@ -125,20 +125,20 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
                 if q.isEmpty {
                     emptyState.show(
                         symbol: "person.3",
-                        title: "Você ainda não tem grupos",
-                        message: "Crie um com «Novo grupo».",
-                        actionTitle: "Novo grupo",
+                        title: String(localized: "Você ainda não tem grupos"),
+                        message: String(localized: "Crie um com «Novo grupo»."),
+                        actionTitle: String(localized: "Novo grupo"),
                         action: { [weak self] in self?.createGroup() }
                     )
                 } else {
-                    emptyState.show(symbol: "magnifyingglass", title: "Nenhum resultado", message: "Tente outro termo de busca.")
+                    emptyState.show(symbol: "magnifyingglass", title: String(localized: "Nenhum resultado"), message: String(localized: "Tente outro termo de busca."))
                 }
             } else {
                 emptyState.show(
                     symbol: "person.2",
-                    title: "Nenhum grupo ainda",
-                    message: "Entre para sincronizar e criar grupos.",
-                    actionTitle: "Entrar",
+                    title: String(localized: "Nenhum grupo ainda"),
+                    message: String(localized: "Entre para sincronizar e criar grupos."),
+                    actionTitle: String(localized: "Entrar"),
                     action: { [weak self] in self?.presentSignInTapped() }
                 )
             }
@@ -177,12 +177,12 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
     ) -> UISwipeActionsConfiguration? {
         let group = filtered[indexPath.row]
         guard group.isAdmin else { return nil }
-        let rename = UIContextualAction(style: .normal, title: "Renomear") { [weak self] _, _, done in
+        let rename = UIContextualAction(style: .normal, title: String(localized: "Renomear")) { [weak self] _, _, done in
             self?.promptRename(group)
             done(true)
         }
         rename.backgroundColor = V2NDesign.accent
-        let delete = UIContextualAction(style: .destructive, title: "Excluir") { [weak self] _, _, done in
+        let delete = UIContextualAction(style: .destructive, title: String(localized: "Excluir")) { [weak self] _, _, done in
             self?.confirmDelete(group) { done($0) }
         }
         return UISwipeActionsConfiguration(actions: [delete, rename])
@@ -194,18 +194,18 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
             return
         }
         V2NHaptics.light()
-        let alert = UIAlertController(title: "Novo grupo", message: nil, preferredStyle: .alert)
+        let alert = UIAlertController(title: String(localized: "Novo grupo"), message: nil, preferredStyle: .alert)
         alert.addTextField { field in
-            field.placeholder = "Nome do grupo"
+            field.placeholder = String(localized: "Nome do grupo")
             field.autocapitalizationType = .sentences
         }
-        let listed = UIAlertAction(title: "Criar (listado)", style: .default) { [weak self] _ in
+        let listed = UIAlertAction(title: String(localized: "Criar (listado)"), style: .default) { [weak self] _ in
             self?.submitCreate(name: alert.textFields?.first?.text ?? "", visibility: "listed")
         }
-        let priv = UIAlertAction(title: "Criar (privado)", style: .default) { [weak self] _ in
+        let priv = UIAlertAction(title: String(localized: "Criar (privado)"), style: .default) { [weak self] _ in
             self?.submitCreate(name: alert.textFields?.first?.text ?? "", visibility: "private")
         }
-        alert.addAction(UIAlertAction(title: "Cancelar", style: .cancel))
+        alert.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
         alert.addAction(priv)
         alert.addAction(listed)
         present(alert, animated: true)
@@ -214,8 +214,8 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
     private func submitCreate(name: String, visibility: String) {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.count >= 2 else {
-            let err = UIAlertController(title: "Nome muito curto", message: "Use pelo menos 2 caracteres.", preferredStyle: .alert)
-            err.addAction(UIAlertAction(title: "OK", style: .default))
+            let err = UIAlertController(title: String(localized: "Nome muito curto"), message: String(localized: "Use pelo menos 2 caracteres."), preferredStyle: .alert)
+            err.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
             present(err, animated: true)
             return
         }
@@ -228,21 +228,21 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
                 let detail = NotebookListViewController(group: group)
                 navigationController?.pushViewController(detail, animated: true)
             } catch {
-                let err = UIAlertController(title: "Não foi possível criar", message: error.localizedDescription, preferredStyle: .alert)
-                err.addAction(UIAlertAction(title: "OK", style: .default))
+                let err = UIAlertController(title: String(localized: "Não foi possível criar"), message: error.localizedDescription, preferredStyle: .alert)
+                err.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
                 present(err, animated: true)
             }
         }
     }
 
     private func promptRename(_ group: NativeAPIClient.GroupDTO) {
-        let alert = UIAlertController(title: "Renomear grupo", message: nil, preferredStyle: .alert)
+        let alert = UIAlertController(title: String(localized: "Renomear grupo"), message: nil, preferredStyle: .alert)
         alert.addTextField { field in
             field.text = group.name
             field.autocapitalizationType = .sentences
         }
-        alert.addAction(UIAlertAction(title: "Cancelar", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Salvar", style: .default) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
+        alert.addAction(UIAlertAction(title: String(localized: "Salvar"), style: .default) { [weak self] _ in
             let name = alert.textFields?.first?.text ?? ""
             self?.rename(group, to: name)
         })
@@ -261,8 +261,8 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
                 applyFilter()
                 V2NHaptics.success()
             } catch {
-                let err = UIAlertController(title: "Erro", message: error.localizedDescription, preferredStyle: .alert)
-                err.addAction(UIAlertAction(title: "OK", style: .default))
+                let err = UIAlertController(title: String(localized: "Erro"), message: error.localizedDescription, preferredStyle: .alert)
+                err.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
                 present(err, animated: true)
             }
         }
@@ -270,12 +270,12 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
 
     private func confirmDelete(_ group: NativeAPIClient.GroupDTO, completion: @escaping (Bool) -> Void) {
         let alert = UIAlertController(
-            title: "Excluir «\(group.name)»?",
-            message: "Esta ação remove o grupo e as publicações. Não dá para desfazer.",
+            title: String(localized: "Excluir «\(group.name)»?"),
+            message: String(localized: "Esta ação remove o grupo e as publicações. Não dá para desfazer."),
             preferredStyle: .actionSheet
         )
-        alert.addAction(UIAlertAction(title: "Cancelar", style: .cancel) { _ in completion(false) })
-        alert.addAction(UIAlertAction(title: "Excluir grupo", style: .destructive) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel) { _ in completion(false) })
+        alert.addAction(UIAlertAction(title: String(localized: "Excluir grupo"), style: .destructive) { [weak self] _ in
             Task { @MainActor in
                 do {
                     try await NativeAPIClient.deleteGroup(id: group.id)
@@ -284,8 +284,8 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
                     completion(true)
                 } catch {
                     completion(false)
-                    let err = UIAlertController(title: "Erro", message: error.localizedDescription, preferredStyle: .alert)
-                    err.addAction(UIAlertAction(title: "OK", style: .default))
+                    let err = UIAlertController(title: String(localized: "Erro"), message: error.localizedDescription, preferredStyle: .alert)
+                    err.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
                     self?.present(err, animated: true)
                 }
             }

@@ -20,10 +20,10 @@ enum NativeAPIClient {
 
         var errorDescription: String? {
             switch self {
-            case .unauthorized: return "Sessão expirada. Entre novamente."
+            case .unauthorized: return String(localized: "Sessão expirada. Entre novamente.")
             case .http(let code, let body): return "HTTP \(code): \(body)"
-            case .decoding: return "Resposta inválida."
-            case .invalidResponse: return "Sem resposta."
+            case .decoding: return String(localized: "Resposta inválida.")
+            case .invalidResponse: return String(localized: "Sem resposta.")
             }
         }
     }
@@ -94,7 +94,7 @@ enum NativeAPIClient {
                 if parts.joined().count > 160 { break }
             }
             let text = parts.joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
-            return text.isEmpty ? "Sem texto" : text
+            return text.isEmpty ? String(localized: "Sem texto") : text
         }
 
         private func spanText(_ spans: [TextSpan]?) -> String {
@@ -179,7 +179,7 @@ enum NativeAPIClient {
             let full = "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
             if !full.isEmpty { return full }
             if !handle.isEmpty { return "@\(handle)" }
-            return "Membro"
+            return String(localized: "Membro")
         }
     }
 
@@ -816,7 +816,7 @@ enum NativeAPIClient {
         return request
     }
 
-    static func fetchBibleBooks(locale: String = "pt") async throws -> [BibleBookDTO] {
+    static func fetchBibleBooks(locale: String = AppLocale.apiCode) async throws -> [BibleBookDTO] {
         let request = try publicRequest(
             path: "api/native/v1/bible/books",
             query: [URLQueryItem(name: "locale", value: locale)]
@@ -831,7 +831,7 @@ enum NativeAPIClient {
         return books
     }
 
-    static func fetchBibleApps(locale: String = "pt") async throws -> (apps: [BibleAppDTO], translations: [BibleTranslationDTO]) {
+    static func fetchBibleApps(locale: String = AppLocale.apiCode) async throws -> (apps: [BibleAppDTO], translations: [BibleTranslationDTO]) {
         let request = try publicRequest(
             path: "api/native/v1/bible/apps",
             query: [URLQueryItem(name: "locale", value: locale)]
@@ -849,7 +849,7 @@ enum NativeAPIClient {
     static func resolveBibleLink(passage: PassageDTO, appId: String? = nil, translationId: String? = nil, preferNative: Bool? = nil) async throws -> LinkItemDTO {
         var payload: [String: Any] = [
             "ref": passage.labelHint.replacingOccurrences(of: "–", with: "-"),
-            "locale": "pt",
+            "locale": AppLocale.apiCode,
         ]
         // Prefer structured fields via refs that parse — also send book-style via label.
         if let appId { payload["app"] = appId }
@@ -881,7 +881,7 @@ enum NativeAPIClient {
     }
 
     static func fetchThemes(categoryId: String? = nil, themeId: String? = nil, query: String? = nil) async throws -> ThemesIndexResponseProxy {
-        var items: [URLQueryItem] = [URLQueryItem(name: "locale", value: "pt")]
+        var items: [URLQueryItem] = [URLQueryItem(name: "locale", value: AppLocale.apiCode)]
         if let categoryId { items.append(URLQueryItem(name: "category", value: categoryId)) }
         if let themeId { items.append(URLQueryItem(name: "id", value: themeId)) }
         if let query, !query.isEmpty { items.append(URLQueryItem(name: "q", value: query)) }

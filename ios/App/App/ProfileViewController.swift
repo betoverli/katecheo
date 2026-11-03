@@ -36,7 +36,7 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
     override func viewDidLoad() {
         super.viewDidLoad()
         V2NChrome.styleCanvas(view)
-        title = "Perfil"
+        title = String(localized: "Perfil")
         navigationController?.navigationBar.prefersLargeTitles = true
         navigationItem.largeTitleDisplayMode = .always
 
@@ -93,7 +93,7 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
         avatarView.layer.borderWidth = 2
         avatarView.layer.borderColor = V2NDesign.spine.withAlphaComponent(0.35).cgColor
         avatarView.isAccessibilityElement = true
-        avatarView.accessibilityLabel = "Foto do perfil"
+        avatarView.accessibilityLabel = String(localized: "Foto do perfil")
         NSLayoutConstraint.activate([
             avatarView.widthAnchor.constraint(equalToConstant: 96),
             avatarView.heightAnchor.constraint(equalToConstant: 96),
@@ -170,7 +170,7 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
                 loadError = nil
             } catch NativeAPIClient.APIError.unauthorized {
                 me = nil
-                loadError = "Sessão expirada."
+                loadError = String(localized: "Sessão expirada.")
             } catch {
                 loadError = error.localizedDescription
             }
@@ -182,15 +182,15 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
 
     private func updateHeader() {
         if let me {
-            nameLabel.text = me.displayName.isEmpty ? "Sem nome" : me.displayName
+            nameLabel.text = me.displayName.isEmpty ? String(localized: "Sem nome") : me.displayName
             let handle = me.prefs.handle
-            handleLabel.text = handle.isEmpty ? "Defina um @usuário" : "@\(handle)"
+            handleLabel.text = handle.isEmpty ? String(localized: "Defina um @usuário") : "@\(handle)"
             emailLabel.text = me.email ?? me.prefs.profileEmail
             tableView.tableHeaderView?.isHidden = false
             loadAvatar(urlString: me.prefs.avatarUrl)
         } else {
-            nameLabel.text = "Conta Verse2Note"
-            handleLabel.text = NativeAPIClient.hasBearer ? (loadError ?? "Carregando…") : "Entre para ver seu perfil."
+            nameLabel.text = String(localized: "Conta Verse2Note")
+            handleLabel.text = NativeAPIClient.hasBearer ? (loadError ?? String(localized: "Carregando…")) : String(localized: "Entre para ver seu perfil.")
             emailLabel.text = ""
             avatarView.image = UIImage(systemName: "person.crop.circle.fill")
             avatarView.contentMode = .scaleAspectFit
@@ -241,8 +241,8 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
 
     func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
         switch sectionKind(at: section) {
-        case .preferences: return "Preferências"
-        case .account: return "Conta"
+        case .preferences: return String(localized: "Preferências")
+        case .account: return String(localized: "Conta")
         case .guest: return nil
         }
     }
@@ -267,37 +267,37 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
 
         switch sectionKind(at: indexPath.section) {
         case .guest:
-            config.text = "Entrar"
-            config.secondaryText = "Google, Apple ou email"
+            config.text = String(localized: "Entrar")
+            config.secondaryText = String(localized: "Google, Apple ou email")
             config.image = UIImage(systemName: "person.badge.key")
             cell.accessoryType = .none
         case .preferences:
             guard let row = PrefRow(rawValue: indexPath.row) else { break }
             switch row {
             case .edit:
-                config.text = "Editar perfil"
+                config.text = String(localized: "Editar perfil")
                 config.secondaryText = me?.prefs.displayName
                 config.image = UIImage(systemName: "pencil")
             case .appearance:
-                config.text = "Aparência"
+                config.text = String(localized: "Aparência")
                 config.secondaryText = themeLabel(me?.prefs.theme ?? "system")
                 config.image = UIImage(systemName: "circle.lefthalf.filled")
             case .language:
-                config.text = "Idioma"
-                config.secondaryText = languageLabel(me?.prefs.locale ?? "pt")
+                config.text = String(localized: "Idioma")
+                config.secondaryText = String(localized: "Segue o idioma do iPhone")
                 config.image = UIImage(systemName: "globe")
             case .bible:
-                config.text = "App de Bíblia"
+                config.text = String(localized: "App de Bíblia")
                 config.secondaryText = bibleAppLabel(me?.prefs.appId ?? "youversion")
                 config.image = UIImage(systemName: "book")
             case .notifications:
-                config.text = "Avisos"
+                config.text = String(localized: "Avisos")
                 let devices = me?.notify.apnsDevices ?? 0
-                config.secondaryText = devices > 0 ? "\(devices) dispositivo(s)" : "Configurar alertas"
+                config.secondaryText = devices > 0 ? String(localized: "\(devices) dispositivo(s)") : String(localized: "Configurar alertas")
                 config.image = UIImage(systemName: "bell")
             case .help:
-                config.text = "Sobre e ajuda"
-                config.secondaryText = "Privacidade · site"
+                config.text = String(localized: "Sobre e ajuda")
+                config.secondaryText = String(localized: "Privacidade · site")
                 config.image = UIImage(systemName: "questionmark.circle")
             }
         case .account:
@@ -305,14 +305,14 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
             cell.accessoryType = .none
             switch row {
             case .signOut:
-                config.text = "Sair da conta"
+                config.text = String(localized: "Sair da conta")
                 config.textProperties.color = .label
                 config.image = UIImage(systemName: "rectangle.portrait.and.arrow.right")
             case .exportData:
-                config.text = "Baixar meus dados"
+                config.text = String(localized: "Baixar meus dados")
                 config.image = UIImage(systemName: "square.and.arrow.up")
             case .deleteAccount:
-                config.text = "Excluir conta"
+                config.text = String(localized: "Excluir conta")
                 config.textProperties.color = .systemRed
                 config.image = UIImage(systemName: "trash")
                 config.imageProperties.tintColor = .systemRed
@@ -374,12 +374,12 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
 
     private func confirmSignOut() {
         let alert = UIAlertController(
-            title: "Sair da conta?",
-            message: "Você vai sair desta conta neste dispositivo.",
+            title: String(localized: "Sair da conta?"),
+            message: String(localized: "Você vai sair desta conta neste dispositivo."),
             preferredStyle: .actionSheet
         )
-        alert.addAction(UIAlertAction(title: "Cancelar", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Sair da conta", style: .destructive) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
+        alert.addAction(UIAlertAction(title: String(localized: "Sair da conta"), style: .destructive) { [weak self] _ in
             Task { @MainActor in
                 await NativeLoginService.shared.signOut()
                 NotificationCenter.default.post(name: .nativeSessionDidChange, object: nil)
@@ -416,12 +416,12 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
 
     private func confirmDeleteAccount() {
         let alert = UIAlertController(
-            title: "Excluir conta?",
-            message: "Isso remove permanentemente suas notas, grupos e preferências. Não pode ser desfeito.",
+            title: String(localized: "Excluir conta?"),
+            message: String(localized: "Isso remove permanentemente suas notas, grupos e preferências. Não pode ser desfeito."),
             preferredStyle: .actionSheet
         )
-        alert.addAction(UIAlertAction(title: "Cancelar", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Excluir conta", style: .destructive) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
+        alert.addAction(UIAlertAction(title: String(localized: "Excluir conta"), style: .destructive) { [weak self] _ in
             self?.performDeleteAccount()
         })
         if let pop = alert.popoverPresentationController {
@@ -441,11 +441,11 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
                 tableView.reloadData()
                 updateHeader()
                 let done = UIAlertController(
-                    title: "Conta apagada",
-                    message: "Sua conta foi removida.",
+                    title: String(localized: "Conta apagada"),
+                    message: String(localized: "Sua conta foi removida."),
                     preferredStyle: .alert
                 )
-                done.addAction(UIAlertAction(title: "OK", style: .default) { [weak self] _ in
+                done.addAction(UIAlertAction(title: String(localized: "OK"), style: .default) { [weak self] _ in
                     self?.presentSignIn()
                 })
                 present(done, animated: true)
@@ -461,24 +461,16 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
     }
 
     private func presentError(_ message: String) {
-        let alert = UIAlertController(title: "Erro", message: message, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        let alert = UIAlertController(title: String(localized: "Erro"), message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
         present(alert, animated: true)
     }
 
     private func themeLabel(_ theme: String) -> String {
         switch theme {
-        case "light": return "Claro"
-        case "dark": return "Escuro"
-        default: return "Sistema"
-        }
-    }
-
-    private func languageLabel(_ locale: String) -> String {
-        switch locale {
-        case "en": return "English"
-        case "es": return "Español"
-        default: return "Português"
+        case "light": return String(localized: "Claro")
+        case "dark": return String(localized: "Escuro")
+        default: return String(localized: "Sistema")
         }
     }
 

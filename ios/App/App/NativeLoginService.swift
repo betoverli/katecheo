@@ -80,16 +80,16 @@ final class NativeLoginService: NSObject {
             self.authSession = session
             if !session.start() {
                 self.authSession = nil
-                continuation.resume(throwing: LoginError.failed("Não foi possível abrir o login Google."))
+                continuation.resume(throwing: LoginError.failed(String(localized: "Não foi possível abrir o login Google.")))
             }
         }
 
         let comps = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false)
         if comps?.queryItems?.contains(where: { $0.name == "error" }) == true {
-            throw LoginError.failed("Login Google cancelado ou falhou.")
+            throw LoginError.failed(String(localized: "Login Google cancelado ou falhou."))
         }
         guard let code = comps?.queryItems?.first(where: { $0.name == "code" })?.value, !code.isEmpty else {
-            throw LoginError.failed("Código de login em falta.")
+            throw LoginError.failed(String(localized: "Código de login em falta."))
         }
         let token = try await claim(code: code, verifier: verifier)
         _ = KeychainStore.setBearerToken(token)
@@ -105,7 +105,7 @@ final class NativeLoginService: NSObject {
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         let decoded = try? JSONDecoder().decode(TokenResponse.self, from: data)
         guard status >= 200, status < 300, let token = decoded?.token, !token.isEmpty else {
-            throw LoginError.failed(decoded?.error ?? "Falha ao obter sessão.")
+            throw LoginError.failed(decoded?.error ?? String(localized: "Falha ao obter sessão."))
         }
         return token
     }
@@ -147,7 +147,7 @@ final class NativeLoginService: NSObject {
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         let decoded = try? JSONDecoder().decode(TokenResponse.self, from: data)
         guard status >= 200, status < 300, let token = decoded?.token, !token.isEmpty else {
-            throw LoginError.failed(decoded?.error == "credentials" ? "Email ou senha incorretos." : (decoded?.error ?? "Falha no login."))
+            throw LoginError.failed(decoded?.error == "credentials" ? String(localized: "Email ou senha incorretos.") : (decoded?.error ?? String(localized: "Falha no login.")))
         }
         _ = KeychainStore.setBearerToken(token)
     }
@@ -198,8 +198,8 @@ final class NativeLoginService: NSObject {
 
         var errorDescription: String? {
             switch self {
-            case .cancelled: return "Login cancelado."
-            case .invalidURL: return "URL de login inválida."
+            case .cancelled: return String(localized: "Login cancelado.")
+            case .invalidURL: return String(localized: "URL de login inválida.")
             case .failed(let message): return message
             }
         }
@@ -216,7 +216,7 @@ extension NativeLoginService: ASAuthorizationControllerDelegate, ASAuthorization
               let tokenData = credential.identityToken,
               let identityToken = String(data: tokenData, encoding: .utf8)
         else {
-            appleContinuation?.resume(throwing: LoginError.failed("Token Apple em falta."))
+            appleContinuation?.resume(throwing: LoginError.failed(String(localized: "Token Apple em falta.")))
             appleContinuation = nil
             return
         }
@@ -233,10 +233,10 @@ extension NativeLoginService: ASAuthorizationControllerDelegate, ASAuthorization
                 let status = (response as? HTTPURLResponse)?.statusCode ?? 0
                 let decoded = try? JSONDecoder().decode(TokenResponse.self, from: data)
                 if status == 501 {
-                    throw LoginError.failed("Sign in with Apple ainda não está configurado no servidor.")
+                    throw LoginError.failed(String(localized: "Sign in with Apple ainda não está configurado no servidor."))
                 }
                 guard status >= 200, status < 300, let token = decoded?.token, !token.isEmpty else {
-                    throw LoginError.failed(decoded?.error ?? "Falha no login Apple.")
+                    throw LoginError.failed(decoded?.error ?? String(localized: "Falha no login Apple."))
                 }
                 appleContinuation?.resume(returning: token)
             } catch {

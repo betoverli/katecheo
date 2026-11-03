@@ -18,7 +18,7 @@ final class NativeSignInViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         V2NChrome.styleCanvas(view)
-        title = "Entrar"
+        title = String(localized: "Entrar")
         navigationItem.largeTitleDisplayMode = .never
 
         scroll.translatesAutoresizingMaskIntoConstraints = false
@@ -41,14 +41,14 @@ final class NativeSignInViewController: UIViewController {
         ])
 
         let title = UILabel()
-        title.text = "Verse2Note"
+        title.text = String(localized: "Verse2Note")
         title.font = V2NDesign.displayTitle()
         title.textAlignment = .center
         title.adjustsFontForContentSizeCategory = true
         title.accessibilityTraits = .header
 
         let subtitle = UILabel()
-        subtitle.text = "Anote versículos e reuniões no seu caderno."
+        subtitle.text = String(localized: "Anote versículos e reuniões no seu caderno.")
         subtitle.font = V2NDesign.body()
         subtitle.textColor = .secondaryLabel
         subtitle.textAlignment = .center
@@ -56,7 +56,7 @@ final class NativeSignInViewController: UIViewController {
         subtitle.adjustsFontForContentSizeCategory = true
 
         googleButton = UIButton(type: .system)
-        V2NButtonStyle.applySecondary(to: googleButton, title: "Continuar com Google")
+        V2NButtonStyle.applySecondary(to: googleButton, title: String(localized: "Continuar com Google"))
         googleButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 50).isActive = true
         googleButton.addTarget(self, action: #selector(tapGoogle), for: .touchUpInside)
 
@@ -64,18 +64,18 @@ final class NativeSignInViewController: UIViewController {
         appleButton.cornerRadius = V2NDesign.Radius.md
         appleButton.heightAnchor.constraint(equalToConstant: 50).isActive = true
         appleButton.addTarget(self, action: #selector(tapApple), for: .touchUpInside)
-        appleButton.accessibilityLabel = "Entrar com Apple"
+        appleButton.accessibilityLabel = String(localized: "Entrar com Apple")
 
-        styleField(emailField, placeholder: "Email", contentType: .username)
+        styleField(emailField, placeholder: String(localized: "Email"), contentType: .username)
         emailField.keyboardType = .emailAddress
         emailField.autocapitalizationType = .none
         emailField.autocorrectionType = .no
 
-        styleField(passwordField, placeholder: "Senha", contentType: .password)
+        styleField(passwordField, placeholder: String(localized: "Senha"), contentType: .password)
         passwordField.isSecureTextEntry = true
 
         emailButton = UIButton(type: .system)
-        V2NButtonStyle.applyPrimary(to: emailButton, title: "Entrar com email")
+        V2NButtonStyle.applyPrimary(to: emailButton, title: String(localized: "Entrar com email"))
         emailButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 50).isActive = true
         emailButton.addTarget(self, action: #selector(tapEmail), for: .touchUpInside)
 
@@ -148,7 +148,7 @@ final class NativeSignInViewController: UIViewController {
     @objc private func tapGoogle() {
         guard !busy else { return }
         V2NHaptics.light()
-        setBusy(true, message: "Abrindo Google…")
+        setBusy(true, message: String(localized: "Abrindo Google…"))
         Task { @MainActor in
             do {
                 try await NativeLoginService.shared.signInWithGoogle(from: self)
@@ -164,7 +164,7 @@ final class NativeSignInViewController: UIViewController {
     @objc private func tapApple() {
         guard !busy else { return }
         V2NHaptics.light()
-        setBusy(true, message: "Apple…")
+        setBusy(true, message: String(localized: "Apple…"))
         Task { @MainActor in
             do {
                 try await NativeLoginService.shared.signInWithApple(from: self)
@@ -182,12 +182,12 @@ final class NativeSignInViewController: UIViewController {
         let email = (emailField.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         let password = passwordField.text ?? ""
         guard !email.isEmpty, !password.isEmpty else {
-            statusLabel.text = "Preencha email e senha."
+            statusLabel.text = String(localized: "Preencha email e senha.")
             statusLabel.textColor = V2NDesign.danger
             return
         }
         V2NHaptics.light()
-        setBusy(true, message: "Entrando…")
+        setBusy(true, message: String(localized: "Entrando…"))
         Task { @MainActor in
             do {
                 try await NativeLoginService.shared.signInWithEmail(email: email, password: password)
@@ -199,7 +199,7 @@ final class NativeSignInViewController: UIViewController {
     }
 
     private func finishSignedIn() {
-        setBusy(false, message: "Sessão iniciada.")
+        setBusy(false, message: String(localized: "Sessão iniciada."))
         V2NHaptics.success()
         NotificationCenter.default.post(name: .nativeSessionDidChange, object: nil)
         Task { @MainActor in
@@ -221,6 +221,6 @@ final class NativeSignInViewController: UIViewController {
         emailButton.isEnabled = !value
         statusLabel.text = message
         statusLabel.textColor = value ? .secondaryLabel : V2NDesign.danger
-        if message == "Sessão iniciada." { statusLabel.textColor = V2NDesign.accent }
+        if message == String(localized: "Sessão iniciada.") { statusLabel.textColor = V2NDesign.accent }
     }
 }

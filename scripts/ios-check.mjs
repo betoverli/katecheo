@@ -5,6 +5,7 @@
  *
  * Phase 7: Capacitor site host removed; note editor is fully native (no product WKWebView).
  */
+import { spawnSync } from "node:child_process";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -529,6 +530,38 @@ for (const path of [
     read(path);
   } catch {
     errors.push(`Ficheiro em falta: ${path}`);
+  }
+}
+
+for (const path of [
+  "ios/App/App/Localizable.xcstrings",
+  "ios/App/App/InfoPlist.xcstrings",
+  "ios/App/App/AppLocale.swift",
+  "scripts/check-ios-l10n.mjs",
+]) {
+  try {
+    read(path);
+  } catch {
+    errors.push(`Ficheiro em falta: ${path}`);
+  }
+}
+
+if (!project.includes("Localizable.xcstrings in Resources") || !project.includes("pt-BR")) {
+  errors.push("Xcode project tem de incluir Localizable.xcstrings e knownRegions pt-BR/es.");
+}
+if (!project.includes("AppLocale.swift in Sources")) {
+  errors.push("AppLocale.swift tem de estar no target Xcode.");
+}
+
+{
+  const l10n = spawnSync(process.execPath, ["scripts/check-ios-l10n.mjs"], {
+    cwd: root,
+    encoding: "utf8",
+  });
+  if (l10n.status !== 0) {
+    errors.push(((l10n.stdout || "") + (l10n.stderr || "")).trim() || "check-ios-l10n falhou");
+  } else if (l10n.stdout) {
+    notes.push(l10n.stdout.trim());
   }
 }
 
