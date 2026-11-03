@@ -360,14 +360,19 @@ final class ProfileLanguageViewController: UITableViewController {
 
 // MARK: - Bible
 
-final class ProfileBibleViewController: UITableViewController {
+final class ProfileBibleViewController: UIViewController, UICollectionViewDelegate, UICollectionViewDataSource, UITableViewDelegate, UITableViewDataSource {
     private var prefs: NativeAPIClient.PrefsDTO
     private let onSaved: () -> Void
+    private var logoCollection: UICollectionView!
+    private var logoHeightConstraint: NSLayoutConstraint?
+    private let optionsTable = UITableView(frame: .zero, style: .insetGrouped)
+    private let scroll = UIScrollView()
+    private let content = UIStackView()
 
     init(prefs: NativeAPIClient.PrefsDTO, onSaved: @escaping () -> Void) {
         self.prefs = prefs
         self.onSaved = onSaved
-        super.init(style: .insetGrouped)
+        super.init(nibName: nil, bundle: nil)
     }
 
     @available(*, unavailable)
@@ -375,71 +380,109 @@ final class ProfileBibleViewController: UITableViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        v2nApplyGroupedChrome()
+        V2NChrome.styleCanvas(view)
         title = String(localized: "App de Bíblia")
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "bible")
+
+        scroll.translatesAutoresizingMaskIntoConstraints = false
+        scroll.alwaysBounceVertical = true
+        view.addSubview(scroll)
+
+        content.axis = .vertical
+        content.spacing = V2NDesign.Space.sm
+        content.translatesAutoresizingMaskIntoConstraints = false
+        scroll.addSubview(content)
+
+        content.addArrangedSubview(makeSectionHeader(String(localized: "Aplicativo")))
+
+        let layout = UICollectionViewCompositionalLayout { _, env in
+            let width = env.container.effectiveContentSize.width
+            let cols = width > 500 ? 4 : 3
+            let itemSize = NSCollectionLayoutSize(
+                widthDimension: .fractionalWidth(1 / CGFloat(cols)),
+                heightDimension: .absolute(118)
+            )
+            let item = NSCollectionLayoutItem(layoutSize: itemSize)
+            item.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 6, bottom: 6, trailing: 6)
+            let group = NSCollectionLayoutGroup.horizontal(
+                layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1), heightDimension: .absolute(118)),
+                subitem: item,
+                count: cols
+            )
+            let section = NSCollectionLayoutSection(group: group)
+            section.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 10, bottom: 8, trailing: 10)
+            return section
+        }
+        logoCollection = UICollectionView(frame: .zero, collectionViewLayout: layout)
+        logoCollection.translatesAutoresizingMaskIntoConstraints = false
+        logoCollection.backgroundColor = .clear
+        logoCollection.isScrollEnabled = false
+        logoCollection.delegate = self
+        logoCollection.dataSource = self
+        logoCollection.register(V2NBibleAppLogoCell.self, forCellWithReuseIdentifier: V2NBibleAppLogoCell.reuseId)
+        content.addArrangedSubview(logoCollection)
+
+        optionsTable.translatesAutoresizingMaskIntoConstraints = false
+        V2NChrome.styleGroupedTable(optionsTable)
+        optionsTable.delegate = self
+        optionsTable.dataSource = self
+        optionsTable.isScrollEnabled = false
+        optionsTable.register(UITableViewCell.self, forCellReuseIdentifier: "opt")
+        content.addArrangedSubview(optionsTable)
+
+        let logoHeight = logoCollection.heightAnchor.constraint(equalToConstant: logoGridHeight(columns: 3))
+        logoHeightConstraint = logoHeight
+
+        NSLayoutConstraint.activate([
+            scroll.topAnchor.constraint(equalTo: view.topAnchor),
+            scroll.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            scroll.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            scroll.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+
+            content.topAnchor.constraint(equalTo: scroll.contentLayoutGuide.topAnchor, constant: V2NDesign.Space.sm),
+            content.leadingAnchor.constraint(equalTo: scroll.frameLayoutGuide.leadingAnchor),
+            content.trailingAnchor.constraint(equalTo: scroll.frameLayoutGuide.trailingAnchor),
+            content.bottomAnchor.constraint(equalTo: scroll.contentLayoutGuide.bottomAnchor, constant: -V2NDesign.Space.xl),
+            content.widthAnchor.constraint(equalTo: scroll.frameLayoutGuide.widthAnchor),
+
+            logoHeight,
+            optionsTable.heightAnchor.constraint(equalToConstant: optionsTableHeight()),
+        ])
     }
 
-    override func numberOfSections(in tableView: UITableView) -> Int { 3 }
-
-    override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        switch section {
-        case 0: return ProfileBibleCatalog.apps.count
-        case 1: return ProfileBibleCatalog.translations.count
-        default: return 2
-        }
+    private func makeSectionHeader(_ text: String) -> UIView {
+        let box = UIView()
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.text = text.uppercased()
+        label.font = V2NDesign.sectionHeader()
+        label.textColor = .secondaryLabel
+        box.addSubview(label)
+        NSLayoutConstraint.activate([
+            label.leadingAnchor.constraint(equalTo: box.leadingAnchor, constant: 20),
+            label.trailingAnchor.constraint(equalTo: box.trailingAnchor, constant: -20),
+            label.topAnchor.constraint(equalTo: box.topAnchor, constant: 8),
+            label.bottomAnchor.constraint(equalTo: box.bottomAnchor, constant: -4),
+            box.heightAnchor.constraint(greaterThanOrEqualToConstant: 28),
+        ])
+        return box
     }
 
-    override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        switch section {
-        case 0: return String(localized: "Aplicativo")
-        case 1: return String(localized: "Tradução")
-        default: return String(localized: "Abertura")
-        }
+    private func logoGridHeight(columns: Int) -> CGFloat {
+        let cols = max(columns, 1)
+        let rows = Int(ceil(Double(ProfileBibleCatalog.apps.count) / Double(cols)))
+        return CGFloat(rows) * 118 + 16
     }
 
-    override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "bible", for: indexPath)
-        var config = cell.defaultContentConfiguration()
-        switch indexPath.section {
-        case 0:
-            let app = ProfileBibleCatalog.apps[indexPath.row]
-            config.text = app.name
-            cell.accessoryType = prefs.appId == app.id ? .checkmark : .none
-        case 1:
-            let tr = ProfileBibleCatalog.translations[indexPath.row]
-            config.text = tr.name
-            cell.accessoryType = prefs.translationId == tr.id ? .checkmark : .none
-        default:
-            if indexPath.row == 0 {
-                config.text = String(localized: "Preferir o app")
-                cell.accessoryType = prefs.preferNative ? .checkmark : .none
-            } else {
-                config.text = String(localized: "Preferir a web")
-                cell.accessoryType = !prefs.preferNative ? .checkmark : .none
-            }
-        }
-        cell.contentConfiguration = config
-        return cell
+    private func optionsTableHeight() -> CGFloat {
+        let rows = ProfileBibleCatalog.translations.count + 2
+        return CGFloat(rows) * 48 + 88
     }
 
-    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        tableView.deselectRow(at: indexPath, animated: true)
-        var patch: [String: Any] = [:]
-        switch indexPath.section {
-        case 0:
-            let app = ProfileBibleCatalog.apps[indexPath.row]
-            prefs.appId = app.id
-            patch["appId"] = app.id
-        case 1:
-            let tr = ProfileBibleCatalog.translations[indexPath.row]
-            prefs.translationId = tr.id
-            patch["translationId"] = tr.id
-        default:
-            prefs.preferNative = indexPath.row == 0
-            patch["preferNative"] = prefs.preferNative
-        }
-        tableView.reloadData()
+    private func assetName(for appId: String) -> String {
+        "BibleApp_" + appId.replacingOccurrences(of: "-", with: "_")
+    }
+
+    private func patchPrefs(_ patch: [String: Any]) {
         Task { @MainActor in
             do {
                 _ = try await NativeAPIClient.patchPrefs(patch)
@@ -447,6 +490,85 @@ final class ProfileBibleViewController: UITableViewController {
             } catch {
                 presentSaveError(on: self, error)
             }
+        }
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        let cols = view.bounds.width > 500 ? 4 : 3
+        logoHeightConstraint?.constant = logoGridHeight(columns: cols)
+    }
+
+    // MARK: Logo grid
+
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        ProfileBibleCatalog.apps.count
+    }
+
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NBibleAppLogoCell.reuseId, for: indexPath) as! V2NBibleAppLogoCell
+        let app = ProfileBibleCatalog.apps[indexPath.item]
+        let image = UIImage(named: assetName(for: app.id))
+        cell.configure(name: shortName(app.name), image: image, selected: prefs.appId == app.id)
+        return cell
+    }
+
+    private func shortName(_ name: String) -> String {
+        if name.hasPrefix("YouVersion") { return "YouVersion" }
+        if name.hasPrefix("Life Bible") { return "Tecarta" }
+        return name
+    }
+
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        V2NHaptics.selection()
+        let app = ProfileBibleCatalog.apps[indexPath.item]
+        prefs.appId = app.id
+        logoCollection.reloadData()
+        patchPrefs(["appId": app.id])
+    }
+
+    // MARK: Options table
+
+    func numberOfSections(in tableView: UITableView) -> Int { 2 }
+
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        section == 0 ? ProfileBibleCatalog.translations.count : 2
+    }
+
+    func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
+        section == 0 ? String(localized: "Tradução") : String(localized: "Abertura")
+    }
+
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "opt", for: indexPath)
+        var config = cell.defaultContentConfiguration()
+        if indexPath.section == 0 {
+            let tr = ProfileBibleCatalog.translations[indexPath.row]
+            config.text = tr.name
+            cell.accessoryType = prefs.translationId == tr.id ? .checkmark : .none
+        } else if indexPath.row == 0 {
+            config.text = String(localized: "Preferir o app")
+            cell.accessoryType = prefs.preferNative ? .checkmark : .none
+        } else {
+            config.text = String(localized: "Preferir a web")
+            cell.accessoryType = !prefs.preferNative ? .checkmark : .none
+        }
+        cell.contentConfiguration = config
+        cell.tintColor = V2NDesign.accent
+        return cell
+    }
+
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        tableView.deselectRow(at: indexPath, animated: true)
+        if indexPath.section == 0 {
+            let tr = ProfileBibleCatalog.translations[indexPath.row]
+            prefs.translationId = tr.id
+            tableView.reloadData()
+            patchPrefs(["translationId": tr.id])
+        } else {
+            prefs.preferNative = indexPath.row == 0
+            tableView.reloadData()
+            patchPrefs(["preferNative": prefs.preferNative])
         }
     }
 }

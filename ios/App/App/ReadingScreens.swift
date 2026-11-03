@@ -1,7 +1,7 @@
 import UIKit
 
 /// Native Leitura: browse plans, track days, share invites.
-/// Embedded under Versículos chips (no own tab); standalone init kept for deep-link pushes.
+/// Opened from Ferramentas (Tools); `embedded` kept for compatibility / deep-link pushes.
 /// Layout mirrors the original web reading page — category card grid + plan rows.
 final class ReadingHomeViewController: UIViewController, UICollectionViewDelegate, UICollectionViewDataSource, UISearchResultsUpdating, UISearchBarDelegate {
     private let refresh = UIRefreshControl()

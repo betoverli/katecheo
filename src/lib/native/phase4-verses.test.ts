@@ -65,13 +65,16 @@ describe("Phase 4 native verses API", () => {
   });
 });
 
-describe("Phase 4 native Versículos UI", () => {
-  it("replaces Versículos Em breve with VersesHomeViewController", () => {
+describe("Phase 4 native Versículos / Ferramentas UI", () => {
+  it("hosts Tools tab with VersesHomeViewController and Books grid", () => {
     const tabs = read("ios/App/App/NativeRootTabBarController.swift");
     assert.match(tabs, /VersesHomeViewController/);
+    assert.match(tabs, /Ferramentas/);
     assert.doesNotMatch(tabs, /titleText:\s*"Versículos"/);
+    assert.match(tabs, /selectedIndex = 0/);
     const home = read("ios/App/App/VersesHomeViewController.swift");
-    assert.match(home, /Versículos/);
+    assert.match(home, /Ferramentas/);
+    assert.match(home, /BooksHomeViewController/);
     assert.match(home, /Temas/);
     assert.match(home, /fetchBibleBooks|listBibleBooks/);
     assert.doesNotMatch(home, /utilizador|Definições|Partilhar|Guardar|Activa/);
@@ -81,8 +84,10 @@ describe("Phase 4 native Versículos UI", () => {
     const screens = read("ios/App/App/VersesScreens.swift");
     assert.match(screens, /VerseChapterViewController/);
     assert.match(screens, /VerseNumberViewController/);
+    assert.match(screens, /V2NNumberCell|V2NNumberGridLayout/);
     assert.match(screens, /VerseActionsViewController/);
     assert.match(screens, /ThemesHomeViewController/);
+    assert.match(screens, /V2NNamedCreateViewController/);
     assert.match(screens, /appendVerse/);
     assert.match(screens, /Compartilhar|openBible|UIActivityViewController/);
     assert.match(screens, /Adicionar à nota/);
