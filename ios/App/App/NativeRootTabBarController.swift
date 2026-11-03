@@ -1,7 +1,7 @@
 import UIKit
 
-/// Root tabs: Versículos + Grupos + Caderno + Perfil.
-/// Leitura lives under Versículos as a chip (not a tab).
+/// Root tabs: Caderno · Grupos · Ferramentas · Perfil.
+/// Leitura / Temas / Listas / Livros live under Ferramentas (Tools).
 final class NativeRootTabBarController: UITabBarController {
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -16,24 +16,38 @@ final class NativeRootTabBarController: UITabBarController {
             selectedImage: UIImage(systemName: "note.text")
         )
         notebook.tabBarItem.accessibilityLabel = String(localized: "Caderno")
-
-        let verses = UINavigationController(rootViewController: VersesHomeViewController())
-        V2NChrome.style(navigationController: verses)
-        verses.tabBarItem = UITabBarItem(title: String(localized: "Versículos"), image: UIImage(systemName: "book"), tag: 1)
-        verses.tabBarItem.accessibilityLabel = String(localized: "Versículos")
+        notebook.tabBarItem.tag = 0
 
         let groups = UINavigationController(rootViewController: GroupsListViewController())
         V2NChrome.style(navigationController: groups)
-        groups.tabBarItem = UITabBarItem(title: String(localized: "Grupos"), image: UIImage(systemName: "person.2"), tag: 2)
+        groups.tabBarItem = UITabBarItem(
+            title: String(localized: "Grupos"),
+            image: UIImage(systemName: "person.2"),
+            tag: 1
+        )
         groups.tabBarItem.accessibilityLabel = String(localized: "Grupos")
+
+        let tools = UINavigationController(rootViewController: VersesHomeViewController())
+        V2NChrome.style(navigationController: tools)
+        tools.tabBarItem = UITabBarItem(
+            title: String(localized: "Ferramentas"),
+            image: UIImage(systemName: "wrench.and.screwdriver"),
+            tag: 2
+        )
+        tools.tabBarItem.accessibilityLabel = String(localized: "Ferramentas")
 
         let profile = UINavigationController(rootViewController: ProfileViewController())
         V2NChrome.style(navigationController: profile)
-        profile.tabBarItem = UITabBarItem(title: String(localized: "Perfil"), image: UIImage(systemName: "person"), tag: 4)
+        profile.tabBarItem = UITabBarItem(
+            title: String(localized: "Perfil"),
+            image: UIImage(systemName: "person"),
+            tag: 3
+        )
         profile.tabBarItem.accessibilityLabel = String(localized: "Perfil")
 
-        viewControllers = [verses, groups, notebook, profile]
-        selectedIndex = 2
+        // Default selected: Caderno (Notebook).
+        viewControllers = [notebook, groups, tools, profile]
+        selectedIndex = 0
 
         // Liquid Glass paints system chrome on iOS 26; older OS keeps classic appearances from V2NChrome.
         _ = V2NGlassMaterial.sdkHasLiquidGlass()

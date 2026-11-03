@@ -82,6 +82,14 @@ enum NativeDeepLinkRouter {
         return .unknown
     }
 
+    /// Tab indices: 0 Caderno · 1 Grupos · 2 Ferramentas · 3 Perfil
+    private enum Tab: Int {
+        case notebook = 0
+        case groups = 1
+        case tools = 2
+        case profile = 3
+    }
+
     @MainActor
     static func open(_ destination: Destination, animated: Bool = true) {
         guard destination != .unknown else { return }
@@ -95,7 +103,7 @@ enum NativeDeepLinkRouter {
 
         switch destination {
         case .verses, .themes, .reading:
-            tabs.selectedIndex = 0
+            tabs.selectedIndex = Tab.tools.rawValue
             if let nav = tabs.selectedViewController as? UINavigationController {
                 nav.popToRootViewController(animated: false)
                 if let home = nav.viewControllers.first as? VersesHomeViewController {
@@ -111,7 +119,7 @@ enum NativeDeepLinkRouter {
                 }
             }
         case .groups, .group:
-            tabs.selectedIndex = 1
+            tabs.selectedIndex = Tab.groups.rawValue
             if case .group(let id) = destination,
                let nav = tabs.selectedViewController as? UINavigationController
             {
@@ -127,7 +135,7 @@ enum NativeDeepLinkRouter {
                 }
             }
         case .notebook, .note:
-            tabs.selectedIndex = 2
+            tabs.selectedIndex = Tab.notebook.rawValue
             if case .note(let id) = destination,
                let nav = tabs.selectedViewController as? UINavigationController
             {
@@ -136,7 +144,7 @@ enum NativeDeepLinkRouter {
                 nav.pushViewController(NoteDetailViewController(noteId: id, initial: cached), animated: animated)
             }
         case .readingPlan(let id):
-            tabs.selectedIndex = 0
+            tabs.selectedIndex = Tab.tools.rawValue
             if let nav = tabs.selectedViewController as? UINavigationController {
                 nav.popToRootViewController(animated: false)
                 if let home = nav.viewControllers.first as? VersesHomeViewController {
@@ -146,7 +154,7 @@ enum NativeDeepLinkRouter {
                 nav.pushViewController(ReadingPlanDetailViewController(planId: id), animated: animated)
             }
         case .readingInvite(let groupId):
-            tabs.selectedIndex = 0
+            tabs.selectedIndex = Tab.tools.rawValue
             if let nav = tabs.selectedViewController as? UINavigationController {
                 nav.popToRootViewController(animated: false)
                 if let home = nav.viewControllers.first as? VersesHomeViewController {
@@ -162,12 +170,12 @@ enum NativeDeepLinkRouter {
                             NotificationCenter.default.post(name: .nativeOpenSignIn, object: nil)
                         }
                     } catch {
-                        // Stay on Leitura (Versículos → Leitura chip) if join fails.
+                        // Stay on Leitura (Ferramentas → Leitura) if join fails.
                     }
                 }
             }
         case .profile, .signIn:
-            tabs.selectedIndex = 3
+            tabs.selectedIndex = Tab.profile.rawValue
             if destination == .signIn, !NativeAPIClient.hasBearer {
                 NotificationCenter.default.post(name: .nativeOpenSignIn, object: nil)
             }

@@ -1,45 +1,167 @@
 import UIKit
 
-/// Native Versículos tab: book picker (names ↔ siglas), Temas / Listas / Leitura chips.
-/// Large title restored; Siglas/Nomes lives on the Old Testament header row inside the scroll view.
+/// Ferramentas (Tools) tab home: four polished cards → Livros, Temas, Listas, Leitura.
 final class VersesHomeViewController: UIViewController, UICollectionViewDelegate, UICollectionViewDataSource {
-    private enum HomeFilter: String {
-        case books = "books"
-        case themes = "themes"
-        case lists = "lists"
-        case reading = "reading"
+    private enum Tool: String, CaseIterable {
+        case books, themes, lists, reading
+
+        var title: String {
+            switch self {
+            case .books: return String(localized: "Livros")
+            case .themes: return String(localized: "Temas")
+            case .lists: return String(localized: "Listas")
+            case .reading: return String(localized: "Leitura")
+            }
+        }
+
+        var subtitle: String {
+            switch self {
+            case .books: return String(localized: "Escolha livro, capítulo e versículo")
+            case .themes: return String(localized: "Coleções temáticas de referências")
+            case .lists: return String(localized: "Suas listas pessoais de versículos")
+            case .reading: return String(localized: "Planos de leitura por capítulos")
+            }
+        }
+
+        var symbol: String {
+            switch self {
+            case .books: return "book"
+            case .themes: return "tag"
+            case .lists: return "bookmark"
+            case .reading: return "calendar"
+            }
+        }
     }
 
-    private let chips = V2NFilterChipsView()
+    private var collectionView: UICollectionView!
+    private var prefs: NativeAPIClient.PrefsDTO?
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        V2NChrome.styleCanvas(view)
+        title = String(localized: "Ferramentas")
+        navigationController?.navigationBar.prefersLargeTitles = true
+        navigationItem.largeTitleDisplayMode = .always
+
+        let layout = UICollectionViewCompositionalLayout { _, env in
+            let width = env.container.effectiveContentSize.width
+            let columns = width > 600 ? 2 : 2
+            let itemSize = NSCollectionLayoutSize(
+                widthDimension: .fractionalWidth(1 / CGFloat(columns)),
+                heightDimension: .absolute(148)
+            )
+            let item = NSCollectionLayoutItem(layoutSize: itemSize)
+            item.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8)
+            let group = NSCollectionLayoutGroup.horizontal(
+                layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1), heightDimension: .absolute(148)),
+                subitem: item,
+                count: columns
+            )
+            let section = NSCollectionLayoutSection(group: group)
+            section.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 12, bottom: 24, trailing: 12)
+            return section
+        }
+
+        collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
+        collectionView.translatesAutoresizingMaskIntoConstraints = false
+        collectionView.backgroundColor = .clear
+        collectionView.alwaysBounceVertical = true
+        collectionView.delegate = self
+        collectionView.dataSource = self
+        collectionView.register(V2NToolCardCell.self, forCellWithReuseIdentifier: V2NToolCardCell.reuseId)
+        view.addSubview(collectionView)
+
+        NSLayoutConstraint.activate([
+            collectionView.topAnchor.constraint(equalTo: view.topAnchor),
+            collectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
+
+        _ = V2NGlassMaterial.sdkHasLiquidGlass()
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        navigationController?.navigationBar.prefersLargeTitles = true
+        navigationItem.largeTitleDisplayMode = .always
+        Task { @MainActor in
+            if NativeAPIClient.hasBearer {
+                prefs = try? await NativeAPIClient.getPrefs()
+            }
+        }
+    }
+
+    /// Deep links / parent chrome: open the matching Tools destination.
+    func selectHomeFilter(_ id: String) {
+        guard let tool = Tool(rawValue: id) else { return }
+        open(tool, animated: false)
+    }
+
+    private func open(_ tool: Tool, animated: Bool = true) {
+        V2NHaptics.selection()
+        let vc: UIViewController
+        switch tool {
+        case .books:
+            vc = BooksHomeViewController(prefs: prefs)
+        case .themes:
+            vc = ThemesHomeViewController(prefs: prefs, embedded: false)
+        case .lists:
+            vc = MyCollectionsViewController(embedded: false)
+        case .reading:
+            vc = ReadingHomeViewController(embedded: false)
+        }
+        navigationController?.pushViewController(vc, animated: animated)
+    }
+
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        Tool.allCases.count
+    }
+
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NToolCardCell.reuseId, for: indexPath) as! V2NToolCardCell
+        let tool = Tool.allCases[indexPath.item]
+        cell.configure(title: tool.title, subtitle: tool.subtitle, systemImage: tool.symbol)
+        return cell
+    }
+
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        open(Tool.allCases[indexPath.item])
+    }
+}
+
+// MARK: - Books grid (formerly Versículos home content)
+
+/// Book picker with OT/NT sections and Siglas/Nomes toggle on the OT header.
+final class BooksHomeViewController: UIViewController, UICollectionViewDelegate, UICollectionViewDataSource {
     private let modeToggle = V2NModeToggle()
     private let emptyState = V2NEmptyStateView()
-    private let contentHost = UIView()
-    private let booksPanel = UIView()
     private var collectionView: UICollectionView!
 
     private var books: [NativeAPIClient.BibleBookDTO] = []
     private var filtered: [NativeAPIClient.BibleBookDTO] = []
     private var prefs: NativeAPIClient.PrefsDTO?
     private var booksCompact = false
-    private var homeFilter: HomeFilter = .books
-    /// Guards against overlapping reloads leaving the compositional layout stuck empty.
     private var booksLoadToken = 0
-    /// When true, wait until the collection view has a real width before invalidating layout.
     private var pendingLayoutRefresh = false
-
-    private lazy var themesVC = ThemesHomeViewController(prefs: nil, embedded: true)
-    private lazy var listsVC = MyCollectionsViewController(embedded: true)
-    private lazy var readingVC = ReadingHomeViewController(embedded: true)
 
     private var otBooks: [NativeAPIClient.BibleBookDTO] { filtered.filter { $0.testament == "ot" } }
     private var ntBooks: [NativeAPIClient.BibleBookDTO] { filtered.filter { $0.testament == "nt" } }
 
+    init(prefs: NativeAPIClient.PrefsDTO?) {
+        self.prefs = prefs
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
     override func viewDidLoad() {
         super.viewDidLoad()
         V2NChrome.styleCanvas(view)
-        title = String(localized: "Versículos")
-        navigationController?.navigationBar.prefersLargeTitles = true
+        title = String(localized: "Livros")
         navigationItem.largeTitleDisplayMode = .always
+        navigationController?.navigationBar.prefersLargeTitles = true
 
         applyBooksCompact(resolvedInitialBooksCompact(), rebuild: false)
         modeToggle.onChange = { [weak self] compact in
@@ -48,24 +170,6 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
                 Task { try? await NativeAPIClient.patchPrefs(["booksCompact": compact]) }
             }
         }
-
-        chips.configure(
-            chips: [
-                V2NFilterChip(id: HomeFilter.books.rawValue, title: String(localized: "Livros"), systemImage: "book"),
-                V2NFilterChip(id: HomeFilter.themes.rawValue, title: String(localized: "Temas"), systemImage: "tag"),
-                V2NFilterChip(id: HomeFilter.lists.rawValue, title: String(localized: "Listas"), systemImage: "bookmark"),
-                V2NFilterChip(id: HomeFilter.reading.rawValue, title: String(localized: "Leitura"), systemImage: "calendar"),
-            ],
-            selectedId: HomeFilter.books.rawValue
-        )
-        chips.onSelect = { [weak self] id in
-            self?.selectFilter(id)
-        }
-
-        contentHost.translatesAutoresizingMaskIntoConstraints = false
-        contentHost.backgroundColor = .clear
-        booksPanel.translatesAutoresizingMaskIntoConstraints = false
-        booksPanel.backgroundColor = .clear
 
         let layout = V2NBookGridLayout.make(isCompact: { [weak self] in
             self?.booksCompact ?? false
@@ -87,65 +191,24 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
         refresh.addTarget(self, action: #selector(reload), for: .valueChanged)
         collectionView.refreshControl = refresh
 
-        view.addSubview(chips)
-        view.addSubview(contentHost)
-        contentHost.addSubview(booksPanel)
-        // Siglas/Nomes lives in the OT section header (scroll content), not above the list.
-        booksPanel.addSubview(collectionView)
-        booksPanel.addSubview(emptyState)
-
+        view.addSubview(collectionView)
+        view.addSubview(emptyState)
         NSLayoutConstraint.activate([
-            chips.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: V2NDesign.Space.xxs),
-            chips.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            chips.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            collectionView.topAnchor.constraint(equalTo: view.topAnchor),
+            collectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
 
-            contentHost.topAnchor.constraint(equalTo: chips.bottomAnchor, constant: V2NDesign.Space.xs),
-            contentHost.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            contentHost.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            contentHost.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-
-            booksPanel.topAnchor.constraint(equalTo: contentHost.topAnchor),
-            booksPanel.leadingAnchor.constraint(equalTo: contentHost.leadingAnchor),
-            booksPanel.trailingAnchor.constraint(equalTo: contentHost.trailingAnchor),
-            booksPanel.bottomAnchor.constraint(equalTo: contentHost.bottomAnchor),
-
-            collectionView.topAnchor.constraint(equalTo: booksPanel.topAnchor),
-            collectionView.leadingAnchor.constraint(equalTo: booksPanel.leadingAnchor),
-            collectionView.trailingAnchor.constraint(equalTo: booksPanel.trailingAnchor),
-            collectionView.bottomAnchor.constraint(equalTo: booksPanel.bottomAnchor),
-
-            emptyState.topAnchor.constraint(equalTo: booksPanel.topAnchor),
-            emptyState.leadingAnchor.constraint(equalTo: booksPanel.leadingAnchor),
-            emptyState.trailingAnchor.constraint(equalTo: booksPanel.trailingAnchor),
-            emptyState.bottomAnchor.constraint(equalTo: booksPanel.bottomAnchor),
+            emptyState.topAnchor.constraint(equalTo: view.topAnchor),
+            emptyState.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            emptyState.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            emptyState.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
         ])
-
-        embedChild(themesVC)
-        embedChild(listsVC)
-        embedChild(readingVC)
-        themesVC.view.isHidden = true
-        listsVC.view.isHidden = true
-        readingVC.view.isHidden = true
-        contentHost.bringSubviewToFront(booksPanel)
-
-        _ = V2NGlassMaterial.sdkHasLiquidGlass()
     }
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        navigationController?.navigationBar.prefersLargeTitles = true
-        navigationItem.largeTitleDisplayMode = .always
-        Task { @MainActor in
-            if NativeAPIClient.hasBearer {
-                _ = await NativeSessionBootstrap.migrateCookieToKeychainIfNeeded()
-            }
-            switch homeFilter {
-            case .books: reload()
-            case .themes: themesVC.reloadFromParent()
-            case .lists: listsVC.reloadFromParent()
-            case .reading: readingVC.reloadFromParent()
-            }
-        }
+        reload()
     }
 
     override func viewDidLayoutSubviews() {
@@ -155,26 +218,8 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
         }
     }
 
-    /// Deep links / parent chrome: switch the Versículos chip without a user tap.
-    func selectHomeFilter(_ id: String) {
-        chips.setSelected(id)
-        selectFilter(id)
-    }
-
-    private func embedChild(_ child: UIViewController) {
-        addChild(child)
-        child.view.translatesAutoresizingMaskIntoConstraints = false
-        contentHost.addSubview(child.view)
-        NSLayoutConstraint.activate([
-            child.view.topAnchor.constraint(equalTo: contentHost.topAnchor),
-            child.view.leadingAnchor.constraint(equalTo: contentHost.leadingAnchor),
-            child.view.trailingAnchor.constraint(equalTo: contentHost.trailingAnchor),
-            child.view.bottomAnchor.constraint(equalTo: contentHost.bottomAnchor),
-        ])
-        child.didMove(toParent: self)
-    }
-
     private func resolvedInitialBooksCompact() -> Bool {
+        if let prefs { return prefs.booksCompact }
         if UserDefaults.standard.object(forKey: "v2n.booksCompact") != nil {
             return UserDefaults.standard.bool(forKey: "v2n.booksCompact")
         }
@@ -190,10 +235,6 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
         }
     }
 
-    /// Root cause of the empty-on-launch grid: `invalidateLayout()` while the
-    /// collection view still had zero width / empty data left Compositional Layout
-    /// stuck until Siglas/Nomes forced another invalidate. Only invalidate when we
-    /// have a real width; otherwise defer to `viewDidLayoutSubviews`.
     private func refreshCollectionLayoutIfNeeded(force: Bool) {
         guard collectionView != nil else { return }
         if collectionView.bounds.width <= 1 {
@@ -207,68 +248,6 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
         }
     }
 
-    private func selectFilter(_ id: String) {
-        guard let filter = HomeFilter(rawValue: id) else { return }
-        homeFilter = filter
-        updateChromeForFilter()
-        switch filter {
-        case .books:
-            booksPanel.isHidden = false
-            themesVC.view.isHidden = true
-            listsVC.view.isHidden = true
-            readingVC.view.isHidden = true
-            contentHost.bringSubviewToFront(booksPanel)
-            applyFilter()
-            refreshCollectionLayoutIfNeeded(force: true)
-        case .themes:
-            emptyState.hide()
-            booksPanel.isHidden = true
-            themesVC.updatePrefs(prefs)
-            themesVC.view.isHidden = false
-            listsVC.view.isHidden = true
-            readingVC.view.isHidden = true
-            contentHost.bringSubviewToFront(themesVC.view)
-            themesVC.reloadFromParent()
-        case .lists:
-            emptyState.hide()
-            booksPanel.isHidden = true
-            themesVC.view.isHidden = true
-            listsVC.view.isHidden = false
-            readingVC.view.isHidden = true
-            contentHost.bringSubviewToFront(listsVC.view)
-            listsVC.reloadFromParent()
-        case .reading:
-            emptyState.hide()
-            booksPanel.isHidden = true
-            themesVC.view.isHidden = true
-            listsVC.view.isHidden = true
-            readingVC.view.isHidden = false
-            contentHost.bringSubviewToFront(readingVC.view)
-            readingVC.reloadFromParent()
-        }
-    }
-
-    private func updateChromeForFilter() {
-        switch homeFilter {
-        case .books, .themes:
-            navigationItem.rightBarButtonItems = nil
-            navigationItem.searchController = nil
-        case .lists:
-            navigationItem.searchController = nil
-            navigationItem.rightBarButtonItems = [
-                UIBarButtonItem(title: String(localized: "Nova"), style: .plain, target: self, action: #selector(createListFromParent)),
-            ]
-        case .reading:
-            navigationItem.rightBarButtonItems = nil
-            // Reading keeps its search in the content area when embedded.
-            navigationItem.searchController = nil
-        }
-    }
-
-    @objc private func createListFromParent() {
-        listsVC.presentCreateList()
-    }
-
     @objc private func reload() {
         booksLoadToken += 1
         let token = booksLoadToken
@@ -279,10 +258,7 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
                 if NativeAPIClient.hasBearer {
                     prefs = try? await NativeAPIClient.getPrefs()
                     if let prefs {
-                        // Sync Siglas/Nomes from prefs without an early layout invalidate
-                        // (that was emptying the grid until the user tapped the toggle).
                         applyBooksCompact(prefs.booksCompact, rebuild: false)
-                        themesVC.updatePrefs(prefs)
                     }
                 }
                 let loaded = try await booksTask
@@ -298,7 +274,6 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
     }
 
     private func applyFilter() {
-        guard homeFilter == .books else { return }
         filtered = books
         if filtered.isEmpty {
             collectionView.isHidden = true
@@ -315,8 +290,6 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
         }
         collectionView.reloadData()
     }
-
-    // MARK: - Collection
 
     func numberOfSections(in collectionView: UICollectionView) -> Int { 2 }
 

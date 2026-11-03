@@ -1,15 +1,17 @@
 import UIKit
 
-// MARK: - Chapter picker
+// MARK: - Chapter picker (number grid)
 
-final class VerseChapterViewController: UITableViewController {
+final class VerseChapterViewController: UIViewController, UICollectionViewDelegate, UICollectionViewDataSource {
     private let book: NativeAPIClient.BibleBookDTO
     private let prefs: NativeAPIClient.PrefsDTO?
+    private var collectionView: UICollectionView!
+    private let hintLabel = UILabel()
 
     init(book: NativeAPIClient.BibleBookDTO, prefs: NativeAPIClient.PrefsDTO?) {
         self.book = book
         self.prefs = prefs
-        super.init(style: .insetGrouped)
+        super.init(nibName: nil, bundle: nil)
     }
 
     @available(*, unavailable)
@@ -17,53 +19,76 @@ final class VerseChapterViewController: UITableViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        v2nApplyGroupedChrome()
+        V2NChrome.styleCanvas(view)
         title = book.name
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "chapter")
+
+        hintLabel.text = String(localized: "Capítulo")
+        hintLabel.font = V2NDesign.sectionHeader()
+        hintLabel.textColor = .secondaryLabel
+        hintLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        collectionView = UICollectionView(frame: .zero, collectionViewLayout: V2NNumberGridLayout.make())
+        collectionView.translatesAutoresizingMaskIntoConstraints = false
+        collectionView.backgroundColor = .clear
+        collectionView.alwaysBounceVertical = true
+        collectionView.delegate = self
+        collectionView.dataSource = self
+        collectionView.register(V2NNumberCell.self, forCellWithReuseIdentifier: V2NNumberCell.reuseId)
+
+        view.addSubview(hintLabel)
+        view.addSubview(collectionView)
+        NSLayoutConstraint.activate([
+            hintLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: V2NDesign.Space.sm),
+            hintLabel.leadingAnchor.constraint(equalTo: view.layoutMarginsGuide.leadingAnchor),
+            hintLabel.trailingAnchor.constraint(equalTo: view.layoutMarginsGuide.trailingAnchor),
+
+            collectionView.topAnchor.constraint(equalTo: hintLabel.bottomAnchor, constant: V2NDesign.Space.xs),
+            collectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
         _ = V2NGlassMaterial.sdkHasLiquidGlass()
     }
 
-    override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
         book.chapters
     }
 
-    override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "chapter", for: indexPath)
-        let chapter = indexPath.row + 1
-        let verseCount = book.verses.indices.contains(indexPath.row) ? book.verses[indexPath.row] : 0
-        var config = cell.defaultContentConfiguration()
-        config.text = String(localized: "Capítulo \(chapter)")
-        config.secondaryText = String(localized: "\(verseCount) versículos")
-        cell.contentConfiguration = config
-        cell.accessoryType = .disclosureIndicator
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NNumberCell.reuseId, for: indexPath) as! V2NNumberCell
+        cell.configure(number: indexPath.item + 1, style: .plain)
         return cell
     }
 
-    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        tableView.deselectRow(at: indexPath, animated: true)
-        let chapter = indexPath.row + 1
-        let verseCount = book.verses.indices.contains(indexPath.row) ? book.verses[indexPath.row] : 0
-        let verses = VerseNumberViewController(book: book, chapter: chapter, verseCount: verseCount, prefs: prefs)
-        navigationController?.pushViewController(verses, animated: true)
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        V2NHaptics.selection()
+        let chapter = indexPath.item + 1
+        let verseCount = book.verses.indices.contains(indexPath.item) ? book.verses[indexPath.item] : 0
+        navigationController?.pushViewController(
+            VerseNumberViewController(book: book, chapter: chapter, verseCount: verseCount, prefs: prefs),
+            animated: true
+        )
     }
 }
 
-// MARK: - Verse number picker (range: first tap start, second tap end)
+// MARK: - Verse number picker (grid + range: first tap start, second tap end)
 
-final class VerseNumberViewController: UITableViewController {
+final class VerseNumberViewController: UIViewController, UICollectionViewDelegate, UICollectionViewDataSource {
     private let book: NativeAPIClient.BibleBookDTO
     private let chapter: Int
     private let verseCount: Int
     private let prefs: NativeAPIClient.PrefsDTO?
     private var rangeStart: Int?
     private var rangeEnd: Int?
+    private var collectionView: UICollectionView!
+    private let hintLabel = UILabel()
 
     init(book: NativeAPIClient.BibleBookDTO, chapter: Int, verseCount: Int, prefs: NativeAPIClient.PrefsDTO?) {
         self.book = book
         self.chapter = chapter
         self.verseCount = verseCount
         self.prefs = prefs
-        super.init(style: .insetGrouped)
+        super.init(nibName: nil, bundle: nil)
     }
 
     @available(*, unavailable)
@@ -71,16 +96,50 @@ final class VerseNumberViewController: UITableViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        v2nApplyGroupedChrome()
+        V2NChrome.styleCanvas(view)
         title = String(localized: "\(book.abbr) \(chapter)")
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "verse")
         navigationItem.rightBarButtonItem = UIBarButtonItem(
             title: String(localized: "Capítulo inteiro"),
             style: .plain,
             target: self,
             action: #selector(selectWholeChapter)
         )
+
+        hintLabel.font = V2NDesign.caption()
+        hintLabel.textColor = .secondaryLabel
+        hintLabel.numberOfLines = 0
+        hintLabel.translatesAutoresizingMaskIntoConstraints = false
+        refreshHint()
+
+        collectionView = UICollectionView(frame: .zero, collectionViewLayout: V2NNumberGridLayout.make())
+        collectionView.translatesAutoresizingMaskIntoConstraints = false
+        collectionView.backgroundColor = .clear
+        collectionView.alwaysBounceVertical = true
+        collectionView.delegate = self
+        collectionView.dataSource = self
+        collectionView.register(V2NNumberCell.self, forCellWithReuseIdentifier: V2NNumberCell.reuseId)
+
+        view.addSubview(hintLabel)
+        view.addSubview(collectionView)
+        NSLayoutConstraint.activate([
+            hintLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: V2NDesign.Space.sm),
+            hintLabel.leadingAnchor.constraint(equalTo: view.layoutMarginsGuide.leadingAnchor),
+            hintLabel.trailingAnchor.constraint(equalTo: view.layoutMarginsGuide.trailingAnchor),
+
+            collectionView.topAnchor.constraint(equalTo: hintLabel.bottomAnchor, constant: V2NDesign.Space.xs),
+            collectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
         _ = V2NGlassMaterial.sdkHasLiquidGlass()
+    }
+
+    private func refreshHint() {
+        if let rangeStart, rangeEnd == nil {
+            hintLabel.text = String(localized: "Toque no versículo final (início: \(rangeStart))")
+        } else {
+            hintLabel.text = String(localized: "Toque para escolher · segundo toque define o intervalo")
+        }
     }
 
     @objc private func selectWholeChapter() {
@@ -92,56 +151,54 @@ final class VerseNumberViewController: UITableViewController {
         ))
     }
 
-    override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        if let rangeStart, rangeEnd == nil {
-            return String(localized: "Toque no versículo final (início: \(rangeStart))")
-        }
-        return String(localized: "Toque para escolher · segundo toque define o intervalo")
-    }
-
-    override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        verseCount
-    }
-
-    override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "verse", for: indexPath)
-        let verse = indexPath.row + 1
-        var config = cell.defaultContentConfiguration()
-        config.text = String(localized: "Versículo \(verse)")
-        cell.contentConfiguration = config
-        let inRange: Bool
+    private func style(for verse: Int) -> V2NNumberCell.Style {
         if let start = rangeStart, let end = rangeEnd {
             let lo = min(start, end)
             let hi = max(start, end)
-            inRange = verse >= lo && verse <= hi
-        } else if let start = rangeStart {
-            inRange = verse == start
-        } else {
-            inRange = false
+            if verse == lo || verse == hi { return .edge }
+            if verse > lo && verse < hi { return .inRange }
+            return .plain
         }
-        cell.accessoryType = inRange ? .checkmark : .none
+        if let start = rangeStart, verse == start { return .edge }
+        return .plain
+    }
+
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        verseCount
+    }
+
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NNumberCell.reuseId, for: indexPath) as! V2NNumberCell
+        let verse = indexPath.item + 1
+        cell.configure(number: verse, style: style(for: verse))
         return cell
     }
 
-    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        tableView.deselectRow(at: indexPath, animated: true)
-        let verse = indexPath.row + 1
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        V2NHaptics.selection()
+        let verse = indexPath.item + 1
         if rangeStart == nil || rangeEnd != nil {
             rangeStart = verse
             rangeEnd = nil
-            tableView.reloadData()
+            refreshHint()
+            collectionView.reloadData()
             return
         }
         rangeEnd = verse
-        tableView.reloadData()
+        refreshHint()
+        collectionView.reloadData()
         let start = min(rangeStart!, rangeEnd!)
         let end = max(rangeStart!, rangeEnd!)
-        openActions(passage: NativeAPIClient.PassageDTO(
-            bookId: book.id,
-            chapter: chapter,
-            verseStart: start,
-            verseEnd: end == start ? start : end
-        ))
+        // Brief highlight of the contiguous range, then open actions.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { [weak self] in
+            guard let self else { return }
+            self.openActions(passage: NativeAPIClient.PassageDTO(
+                bookId: self.book.id,
+                chapter: self.chapter,
+                verseStart: start,
+                verseEnd: end == start ? start : end
+            ))
+        }
     }
 
     private func openActions(passage: NativeAPIClient.PassageDTO) {
@@ -336,9 +393,9 @@ final class VerseActionsViewController: UITableViewController {
 
     private func openNote(_ note: NativeAPIClient.NoteDocument) {
         guard let tabs = tabBarController else { return }
-        // Caderno is index 2 in NativeRootTabBarController.
-        tabs.selectedIndex = 2
-        if let nav = tabs.viewControllers?[2] as? UINavigationController {
+        // Caderno is index 0 in NativeRootTabBarController.
+        tabs.selectedIndex = 0
+        if let nav = tabs.viewControllers?[0] as? UINavigationController {
             let detail = NoteDetailViewController(noteId: note.id, initial: note)
             nav.popToRootViewController(animated: false)
             nav.pushViewController(detail, animated: true)
@@ -396,25 +453,42 @@ final class VerseActionsViewController: UITableViewController {
     }
 
     private func promptNewList() {
-        let alert = UIAlertController(title: String(localized: "Nova lista"), message: nil, preferredStyle: .alert)
-        alert.addTextField { $0.placeholder = String(localized: "Nome da lista") }
-        alert.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
-        alert.addAction(UIAlertAction(title: String(localized: "Salvar"), style: .default) { [weak self] _ in
+        let form = V2NNamedCreateViewController(kind: .list) { [weak self] name in
             guard let self else { return }
-            let title = alert.textFields?.first?.text?.trimmingCharacters(in: .whitespacesAndNewlines)
             Task { @MainActor in
                 do {
                     let collection = try await NativeAPIClient.savePassageToCollection(
                         passage: self.passage,
-                        title: (title?.isEmpty == false) ? title : String(localized: "Minha lista")
+                        title: name
                     )
+                    if let nav = self.presentedViewController as? UINavigationController,
+                       let form = nav.viewControllers.first as? V2NNamedCreateViewController
+                    {
+                        form.finishSuccess()
+                    } else {
+                        self.dismiss(animated: true)
+                    }
                     self.statusLabel.text = String(localized: "Salvo em «\(collection.title)»")
                 } catch {
-                    self.presentAlert(title: String(localized: "Não foi possível salvar"), message: error.localizedDescription)
+                    if let nav = self.presentedViewController as? UINavigationController,
+                       let form = nav.viewControllers.first as? V2NNamedCreateViewController
+                    {
+                        form.presentFailure(error.localizedDescription)
+                    } else {
+                        self.presentAlert(title: String(localized: "Não foi possível salvar"), message: error.localizedDescription)
+                    }
                 }
             }
-        })
-        present(alert, animated: true)
+        }
+        let nav = UINavigationController(rootViewController: form)
+        V2NChrome.style(navigationController: nav)
+        if #available(iOS 15.0, *) {
+            if let sheet = nav.sheetPresentationController {
+                sheet.detents = [.medium(), .large()]
+                sheet.prefersGrabberVisible = true
+            }
+        }
+        present(nav, animated: true)
     }
 
     private func presentSignInNeeded() {
@@ -423,6 +497,7 @@ final class VerseActionsViewController: UITableViewController {
 
     private func presentAlert(title: String, message: String) {
         let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        alert.view.tintColor = V2NDesign.accent
         alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
         present(alert, animated: true)
     }
@@ -453,20 +528,30 @@ final class ThemesHomeViewController: UITableViewController, UISearchResultsUpda
         v2nApplyGroupedChrome()
         if !embedded {
             title = String(localized: "Temas")
+            navigationItem.rightBarButtonItem = UIBarButtonItem(
+                title: String(localized: "Novo"),
+                style: .plain,
+                target: self,
+                action: #selector(createTheme)
+            )
+            navigationItem.rightBarButtonItem?.accessibilityLabel = String(localized: "Novo tema")
         }
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "theme")
         search.searchResultsUpdater = self
         search.obscuresBackgroundDuringPresentation = false
         search.searchBar.placeholder = String(localized: "Buscar temas")
+        search.searchBar.tintColor = V2NDesign.accent
         if embedded {
             // Keep parent nav title/chips; search lives in the content area.
             embeddedSearch.placeholder = String(localized: "Buscar temas")
             embeddedSearch.delegate = self
             embeddedSearch.searchBarStyle = .minimal
+            embeddedSearch.tintColor = V2NDesign.accent
             embeddedSearch.sizeToFit()
             tableView.tableHeaderView = embeddedSearch
         } else {
             navigationItem.searchController = search
+            navigationItem.hidesSearchBarWhenScrolling = true
         }
         refreshControl = UIRefreshControl()
         refreshControl?.addTarget(self, action: #selector(reload), for: .valueChanged)
@@ -474,6 +559,55 @@ final class ThemesHomeViewController: UITableViewController, UISearchResultsUpda
         if !embedded {
             reload()
         }
+    }
+
+    @objc private func createTheme() {
+        guard NativeAPIClient.hasBearer else {
+            let alert = UIAlertController(
+                title: String(localized: "Entrar"),
+                message: String(localized: "Inicie sessão para criar um tema pessoal."),
+                preferredStyle: .alert
+            )
+            alert.view.tintColor = V2NDesign.accent
+            alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
+            present(alert, animated: true)
+            return
+        }
+        let form = V2NNamedCreateViewController(kind: .theme) { [weak self] name in
+            guard let self else { return }
+            Task { @MainActor in
+                do {
+                    // Personal themes are stored as user collections (same backend as Listas).
+                    let created = try await NativeAPIClient.createMyCollection(title: name)
+                    if let nav = self.presentedViewController as? UINavigationController,
+                       let form = nav.viewControllers.first as? V2NNamedCreateViewController
+                    {
+                        form.finishSuccess()
+                    } else {
+                        self.dismiss(animated: true)
+                    }
+                    self.navigationController?.pushViewController(
+                        MyCollectionDetailViewController(collection: created),
+                        animated: true
+                    )
+                } catch {
+                    if let nav = self.presentedViewController as? UINavigationController,
+                       let form = nav.viewControllers.first as? V2NNamedCreateViewController
+                    {
+                        form.presentFailure(error.localizedDescription)
+                    }
+                }
+            }
+        }
+        let nav = UINavigationController(rootViewController: form)
+        V2NChrome.style(navigationController: nav)
+        if #available(iOS 15.0, *) {
+            if let sheet = nav.sheetPresentationController {
+                sheet.detents = [.medium(), .large()]
+                sheet.prefersGrabberVisible = true
+            }
+        }
+        present(nav, animated: true)
     }
 
     func updatePrefs(_ prefs: NativeAPIClient.PrefsDTO?) {
@@ -734,6 +868,7 @@ final class MyCollectionsViewController: UITableViewController {
                 target: self,
                 action: #selector(createList)
             )
+            navigationItem.rightBarButtonItem?.accessibilityLabel = String(localized: "Nova lista")
         }
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "list")
         refreshControl = UIRefreshControl()
@@ -786,24 +921,52 @@ final class MyCollectionsViewController: UITableViewController {
     }
 
     @objc private func createList() {
-        let alert = UIAlertController(title: String(localized: "Nova lista"), message: nil, preferredStyle: .alert)
-        alert.addTextField { $0.placeholder = String(localized: "Nome") }
-        alert.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
-        alert.addAction(UIAlertAction(title: String(localized: "Criar"), style: .default) { [weak self] _ in
-            let title = alert.textFields?.first?.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            guard !title.isEmpty else { return }
+        guard NativeAPIClient.hasBearer else {
+            let alert = UIAlertController(
+                title: String(localized: "Entrar"),
+                message: String(localized: "Inicie sessão para ver suas listas de versículos."),
+                preferredStyle: .alert
+            )
+            alert.view.tintColor = V2NDesign.accent
+            alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
+            present(alert, animated: true)
+            return
+        }
+        let form = V2NNamedCreateViewController(kind: .list) { [weak self] name in
+            guard let self else { return }
             Task { @MainActor in
                 do {
-                    _ = try await NativeAPIClient.createMyCollection(title: title)
-                    self?.reload()
+                    let created = try await NativeAPIClient.createMyCollection(title: name)
+                    if let nav = self.presentedViewController as? UINavigationController,
+                       let form = nav.viewControllers.first as? V2NNamedCreateViewController
+                    {
+                        form.finishSuccess()
+                    } else {
+                        self.dismiss(animated: true)
+                    }
+                    self.reload()
+                    self.navigationController?.pushViewController(
+                        MyCollectionDetailViewController(collection: created),
+                        animated: true
+                    )
                 } catch {
-                    let err = UIAlertController(title: String(localized: "Erro"), message: error.localizedDescription, preferredStyle: .alert)
-                    err.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
-                    self?.present(err, animated: true)
+                    if let nav = self.presentedViewController as? UINavigationController,
+                       let form = nav.viewControllers.first as? V2NNamedCreateViewController
+                    {
+                        form.presentFailure(error.localizedDescription)
+                    }
                 }
             }
-        })
-        present(alert, animated: true)
+        }
+        let nav = UINavigationController(rootViewController: form)
+        V2NChrome.style(navigationController: nav)
+        if #available(iOS 15.0, *) {
+            if let sheet = nav.sheetPresentationController {
+                sheet.detents = [.medium(), .large()]
+                sheet.prefersGrabberVisible = true
+            }
+        }
+        present(nav, animated: true)
     }
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {

@@ -388,11 +388,17 @@ if (!rootTabs.includes("ProfileViewController") || rootTabs.includes('titleText:
   errors.push("Phase 3: a aba Perfil tem de usar ProfileViewController.");
 }
 if (!rootTabs.includes("VersesHomeViewController") || rootTabs.includes('titleText: "Versículos"')) {
-  errors.push("Phase 4: a aba Versículos tem de usar VersesHomeViewController.");
+  errors.push("Phase 4: a aba Ferramentas tem de usar VersesHomeViewController.");
 }
-// TestFlight 156: Leitura is a Versículos chip, not a root tab.
+if (!rootTabs.includes("Ferramentas") || !rootTabs.includes("selectedIndex = 0")) {
+  errors.push("Tab bar: Caderno default + Ferramentas (não Versículos).");
+}
+// Caderno · Grupos · Ferramentas · Perfil — Leitura is not a root tab.
 if (rootTabs.includes("ReadingHomeViewController") || /UITabBarItem\([\s\S]*Leitura/.test(rootTabs)) {
-  errors.push("Remova a aba Leitura do tab bar — Leitura fica sob Versículos (chip).");
+  errors.push("Remova a aba Leitura do tab bar — Leitura fica sob Ferramentas.");
+}
+if (!/NotebookListViewController[\s\S]*GroupsListViewController[\s\S]*VersesHomeViewController[\s\S]*ProfileViewController/.test(rootTabs)) {
+  errors.push("Ordem das abas: Caderno, Grupos, Ferramentas, Perfil.");
 }
 if (!project.includes("ReadingScreens.swift in Sources")) {
   errors.push("ReadingScreens.swift tem de estar no target Xcode.");
@@ -402,6 +408,9 @@ if (
   /V2NFilterChip\(id:\s*"lists"/.test(notebookList)
 ) {
   errors.push("Caderno não pode mostrar chips Temas/Listas (só filtros de notas).");
+}
+if (!notebookList.includes("hidesSearchBarWhenScrolling = true")) {
+  errors.push("Caderno: a busca tem de ocultar ao rolar (hidesSearchBarWhenScrolling).");
 }
 
 try {
@@ -421,40 +430,38 @@ if (!noteDetail.includes("Mover para grupo") || !noteDetail.includes("listGroups
 
 try {
   const versesHome = read("ios/App/App/VersesHomeViewController.swift");
-  if (!versesHome.includes("Temas") || !versesHome.includes("fetchBibleBooks")) {
-    errors.push("VersesHomeViewController tem de listar livros e abrir Temas.");
+  if (!versesHome.includes("Ferramentas") || !versesHome.includes("BooksHomeViewController") || !versesHome.includes("V2NToolCardCell")) {
+    errors.push("Ferramentas: home com 4 cards + BooksHomeViewController.");
   }
-  if (!versesHome.includes("ReadingHomeViewController") || !versesHome.includes('case reading = "reading"')) {
-    errors.push("Versículos tem de embutir Leitura como chip (ReadingHomeViewController).");
+  if (!versesHome.includes("ThemesHomeViewController") || !versesHome.includes("ReadingHomeViewController") || !versesHome.includes("MyCollectionsViewController")) {
+    errors.push("Ferramentas tem de abrir Temas, Listas e Leitura.");
   }
-  if (
-    /pushViewController\(\s*ThemesHomeViewController/.test(versesHome) ||
-    /pushViewController\(\s*MyCollectionsViewController/.test(versesHome) ||
-    /pushViewController\(\s*ReadingHomeViewController/.test(versesHome)
-  ) {
-    errors.push("Chips Livros/Temas/Listas/Leitura têm de trocar o conteúdo in-place (sem push).");
+  if (versesHome.includes("V2NFilterChipsView") || versesHome.includes("chips.configure")) {
+    errors.push("Remova o seletor de chips da home de Ferramentas.");
   }
   if (!versesHome.includes("applyBooksCompact") || !versesHome.includes("booksCompact")) {
-    errors.push("Versículos tem de manter Siglas/Nomes sincronizados com booksCompact no primeiro load.");
+    errors.push("Livros tem de manter Siglas/Nomes sincronizados com booksCompact no primeiro load.");
   }
   if (!versesHome.includes("refreshCollectionLayoutIfNeeded") || !versesHome.includes("pendingLayoutRefresh")) {
-    errors.push("Versículos tem de invalidar o grid só com bounds válidos (lista vazia no launch).");
+    errors.push("Livros tem de invalidar o grid só com bounds válidos (lista vazia no launch).");
   }
   if (versesHome.includes("UISearchController") || versesHome.includes("Buscar livro") || versesHome.includes("magnifyingglass")) {
-    errors.push("Remova a busca da tela Versículos (ícone e UISearchController).");
+    errors.push("Remova a busca da tela Livros/Ferramentas (ícone e UISearchController).");
   }
   if (versesHome.includes("livros · Bíblia") || versesHome.includes("statusBanner")) {
-    errors.push("Remova o subtítulo «N livros · Bíblia: …» do header de Versículos.");
+    errors.push("Remova o subtítulo «N livros · Bíblia: …» do header.");
   }
-  // TestFlight 156: restore large title; Siglas/Nomes lives on the OT header inside the scroll view.
   if (!versesHome.includes("largeTitleDisplayMode = .always") || !versesHome.includes("prefersLargeTitles = true")) {
-    errors.push("Versículos tem de restaurar o large title (largeTitleDisplayMode = .always).");
+    errors.push("Ferramentas/Livros têm de usar large title.");
   }
   if (!versesHome.includes("trailing: indexPath.section == 0 ? modeToggle") && !versesHome.includes("trailing: indexPath.section == 0 ? modeToggle : nil")) {
     errors.push("Siglas/Nomes (modeToggle) tem de ficar na header do Antigo Testamento (scroll).");
   }
   if (!components.includes("trailing:") || !components.includes("trailingHost")) {
     errors.push("V2NBookSectionHeaderView tem de aceitar trailing (Siglas/Nomes no scroll).");
+  }
+  if (!components.includes("V2NNamedCreateViewController") || !components.includes("V2NNumberCell") || !components.includes("V2NBibleAppLogoCell")) {
+    errors.push("Faltam componentes: create form, number grid, bible logo tiles.");
   }
   const groupsListSync = read("ios/App/App/GroupsListViewController.swift");
   if (groupsListSync.includes("grupos · sincronizado")) {
@@ -465,10 +472,13 @@ try {
     errors.push("Leitura home tem de usar cards (UICollectionView) como a web original.");
   }
   if (!readingHome.includes("init(embedded:") || !readingHome.includes("reloadFromParent")) {
-    errors.push("ReadingHomeViewController tem de suportar embedded + reloadFromParent sob Versículos.");
+    errors.push("ReadingHomeViewController tem de manter init(embedded:) + reloadFromParent.");
   }
   if (!deep.includes('selectHomeFilter("reading")') && !deep.includes("selectHomeFilter(\"reading\")")) {
-    errors.push("Deep links de Leitura têm de abrir o chip Leitura em Versículos.");
+    errors.push("Deep links de Leitura têm de abrir Ferramentas → Leitura.");
+  }
+  if (!deep.includes("Tab.tools") && !deep.includes("selectedIndex = Tab.tools") && !/selectedIndex = 2/.test(deep)) {
+    errors.push("Deep links: Ferramentas é o índice 2 (Caderno=0, Grupos=1).");
   }
   const versesScreens = read("ios/App/App/VersesScreens.swift");
   if (
@@ -478,8 +488,18 @@ try {
   ) {
     errors.push("Faltam telas nativas de ações de versículo / adicionar à nota.");
   }
+  if (!versesScreens.includes("V2NNumberCell") || !versesScreens.includes("V2NNumberGridLayout")) {
+    errors.push("Picker de capítulo/versículo tem de usar grelha numérica.");
+  }
+  if (!versesScreens.includes("V2NNamedCreateViewController")) {
+    errors.push("Criar lista/tema tem de usar o formulário V2NNamedCreateViewController (sem alerta azul).");
+  }
   if (/Partilhar|Guardar|utilizador|Definições/.test(versesScreens) || /Partilhar|Guardar|utilizador|Definições/.test(versesHome)) {
-    errors.push("Strings de Versículos têm de ser pt-BR (não Partilhar/Guardar/utilizador/Definições).");
+    errors.push("Strings de Ferramentas têm de ser pt-BR (não Partilhar/Guardar/utilizador/Definições).");
+  }
+  const bibleSettings = read("ios/App/App/ProfileSettingsScreens.swift");
+  if (!bibleSettings.includes("V2NBibleAppLogoCell") || !bibleSettings.includes("BibleApp_")) {
+    errors.push("App de Bíblia: grelha de logos (V2NBibleAppLogoCell + assets).");
   }
 } catch {
   errors.push("Arquivo Phase 4 em falta: VersesHomeViewController.swift / VersesScreens.swift");

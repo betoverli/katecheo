@@ -48,6 +48,8 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
         search.obscuresBackgroundDuringPresentation = false
         search.searchBar.placeholder = group == nil ? String(localized: "Pesquisar notas") : String(localized: "Pesquisar notas do grupo")
         navigationItem.searchController = search
+        // Standard iOS: search collapses while scrolling the list; pull down reveals it.
+        navigationItem.hidesSearchBarWhenScrolling = true
         definesPresentationContext = true
 
         tableView.translatesAutoresizingMaskIntoConstraints = false
@@ -59,14 +61,11 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
         tableView.estimatedRowHeight = 80
         refresh.addTarget(self, action: #selector(reload), for: .valueChanged)
         tableView.refreshControl = refresh
+        // Edge-to-edge under the nav bar so hidesSearchBarWhenScrolling can track this scroll view.
         view.addSubview(tableView)
-
         view.addSubview(emptyState)
-        view.addSubview(statusBanner)
 
-        let bannerTop: NSLayoutYAxisAnchor
         if group == nil {
-            view.addSubview(filterChips)
             filterChips.configure(
                 chips: [
                     V2NFilterChip(id: NoteFilter.all.rawValue, title: String(localized: "Tudo"), systemImage: "square.stack"),
@@ -79,31 +78,20 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             filterChips.onSelect = { [weak self] id in
                 self?.handleNotebookChip(id)
             }
-            NSLayoutConstraint.activate([
-                filterChips.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: V2NDesign.Space.xxs),
-                filterChips.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-                filterChips.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            ])
-            bannerTop = filterChips.bottomAnchor
-        } else {
-            bannerTop = view.safeAreaLayoutGuide.topAnchor
         }
 
         NSLayoutConstraint.activate([
-            statusBanner.topAnchor.constraint(equalTo: bannerTop, constant: V2NDesign.Space.xxs),
-            statusBanner.leadingAnchor.constraint(equalTo: view.layoutMarginsGuide.leadingAnchor),
-            statusBanner.trailingAnchor.constraint(equalTo: view.layoutMarginsGuide.trailingAnchor),
-
-            tableView.topAnchor.constraint(equalTo: statusBanner.bottomAnchor, constant: V2NDesign.Space.xxs),
+            tableView.topAnchor.constraint(equalTo: view.topAnchor),
             tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
 
-            emptyState.topAnchor.constraint(equalTo: statusBanner.bottomAnchor),
+            emptyState.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             emptyState.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             emptyState.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             emptyState.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
         ])
+        installTableHeader()
 
         if group == nil {
             notes = LocalNoteCache.loadNotes()
@@ -136,7 +124,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 if group != nil {
                     groupCards = []
                     applyFilter()
-                    statusBanner.setStatus(String(localized: "Faça login para ver as notas do grupo."), kind: .warning)
+                    setBannerStatus(String(localized: "Faça login para ver as notas do grupo."), kind: .warning)
                     showEmpty(
                         symbol: "person.badge.key",
                         title: String(localized: "Entre para sincronizar"),
@@ -147,7 +135,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 }
                 notes = LocalNoteCache.loadNotes()
                 applyFilter()
-                statusBanner.setStatus(
+                setBannerStatus(
                     notes.isEmpty ? String(localized: "Faça login para sincronizar o caderno.") : String(localized: "Offline / sem sessão — cache local."),
                     kind: notes.isEmpty ? .warning : .neutral
                 )
@@ -172,7 +160,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                     groupCards = try await NativeAPIClient.listGroupNotes(groupId: group.id)
                     notes = groupCards.compactMap { $0.document }
                     // No persistent sync success banner — list content is enough.
-                    statusBanner.setStatus(nil)
+                    setBannerStatus(nil)
                     applyFilter()
                     return
                 }
@@ -180,10 +168,10 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 async let remoteSpeakers = NativeAPIClient.listSpeakers()
                 notes = try await remoteNotes
                 speakers = try await remoteSpeakers
-                statusBanner.setStatus(nil)
+                setBannerStatus(nil)
                 applyFilter()
             } catch NativeAPIClient.APIError.unauthorized {
-                statusBanner.setStatus(String(localized: "Sessão expirada. Entre novamente."), kind: .error)
+                setBannerStatus(String(localized: "Sessão expirada. Entre novamente."), kind: .error)
                 if group == nil {
                     notes = LocalNoteCache.loadNotes()
                 }
@@ -200,15 +188,15 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                     notes = LocalNoteCache.loadNotes()
                     let pending = NativeOutbox.pendingCount
                     if pending > 0 {
-                        statusBanner.setStatus(
+                        setBannerStatus(
                             String(localized: "Sem rede — mostrando cache · \(pending) pendente(s)."),
                             kind: .warning
                         )
                     } else {
-                        statusBanner.setStatus(String(localized: "Sem rede — mostrando cache."), kind: .warning)
+                        setBannerStatus(String(localized: "Sem rede — mostrando cache."), kind: .warning)
                     }
                 } else {
-                    statusBanner.setStatus(String(localized: "Sem rede. \(error.localizedDescription)"), kind: .error)
+                    setBannerStatus(String(localized: "Sem rede. \(error.localizedDescription)"), kind: .error)
                 }
                 applyFilter()
             }
@@ -216,6 +204,56 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     }
 
     private var isGroupMode: Bool { group != nil }
+
+    /// Chips + status live in the table header so scrolling the list collapses the nav search bar.
+    private func installTableHeader() {
+        let width = max(view.bounds.width, UIScreen.main.bounds.width)
+        let header = UIView(frame: CGRect(x: 0, y: 0, width: width, height: 1))
+        header.backgroundColor = .clear
+
+        var topAnchor = header.topAnchor
+        var topPad: CGFloat = V2NDesign.Space.xxs
+
+        if group == nil {
+            filterChips.removeFromSuperview()
+            filterChips.translatesAutoresizingMaskIntoConstraints = false
+            header.addSubview(filterChips)
+            NSLayoutConstraint.activate([
+                filterChips.topAnchor.constraint(equalTo: header.topAnchor, constant: V2NDesign.Space.xxs),
+                filterChips.leadingAnchor.constraint(equalTo: header.leadingAnchor),
+                filterChips.trailingAnchor.constraint(equalTo: header.trailingAnchor),
+            ])
+            topAnchor = filterChips.bottomAnchor
+            topPad = V2NDesign.Space.xxs
+        }
+
+        statusBanner.removeFromSuperview()
+        statusBanner.translatesAutoresizingMaskIntoConstraints = false
+        header.addSubview(statusBanner)
+        let bannerHeight = statusBanner.text?.isEmpty == false ? statusBanner.heightAnchor.constraint(greaterThanOrEqualToConstant: 18) : statusBanner.heightAnchor.constraint(equalToConstant: 0)
+        NSLayoutConstraint.activate([
+            statusBanner.topAnchor.constraint(equalTo: topAnchor, constant: topPad),
+            statusBanner.leadingAnchor.constraint(equalTo: header.layoutMarginsGuide.leadingAnchor),
+            statusBanner.trailingAnchor.constraint(equalTo: header.layoutMarginsGuide.trailingAnchor),
+            bannerHeight,
+            statusBanner.bottomAnchor.constraint(equalTo: header.bottomAnchor, constant: -V2NDesign.Space.xxs),
+        ])
+
+        header.setNeedsLayout()
+        header.layoutIfNeeded()
+        let height = header.systemLayoutSizeFitting(
+            CGSize(width: width, height: UIView.layoutFittingCompressedSize.height),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        ).height
+        header.frame = CGRect(x: 0, y: 0, width: width, height: max(height, 1))
+        tableView.tableHeaderView = header
+    }
+
+    private func setBannerStatus(_ text: String?, kind: V2NStatusBanner.Kind = .neutral) {
+        statusBanner.setStatus(text, kind: kind)
+        installTableHeader()
+    }
 
     private func showEmpty(symbol: String, title: String, message: String, actionTitle: String? = nil) {
         emptyState.show(

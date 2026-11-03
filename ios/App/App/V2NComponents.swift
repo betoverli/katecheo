@@ -797,3 +797,468 @@ enum V2NBookGridLayout {
         make(isCompact: { compact })
     }
 }
+
+// MARK: - Number grid (chapter / verse pickers)
+
+enum V2NNumberGridLayout {
+    static func make(columns: Int = 5) -> UICollectionViewCompositionalLayout {
+        UICollectionViewCompositionalLayout { _, env in
+            let width = env.container.effectiveContentSize.width
+            let cols = max(4, width > 500 ? min(10, columns + 3) : columns)
+            let itemSize = NSCollectionLayoutSize(
+                widthDimension: .fractionalWidth(1 / CGFloat(cols)),
+                heightDimension: .absolute(48)
+            )
+            let item = NSCollectionLayoutItem(layoutSize: itemSize)
+            item.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4)
+            let groupSize = NSCollectionLayoutSize(
+                widthDimension: .fractionalWidth(1),
+                heightDimension: .absolute(48)
+            )
+            let group = NSCollectionLayoutGroup.horizontal(
+                layoutSize: groupSize,
+                subitem: item,
+                count: cols
+            )
+            let section = NSCollectionLayoutSection(group: group)
+            section.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 12, bottom: 16, trailing: 12)
+            return section
+        }
+    }
+}
+
+final class V2NNumberCell: UICollectionViewCell {
+    static let reuseId = "V2NNumberCell"
+    private let label = UILabel()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        contentView.layer.cornerRadius = V2NDesign.Radius.sm
+        contentView.layer.cornerCurve = .continuous
+        contentView.layer.borderWidth = 0.5
+        contentView.layer.borderColor = V2NDesign.separator.cgColor
+
+        label.font = V2NDesign.preferred(.subheadline, weight: .semibold)
+        label.textAlignment = .center
+        label.adjustsFontForContentSizeCategory = true
+        label.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(label)
+        NSLayoutConstraint.activate([
+            label.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+            label.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
+        ])
+        isAccessibilityElement = true
+        accessibilityTraits = .button
+        apply(style: .plain)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    enum Style { case plain, edge, inRange }
+
+    func configure(number: Int, style: Style) {
+        label.text = "\(number)"
+        accessibilityLabel = "\(number)"
+        apply(style: style)
+    }
+
+    private func apply(style: Style) {
+        switch style {
+        case .plain:
+            contentView.backgroundColor = V2NDesign.surface
+            label.textColor = .label
+            contentView.layer.borderWidth = 0.5
+        case .edge:
+            contentView.backgroundColor = V2NDesign.accent
+            label.textColor = .white
+            contentView.layer.borderWidth = 0
+        case .inRange:
+            contentView.backgroundColor = V2NDesign.accentSoft
+            label.textColor = .label
+            contentView.layer.borderWidth = 0
+        }
+    }
+}
+
+// MARK: - Tools home cards
+
+final class V2NToolCardCell: UICollectionViewCell {
+    static let reuseId = "V2NToolCardCell"
+    private let card = UIView()
+    private let iconWrap = UIView()
+    private let iconView = UIImageView()
+    private let titleLabel = UILabel()
+    private let subtitleLabel = UILabel()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        card.translatesAutoresizingMaskIntoConstraints = false
+        card.backgroundColor = V2NDesign.surface
+        card.layer.cornerRadius = V2NDesign.Radius.lg
+        card.layer.cornerCurve = .continuous
+        V2NDesign.applyCardShadow(to: card.layer)
+        contentView.addSubview(card)
+
+        iconWrap.translatesAutoresizingMaskIntoConstraints = false
+        iconWrap.backgroundColor = V2NDesign.accentSoft
+        iconWrap.layer.cornerRadius = V2NDesign.Radius.md
+        iconWrap.layer.cornerCurve = .continuous
+        card.addSubview(iconWrap)
+
+        iconView.translatesAutoresizingMaskIntoConstraints = false
+        iconView.contentMode = .scaleAspectFit
+        iconView.tintColor = V2NDesign.accent
+        iconWrap.addSubview(iconView)
+
+        titleLabel.font = V2NDesign.preferred(.headline, weight: .semibold)
+        titleLabel.textColor = .label
+        titleLabel.adjustsFontForContentSizeCategory = true
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        subtitleLabel.font = V2NDesign.caption()
+        subtitleLabel.textColor = .secondaryLabel
+        subtitleLabel.numberOfLines = 2
+        subtitleLabel.adjustsFontForContentSizeCategory = true
+        subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        card.addSubview(titleLabel)
+        card.addSubview(subtitleLabel)
+
+        NSLayoutConstraint.activate([
+            card.topAnchor.constraint(equalTo: contentView.topAnchor),
+            card.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            card.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            card.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+
+            iconWrap.topAnchor.constraint(equalTo: card.topAnchor, constant: 16),
+            iconWrap.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 16),
+            iconWrap.widthAnchor.constraint(equalToConstant: 44),
+            iconWrap.heightAnchor.constraint(equalToConstant: 44),
+
+            iconView.centerXAnchor.constraint(equalTo: iconWrap.centerXAnchor),
+            iconView.centerYAnchor.constraint(equalTo: iconWrap.centerYAnchor),
+            iconView.widthAnchor.constraint(equalToConstant: 22),
+            iconView.heightAnchor.constraint(equalToConstant: 22),
+
+            titleLabel.topAnchor.constraint(equalTo: iconWrap.bottomAnchor, constant: 14),
+            titleLabel.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 16),
+            titleLabel.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -16),
+
+            subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 4),
+            subtitleLabel.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 16),
+            subtitleLabel.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -16),
+            subtitleLabel.bottomAnchor.constraint(lessThanOrEqualTo: card.bottomAnchor, constant: -16),
+        ])
+        isAccessibilityElement = true
+        accessibilityTraits = .button
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func configure(title: String, subtitle: String, systemImage: String) {
+        titleLabel.text = title
+        subtitleLabel.text = subtitle
+        iconView.image = UIImage(systemName: systemImage)
+        accessibilityLabel = "\(title). \(subtitle)"
+    }
+}
+
+// MARK: - Bible app logo tile
+
+final class V2NBibleAppLogoCell: UICollectionViewCell {
+    static let reuseId = "V2NBibleAppLogoCell"
+    private let logo = UIImageView()
+    private let nameLabel = UILabel()
+    private let ring = UIView()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        contentView.backgroundColor = V2NDesign.surface
+        contentView.layer.cornerRadius = V2NDesign.Radius.md
+        contentView.layer.cornerCurve = .continuous
+        contentView.layer.borderWidth = 1
+        contentView.layer.borderColor = V2NDesign.separator.cgColor
+
+        ring.translatesAutoresizingMaskIntoConstraints = false
+        ring.backgroundColor = .clear
+        ring.layer.cornerRadius = 14
+        ring.layer.cornerCurve = .continuous
+        ring.clipsToBounds = true
+        contentView.addSubview(ring)
+
+        logo.translatesAutoresizingMaskIntoConstraints = false
+        logo.contentMode = .scaleAspectFill
+        logo.clipsToBounds = true
+        logo.layer.cornerRadius = 12
+        logo.layer.cornerCurve = .continuous
+        ring.addSubview(logo)
+
+        nameLabel.font = V2NDesign.caption()
+        nameLabel.textColor = .secondaryLabel
+        nameLabel.textAlignment = .center
+        nameLabel.numberOfLines = 2
+        nameLabel.adjustsFontForContentSizeCategory = true
+        nameLabel.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(nameLabel)
+
+        NSLayoutConstraint.activate([
+            ring.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 12),
+            ring.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+            ring.widthAnchor.constraint(equalToConstant: 56),
+            ring.heightAnchor.constraint(equalToConstant: 56),
+
+            logo.centerXAnchor.constraint(equalTo: ring.centerXAnchor),
+            logo.centerYAnchor.constraint(equalTo: ring.centerYAnchor),
+            logo.widthAnchor.constraint(equalToConstant: 52),
+            logo.heightAnchor.constraint(equalToConstant: 52),
+
+            nameLabel.topAnchor.constraint(equalTo: ring.bottomAnchor, constant: 8),
+            nameLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 6),
+            nameLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -6),
+            nameLabel.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor, constant: -8),
+        ])
+        isAccessibilityElement = true
+        accessibilityTraits = .button
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func configure(name: String, image: UIImage?, selected: Bool) {
+        nameLabel.text = name
+        logo.image = image
+        accessibilityLabel = name
+        accessibilityTraits = selected ? [.button, .selected] : .button
+        if selected {
+            contentView.layer.borderWidth = 2
+            contentView.layer.borderColor = V2NDesign.accent.cgColor
+            contentView.backgroundColor = V2NDesign.accentSoft
+            nameLabel.textColor = V2NDesign.accent
+            nameLabel.font = V2NDesign.preferred(.caption1, weight: .semibold)
+        } else {
+            contentView.layer.borderWidth = 1
+            contentView.layer.borderColor = V2NDesign.separator.cgColor
+            contentView.backgroundColor = V2NDesign.surface
+            nameLabel.textColor = .secondaryLabel
+            nameLabel.font = V2NDesign.caption()
+        }
+    }
+}
+
+// MARK: - Branded create-name form (Lists / Themes — no system-blue alerts)
+
+/// Polished form sheet for naming a new list or theme. Replaces default UIAlertController create flows.
+final class V2NNamedCreateViewController: UIViewController, UITextFieldDelegate {
+    enum Kind {
+        case list
+        case theme
+
+        var title: String {
+            switch self {
+            case .list: return String(localized: "Nova lista")
+            case .theme: return String(localized: "Novo tema")
+            }
+        }
+
+        var placeholder: String {
+            switch self {
+            case .list: return String(localized: "Nome da lista")
+            case .theme: return String(localized: "Nome do tema")
+            }
+        }
+
+        var lead: String {
+            switch self {
+            case .list: return String(localized: "Dê um nome curto para a sua lista de versículos.")
+            case .theme: return String(localized: "Dê um nome curto para o seu tema pessoal.")
+            }
+        }
+
+        var confirmTitle: String {
+            switch self {
+            case .list: return String(localized: "Criar lista")
+            case .theme: return String(localized: "Criar tema")
+            }
+        }
+
+        var symbol: String {
+            switch self {
+            case .list: return "bookmark.fill"
+            case .theme: return "tag.fill"
+            }
+        }
+    }
+
+    private let kind: Kind
+    private let onConfirm: (String) -> Void
+    private let nameField = UITextField()
+    private let confirmButton = UIButton(type: .system)
+    private let statusLabel = UILabel()
+    private var busy = false
+
+    init(kind: Kind, onConfirm: @escaping (String) -> Void) {
+        self.kind = kind
+        self.onConfirm = onConfirm
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        V2NChrome.styleCanvas(view)
+        title = kind.title
+        navigationItem.leftBarButtonItem = UIBarButtonItem(
+            title: String(localized: "Cancelar"),
+            style: .plain,
+            target: self,
+            action: #selector(cancel)
+        )
+
+        let scroll = UIScrollView()
+        scroll.translatesAutoresizingMaskIntoConstraints = false
+        scroll.alwaysBounceVertical = true
+        scroll.keyboardDismissMode = .interactive
+        view.addSubview(scroll)
+
+        let stack = UIStackView()
+        stack.axis = .vertical
+        stack.spacing = V2NDesign.Space.md
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        scroll.addSubview(stack)
+
+        let iconWrap = UIView()
+        iconWrap.translatesAutoresizingMaskIntoConstraints = false
+        iconWrap.backgroundColor = V2NDesign.accentSoft
+        iconWrap.layer.cornerRadius = V2NDesign.Radius.lg
+        iconWrap.layer.cornerCurve = .continuous
+
+        let icon = UIImageView(image: UIImage(systemName: kind.symbol))
+        icon.translatesAutoresizingMaskIntoConstraints = false
+        icon.tintColor = V2NDesign.accent
+        icon.contentMode = .scaleAspectFit
+        icon.preferredSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: 28, weight: .semibold)
+        iconWrap.addSubview(icon)
+
+        let lead = UILabel()
+        lead.text = kind.lead
+        lead.font = V2NDesign.rowSubtitle()
+        lead.textColor = .secondaryLabel
+        lead.numberOfLines = 0
+        lead.adjustsFontForContentSizeCategory = true
+
+        styleField(nameField, placeholder: kind.placeholder)
+        nameField.delegate = self
+        nameField.returnKeyType = .done
+        nameField.addTarget(self, action: #selector(nameChanged), for: .editingChanged)
+        nameField.becomeFirstResponder()
+
+        V2NButtonStyle.applyPrimary(to: confirmButton, title: kind.confirmTitle)
+        confirmButton.addTarget(self, action: #selector(confirm), for: .touchUpInside)
+        confirmButton.isEnabled = false
+        confirmButton.alpha = 0.45
+
+        statusLabel.font = V2NDesign.caption()
+        statusLabel.textColor = V2NDesign.danger
+        statusLabel.numberOfLines = 0
+        statusLabel.isHidden = true
+
+        let iconRow = UIView()
+        iconRow.translatesAutoresizingMaskIntoConstraints = false
+        iconRow.addSubview(iconWrap)
+        NSLayoutConstraint.activate([
+            iconWrap.leadingAnchor.constraint(equalTo: iconRow.leadingAnchor),
+            iconWrap.topAnchor.constraint(equalTo: iconRow.topAnchor),
+            iconWrap.bottomAnchor.constraint(equalTo: iconRow.bottomAnchor),
+            iconWrap.widthAnchor.constraint(equalToConstant: 64),
+            iconWrap.heightAnchor.constraint(equalToConstant: 64),
+            icon.centerXAnchor.constraint(equalTo: iconWrap.centerXAnchor),
+            icon.centerYAnchor.constraint(equalTo: iconWrap.centerYAnchor),
+            icon.widthAnchor.constraint(equalToConstant: 30),
+            icon.heightAnchor.constraint(equalToConstant: 30),
+        ])
+
+        stack.addArrangedSubview(iconRow)
+        stack.addArrangedSubview(lead)
+        stack.addArrangedSubview(nameField)
+        stack.addArrangedSubview(confirmButton)
+        stack.addArrangedSubview(statusLabel)
+        stack.setCustomSpacing(V2NDesign.Space.lg, after: lead)
+
+        NSLayoutConstraint.activate([
+            scroll.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            scroll.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            scroll.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            scroll.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+
+            stack.topAnchor.constraint(equalTo: scroll.contentLayoutGuide.topAnchor, constant: V2NDesign.Space.lg),
+            stack.leadingAnchor.constraint(equalTo: scroll.frameLayoutGuide.leadingAnchor, constant: V2NDesign.Space.lg),
+            stack.trailingAnchor.constraint(equalTo: scroll.frameLayoutGuide.trailingAnchor, constant: -V2NDesign.Space.lg),
+            stack.bottomAnchor.constraint(equalTo: scroll.contentLayoutGuide.bottomAnchor, constant: -V2NDesign.Space.xl),
+            stack.widthAnchor.constraint(equalTo: scroll.frameLayoutGuide.widthAnchor, constant: -V2NDesign.Space.lg * 2),
+
+            nameField.heightAnchor.constraint(equalToConstant: 52),
+        ])
+    }
+
+    private func styleField(_ field: UITextField, placeholder: String) {
+        field.placeholder = placeholder
+        field.borderStyle = .none
+        field.backgroundColor = V2NDesign.surface
+        field.layer.cornerRadius = V2NDesign.Radius.md
+        field.layer.cornerCurve = .continuous
+        field.layer.borderWidth = 1
+        field.layer.borderColor = V2NDesign.separator.cgColor
+        field.font = V2NDesign.body()
+        field.tintColor = V2NDesign.accent
+        field.clearButtonMode = .whileEditing
+        field.autocapitalizationType = .sentences
+        field.returnKeyType = .done
+        let pad = UIView(frame: CGRect(x: 0, y: 0, width: 14, height: 1))
+        field.leftView = pad
+        field.leftViewMode = .always
+        field.rightView = UIView(frame: CGRect(x: 0, y: 0, width: 14, height: 1))
+        field.rightViewMode = .always
+        field.accessibilityLabel = placeholder
+    }
+
+    @objc private func nameChanged() {
+        let ok = !(nameField.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        confirmButton.isEnabled = ok && !busy
+        confirmButton.alpha = ok && !busy ? 1 : 0.45
+        statusLabel.isHidden = true
+    }
+
+    @objc private func cancel() {
+        dismiss(animated: true)
+    }
+
+    @objc private func confirm() {
+        let name = (nameField.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, !busy else { return }
+        busy = true
+        confirmButton.isEnabled = false
+        confirmButton.alpha = 0.45
+        nameField.resignFirstResponder()
+        onConfirm(name)
+    }
+
+    func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+        confirm()
+        return true
+    }
+
+    func presentFailure(_ message: String) {
+        busy = false
+        nameChanged()
+        statusLabel.text = message
+        statusLabel.isHidden = false
+    }
+
+    func finishSuccess() {
+        dismiss(animated: true)
+    }
+}
