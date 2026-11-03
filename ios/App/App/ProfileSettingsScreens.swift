@@ -472,10 +472,10 @@ final class ProfileNotifyViewController: UITableViewController {
         var config = cell.defaultContentConfiguration()
         if indexPath.section == 0 {
             let count = notify.apnsDevices ?? 0
-            config.text = "Push neste dispositivo"
-            config.secondaryText = count > 0 ? "Registrado (\(count))" : "Não registrado"
-            cell.accessoryType = .none
-            cell.selectionStyle = .none
+            config.text = "Ativar push neste iPhone"
+            config.secondaryText = count > 0 ? "Registrado (\(count))" : "Toque para pedir permissão"
+            cell.accessoryType = .disclosureIndicator
+            cell.selectionStyle = .default
             cell.contentConfiguration = config
             return cell
         }
@@ -510,6 +510,31 @@ final class ProfileNotifyViewController: UITableViewController {
         case "shares": notify.shares = on
         case "groups": notify.groups = on
         default: break
+        }
+    }
+
+    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        tableView.deselectRow(at: indexPath, animated: true)
+        guard indexPath.section == 0 else { return }
+        Task { @MainActor in
+            let ok = await NativePushService.shared.enable()
+            if ok {
+                // Refresh device count from server after registration settles.
+                try? await Task.sleep(nanoseconds: 800_000_000)
+                if let latest = try? await NativeAPIClient.getNotifyPrefs() {
+                    notify = latest
+                }
+                tableView.reloadSections(IndexSet(integer: 0), with: .automatic)
+                onSaved()
+            } else {
+                let alert = UIAlertController(
+                    title: "Notificações",
+                    message: "Permissão negada. Ative nas Configurações do iOS se quiser alertas.",
+                    preferredStyle: .alert
+                )
+                alert.addAction(UIAlertAction(title: "OK", style: .default))
+                present(alert, animated: true)
+            }
         }
     }
 

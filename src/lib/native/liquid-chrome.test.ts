@@ -73,9 +73,8 @@ describe("suspensionFromDom", () => {
   });
 });
 
-describe("native underlap", () => {
+describe("native underlap (website CSS; Cap LiquidChrome removed in Phase 5)", () => {
   const css = readFileSync(new URL("../../styles.css", import.meta.url), "utf8");
-  const swift = readFileSync(new URL("../../../ios/App/App/LiquidChrome.swift", import.meta.url), "utf8");
 
   it("does not reserve a solid header band behind the native top bar", () => {
     assert.doesNotMatch(css, /height:\s*var\(--native-top-inset\)/);
@@ -87,14 +86,9 @@ describe("native underlap", () => {
     assert.match(css, /html\.native-ios\.native-top main\.note-screen > \.screen-body/);
   });
 
-  it("keeps search inside the title row and does not paint a glass slab", () => {
-    assert.match(swift, /private let barHeight: CGFloat = 44/);
-    assert.doesNotMatch(swift, /searchVisible \? 52/);
-    assert.match(swift, /magnifyingglass/);
-    assert.doesNotMatch(swift, /topPlate/);
-    assert.doesNotMatch(swift, /tabPlate/);
-    assert.match(swift, /configureWithTransparentBackground\(\)/);
-    assert.match(swift, /backgroundEffect = nil/);
+  it("Phase 5: LiquidChrome.swift is gone from the iOS target", () => {
+    const pbx = readFileSync(new URL("../../../ios/App/App.xcodeproj/project.pbxproj", import.meta.url), "utf8");
+    assert.doesNotMatch(pbx, /LiquidChrome\.swift/);
   });
 });
 

@@ -1,10 +1,8 @@
 import UIKit
-import Capacitor
 import WebKit
 
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     var window: UIWindow?
-    private var modeObserver: NSObjectProtocol?
 
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
         guard let windowScene = scene as? UIWindowScene else { return }
@@ -13,35 +11,51 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         window?.rootViewController = AppRoot.makeRootViewController()
         window?.makeKeyAndVisible()
 
-        modeObserver = NotificationCenter.default.addObserver(
-            forName: NativeShellMode.didChangeNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            guard let window = self?.window else { return }
-            let next = AppRoot.makeRootViewController()
-            UIView.transition(with: window, duration: 0.28, options: .transitionCrossDissolve, animations: {
-                window.rootViewController = next
-            })
-        }
-
         // Existing Cap users: copy web session cookie into Keychain before notes load.
+        // Must stay on main — WKWebsiteDataStore init off-main crashes WebKit.
         Task { @MainActor in
             let migrated = await NativeSessionBootstrap.migrateCookieToKeychainIfNeeded()
             if migrated {
                 NotificationCenter.default.post(name: .nativeSessionDidChange, object: nil)
             }
+            NativePushService.shared.resumeIfNeeded()
         }
 
-        SceneDelegateProxy.shared.scene(scene, willConnectTo: session, options: connectionOptions)
+        // Cold-start deep links / universal links / push taps.
+        if let url = connectionOptions.urlContexts.first?.url {
+            DispatchQueue.main.async {
+                NativeDeepLinkRouter.open(url: url)
+            }
+        }
+        if let activity = connectionOptions.userActivities.first(where: { $0.activityType == NSUserActivityTypeBrowsingWeb }),
+           let url = activity.webpageURL
+        {
+            DispatchQueue.main.async {
+                NativeDeepLinkRouter.open(url: url)
+            }
+        }
+        if let response = connectionOptions.notificationResponse {
+            let userInfo = response.notification.request.content.userInfo
+            let href = (userInfo["href"] as? String)
+                ?? ((userInfo["data"] as? [String: Any])?["href"] as? String)
+            if let href {
+                DispatchQueue.main.async {
+                    NativeDeepLinkRouter.open(href: href)
+                }
+            }
+        }
     }
 
     func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
-        SceneDelegateProxy.shared.scene(scene, openURLContexts: URLContexts)
+        guard let url = URLContexts.first?.url else { return }
+        NativeDeepLinkRouter.open(url: url)
     }
 
     func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
-        SceneDelegateProxy.shared.scene(scene, continue: userActivity)
+        guard userActivity.activityType == NSUserActivityTypeBrowsingWeb,
+              let url = userActivity.webpageURL
+        else { return }
+        NativeDeepLinkRouter.open(url: url)
     }
 
     func sceneWillResignActive(_ scene: UIScene) {
@@ -58,9 +72,7 @@ extension Notification.Name {
     static let nativeNoteDidChange = Notification.Name("verse2note.nativeNoteDidChange")
 }
 
-/// WKWebView writes cookies asynchronously. Reading the store is what pushes
-/// that write to disk, so an HttpOnly session cookie is still there after the
-/// process is killed. `__Host-` cookies cannot be recreated from JavaScript.
+/// Cookie jar flush for legacy Cap → Keychain migration. Safe no-op when empty.
 private func flushWebViewCookies() {
     WKWebsiteDataStore.default().httpCookieStore.getAllCookies { _ in }
 }

@@ -1,69 +1,30 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 /**
- * The iOS app is a native shell. The WebView loads the hosted site so Better
- * Auth session cookies (__Host-, Secure) and Google return stay on
- * https://verse2note.com — bundling the SPA under capacitor:// would break
- * that. Notes are local-first (zustand + outbox); the service worker caches
- * the app shell after the first online open; offline.html is the cold-start
- * fallback. Override the URL at sync time with CAPACITOR_SERVER_URL (must be
- * https). http://verse2note.com already 308s to https.
+ * Phase 5 — Capacitor is **not** the iOS UI host anymore.
+ *
+ * The App Store binary is a native UIKit tab shell. The only WKWebView is
+ * `NoteMioloEditorView`, which loads `https://verse2note.com/native-editor`
+ * with a Keychain Bearer (not Cap cookies / CAPBridgeViewController).
+ *
+ * This file remains so `npx cap` tooling does not break for residual
+ * package metadata. It does **not** set `server.url` to the full SPA.
+ * Push / Share / Splash / StatusBar plugins are unused on iOS (native
+ * replacements). See `docs/ios-phase5-webview.md`.
  */
-const serverUrl = (process.env.CAPACITOR_SERVER_URL || "https://verse2note.com").replace(/\/+$/, "");
-const cleartext = serverUrl.startsWith("http://");
-
 const config: CapacitorConfig = {
   appId: "com.verse2note.app",
   appName: "Verse2Note",
+  // Minimal placeholder www — not loaded as the app root.
   webDir: "native/www",
   backgroundColor: "#000000",
-  appendUserAgent: "Verse2NoteIOS",
   ios: {
-    // The site already pads with env(safe-area-inset-*). Automatic insets
-    // would add that padding a second time under the status bar.
     contentInset: "never",
     backgroundColor: "#000000",
-    appendUserAgent: "Verse2NoteIOS",
     scheme: "verse2note",
   },
-  server: {
-    url: serverUrl,
-    cleartext,
-    errorPath: "offline.html",
-    allowNavigation: [
-      "verse2note.com",
-      "*.verse2note.com",
-      "auth.grok.me",
-    ],
-  },
-  plugins: {
-    // Sync non-HttpOnly cookies with WKWebView. The session cookie is
-    // HttpOnly (`__Host-`, Secure, SameSite=Lax, no Domain) and is set by
-    // the HTTPS response itself. Google sign-in does not leave that cookie
-    // in this WebView: it finishes in an ephemeral ASWebAuthenticationSession
-    // and the app stores the bearer in localStorage. Email uses the cookie;
-    // SceneDelegate flushes the jar when the app backgrounds.
-    CapacitorCookies: {
-      enabled: true,
-    },
-    // iOS SplashScreen reuses LaunchScreen.storyboard (small icon + Verse2Note).
-    // Do not set backgroundColor here — it would override the storyboard's
-    // light/dark SplashBackground and cause a flash. Keep the native splash up
-    // until the web splash paints, then hide with no fade for a seamless cut.
-    SplashScreen: {
-      launchAutoHide: false,
-      launchShowDuration: 3000,
-      showSpinner: false,
-    },
-    StatusBar: {
-      overlaysWebView: true,
-      style: "DARK",
-      backgroundColor: "#000000",
-    },
-    PushNotifications: {
-      presentationOptions: ["badge", "sound", "alert"],
-    },
-  },
+  // Intentionally no `server.url` — the native app must not host the site.
+  plugins: {},
 };
 
 export default config;

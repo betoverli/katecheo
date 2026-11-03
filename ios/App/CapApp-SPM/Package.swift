@@ -1,7 +1,9 @@
 // swift-tools-version: 5.9
 import PackageDescription
 
-// DO NOT MODIFY THIS FILE - managed by Capacitor CLI commands
+// Phase 5: Capacitor is no longer linked into the App target.
+// This local package is kept as an empty stub so leftover paths do not break
+// tooling; the Xcode project does not depend on CapApp-SPM anymore.
 let package = Package(
     name: "CapApp-SPM",
     platforms: [.iOS(.v15)],
@@ -10,24 +12,10 @@ let package = Package(
             name: "CapApp-SPM",
             targets: ["CapApp-SPM"])
     ],
-    dependencies: [
-        .package(url: "https://github.com/ionic-team/capacitor-swift-pm.git", exact: "8.5.3"),
-        .package(name: "CapacitorPushNotifications", path: "../../../node_modules/@capacitor/push-notifications"),
-        .package(name: "CapacitorShare", path: "../../../node_modules/@capacitor/share"),
-        .package(name: "CapacitorSplashScreen", path: "../../../node_modules/@capacitor/splash-screen"),
-        .package(name: "CapacitorStatusBar", path: "../../../node_modules/@capacitor/status-bar")
-    ],
+    dependencies: [],
     targets: [
         .target(
             name: "CapApp-SPM",
-            dependencies: [
-                .product(name: "Capacitor", package: "capacitor-swift-pm"),
-                .product(name: "Cordova", package: "capacitor-swift-pm"),
-                .product(name: "CapacitorPushNotifications", package: "CapacitorPushNotifications"),
-                .product(name: "CapacitorShare", package: "CapacitorShare"),
-                .product(name: "CapacitorSplashScreen", package: "CapacitorSplashScreen"),
-                .product(name: "CapacitorStatusBar", package: "CapacitorStatusBar")
-            ]
-        )
+            dependencies: [])
     ]
 )

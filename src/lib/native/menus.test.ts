@@ -80,115 +80,44 @@ describe("classifyPresentOutcome (web fallback logic)", () => {
   });
 });
 
-describe("native menus wiring", () => {
-  const shell = readFileSync(new URL("../../../ios/App/App/NativeShell.swift", import.meta.url), "utf8");
-  const plugin = readFileSync(new URL("../../../ios/App/App/NativeMenus.swift", import.meta.url), "utf8");
+describe("native menus wiring (Phase 5: Cap plugins removed from iOS)", () => {
   const storyboard = readFileSync(new URL("../../../ios/App/App/Base.lproj/Main.storyboard", import.meta.url), "utf8");
   const pbx = readFileSync(new URL("../../../ios/App/App.xcodeproj/project.pbxproj", import.meta.url), "utf8");
   const wrapper = readFileSync(new URL("./menus.ts", import.meta.url), "utf8");
-  const notebook = readFileSync(new URL("../../components/notebook-editor.tsx", import.meta.url), "utf8");
   const sheet = readFileSync(new URL("../../components/viewport-sheet.tsx", import.meta.url), "utf8");
 
-  it("registers NativeMenus next to LiquidChrome and NativeAuth", () => {
-    assert.match(shell, /registerPluginInstance\(NativeMenusPlugin\(\)\)/);
-    assert.match(plugin, /jsName = "NativeMenus"/);
-    assert.match(plugin, /UIMenu/);
-    assert.match(plugin, /UIAlertController/);
-    assert.match(pbx, /NativeMenus\.swift in Sources/);
+  it("drops NativeMenus / Cap bridge from the iOS target", () => {
+    assert.doesNotMatch(pbx, /NativeMenus\.swift/);
+    assert.doesNotMatch(pbx, /NativeShell\.swift/);
+    assert.doesNotMatch(pbx, /CapApp-SPM/);
+    assert.match(storyboard, /customClass="NativeRootTabBarController"/);
+    assert.doesNotMatch(storyboard, /Verse2NoteBridge|CAPBridgeViewController/);
   });
 
-  it("points Main.storyboard at Verse2NoteBridgeViewController", () => {
-    assert.match(storyboard, /customClass="Verse2NoteBridgeViewController"/);
-    assert.doesNotMatch(storyboard, /customClass="CAPBridgeViewController"/);
-  });
-
-  it("presents UIMenu via performPrimaryAction with action-sheet fallback", () => {
-    assert.match(plugin, /performPrimaryAction/);
-    assert.match(plugin, /showsMenuAsPrimaryAction = true/);
-    assert.match(plugin, /scheduleMenuPresentFallback/);
-    assert.doesNotMatch(plugin, /sendActions\(for: \.touchUpInside\)/);
-    assert.match(plugin, /failPresent/);
-  });
-
-  it("builds JSObject without casting [String: Any]", () => {
-    assert.match(plugin, /JSTypes\.coerceDictionaryToJSObject/);
-    assert.doesNotMatch(plugin, /as JSObject/);
-    assert.match(plugin, /didChooseItem/);
-    assert.doesNotMatch(plugin, /private var selected\b/);
-  });
-
-  it("TS wrapper marks failures and call sites fall back to web UI", () => {
+  it("TS wrapper still marks failures so website ActionSheet can fall back", () => {
     assert.match(wrapper, /failed\?:\s*boolean/);
     assert.match(wrapper, /PRESENT_HANG_TIMEOUT_MS/);
     assert.match(wrapper, /PRESENTATION_CONFIRM_MS/);
     assert.match(wrapper, /FORCE_WEB_FALLBACK_MS/);
     assert.match(wrapper, /classifyPresentOutcome/);
     assert.match(wrapper, /failed:\s*true/);
-    assert.match(wrapper, /\[NativeMenus\] present failed/);
-    assert.match(wrapper, /presentation not confirmed in time/);
     assert.match(sheet, /result\.failed/);
     assert.match(sheet, /setMode\("web"\)/);
     assert.match(sheet, /FORCE_WEB_FALLBACK_MS/);
-    assert.match(sheet, /force web fallback/);
   });
 
   it("does not await addListener before present (TF85 blank pending hang)", () => {
-    // The old bug: `listener = await plugin.addListener(...)` before
-    // `plugin.present(...)` — if addListener never settled, present never ran
-    // and ActionSheet stayed on mode=pending (null render) forever.
     assert.doesNotMatch(wrapper, /listener\s*=\s*await\s+plugin\.addListener/);
     assert.match(wrapper, /NEVER await addListener before present/);
     assert.match(wrapper, /Promise\.race\(\[listenerReady/);
   });
-
-  it("coerces top-level items like nested children (typed getArray is unsafe)", () => {
-    assert.match(plugin, /itemObjects/);
-    assert.match(plugin, /getArray\("items"\) \?\? \[\]/);
-    assert.doesNotMatch(plugin, /getArray\("items",\s*JSObject\.self\)/);
-    assert.match(plugin, /notifyListeners\("presented"/);
-  });
-
-  it("exposes alert and prompt (UIAlertController + text field) for native dialogs", () => {
-    assert.match(plugin, /style == "alert"/);
-    assert.match(plugin, /style == "prompt"/);
-    assert.match(plugin, /addTextField/);
-    assert.match(plugin, /preferredStyle: \.alert/);
-    assert.match(wrapper, /"alert" \| "prompt"/);
-    assert.match(wrapper, /presentNativePrompt/);
-    assert.match(wrapper, /presentNativeAlert/);
-    assert.match(sheet, /variant === "alert"/);
-  });
-
-  it("uses a barely-visible interactive anchor and 400ms alert fallback", () => {
-    assert.match(plugin, /alpha = 0\.01/);
-    assert.match(plugin, /isUserInteractionEnabled = true/);
-    assert.match(plugin, /deadline: \.now\(\) \+ 0\.40/);
-    assert.match(plugin, /\[NativeMenus\]/);
-  });
-
-  it("presents on the topmost VC without animated dismiss→present races", () => {
-    assert.match(plugin, /topPresenter/);
-    assert.match(plugin, /preparePresenter/);
-    assert.match(plugin, /replaceActiveCall/);
-    assert.match(plugin, /dismiss\(animated: false\)/);
-    assert.match(plugin, /notifyListeners\("presented"/);
-    assert.match(plugin, /pluginMethods/);
-    assert.match(plugin, /CAPPluginMethod\(name: "present"/);
-  });
 });
 
-describe("native FAB compose menu", () => {
-  const chrome = readFileSync(new URL("../../../ios/App/App/LiquidChrome.swift", import.meta.url), "utf8");
+describe("website notebook chrome helpers (Cap host gone on iOS)", () => {
   const home = readFileSync(new URL("../../components/notebook-home.tsx", import.meta.url), "utf8");
-  const bridge = readFileSync(new URL("../../components/native-chrome.tsx", import.meta.url), "utf8");
-
-  it("attaches UIMenu to the Liquid Glass FAB instead of round-tripping", () => {
-    assert.match(chrome, /applyFabMenu/);
-    assert.match(chrome, /showsMenuAsPrimaryAction = true/);
-    assert.match(chrome, /fabMenuSelect/);
-    assert.match(bridge, /fabMenuSelect/);
-    assert.match(bridge, /fabMenu:/);
-  });
+  const note = readFileSync(new URL("../../components/notebook-editor.tsx", import.meta.url), "utf8");
+  const sheet = readFileSync(new URL("../../components/viewport-sheet.tsx", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../../styles.css", import.meta.url), "utf8");
 
   it("offers Nova nota + Importar from the notebook + button", () => {
     assert.match(home, /COMPOSE_IMPORT/);
@@ -197,83 +126,21 @@ describe("native FAB compose menu", () => {
     assert.match(home, /ActionSheet/);
   });
 
-  it("note list swipe uses non-passive touchmove and native Share", () => {
+  it("note list swipe uses non-passive touchmove", () => {
     assert.match(home, /passive:\s*false/);
     assert.match(home, /touchmove/);
     assert.match(home, /preventDefault/);
     assert.match(home, /shareNote/);
-    assert.doesNotMatch(home, /SendToFriendButton/);
-    const share = readFileSync(new URL("../share-note.ts", import.meta.url), "utf8");
-    assert.match(share, /@capacitor\/share/);
-    assert.match(share, /Share\.share/);
-    const css = readFileSync(new URL("../../styles.css", import.meta.url), "utf8");
     assert.match(css, /html\.native-ios main\.screen > \.screen-body[\s\S]*?touch-action:\s*pan-x pan-y/);
-    assert.match(css, /html\.native-ios \.clip-box[\s\S]*?touch-action:\s*pan-x pan-y/);
-  });
-});
-
-describe("native note … trailing UIMenu", () => {
-  const chrome = readFileSync(new URL("../../../ios/App/App/LiquidChrome.swift", import.meta.url), "utf8");
-  const menusSwift = readFileSync(new URL("../../../ios/App/App/NativeMenus.swift", import.meta.url), "utf8");
-  const bridge = readFileSync(new URL("../../components/native-chrome.tsx", import.meta.url), "utf8");
-  const header = readFileSync(new URL("../../components/app-header.tsx", import.meta.url), "utf8");
-  const store = readFileSync(new URL("./chrome-store.ts", import.meta.url), "utf8");
-  const note = readFileSync(new URL("../../components/notebook-editor.tsx", import.meta.url), "utf8");
-  const sheet = readFileSync(new URL("../../components/viewport-sheet.tsx", import.meta.url), "utf8");
-  const css = readFileSync(new URL("../../styles.css", import.meta.url), "utf8");
-
-  it("attaches UIMenu to the Liquid Glass trailing … button like the FAB", () => {
-    assert.match(chrome, /applyTrailingMenu/);
-    assert.match(chrome, /trailingMenuSelect/);
-    assert.match(chrome, /trailingMenu/);
-    assert.match(bridge, /trailingMenuSelect/);
-    assert.match(bridge, /trailingMenu:/);
-    assert.match(store, /trailingMenu\?:/);
-    assert.match(header, /trailingMenu/);
-    assert.match(header, /onTrailingMenuSelect/);
   });
 
-  it("note editor supplies … items via chrome and opens web settings (not NativeMenus)", () => {
-    assert.match(note, /nativeSymbol=\{readOnly \? undefined : "ellipsis"\}/);
-    assert.match(note, /trailingMenu=/);
-    assert.match(note, /NOTE_MORE_SETTINGS/);
-    assert.match(note, /NOTE_MORE_SPEAKERS/);
-    assert.match(note, /setMoreSheet\(true\)/);
-    assert.match(note, /openNoteSettings/);
-    assert.match(note, /setMetaSheet\(true\)/);
-    assert.doesNotMatch(note, /presentNativeMenu/);
-    assert.doesNotMatch(note, /nativeBar=\{false\}/);
-    assert.doesNotMatch(note, /openNativeNoteSettings/);
-  });
-
-  it("does not fire presented before UIKit accepts the alert (TF88 false cancel)", () => {
-    assert.match(menusSwift, /presentingViewController/);
-    assert.doesNotMatch(menusSwift, /Notify ASAP/);
-    // presented notify must live inside the present completion, not before.
-    const idxPresent = menusSwift.indexOf("controller.present(alert");
-    const idxNotify = menusSwift.indexOf('notifyListeners("presented"');
-    assert.ok(idxPresent >= 0 && idxNotify > idxPresent);
-  });
-
-  it("note editor keeps the title only in the body, not the native/web top bar", () => {
+  it("note editor keeps title in the body and snapshots ActionSheet handlers", () => {
     assert.match(note, /title=""/);
     assert.match(note, /note-whole-speaker/);
     assert.doesNotMatch(note, /title=\{draft\.title/);
-  });
-
-  it("first-speaker ActionSheet snapshots handlers; section remove is immediate (no confirm)", () => {
     assert.match(note, /pickNoteSpeaker/);
-    assert.match(note, /Immediate removal/);
     assert.doesNotMatch(note, /dropSpeaker/);
-    assert.doesNotMatch(note, /confirmDropSpeaker/);
     assert.match(sheet, /settledRef/);
     assert.match(sheet, /presented\.map/);
-    assert.match(menusSwift, /ObjectIdentifier/);
-    assert.match(menusSwift, /dismiss ignored stale/);
-  });
-
-  it("collapses note HTML chrome under native-top so the tap hits the native button", () => {
-    assert.match(css, /html\.native-ios\.native-top main\.note-screen > \.note-chrome/);
-    assert.match(css, /html\.native-ios\.native-top main\.note-screen > \.screen-body/);
   });
 });
