@@ -899,7 +899,7 @@ extension NoteDocumentCodec {
         let style = NSMutableParagraphStyle()
         style.lineSpacing = 3
         var font = UIFont.preferredFont(forTextStyle: .body)
-        var foreground: UIColor = .label
+        let foreground: UIColor = .label
         switch type {
         case "heading":
             font = UIFont.preferredFont(forTextStyle: id == "title" ? .title1 : .title2)

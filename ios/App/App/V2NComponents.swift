@@ -747,9 +747,10 @@ enum V2NBookGridLayout {
                 widthDimension: .fractionalWidth(1),
                 heightDimension: .absolute(compact ? 52 : 56)
             )
+            // `repeatingSubitem:` needs iOS 16+; deployment target is 15.0.
             let group = NSCollectionLayoutGroup.horizontal(
                 layoutSize: groupSize,
-                repeatingSubitem: item,
+                subitem: item,
                 count: columns
             )
             let section = NSCollectionLayoutSection(group: group)
