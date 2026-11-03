@@ -84,7 +84,8 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
             guard NativeAPIClient.hasBearer else {
                 groups = []
                 applyFilter()
-                statusBanner.setStatus(String(localized: "Faça login para ver seus grupos."), kind: .warning)
+                // Empty state carries the sign-in prompt — no persistent banner.
+                statusBanner.setStatus(nil)
                 emptyState.show(
                     symbol: "person.2",
                     title: String(localized: "Nenhum grupo ainda"),
@@ -97,7 +98,8 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
             }
             do {
                 groups = try await NativeAPIClient.listGroups()
-                statusBanner.setStatus(String(localized: "\(groups.count) grupos · sincronizado"), kind: .success)
+                // Success: no persistent "sincronizado" banner (was leaking across screens).
+                statusBanner.setStatus(nil)
                 applyFilter()
             } catch NativeAPIClient.APIError.unauthorized {
                 statusBanner.setStatus(String(localized: "Sessão expirada. Entre novamente."), kind: .error)

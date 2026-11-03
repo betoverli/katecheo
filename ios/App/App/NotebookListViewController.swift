@@ -173,7 +173,8 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                     title = refreshed.name
                     groupCards = try await NativeAPIClient.listGroupNotes(groupId: group.id)
                     notes = groupCards.compactMap { $0.document }
-                    statusBanner.setStatus(String(localized: "\(groupCards.count) notas no grupo · sincronizado"), kind: .success)
+                    // No persistent sync success banner — list content is enough.
+                    statusBanner.setStatus(nil)
                     applyFilter()
                     return
                 }
@@ -181,7 +182,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 async let remoteSpeakers = NativeAPIClient.listSpeakers()
                 notes = try await remoteNotes
                 speakers = try await remoteSpeakers
-                statusBanner.setStatus(String(localized: "\(notes.count) notas · sincronizado"), kind: .success)
+                statusBanner.setStatus(nil)
                 applyFilter()
             } catch NativeAPIClient.APIError.unauthorized {
                 statusBanner.setStatus(String(localized: "Sessão expirada. Entre novamente."), kind: .error)
