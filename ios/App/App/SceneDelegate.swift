@@ -8,6 +8,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         guard let windowScene = scene as? UIWindowScene else { return }
 
         window = UIWindow(windowScene: windowScene)
+        window?.tintColor = V2NDesign.accent
+        window?.overrideUserInterfaceStyle = .unspecified
         window?.rootViewController = AppRoot.makeRootViewController()
         window?.makeKeyAndVisible()
 

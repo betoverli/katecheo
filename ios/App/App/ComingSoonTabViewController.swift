@@ -5,6 +5,7 @@ final class ComingSoonTabViewController: UIViewController {
     private let titleText: String
     private let systemImage: String
     private let detailText: String
+    private let empty = V2NEmptyStateView()
 
     init(titleText: String, systemImage: String, detailText: String = "Em breve nativo.") {
         self.titleText = titleText
@@ -18,41 +19,23 @@ final class ComingSoonTabViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .systemBackground
+        V2NChrome.styleCanvas(view)
         title = titleText
         navigationItem.largeTitleDisplayMode = .always
         navigationController?.navigationBar.prefersLargeTitles = true
 
-        let stack = UIStackView()
-        stack.axis = .vertical
-        stack.alignment = .center
-        stack.spacing = 16
-        stack.translatesAutoresizingMaskIntoConstraints = false
-
-        let icon = UIImageView(image: UIImage(systemName: systemImage))
-        icon.tintColor = .secondaryLabel
-        icon.contentMode = .scaleAspectFit
-        icon.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(empty)
         NSLayoutConstraint.activate([
-            icon.widthAnchor.constraint(equalToConstant: 48),
-            icon.heightAnchor.constraint(equalToConstant: 48),
+            empty.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            empty.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            empty.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            empty.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
         ])
 
-        let label = UILabel()
-        label.text = detailText
-        label.numberOfLines = 0
-        label.textAlignment = .center
-        label.textColor = .secondaryLabel
-        label.font = .preferredFont(forTextStyle: .body)
-
-        stack.addArrangedSubview(icon)
-        stack.addArrangedSubview(label)
-        view.addSubview(stack)
-        NSLayoutConstraint.activate([
-            stack.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            stack.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-            stack.leadingAnchor.constraint(greaterThanOrEqualTo: view.layoutMarginsGuide.leadingAnchor),
-            stack.trailingAnchor.constraint(lessThanOrEqualTo: view.layoutMarginsGuide.trailingAnchor),
-        ])
+        let parts = detailText.components(separatedBy: "\n")
+        let titleLine = parts.first ?? detailText
+        let message = parts.dropFirst().joined(separator: "\n")
+        empty.show(symbol: systemImage, title: titleLine, message: message)
+        empty.isHidden = false
     }
 }

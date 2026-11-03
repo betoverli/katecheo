@@ -7,13 +7,12 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
     private var groups: [NativeAPIClient.GroupDTO] = []
     private var filtered: [NativeAPIClient.GroupDTO] = []
     private let search = UISearchController(searchResultsController: nil)
-    private let emptyLabel = UILabel()
-    private let signInButton = UIButton(type: .system)
-    private let statusBanner = UILabel()
+    private let emptyState = V2NEmptyStateView()
+    private let statusBanner = V2NStatusBanner()
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .systemBackground
+        V2NChrome.styleCanvas(view)
         title = "Grupos"
         navigationController?.navigationBar.prefersLargeTitles = true
         navigationItem.largeTitleDisplayMode = .always
@@ -24,6 +23,7 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
             target: self,
             action: #selector(createGroup)
         )
+        navigationItem.rightBarButtonItem?.accessibilityLabel = "Novo grupo"
 
         search.searchResultsUpdater = self
         search.obscuresBackgroundDuringPresentation = false
@@ -32,54 +32,32 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
         definesPresentationContext = true
 
         tableView.translatesAutoresizingMaskIntoConstraints = false
+        V2NChrome.styleGroupedTable(tableView)
         tableView.delegate = self
         tableView.dataSource = self
-        tableView.register(GroupCell.self, forCellReuseIdentifier: GroupCell.reuseId)
+        tableView.register(V2NGroupRowCell.self, forCellReuseIdentifier: V2NGroupRowCell.reuseId)
         tableView.rowHeight = UITableView.automaticDimension
-        tableView.estimatedRowHeight = 64
+        tableView.estimatedRowHeight = 72
         refresh.addTarget(self, action: #selector(reload), for: .valueChanged)
         tableView.refreshControl = refresh
         view.addSubview(tableView)
-
-        emptyLabel.translatesAutoresizingMaskIntoConstraints = false
-        emptyLabel.textAlignment = .center
-        emptyLabel.textColor = .secondaryLabel
-        emptyLabel.numberOfLines = 0
-        emptyLabel.font = .preferredFont(forTextStyle: .body)
-        emptyLabel.isHidden = true
-        view.addSubview(emptyLabel)
-
-        signInButton.translatesAutoresizingMaskIntoConstraints = false
-        signInButton.setTitle("Entrar", for: .normal)
-        signInButton.titleLabel?.font = .preferredFont(forTextStyle: .headline)
-        signInButton.addTarget(self, action: #selector(presentSignInTapped), for: .touchUpInside)
-        signInButton.isHidden = true
-        view.addSubview(signInButton)
-
-        statusBanner.translatesAutoresizingMaskIntoConstraints = false
-        statusBanner.font = .preferredFont(forTextStyle: .caption1)
-        statusBanner.textColor = .secondaryLabel
-        statusBanner.textAlignment = .center
-        statusBanner.numberOfLines = 2
+        view.addSubview(emptyState)
         view.addSubview(statusBanner)
 
         NSLayoutConstraint.activate([
-            statusBanner.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 4),
+            statusBanner.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: V2NDesign.Space.xxs),
             statusBanner.leadingAnchor.constraint(equalTo: view.layoutMarginsGuide.leadingAnchor),
             statusBanner.trailingAnchor.constraint(equalTo: view.layoutMarginsGuide.trailingAnchor),
 
-            tableView.topAnchor.constraint(equalTo: statusBanner.bottomAnchor, constant: 4),
+            tableView.topAnchor.constraint(equalTo: statusBanner.bottomAnchor, constant: V2NDesign.Space.xxs),
             tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
 
-            emptyLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            emptyLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -24),
-            emptyLabel.leadingAnchor.constraint(equalTo: view.layoutMarginsGuide.leadingAnchor),
-            emptyLabel.trailingAnchor.constraint(equalTo: view.layoutMarginsGuide.trailingAnchor),
-
-            signInButton.topAnchor.constraint(equalTo: emptyLabel.bottomAnchor, constant: 16),
-            signInButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            emptyState.topAnchor.constraint(equalTo: statusBanner.bottomAnchor),
+            emptyState.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            emptyState.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            emptyState.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
         ])
 
         NotificationCenter.default.addObserver(
@@ -106,24 +84,27 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
             guard NativeAPIClient.hasBearer else {
                 groups = []
                 applyFilter()
-                statusBanner.text = "Faça login para ver seus grupos."
-                signInButton.isHidden = false
-                emptyLabel.text = "Nenhum grupo ainda.\nEntre para sincronizar."
-                emptyLabel.isHidden = false
+                statusBanner.setStatus("Faça login para ver seus grupos.", kind: .warning)
+                emptyState.show(
+                    symbol: "person.2",
+                    title: "Nenhum grupo ainda",
+                    message: "Entre para sincronizar e criar grupos.",
+                    actionTitle: "Entrar",
+                    action: { [weak self] in self?.presentSignInTapped() }
+                )
+                tableView.isHidden = true
                 return
             }
-            signInButton.isHidden = true
             do {
                 groups = try await NativeAPIClient.listGroups()
-                statusBanner.text = "\(groups.count) grupos · sincronizado"
+                statusBanner.setStatus("\(groups.count) grupos · sincronizado", kind: .success)
                 applyFilter()
             } catch NativeAPIClient.APIError.unauthorized {
-                statusBanner.text = "Sessão expirada. Entre novamente."
-                signInButton.isHidden = false
+                statusBanner.setStatus("Sessão expirada. Entre novamente.", kind: .error)
                 groups = []
                 applyFilter()
             } catch {
-                statusBanner.text = "Sem rede. \(error.localizedDescription)"
+                statusBanner.setStatus("Sem rede. \(error.localizedDescription)", kind: .error)
                 applyFilter()
             }
         }
@@ -139,12 +120,31 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
             }
         }
         if filtered.isEmpty {
-            emptyLabel.text = NativeAPIClient.hasBearer
-                ? (q.isEmpty ? "Você ainda não tem grupos.\nCrie um com «Novo grupo»." : "Nenhum resultado.")
-                : "Nenhum grupo ainda.\nEntre para sincronizar."
-            emptyLabel.isHidden = false
+            tableView.isHidden = true
+            if NativeAPIClient.hasBearer {
+                if q.isEmpty {
+                    emptyState.show(
+                        symbol: "person.3",
+                        title: "Você ainda não tem grupos",
+                        message: "Crie um com «Novo grupo».",
+                        actionTitle: "Novo grupo",
+                        action: { [weak self] in self?.createGroup() }
+                    )
+                } else {
+                    emptyState.show(symbol: "magnifyingglass", title: "Nenhum resultado", message: "Tente outro termo de busca.")
+                }
+            } else {
+                emptyState.show(
+                    symbol: "person.2",
+                    title: "Nenhum grupo ainda",
+                    message: "Entre para sincronizar e criar grupos.",
+                    actionTitle: "Entrar",
+                    action: { [weak self] in self?.presentSignInTapped() }
+                )
+            }
         } else {
-            emptyLabel.isHidden = true
+            emptyState.hide()
+            tableView.isHidden = false
         }
         tableView.reloadData()
     }
@@ -158,13 +158,14 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: GroupCell.reuseId, for: indexPath) as! GroupCell
+        let cell = tableView.dequeueReusableCell(withIdentifier: V2NGroupRowCell.reuseId, for: indexPath) as! V2NGroupRowCell
         cell.configure(filtered[indexPath.row])
         return cell
     }
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
+        V2NHaptics.selection()
         let group = filtered[indexPath.row]
         let detail = NotebookListViewController(group: group)
         navigationController?.pushViewController(detail, animated: true)
@@ -180,7 +181,7 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
             self?.promptRename(group)
             done(true)
         }
-        rename.backgroundColor = .systemBlue
+        rename.backgroundColor = V2NDesign.accent
         let delete = UIContextualAction(style: .destructive, title: "Excluir") { [weak self] _, _, done in
             self?.confirmDelete(group) { done($0) }
         }
@@ -192,6 +193,7 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
             presentSignInTapped()
             return
         }
+        V2NHaptics.light()
         let alert = UIAlertController(title: "Novo grupo", message: nil, preferredStyle: .alert)
         alert.addTextField { field in
             field.placeholder = "Nome do grupo"
@@ -222,6 +224,7 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
                 let group = try await NativeAPIClient.createGroup(name: trimmed, visibility: visibility)
                 groups.insert(group, at: 0)
                 applyFilter()
+                V2NHaptics.success()
                 let detail = NotebookListViewController(group: group)
                 navigationController?.pushViewController(detail, animated: true)
             } catch {
@@ -256,6 +259,7 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
                     groups[idx] = updated
                 }
                 applyFilter()
+                V2NHaptics.success()
             } catch {
                 let err = UIAlertController(title: "Erro", message: error.localizedDescription, preferredStyle: .alert)
                 err.addAction(UIAlertAction(title: "OK", style: .default))
@@ -300,31 +304,8 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
             self?.reload()
         }
         let nav = UINavigationController(rootViewController: signIn)
+        V2NChrome.style(navigationController: nav)
         nav.modalPresentationStyle = .fullScreen
         present(nav, animated: true)
-    }
-}
-
-private final class GroupCell: UITableViewCell {
-    static let reuseId = "GroupCell"
-
-    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
-        super.init(style: .subtitle, reuseIdentifier: reuseIdentifier)
-        textLabel?.numberOfLines = 1
-        detailTextLabel?.numberOfLines = 2
-        detailTextLabel?.textColor = .secondaryLabel
-        accessoryType = .disclosureIndicator
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-
-    func configure(_ group: NativeAPIClient.GroupDTO) {
-        textLabel?.text = group.name
-        let visibility = group.visibility == "listed" ? "Listado" : "Privado"
-        let pending = group.myStatus == "pending" ? " · pedido pendente" : ""
-        detailTextLabel?.text = "\(group.memberCount) membros · \(visibility)\(pending)"
-        imageView?.image = UIImage(systemName: group.visibility == "listed" ? "globe" : "lock.fill")
-        imageView?.tintColor = .secondaryLabel
     }
 }

@@ -11,9 +11,8 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     private var filteredCards: [NativeAPIClient.GroupNoteCardDTO] = []
     private var speakers: [NativeAPIClient.SpeakerDTO] = []
     private let search = UISearchController(searchResultsController: nil)
-    private let emptyLabel = UILabel()
-    private let signInButton = UIButton(type: .system)
-    private var statusBanner = UILabel()
+    private let emptyState = V2NEmptyStateView()
+    private let statusBanner = V2NStatusBanner()
     /// When set, this list shows notes published to the group (Phase 2).
     private var group: NativeAPIClient.GroupDTO?
 
@@ -24,7 +23,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .systemBackground
+        V2NChrome.styleCanvas(view)
         title = group?.name ?? "Caderno"
         navigationController?.navigationBar.prefersLargeTitles = true
         navigationItem.largeTitleDisplayMode = .always
@@ -36,6 +35,8 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             trailing.insert(UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(composeNote)), at: 0)
         }
         navigationItem.rightBarButtonItems = trailing
+        navigationItem.rightBarButtonItems?.first?.accessibilityLabel = "Nova nota"
+        navigationItem.rightBarButtonItems?.last?.accessibilityLabel = "Mais opções"
 
         search.searchResultsUpdater = self
         search.obscuresBackgroundDuringPresentation = false
@@ -44,54 +45,33 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
         definesPresentationContext = true
 
         tableView.translatesAutoresizingMaskIntoConstraints = false
+        V2NChrome.styleGroupedTable(tableView)
         tableView.delegate = self
         tableView.dataSource = self
-        tableView.register(SubtitleNoteCell.self, forCellReuseIdentifier: SubtitleNoteCell.reuseId)
+        tableView.register(V2NNoteRowCell.self, forCellReuseIdentifier: V2NNoteRowCell.reuseId)
         tableView.rowHeight = UITableView.automaticDimension
-        tableView.estimatedRowHeight = 72
+        tableView.estimatedRowHeight = 80
         refresh.addTarget(self, action: #selector(reload), for: .valueChanged)
         tableView.refreshControl = refresh
         view.addSubview(tableView)
 
-        emptyLabel.translatesAutoresizingMaskIntoConstraints = false
-        emptyLabel.textAlignment = .center
-        emptyLabel.textColor = .secondaryLabel
-        emptyLabel.numberOfLines = 0
-        emptyLabel.font = .preferredFont(forTextStyle: .body)
-        emptyLabel.isHidden = true
-        view.addSubview(emptyLabel)
-
-        signInButton.translatesAutoresizingMaskIntoConstraints = false
-        signInButton.setTitle("Entrar", for: .normal)
-        signInButton.titleLabel?.font = .preferredFont(forTextStyle: .headline)
-        signInButton.addTarget(self, action: #selector(presentSignInTapped), for: .touchUpInside)
-        signInButton.isHidden = true
-        view.addSubview(signInButton)
-
-        statusBanner.translatesAutoresizingMaskIntoConstraints = false
-        statusBanner.font = .preferredFont(forTextStyle: .caption1)
-        statusBanner.textColor = .secondaryLabel
-        statusBanner.textAlignment = .center
-        statusBanner.numberOfLines = 2
+        view.addSubview(emptyState)
         view.addSubview(statusBanner)
 
         NSLayoutConstraint.activate([
-            statusBanner.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 4),
+            statusBanner.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: V2NDesign.Space.xxs),
             statusBanner.leadingAnchor.constraint(equalTo: view.layoutMarginsGuide.leadingAnchor),
             statusBanner.trailingAnchor.constraint(equalTo: view.layoutMarginsGuide.trailingAnchor),
 
-            tableView.topAnchor.constraint(equalTo: statusBanner.bottomAnchor, constant: 4),
+            tableView.topAnchor.constraint(equalTo: statusBanner.bottomAnchor, constant: V2NDesign.Space.xxs),
             tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
 
-            emptyLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            emptyLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -24),
-            emptyLabel.leadingAnchor.constraint(equalTo: view.layoutMarginsGuide.leadingAnchor),
-            emptyLabel.trailingAnchor.constraint(equalTo: view.layoutMarginsGuide.trailingAnchor),
-
-            signInButton.topAnchor.constraint(equalTo: emptyLabel.bottomAnchor, constant: 16),
-            signInButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            emptyState.topAnchor.constraint(equalTo: statusBanner.bottomAnchor),
+            emptyState.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            emptyState.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            emptyState.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
         ])
 
         if group == nil {
@@ -125,25 +105,34 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 if group != nil {
                     groupCards = []
                     applyFilter()
-                    statusBanner.text = "Faça login para ver as notas do grupo."
-                    signInButton.isHidden = false
-                    emptyLabel.text = "Entre para sincronizar este grupo."
-                    emptyLabel.isHidden = false
+                    statusBanner.setStatus("Faça login para ver as notas do grupo.", kind: .warning)
+                    showEmpty(
+                        symbol: "person.badge.key",
+                        title: "Entre para sincronizar",
+                        message: "As notas deste grupo ficam disponíveis após o login.",
+                        actionTitle: "Entrar"
+                    )
                     return
                 }
                 notes = LocalNoteCache.loadNotes()
                 applyFilter()
-                statusBanner.text = notes.isEmpty ? "Faça login para sincronizar o caderno." : "Offline / sem sessão — cache local."
-                signInButton.isHidden = false
-                emptyLabel.text = notes.isEmpty ? "Nenhuma nota ainda.\nEntre para ver seu caderno." : nil
-                emptyLabel.isHidden = !notes.isEmpty
-                // Fresh install / no session: present native sign-in once.
+                statusBanner.setStatus(
+                    notes.isEmpty ? "Faça login para sincronizar o caderno." : "Offline / sem sessão — cache local.",
+                    kind: notes.isEmpty ? .warning : .neutral
+                )
+                if notes.isEmpty {
+                    showEmpty(
+                        symbol: "note.text",
+                        title: "Seu caderno está vazio",
+                        message: "Entre para sincronizar suas anotações.",
+                        actionTitle: "Entrar"
+                    )
+                }
                 if notes.isEmpty, presentedViewController == nil {
                     showSignIn(auto: true)
                 }
                 return
             }
-            signInButton.isHidden = true
             do {
                 if let group {
                     let refreshed = try await NativeAPIClient.getGroup(id: group.id)
@@ -151,7 +140,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                     title = refreshed.name
                     groupCards = try await NativeAPIClient.listGroupNotes(groupId: group.id)
                     notes = groupCards.compactMap { $0.document }
-                    statusBanner.text = "\(groupCards.count) notas no grupo · sincronizado"
+                    statusBanner.setStatus("\(groupCards.count) notas no grupo · sincronizado", kind: .success)
                     applyFilter()
                     return
                 }
@@ -159,24 +148,29 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 async let remoteSpeakers = NativeAPIClient.listSpeakers()
                 notes = try await remoteNotes
                 speakers = try await remoteSpeakers
-                statusBanner.text = "\(notes.count) notas · sincronizado"
+                statusBanner.setStatus("\(notes.count) notas · sincronizado", kind: .success)
                 applyFilter()
             } catch NativeAPIClient.APIError.unauthorized {
-                statusBanner.text = "Sessão expirada. Entre novamente."
-                signInButton.isHidden = false
+                statusBanner.setStatus("Sessão expirada. Entre novamente.", kind: .error)
                 if group == nil {
                     notes = LocalNoteCache.loadNotes()
                 }
                 applyFilter()
+                showEmpty(
+                    symbol: "exclamationmark.shield",
+                    title: "Sessão expirada",
+                    message: "Entre de novo para continuar sincronizando.",
+                    actionTitle: "Entrar"
+                )
                 showSignIn(auto: true)
             } catch {
                 if group == nil {
                     notes = LocalNoteCache.loadNotes()
                     let pending = NativeOutbox.pendingCount
                     let pendingHint = pending > 0 ? " · \(pending) pendente(s)" : ""
-                    statusBanner.text = "Sem rede — mostrando cache\(pendingHint)."
+                    statusBanner.setStatus("Sem rede — mostrando cache\(pendingHint).", kind: .warning)
                 } else {
-                    statusBanner.text = "Sem rede. \(error.localizedDescription)"
+                    statusBanner.setStatus("Sem rede. \(error.localizedDescription)", kind: .error)
                 }
                 applyFilter()
             }
@@ -184,6 +178,22 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     }
 
     private var isGroupMode: Bool { group != nil }
+
+    private func showEmpty(symbol: String, title: String, message: String, actionTitle: String? = nil) {
+        emptyState.show(
+            symbol: symbol,
+            title: title,
+            message: message,
+            actionTitle: actionTitle,
+            action: actionTitle != nil ? { [weak self] in self?.presentSignInTapped() } : nil
+        )
+        tableView.isHidden = true
+    }
+
+    private func hideEmpty() {
+        emptyState.hide()
+        tableView.isHidden = false
+    }
 
     private func applyFilter() {
         let q = (search.searchBar.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -199,10 +209,19 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                     return false
                 }
             }
-            emptyLabel.text = filteredCards.isEmpty
-                ? (q.isEmpty ? "Nenhuma nota neste grupo." : "Nenhum resultado.")
-                : nil
-            emptyLabel.isHidden = !filteredCards.isEmpty
+            if filteredCards.isEmpty {
+                if q.isEmpty {
+                    showEmpty(
+                        symbol: "tray",
+                        title: "Nenhuma nota neste grupo",
+                        message: "Publique uma nota ou peça para alguém compartilhar."
+                    )
+                } else {
+                    showEmpty(symbol: "magnifyingglass", title: "Nenhum resultado", message: "Tente outro termo de busca.")
+                }
+            } else {
+                hideEmpty()
+            }
             tableView.reloadData()
             return
         }
@@ -219,14 +238,25 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
         }
         if filtered.isEmpty {
             if !NativeAPIClient.hasBearer && notes.isEmpty {
-                emptyLabel.text = "Nenhuma nota ainda.\nEntre para ver seu caderno."
-                emptyLabel.isHidden = false
+                showEmpty(
+                    symbol: "note.text",
+                    title: "Seu caderno está vazio",
+                    message: "Entre para sincronizar suas anotações.",
+                    actionTitle: "Entrar"
+                )
             } else if NativeAPIClient.hasBearer || !notes.isEmpty {
-                emptyLabel.text = q.isEmpty ? "Nenhuma nota ainda.\nToque em + para criar a primeira." : "Nenhum resultado."
-                emptyLabel.isHidden = false
+                if q.isEmpty {
+                    showEmpty(
+                        symbol: "square.and.pencil",
+                        title: "Nenhuma nota ainda",
+                        message: "Toque em + para criar a primeira."
+                    )
+                } else {
+                    showEmpty(symbol: "magnifyingglass", title: "Nenhum resultado", message: "Tente outro termo de busca.")
+                }
             }
         } else {
-            emptyLabel.isHidden = true
+            hideEmpty()
         }
         tableView.reloadData()
     }
@@ -240,7 +270,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: SubtitleNoteCell.reuseId, for: indexPath) as! SubtitleNoteCell
+        let cell = tableView.dequeueReusableCell(withIdentifier: V2NNoteRowCell.reuseId, for: indexPath) as! V2NNoteRowCell
         if isGroupMode {
             let card = filteredCards[indexPath.row]
             let title = card.note.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Reunião" : card.note.title
@@ -256,6 +286,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
+        V2NHaptics.selection()
         if isGroupMode {
             let card = filteredCards[indexPath.row]
             guard card.owned, let doc = card.document else {
@@ -309,7 +340,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 done(true)
             }
             share.image = UIImage(systemName: "square.and.arrow.up")
-            share.backgroundColor = .systemBlue
+            share.backgroundColor = V2NDesign.bookmark
             return UISwipeActionsConfiguration(actions: [share])
         }
         let note = filtered[indexPath.row]
@@ -318,7 +349,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             done(true)
         }
         share.image = UIImage(systemName: "square.and.arrow.up")
-        share.backgroundColor = .systemBlue
+        share.backgroundColor = V2NDesign.bookmark
         return UISwipeActionsConfiguration(actions: [share])
     }
 
@@ -335,6 +366,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                     try await NativeAPIClient.unpublishNote(noteId: card.note.id, fromGroupId: group.id)
                     self?.groupCards.removeAll { $0.note.id == card.note.id }
                     self?.applyFilter()
+                    V2NHaptics.success()
                     completion(true)
                 } catch {
                     completion(false)
@@ -365,6 +397,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                     }
                     self?.notes.removeAll { $0.id == note.id }
                     self?.applyFilter()
+                    V2NHaptics.medium()
                     completion(true)
                 } catch {
                     LocalNoteCache.removeNote(id: note.id)
@@ -395,6 +428,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     }
 
     @objc private func composeNote() {
+        V2NHaptics.light()
         Task { @MainActor in
             guard NativeAPIClient.hasBearer else {
                 showSignIn(auto: false)
@@ -476,6 +510,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                     let updated = try await NativeAPIClient.updateGroup(id: group.id, name: name)
                     self?.group = updated
                     self?.title = updated.name
+                    V2NHaptics.success()
                 } catch {
                     let err = UIAlertController(title: "Erro", message: error.localizedDescription, preferredStyle: .alert)
                     err.addAction(UIAlertAction(title: "OK", style: .default))
@@ -535,28 +570,8 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             self?.reload()
         }
         let nav = UINavigationController(rootViewController: signIn)
+        V2NChrome.style(navigationController: nav)
         nav.modalPresentationStyle = .fullScreen
         present(nav, animated: true)
-    }
-}
-
-private final class SubtitleNoteCell: UITableViewCell {
-    static let reuseId = "SubtitleNoteCell"
-
-    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
-        super.init(style: .subtitle, reuseIdentifier: reuseIdentifier)
-        textLabel?.numberOfLines = 1
-        detailTextLabel?.numberOfLines = 2
-        detailTextLabel?.textColor = .secondaryLabel
-        accessoryType = .disclosureIndicator
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-
-    func configure(title: String, subtitle: String, tags: [String]) {
-        textLabel?.text = title
-        let tagSuffix = tags.isEmpty ? "" : "  ·  " + tags.map { "#\($0)" }.joined(separator: " ")
-        detailTextLabel?.text = subtitle + tagSuffix
     }
 }

@@ -5,6 +5,7 @@ import UIKit
 final class NativeSignInViewController: UIViewController {
     var onSignedIn: (() -> Void)?
 
+    private let scroll = UIScrollView()
     private let stack = UIStackView()
     private let statusLabel = UILabel()
     private let emailField = UITextField()
@@ -16,83 +17,120 @@ final class NativeSignInViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .systemBackground
+        V2NChrome.styleCanvas(view)
         title = "Entrar"
+        navigationItem.largeTitleDisplayMode = .never
+
+        scroll.translatesAutoresizingMaskIntoConstraints = false
+        scroll.alwaysBounceVertical = true
+        view.addSubview(scroll)
 
         stack.axis = .vertical
-        stack.spacing = 12
+        stack.spacing = V2NDesign.Space.sm
         stack.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(stack)
+        scroll.addSubview(stack)
+
+        let brandMark = UIImageView(image: UIImage(systemName: "book.closed.fill"))
+        brandMark.tintColor = V2NDesign.accent
+        brandMark.contentMode = .scaleAspectFit
+        brandMark.translatesAutoresizingMaskIntoConstraints = false
+        brandMark.preferredSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: 36, weight: .medium)
+        brandMark.isAccessibilityElement = false
+        NSLayoutConstraint.activate([
+            brandMark.heightAnchor.constraint(equalToConstant: 44),
+        ])
 
         let title = UILabel()
         title.text = "Verse2Note"
-        title.font = .preferredFont(forTextStyle: .largeTitle)
+        title.font = V2NDesign.displayTitle()
         title.textAlignment = .center
+        title.adjustsFontForContentSizeCategory = true
+        title.accessibilityTraits = .header
 
         let subtitle = UILabel()
-        subtitle.text = "Entre para ver seu caderno."
-        subtitle.font = .preferredFont(forTextStyle: .body)
+        subtitle.text = "Anote versículos e reuniões no seu caderno."
+        subtitle.font = V2NDesign.body()
         subtitle.textColor = .secondaryLabel
         subtitle.textAlignment = .center
         subtitle.numberOfLines = 0
+        subtitle.adjustsFontForContentSizeCategory = true
 
         googleButton = UIButton(type: .system)
-        googleButton.setTitle("Continuar com Google", for: .normal)
-        googleButton.titleLabel?.font = .preferredFont(forTextStyle: .headline)
-        googleButton.backgroundColor = .secondarySystemBackground
-        googleButton.layer.cornerRadius = 12
-        googleButton.heightAnchor.constraint(equalToConstant: 50).isActive = true
+        V2NButtonStyle.applySecondary(to: googleButton, title: "Continuar com Google")
+        googleButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 50).isActive = true
         googleButton.addTarget(self, action: #selector(tapGoogle), for: .touchUpInside)
 
         appleButton = ASAuthorizationAppleIDButton(type: .signIn, style: .black)
-        appleButton.cornerRadius = 12
+        appleButton.cornerRadius = V2NDesign.Radius.md
         appleButton.heightAnchor.constraint(equalToConstant: 50).isActive = true
         appleButton.addTarget(self, action: #selector(tapApple), for: .touchUpInside)
+        appleButton.accessibilityLabel = "Entrar com Apple"
 
-        emailField.placeholder = "Email"
+        styleField(emailField, placeholder: "Email", contentType: .username)
         emailField.keyboardType = .emailAddress
         emailField.autocapitalizationType = .none
         emailField.autocorrectionType = .no
-        emailField.borderStyle = .roundedRect
-        emailField.textContentType = .username
 
-        passwordField.placeholder = "Senha"
+        styleField(passwordField, placeholder: "Senha", contentType: .password)
         passwordField.isSecureTextEntry = true
-        passwordField.borderStyle = .roundedRect
-        passwordField.textContentType = .password
 
         emailButton = UIButton(type: .system)
-        emailButton.setTitle("Entrar com email", for: .normal)
-        emailButton.titleLabel?.font = .preferredFont(forTextStyle: .headline)
-        emailButton.backgroundColor = .systemBlue
-        emailButton.setTitleColor(.white, for: .normal)
-        emailButton.layer.cornerRadius = 12
-        emailButton.heightAnchor.constraint(equalToConstant: 50).isActive = true
+        V2NButtonStyle.applyPrimary(to: emailButton, title: "Entrar com email")
+        emailButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 50).isActive = true
         emailButton.addTarget(self, action: #selector(tapEmail), for: .touchUpInside)
 
-        statusLabel.font = .preferredFont(forTextStyle: .footnote)
+        statusLabel.font = V2NDesign.caption()
         statusLabel.textColor = .secondaryLabel
         statusLabel.numberOfLines = 0
         statusLabel.textAlignment = .center
+        statusLabel.adjustsFontForContentSizeCategory = true
+        statusLabel.accessibilityTraits = .updatesFrequently
 
+        stack.addArrangedSubview(brandMark)
         stack.addArrangedSubview(title)
         stack.addArrangedSubview(subtitle)
-        stack.setCustomSpacing(28, after: subtitle)
+        stack.setCustomSpacing(V2NDesign.Space.lg, after: subtitle)
         stack.addArrangedSubview(googleButton)
         stack.addArrangedSubview(appleButton)
-        stack.setCustomSpacing(20, after: appleButton)
+        stack.setCustomSpacing(V2NDesign.Space.md, after: appleButton)
         stack.addArrangedSubview(emailField)
         stack.addArrangedSubview(passwordField)
         stack.addArrangedSubview(emailButton)
         stack.addArrangedSubview(statusLabel)
 
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: view.layoutMarginsGuide.leadingAnchor),
-            stack.trailingAnchor.constraint(equalTo: view.layoutMarginsGuide.trailingAnchor),
-            stack.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            scroll.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            scroll.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            scroll.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            scroll.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+
+            stack.topAnchor.constraint(equalTo: scroll.contentLayoutGuide.topAnchor, constant: V2NDesign.Space.xl),
+            stack.leadingAnchor.constraint(equalTo: scroll.frameLayoutGuide.leadingAnchor, constant: V2NDesign.Space.lg),
+            stack.trailingAnchor.constraint(equalTo: scroll.frameLayoutGuide.trailingAnchor, constant: -V2NDesign.Space.lg),
+            stack.bottomAnchor.constraint(equalTo: scroll.contentLayoutGuide.bottomAnchor, constant: -V2NDesign.Space.xl),
+            stack.widthAnchor.constraint(equalTo: scroll.frameLayoutGuide.widthAnchor, constant: -V2NDesign.Space.lg * 2),
         ])
 
         Task { await loadProviders() }
+    }
+
+    private func styleField(_ field: UITextField, placeholder: String, contentType: UITextContentType) {
+        field.placeholder = placeholder
+        field.borderStyle = .none
+        field.backgroundColor = V2NDesign.surface
+        field.layer.cornerRadius = V2NDesign.Radius.md
+        field.layer.cornerCurve = .continuous
+        field.layer.borderWidth = 1
+        field.layer.borderColor = V2NDesign.separator.cgColor
+        field.textContentType = contentType
+        field.font = V2NDesign.body()
+        field.heightAnchor.constraint(equalToConstant: 50).isActive = true
+        let pad = UIView(frame: CGRect(x: 0, y: 0, width: 14, height: 1))
+        field.leftView = pad
+        field.leftViewMode = .always
+        field.rightView = UIView(frame: CGRect(x: 0, y: 0, width: 14, height: 1))
+        field.rightViewMode = .always
+        field.accessibilityLabel = placeholder
     }
 
     private func loadProviders() async {
@@ -109,6 +147,7 @@ final class NativeSignInViewController: UIViewController {
 
     @objc private func tapGoogle() {
         guard !busy else { return }
+        V2NHaptics.light()
         setBusy(true, message: "Abrindo Google…")
         Task { @MainActor in
             do {
@@ -124,6 +163,7 @@ final class NativeSignInViewController: UIViewController {
 
     @objc private func tapApple() {
         guard !busy else { return }
+        V2NHaptics.light()
         setBusy(true, message: "Apple…")
         Task { @MainActor in
             do {
@@ -143,8 +183,10 @@ final class NativeSignInViewController: UIViewController {
         let password = passwordField.text ?? ""
         guard !email.isEmpty, !password.isEmpty else {
             statusLabel.text = "Preencha email e senha."
+            statusLabel.textColor = V2NDesign.danger
             return
         }
+        V2NHaptics.light()
         setBusy(true, message: "Entrando…")
         Task { @MainActor in
             do {
@@ -158,6 +200,7 @@ final class NativeSignInViewController: UIViewController {
 
     private func finishSignedIn() {
         setBusy(false, message: "Sessão iniciada.")
+        V2NHaptics.success()
         NotificationCenter.default.post(name: .nativeSessionDidChange, object: nil)
         Task { @MainActor in
             _ = await NativePushService.shared.enable()
@@ -177,7 +220,7 @@ final class NativeSignInViewController: UIViewController {
         appleButton.isEnabled = !value
         emailButton.isEnabled = !value
         statusLabel.text = message
-        statusLabel.textColor = value ? .secondaryLabel : .systemRed
-        if message == "Sessão iniciada." { statusLabel.textColor = .secondaryLabel }
+        statusLabel.textColor = value ? .secondaryLabel : V2NDesign.danger
+        if message == "Sessão iniciada." { statusLabel.textColor = V2NDesign.accent }
     }
 }

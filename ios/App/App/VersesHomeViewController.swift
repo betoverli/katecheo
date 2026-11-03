@@ -11,9 +11,11 @@ final class VersesHomeViewController: UIViewController, UITableViewDelegate, UIT
     private var filtered: [NativeAPIClient.BibleBookDTO] = []
     private var prefs: NativeAPIClient.PrefsDTO?
 
+    private let emptyState = V2NEmptyStateView()
+
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .systemBackground
+        V2NChrome.styleCanvas(view)
         title = "Versículos"
         navigationController?.navigationBar.prefersLargeTitles = true
         navigationItem.largeTitleDisplayMode = .always
@@ -30,29 +32,37 @@ final class VersesHomeViewController: UIViewController, UITableViewDelegate, UIT
         definesPresentationContext = true
 
         statusBanner.translatesAutoresizingMaskIntoConstraints = false
-        statusBanner.font = .preferredFont(forTextStyle: .caption1)
+        statusBanner.font = V2NDesign.caption()
         statusBanner.textColor = .secondaryLabel
         statusBanner.textAlignment = .center
         statusBanner.numberOfLines = 2
+        statusBanner.adjustsFontForContentSizeCategory = true
         view.addSubview(statusBanner)
 
         tableView.translatesAutoresizingMaskIntoConstraints = false
+        V2NChrome.styleGroupedTable(tableView)
         tableView.delegate = self
         tableView.dataSource = self
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "book")
         refresh.addTarget(self, action: #selector(reload), for: .valueChanged)
         tableView.refreshControl = refresh
         view.addSubview(tableView)
+        view.addSubview(emptyState)
 
         NSLayoutConstraint.activate([
-            statusBanner.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 4),
+            statusBanner.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: V2NDesign.Space.xxs),
             statusBanner.leadingAnchor.constraint(equalTo: view.layoutMarginsGuide.leadingAnchor),
             statusBanner.trailingAnchor.constraint(equalTo: view.layoutMarginsGuide.trailingAnchor),
 
-            tableView.topAnchor.constraint(equalTo: statusBanner.bottomAnchor, constant: 4),
+            tableView.topAnchor.constraint(equalTo: statusBanner.bottomAnchor, constant: V2NDesign.Space.xxs),
             tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+
+            emptyState.topAnchor.constraint(equalTo: statusBanner.bottomAnchor),
+            emptyState.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            emptyState.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            emptyState.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
         ])
 
         _ = V2NGlassMaterial.sdkHasLiquidGlass()
@@ -79,9 +89,11 @@ final class VersesHomeViewController: UIViewController, UITableViewDelegate, UIT
                 books = try await booksTask
                 let appName = ProfileBibleCatalog.name(for: prefs?.appId ?? "youversion")
                 statusBanner.text = "\(books.count) livros · Bíblia: \(appName)"
+                statusBanner.textColor = V2NDesign.accent
                 applyFilter()
             } catch {
                 statusBanner.text = "Não foi possível carregar. \(error.localizedDescription)"
+                statusBanner.textColor = V2NDesign.danger
                 applyFilter()
             }
         }
@@ -95,6 +107,23 @@ final class VersesHomeViewController: UIViewController, UITableViewDelegate, UIT
             filtered = books.filter {
                 $0.name.lowercased().contains(q) || $0.abbr.lowercased().contains(q) || $0.id.lowercased().contains(q)
             }
+        }
+        if filtered.isEmpty {
+            tableView.isHidden = true
+            if books.isEmpty {
+                emptyState.show(
+                    symbol: "book.closed",
+                    title: "Não foi possível carregar",
+                    message: "Puxe para atualizar quando a rede voltar.",
+                    actionTitle: "Tentar de novo",
+                    action: { [weak self] in self?.reload() }
+                )
+            } else {
+                emptyState.show(symbol: "magnifyingglass", title: "Nenhum livro encontrado", message: "Tente outro nome ou abreviação.")
+            }
+        } else {
+            emptyState.hide()
+            tableView.isHidden = false
         }
         tableView.reloadData()
     }
@@ -117,19 +146,31 @@ final class VersesHomeViewController: UIViewController, UITableViewDelegate, UIT
         books(in: section == 0 ? "ot" : "nt").count
     }
 
+    func tableView(_ tableView: UITableView, willDisplayHeaderView view: UIView, forSection section: Int) {
+        guard let header = view as? UITableViewHeaderFooterView else { return }
+        header.textLabel?.font = V2NDesign.sectionHeader()
+        header.textLabel?.textColor = .secondaryLabel
+    }
+
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "book", for: indexPath)
         let book = books(in: indexPath.section == 0 ? "ot" : "nt")[indexPath.row]
         var config = cell.defaultContentConfiguration()
         config.text = book.name
+        config.textProperties.font = V2NDesign.rowTitle()
         config.secondaryText = "\(book.abbr) · \(book.chapters) capítulos"
+        config.secondaryTextProperties.font = V2NDesign.rowSubtitle()
+        config.secondaryTextProperties.color = .secondaryLabel
         cell.contentConfiguration = config
+        cell.backgroundColor = V2NDesign.surface
         cell.accessoryType = .disclosureIndicator
+        cell.accessibilityLabel = "\(book.name), \(book.chapters) capítulos"
         return cell
     }
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
+        V2NHaptics.selection()
         let book = books(in: indexPath.section == 0 ? "ot" : "nt")[indexPath.row]
         let chapters = VerseChapterViewController(book: book, prefs: prefs)
         navigationController?.pushViewController(chapters, animated: true)

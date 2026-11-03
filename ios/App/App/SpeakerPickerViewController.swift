@@ -26,11 +26,12 @@ final class SpeakerPickerViewController: UIViewController, UITableViewDelegate, 
     override func viewDidLoad() {
         super.viewDidLoad()
         title = "Speakers"
-        view.backgroundColor = .systemBackground
+        V2NChrome.styleCanvas(view)
         navigationItem.leftBarButtonItem = UIBarButtonItem(title: "Fechar", style: .plain, target: self, action: #selector(close))
         navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(addSpeaker))
 
         table.translatesAutoresizingMaskIntoConstraints = false
+        V2NChrome.styleGroupedTable(table)
         table.delegate = self
         table.dataSource = self
         table.register(UITableViewCell.self, forCellReuseIdentifier: "cell")

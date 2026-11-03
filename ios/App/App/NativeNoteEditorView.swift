@@ -29,21 +29,23 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
     private func setup() {
         precondition(Thread.isMainThread, "NativeNoteEditorView must be created on the main thread")
-        backgroundColor = .systemBackground
+        backgroundColor = V2NDesign.canvas
 
         textView.translatesAutoresizingMaskIntoConstraints = false
         textView.delegate = self
-        textView.backgroundColor = .systemBackground
-        textView.textContainerInset = UIEdgeInsets(top: 12, left: 12, bottom: 24, right: 12)
+        textView.backgroundColor = V2NDesign.canvas
+        textView.textContainerInset = UIEdgeInsets(top: V2NDesign.Space.md, left: V2NDesign.Space.md, bottom: V2NDesign.Space.lg, right: V2NDesign.Space.md)
         textView.alwaysBounceVertical = true
         textView.keyboardDismissMode = .interactive
         textView.adjustsFontForContentSizeCategory = true
         textView.allowsEditingTextAttributes = true
+        textView.tintColor = V2NDesign.accent
         textView.accessibilityLabel = "Corpo da nota"
         textView.accessibilityHint = "A primeira linha é o título"
         addSubview(textView)
 
         toolbar.sizeToFit()
+        toolbar.tintColor = V2NDesign.accent
         toolbar.items = makeToolbarItems()
         textView.inputAccessoryView = toolbar
 
@@ -108,7 +110,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         precondition(Thread.isMainThread)
         let label = NoteDocumentCodec.displayText(for: ref)
         var attrs = textView.typingAttributes
-        attrs[.foregroundColor] = UIColor.systemBlue
+        attrs[.foregroundColor] = V2NDesign.bookmark
         attrs[.underlineStyle] = NSUnderlineStyle.single.rawValue
         attrs[NoteDocumentCodec.bibleRefKey] = ref
         let piece = NSAttributedString(string: label, attributes: attrs)

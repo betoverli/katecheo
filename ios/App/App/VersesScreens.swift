@@ -17,6 +17,7 @@ final class VerseChapterViewController: UITableViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        v2nApplyGroupedChrome()
         title = book.name
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "chapter")
         _ = V2NGlassMaterial.sdkHasLiquidGlass()
@@ -70,6 +71,7 @@ final class VerseNumberViewController: UITableViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        v2nApplyGroupedChrome()
         title = "\(book.abbr) \(chapter)"
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "verse")
         navigationItem.rightBarButtonItem = UIBarButtonItem(
@@ -188,6 +190,7 @@ final class VerseActionsViewController: UITableViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        v2nApplyGroupedChrome()
         title = label
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "action")
         statusLabel.numberOfLines = 0
@@ -444,6 +447,7 @@ final class ThemesHomeViewController: UITableViewController, UISearchResultsUpda
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        v2nApplyGroupedChrome()
         title = "Temas"
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "theme")
         search.searchResultsUpdater = self
@@ -552,6 +556,7 @@ final class ThemeCategoryViewController: UITableViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        v2nApplyGroupedChrome()
         title = category.name
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "theme")
         Task { await load() }
@@ -616,6 +621,7 @@ final class ThemeDetailViewController: UITableViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        v2nApplyGroupedChrome()
         title = themeName
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "passage")
         Task { await load() }
@@ -671,6 +677,7 @@ final class MyCollectionsViewController: UITableViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        v2nApplyGroupedChrome()
         title = "Minhas listas"
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "list")
         refreshControl = UIRefreshControl()
@@ -779,6 +786,7 @@ final class MyCollectionDetailViewController: UITableViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        v2nApplyGroupedChrome()
         title = collection.title
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "passage")
     }

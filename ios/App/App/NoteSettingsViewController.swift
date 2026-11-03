@@ -23,9 +23,10 @@ final class NoteSettingsViewController: UIViewController, UITableViewDelegate, U
     override func viewDidLoad() {
         super.viewDidLoad()
         title = "Configurações"
-        view.backgroundColor = .systemBackground
+        V2NChrome.styleCanvas(view)
         navigationItem.leftBarButtonItem = UIBarButtonItem(title: "Cancelar", style: .plain, target: self, action: #selector(cancel))
         navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Pronto", style: .done, target: self, action: #selector(done))
+        navigationItem.rightBarButtonItem?.tintColor = V2NDesign.accent
 
         titleField.placeholder = "Título"
         titleField.text = note.title
@@ -46,6 +47,7 @@ final class NoteSettingsViewController: UIViewController, UITableViewDelegate, U
         tagField.addTarget(self, action: #selector(addTag), for: .editingDidEndOnExit)
 
         table.translatesAutoresizingMaskIntoConstraints = false
+        V2NChrome.styleGroupedTable(table)
         table.delegate = self
         table.dataSource = self
         table.register(UITableViewCell.self, forCellReuseIdentifier: "cell")
