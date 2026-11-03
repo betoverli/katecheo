@@ -601,18 +601,19 @@ final class V2NModeToggle: UIView {
     }
 
     @objc private func tapCompact() {
-        guard !isCompact else { return }
+        let changed = !isCompact
         isCompact = true
         refresh()
-        V2NHaptics.selection()
+        if changed { V2NHaptics.selection() }
+        // Always notify so the parent can resync layout if selection and content drifted.
         onChange?(true)
     }
 
     @objc private func tapNames() {
-        guard isCompact else { return }
+        let changed = isCompact
         isCompact = false
         refresh()
-        V2NHaptics.selection()
+        if changed { V2NHaptics.selection() }
         onChange?(false)
     }
 }
@@ -730,8 +731,10 @@ final class V2NBookSectionHeaderView: UICollectionReusableView {
 
 enum V2NBookGridLayout {
     /// Compositional layout matching Versículos Siglas/Nomes grids.
-    static func make(compact: Bool) -> UICollectionViewCompositionalLayout {
+    /// Pass a provider so Siglas/Nomes toggles can `invalidateLayout()` without rebuilding.
+    static func make(isCompact: @escaping () -> Bool) -> UICollectionViewCompositionalLayout {
         UICollectionViewCompositionalLayout { _, env in
+            let compact = isCompact()
             let columns: CGFloat = compact ? (env.container.effectiveContentSize.width > 500 ? 8 : 5) : 2
             let itemSize = NSCollectionLayoutSize(
                 widthDimension: .fractionalWidth(1 / columns),
@@ -754,5 +757,9 @@ enum V2NBookGridLayout {
             section.boundarySupplementaryItems = [header]
             return section
         }
+    }
+
+    static func make(compact: Bool) -> UICollectionViewCompositionalLayout {
+        make(isCompact: { compact })
     }
 }

@@ -1,6 +1,7 @@
 import UIKit
 
-/// Native Versículos tab: book picker (names ↔ siglas), Temas / Listas chips, deferred search.
+/// Native Versículos tab: book picker (names ↔ siglas), Temas / Listas chips.
+/// Chips keep title + filter chrome fixed and swap only the content below.
 final class VersesHomeViewController: UIViewController, UICollectionViewDelegate, UICollectionViewDataSource, UISearchResultsUpdating {
     private enum HomeFilter: String {
         case books = "books"
@@ -12,6 +13,8 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
     private let modeToggle = V2NModeToggle()
     private let statusBanner = UILabel()
     private let emptyState = V2NEmptyStateView()
+    private let contentHost = UIView()
+    private let booksPanel = UIView()
     private var collectionView: UICollectionView!
     private let search = UISearchController(searchResultsController: nil)
 
@@ -21,6 +24,9 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
     private var booksCompact = false
     private var homeFilter: HomeFilter = .books
     private var searchVisible = false
+
+    private lazy var themesVC = ThemesHomeViewController(prefs: nil, embedded: true)
+    private lazy var listsVC = MyCollectionsViewController(embedded: true)
 
     private var otBooks: [NativeAPIClient.BibleBookDTO] { filtered.filter { $0.testament == "ot" } }
     private var ntBooks: [NativeAPIClient.BibleBookDTO] { filtered.filter { $0.testament == "nt" } }
@@ -32,22 +38,18 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
         navigationController?.navigationBar.prefersLargeTitles = true
         navigationItem.largeTitleDisplayMode = .always
 
-        booksCompact = UserDefaults.standard.bool(forKey: "v2n.booksCompact")
-        modeToggle.setCompact(booksCompact)
+        applyBooksCompact(resolvedInitialBooksCompact(), rebuild: false)
         modeToggle.onChange = { [weak self] compact in
-            self?.booksCompact = compact
-            UserDefaults.standard.set(compact, forKey: "v2n.booksCompact")
+            self?.applyBooksCompact(compact, rebuild: true)
             if NativeAPIClient.hasBearer {
                 Task { try? await NativeAPIClient.patchPrefs(["booksCompact": compact]) }
             }
-            self?.rebuildLayout()
         }
 
         search.searchResultsUpdater = self
         search.obscuresBackgroundDuringPresentation = false
         search.searchBar.placeholder = String(localized: "Buscar livro")
         definesPresentationContext = true
-        // Search stays off the chrome until the magnifying-glass is tapped.
         navigationItem.searchController = nil
         navigationItem.hidesSearchBarWhenScrolling = true
 
@@ -75,7 +77,14 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
         statusBanner.numberOfLines = 2
         statusBanner.adjustsFontForContentSizeCategory = true
 
-        let layout = V2NBookGridLayout.make(compact: booksCompact)
+        contentHost.translatesAutoresizingMaskIntoConstraints = false
+        contentHost.backgroundColor = .clear
+        booksPanel.translatesAutoresizingMaskIntoConstraints = false
+        booksPanel.backgroundColor = .clear
+
+        let layout = V2NBookGridLayout.make(isCompact: { [weak self] in
+            self?.booksCompact ?? false
+        })
         collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
         collectionView.translatesAutoresizingMaskIntoConstraints = false
         collectionView.backgroundColor = .clear
@@ -94,54 +103,100 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
         collectionView.refreshControl = refresh
 
         view.addSubview(chips)
-        view.addSubview(modeToggle)
-        view.addSubview(statusBanner)
-        view.addSubview(collectionView)
-        view.addSubview(emptyState)
+        view.addSubview(contentHost)
+        contentHost.addSubview(booksPanel)
+        booksPanel.addSubview(modeToggle)
+        booksPanel.addSubview(statusBanner)
+        booksPanel.addSubview(collectionView)
+        booksPanel.addSubview(emptyState)
 
         NSLayoutConstraint.activate([
             chips.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: V2NDesign.Space.xxs),
             chips.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             chips.trailingAnchor.constraint(equalTo: view.trailingAnchor),
 
-            modeToggle.topAnchor.constraint(equalTo: chips.bottomAnchor, constant: V2NDesign.Space.xs),
-            modeToggle.trailingAnchor.constraint(equalTo: view.layoutMarginsGuide.trailingAnchor),
-            modeToggle.leadingAnchor.constraint(greaterThanOrEqualTo: view.layoutMarginsGuide.leadingAnchor),
+            contentHost.topAnchor.constraint(equalTo: chips.bottomAnchor, constant: V2NDesign.Space.xs),
+            contentHost.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            contentHost.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            contentHost.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+
+            booksPanel.topAnchor.constraint(equalTo: contentHost.topAnchor),
+            booksPanel.leadingAnchor.constraint(equalTo: contentHost.leadingAnchor),
+            booksPanel.trailingAnchor.constraint(equalTo: contentHost.trailingAnchor),
+            booksPanel.bottomAnchor.constraint(equalTo: contentHost.bottomAnchor),
+
+            modeToggle.topAnchor.constraint(equalTo: booksPanel.topAnchor),
+            modeToggle.trailingAnchor.constraint(equalTo: booksPanel.layoutMarginsGuide.trailingAnchor),
+            modeToggle.leadingAnchor.constraint(greaterThanOrEqualTo: booksPanel.layoutMarginsGuide.leadingAnchor),
 
             statusBanner.topAnchor.constraint(equalTo: modeToggle.bottomAnchor, constant: V2NDesign.Space.xxs),
-            statusBanner.leadingAnchor.constraint(equalTo: view.layoutMarginsGuide.leadingAnchor),
-            statusBanner.trailingAnchor.constraint(equalTo: view.layoutMarginsGuide.trailingAnchor),
+            statusBanner.leadingAnchor.constraint(equalTo: booksPanel.layoutMarginsGuide.leadingAnchor),
+            statusBanner.trailingAnchor.constraint(equalTo: booksPanel.layoutMarginsGuide.trailingAnchor),
 
             collectionView.topAnchor.constraint(equalTo: statusBanner.bottomAnchor, constant: V2NDesign.Space.xs),
-            collectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            collectionView.leadingAnchor.constraint(equalTo: booksPanel.leadingAnchor),
+            collectionView.trailingAnchor.constraint(equalTo: booksPanel.trailingAnchor),
+            collectionView.bottomAnchor.constraint(equalTo: booksPanel.bottomAnchor),
 
             emptyState.topAnchor.constraint(equalTo: statusBanner.bottomAnchor),
-            emptyState.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            emptyState.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            emptyState.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+            emptyState.leadingAnchor.constraint(equalTo: booksPanel.leadingAnchor),
+            emptyState.trailingAnchor.constraint(equalTo: booksPanel.trailingAnchor),
+            emptyState.bottomAnchor.constraint(equalTo: booksPanel.bottomAnchor),
         ])
+
+        embedChild(themesVC)
+        embedChild(listsVC)
+        themesVC.view.isHidden = true
+        listsVC.view.isHidden = true
 
         _ = V2NGlassMaterial.sdkHasLiquidGlass()
     }
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        if homeFilter != .books {
-            chips.setSelected(HomeFilter.books.rawValue)
-            homeFilter = .books
-            updateChromeForFilter()
-        }
         Task { @MainActor in
             if NativeAPIClient.hasBearer {
                 _ = await NativeSessionBootstrap.migrateCookieToKeychainIfNeeded()
             }
-            reload()
+            switch homeFilter {
+            case .books: reload()
+            case .themes: themesVC.reloadFromParent()
+            case .lists: listsVC.reloadFromParent()
+            }
+        }
+    }
+
+    private func embedChild(_ child: UIViewController) {
+        addChild(child)
+        child.view.translatesAutoresizingMaskIntoConstraints = false
+        contentHost.addSubview(child.view)
+        NSLayoutConstraint.activate([
+            child.view.topAnchor.constraint(equalTo: contentHost.topAnchor),
+            child.view.leadingAnchor.constraint(equalTo: contentHost.leadingAnchor),
+            child.view.trailingAnchor.constraint(equalTo: contentHost.trailingAnchor),
+            child.view.bottomAnchor.constraint(equalTo: contentHost.bottomAnchor),
+        ])
+        child.didMove(toParent: self)
+    }
+
+    private func resolvedInitialBooksCompact() -> Bool {
+        if UserDefaults.standard.object(forKey: "v2n.booksCompact") != nil {
+            return UserDefaults.standard.bool(forKey: "v2n.booksCompact")
+        }
+        return false
+    }
+
+    private func applyBooksCompact(_ compact: Bool, rebuild: Bool) {
+        booksCompact = compact
+        modeToggle.setCompact(compact)
+        UserDefaults.standard.set(compact, forKey: "v2n.booksCompact")
+        if rebuild {
+            rebuildLayout()
         }
     }
 
     @objc private func toggleSearch() {
+        guard homeFilter == .books else { return }
         searchVisible.toggle()
         if searchVisible {
             navigationItem.searchController = search
@@ -163,21 +218,53 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
         updateChromeForFilter()
         switch filter {
         case .books:
-            break
+            booksPanel.isHidden = false
+            themesVC.view.isHidden = true
+            listsVC.view.isHidden = true
+            applyFilter()
         case .themes:
-            navigationController?.pushViewController(ThemesHomeViewController(prefs: prefs), animated: true)
+            dismissBooksSearchIfNeeded()
+            booksPanel.isHidden = true
+            themesVC.updatePrefs(prefs)
+            themesVC.view.isHidden = false
+            listsVC.view.isHidden = true
+            themesVC.reloadFromParent()
         case .lists:
-            navigationController?.pushViewController(MyCollectionsViewController(), animated: true)
+            dismissBooksSearchIfNeeded()
+            booksPanel.isHidden = true
+            themesVC.view.isHidden = true
+            listsVC.view.isHidden = false
+            listsVC.reloadFromParent()
         }
     }
 
+    private func dismissBooksSearchIfNeeded() {
+        emptyState.hide()
+        guard searchVisible else { return }
+        searchVisible = false
+        search.isActive = false
+        search.searchBar.text = nil
+        navigationItem.searchController = nil
+    }
+
     private func updateChromeForFilter() {
-        let showBooks = homeFilter == .books
-        modeToggle.isHidden = !showBooks
-        collectionView.isHidden = !showBooks
-        if !showBooks {
-            emptyState.hide()
+        switch homeFilter {
+        case .books:
+            navigationItem.rightBarButtonItems = [
+                UIBarButtonItem(image: UIImage(systemName: "magnifyingglass"), style: .plain, target: self, action: #selector(toggleSearch)),
+            ]
+            navigationItem.rightBarButtonItem?.accessibilityLabel = String(localized: "Buscar")
+        case .lists:
+            navigationItem.rightBarButtonItems = [
+                UIBarButtonItem(title: String(localized: "Nova"), style: .plain, target: self, action: #selector(createListFromParent)),
+            ]
+        case .themes:
+            navigationItem.rightBarButtonItems = nil
         }
+    }
+
+    @objc private func createListFromParent() {
+        listsVC.presentCreateList()
     }
 
     @objc private func reload() {
@@ -188,9 +275,8 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
                 if NativeAPIClient.hasBearer {
                     prefs = try? await NativeAPIClient.getPrefs()
                     if let prefs {
-                        booksCompact = prefs.booksCompact
-                        modeToggle.setCompact(booksCompact)
-                        UserDefaults.standard.set(booksCompact, forKey: "v2n.booksCompact")
+                        applyBooksCompact(prefs.booksCompact, rebuild: true)
+                        themesVC.updatePrefs(prefs)
                     }
                 }
                 books = try await booksTask
@@ -207,6 +293,7 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
     }
 
     private func applyFilter() {
+        guard homeFilter == .books else { return }
         let q = (search.searchBar.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if q.isEmpty {
             filtered = books
@@ -230,7 +317,7 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
             }
         } else {
             emptyState.hide()
-            collectionView.isHidden = homeFilter != .books
+            collectionView.isHidden = false
         }
         collectionView.reloadData()
     }
@@ -240,9 +327,10 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
     }
 
     private func rebuildLayout() {
-        collectionView.setCollectionViewLayout(V2NBookGridLayout.make(compact: booksCompact), animated: true)
+        collectionView.collectionViewLayout.invalidateLayout()
         collectionView.reloadData()
     }
+
 
     // MARK: - Collection
 

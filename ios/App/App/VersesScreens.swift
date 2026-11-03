@@ -430,15 +430,18 @@ final class VerseActionsViewController: UITableViewController {
 
 // MARK: - Themes (built-in collections)
 
-final class ThemesHomeViewController: UITableViewController, UISearchResultsUpdating {
+final class ThemesHomeViewController: UITableViewController, UISearchResultsUpdating, UISearchBarDelegate {
     private var prefs: NativeAPIClient.PrefsDTO?
+    private let embedded: Bool
     private var categories: [NativeAPIClient.CategoryCardDTO] = []
     private var themes: [NativeAPIClient.ThemeCardDTO] = []
     private var kind = "index"
     private let search = UISearchController(searchResultsController: nil)
+    private let embeddedSearch = UISearchBar()
 
-    init(prefs: NativeAPIClient.PrefsDTO?) {
+    init(prefs: NativeAPIClient.PrefsDTO?, embedded: Bool = false) {
         self.prefs = prefs
+        self.embedded = embedded
         super.init(style: .insetGrouped)
     }
 
@@ -448,22 +451,48 @@ final class ThemesHomeViewController: UITableViewController, UISearchResultsUpda
     override func viewDidLoad() {
         super.viewDidLoad()
         v2nApplyGroupedChrome()
-        title = String(localized: "Temas")
+        if !embedded {
+            title = String(localized: "Temas")
+        }
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "theme")
         search.searchResultsUpdater = self
         search.obscuresBackgroundDuringPresentation = false
         search.searchBar.placeholder = String(localized: "Buscar temas")
-        navigationItem.searchController = search
+        if embedded {
+            // Keep parent nav title/chips; search lives in the content area.
+            embeddedSearch.placeholder = String(localized: "Buscar temas")
+            embeddedSearch.delegate = self
+            embeddedSearch.searchBarStyle = .minimal
+            embeddedSearch.sizeToFit()
+            tableView.tableHeaderView = embeddedSearch
+        } else {
+            navigationItem.searchController = search
+        }
         refreshControl = UIRefreshControl()
         refreshControl?.addTarget(self, action: #selector(reload), for: .valueChanged)
         _ = V2NGlassMaterial.sdkHasLiquidGlass()
+        if !embedded {
+            reload()
+        }
+    }
+
+    func updatePrefs(_ prefs: NativeAPIClient.PrefsDTO?) {
+        self.prefs = prefs
+    }
+
+    func reloadFromParent() {
         reload()
     }
 
     @objc private func reload() {
         Task { @MainActor in
             defer { refreshControl?.endRefreshing() }
-            let q = (search.searchBar.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            let q: String
+            if embedded {
+                q = (embeddedSearch.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            } else {
+                q = (search.searchBar.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            }
             do {
                 let result = try await NativeAPIClient.fetchThemes(query: q.isEmpty ? nil : q)
                 kind = result.kind
@@ -479,6 +508,15 @@ final class ThemesHomeViewController: UITableViewController, UISearchResultsUpda
     }
 
     func updateSearchResults(for searchController: UISearchController) {
+        reload()
+    }
+
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        reload()
+    }
+
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        searchBar.resignFirstResponder()
         reload()
     }
 
@@ -673,26 +711,48 @@ final class ThemeDetailViewController: UITableViewController {
 // MARK: - User collections ("Minhas listas")
 
 final class MyCollectionsViewController: UITableViewController {
+    private let embedded: Bool
     private var collections: [NativeAPIClient.UserCollectionDTO] = []
+    private var didPromptSignIn = false
+
+    init(embedded: Bool = false) {
+        self.embedded = embedded
+        super.init(style: .insetGrouped)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     override func viewDidLoad() {
         super.viewDidLoad()
         v2nApplyGroupedChrome()
-        title = String(localized: "Minhas listas")
+        if !embedded {
+            title = String(localized: "Minhas listas")
+            navigationItem.rightBarButtonItem = UIBarButtonItem(
+                title: String(localized: "Nova"),
+                style: .plain,
+                target: self,
+                action: #selector(createList)
+            )
+        }
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "list")
         refreshControl = UIRefreshControl()
         refreshControl?.addTarget(self, action: #selector(reload), for: .valueChanged)
-        navigationItem.rightBarButtonItem = UIBarButtonItem(
-            title: String(localized: "Nova"),
-            style: .plain,
-            target: self,
-            action: #selector(createList)
-        )
     }
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        if !embedded {
+            reload()
+        }
+    }
+
+    func reloadFromParent() {
         reload()
+    }
+
+    func presentCreateList() {
+        createList()
     }
 
     @objc private func reload() {
@@ -701,13 +761,17 @@ final class MyCollectionsViewController: UITableViewController {
             guard NativeAPIClient.hasBearer else {
                 collections = []
                 tableView.reloadData()
-                let alert = UIAlertController(
-                    title: String(localized: "Entrar"),
-                    message: String(localized: "Inicie sessão para ver suas listas de versículos."),
-                    preferredStyle: .alert
-                )
-                alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
-                present(alert, animated: true)
+                // Embedded under Versículos chips: show empty row, don't steal focus with alerts every switch.
+                if !embedded || !didPromptSignIn {
+                    didPromptSignIn = true
+                    let alert = UIAlertController(
+                        title: String(localized: "Entrar"),
+                        message: String(localized: "Inicie sessão para ver suas listas de versículos."),
+                        preferredStyle: .alert
+                    )
+                    alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
+                    present(alert, animated: true)
+                }
                 return
             }
             do {
