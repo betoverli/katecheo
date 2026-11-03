@@ -399,6 +399,23 @@ try {
   if (!versesHome.includes("Temas") || !versesHome.includes("fetchBibleBooks")) {
     errors.push("VersesHomeViewController tem de listar livros e abrir Temas.");
   }
+  if (
+    /pushViewController\(\s*ThemesHomeViewController/.test(versesHome) ||
+    /pushViewController\(\s*MyCollectionsViewController/.test(versesHome)
+  ) {
+    errors.push("Chips Livros/Temas/Listas têm de trocar o conteúdo in-place (sem push).");
+  }
+  if (!versesHome.includes("applyBooksCompact") || !versesHome.includes("booksCompact")) {
+    errors.push("Versículos tem de manter Siglas/Nomes sincronizados com booksCompact no primeiro load.");
+  }
+  const groupsListSync = read("ios/App/App/GroupsListViewController.swift");
+  if (groupsListSync.includes("grupos · sincronizado")) {
+    errors.push("Remova o banner persistente «grupos · sincronizado».");
+  }
+  const readingHome = read("ios/App/App/ReadingScreens.swift");
+  if (!readingHome.includes("V2NPlanCategoryCardCell") || !readingHome.includes("UICollectionView")) {
+    errors.push("Leitura home tem de usar cards (UICollectionView) como a web original.");
+  }
   const versesScreens = read("ios/App/App/VersesScreens.swift");
   if (
     !versesScreens.includes("VerseActionsViewController") ||

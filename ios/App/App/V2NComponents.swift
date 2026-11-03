@@ -601,18 +601,19 @@ final class V2NModeToggle: UIView {
     }
 
     @objc private func tapCompact() {
-        guard !isCompact else { return }
+        let changed = !isCompact
         isCompact = true
         refresh()
-        V2NHaptics.selection()
+        if changed { V2NHaptics.selection() }
+        // Always notify so the parent can resync layout if selection and content drifted.
         onChange?(true)
     }
 
     @objc private func tapNames() {
-        guard isCompact else { return }
+        let changed = isCompact
         isCompact = false
         refresh()
-        V2NHaptics.selection()
+        if changed { V2NHaptics.selection() }
         onChange?(false)
     }
 }

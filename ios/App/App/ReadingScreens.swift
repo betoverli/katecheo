@@ -1,11 +1,12 @@
 import UIKit
 
 /// Native Leitura tab: browse plans, track days, share invites.
-final class ReadingHomeViewController: UIViewController, UITableViewDelegate, UITableViewDataSource, UISearchResultsUpdating {
-    private let tableView = UITableView(frame: .zero, style: .insetGrouped)
+/// Layout mirrors the original web reading page — category card grid + plan rows.
+final class ReadingHomeViewController: UIViewController, UICollectionViewDelegate, UICollectionViewDataSource, UISearchResultsUpdating {
     private let refresh = UIRefreshControl()
     private let emptyState = V2NEmptyStateView()
     private let search = UISearchController(searchResultsController: nil)
+    private var collectionView: UICollectionView!
 
     private var categories: [NativeAPIClient.PlanCategoryDTO] = []
     private var plans: [NativeAPIClient.PlanCardDTO] = []
@@ -13,6 +14,10 @@ final class ReadingHomeViewController: UIViewController, UITableViewDelegate, UI
     private var prefs: NativeAPIClient.PrefsDTO?
     private var planTotal = 0
     private var searching = false
+
+    private enum Section: Int {
+        case mine, browse, all, searchCategories, searchPlans
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -28,21 +33,29 @@ final class ReadingHomeViewController: UIViewController, UITableViewDelegate, UI
         navigationItem.hidesSearchBarWhenScrolling = true
         definesPresentationContext = true
 
-        tableView.translatesAutoresizingMaskIntoConstraints = false
-        V2NChrome.styleGroupedTable(tableView)
-        tableView.delegate = self
-        tableView.dataSource = self
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "row")
-        tableView.register(V2NPlanCategoryCell.self, forCellReuseIdentifier: V2NPlanCategoryCell.reuseId)
+        collectionView = UICollectionView(frame: .zero, collectionViewLayout: makeLayout())
+        collectionView.translatesAutoresizingMaskIntoConstraints = false
+        collectionView.backgroundColor = .clear
+        collectionView.delegate = self
+        collectionView.dataSource = self
+        collectionView.alwaysBounceVertical = true
+        collectionView.register(V2NPlanCategoryCardCell.self, forCellWithReuseIdentifier: V2NPlanCategoryCardCell.reuseId)
+        collectionView.register(V2NPlanRowCardCell.self, forCellWithReuseIdentifier: V2NPlanRowCardCell.reuseId)
+        collectionView.register(V2NPlanLinkCardCell.self, forCellWithReuseIdentifier: V2NPlanLinkCardCell.reuseId)
+        collectionView.register(
+            V2NReadingSectionHeader.self,
+            forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader,
+            withReuseIdentifier: V2NReadingSectionHeader.reuseId
+        )
         refresh.addTarget(self, action: #selector(reload), for: .valueChanged)
-        tableView.refreshControl = refresh
-        view.addSubview(tableView)
+        collectionView.refreshControl = refresh
+        view.addSubview(collectionView)
         view.addSubview(emptyState)
         NSLayoutConstraint.activate([
-            tableView.topAnchor.constraint(equalTo: view.topAnchor),
-            tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            collectionView.topAnchor.constraint(equalTo: view.topAnchor),
+            collectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             emptyState.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             emptyState.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             emptyState.trailingAnchor.constraint(equalTo: view.trailingAnchor),
@@ -74,7 +87,6 @@ final class ReadingHomeViewController: UIViewController, UITableViewDelegate, UI
                 if searching {
                     myPlans = []
                 } else if !active.isEmpty {
-                    // Resolve my plans individually for names/days.
                     var mine: [NativeAPIClient.PlanCardDTO] = []
                     for id in active.prefix(20) {
                         if let cached = plans.first(where: { $0.id == id }) {
@@ -84,7 +96,6 @@ final class ReadingHomeViewController: UIViewController, UITableViewDelegate, UI
                         }
                     }
                     myPlans = mine
-                    // Fresh browse categories when not searching.
                     let browse = try await NativeAPIClient.fetchReadingPlans()
                     categories = browse.categories
                     plans = browse.plans
@@ -93,10 +104,10 @@ final class ReadingHomeViewController: UIViewController, UITableViewDelegate, UI
                     myPlans = []
                 }
                 emptyState.hide()
-                tableView.isHidden = false
-                tableView.reloadData()
+                collectionView.isHidden = false
+                collectionView.reloadData()
             } catch {
-                tableView.isHidden = true
+                collectionView.isHidden = true
                 emptyState.show(
                     symbol: "calendar",
                     title: String(localized: "Não foi possível carregar"),
@@ -110,10 +121,6 @@ final class ReadingHomeViewController: UIViewController, UITableViewDelegate, UI
 
     func updateSearchResults(for searchController: UISearchController) {
         reload()
-    }
-
-    private enum Section: Int {
-        case mine, browse, all, searchCategories, searchPlans
     }
 
     private func sectionKind(_ section: Int) -> Section? {
@@ -137,96 +144,136 @@ final class ReadingHomeViewController: UIViewController, UITableViewDelegate, UI
         return nil
     }
 
-    func numberOfSections(in tableView: UITableView) -> Int {
+    private func makeLayout() -> UICollectionViewCompositionalLayout {
+        UICollectionViewCompositionalLayout { [weak self] sectionIndex, env in
+            guard let self, let kind = self.sectionKind(sectionIndex) else {
+                return Self.listSection(height: 56)
+            }
+            switch kind {
+            case .browse, .searchCategories:
+                return Self.categoryGridSection(env: env)
+            case .mine, .searchPlans, .all:
+                return Self.listSection(height: kind == .all ? 64 : 60)
+            }
+        }
+    }
+
+    private static func categoryGridSection(env: NSCollectionLayoutEnvironment) -> NSCollectionLayoutSection {
+        let columns: CGFloat = env.container.effectiveContentSize.width > 700 ? 3 : 2
+        let itemSize = NSCollectionLayoutSize(widthDimension: .fractionalWidth(1 / columns), heightDimension: .absolute(132))
+        let item = NSCollectionLayoutItem(layoutSize: itemSize)
+        item.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 6, bottom: 6, trailing: 6)
+        let group = NSCollectionLayoutGroup.horizontal(
+            layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1), heightDimension: .absolute(132)),
+            subitems: [item]
+        )
+        let section = NSCollectionLayoutSection(group: group)
+        section.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 10, bottom: 8, trailing: 10)
+        section.boundarySupplementaryItems = [Self.sectionHeader()]
+        return section
+    }
+
+    private static func listSection(height: CGFloat) -> NSCollectionLayoutSection {
+        let item = NSCollectionLayoutItem(
+            layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1), heightDimension: .absolute(height))
+        )
+        item.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16)
+        let group = NSCollectionLayoutGroup.vertical(
+            layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1), heightDimension: .absolute(height + 8)),
+            subitems: [item]
+        )
+        let section = NSCollectionLayoutSection(group: group)
+        section.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 0, bottom: 12, trailing: 0)
+        section.boundarySupplementaryItems = [Self.sectionHeader()]
+        return section
+    }
+
+    private static func sectionHeader() -> NSCollectionLayoutBoundarySupplementaryItem {
+        NSCollectionLayoutBoundarySupplementaryItem(
+            layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1), heightDimension: .absolute(28)),
+            elementKind: UICollectionView.elementKindSectionHeader,
+            alignment: .top
+        )
+    }
+
+    func numberOfSections(in collectionView: UICollectionView) -> Int {
         if searching {
             return (categories.isEmpty ? 0 : 1) + 1
         }
         return (myPlans.isEmpty ? 0 : 1) + 2
     }
 
-    func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        switch sectionKind(section) {
-        case .mine: return String(localized: "Meus planos")
-        case .browse: return String(localized: "Explorar")
-        case .all: return nil
-        case .searchCategories: return String(localized: "Categorias")
-        case .searchPlans: return String(localized: "Planos")
-        case .none: return nil
-        }
-    }
-
-    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
         switch sectionKind(section) {
         case .mine: return myPlans.count
-        case .browse: return categories.count
+        case .browse, .searchCategories: return categories.count
         case .all: return 1
-        case .searchCategories: return categories.count
         case .searchPlans: return max(plans.count, 1)
         case .none: return 0
         }
     }
 
-    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+    func collectionView(
+        _ collectionView: UICollectionView,
+        viewForSupplementaryElementOfKind kind: String,
+        at indexPath: IndexPath
+    ) -> UICollectionReusableView {
+        let header = collectionView.dequeueReusableSupplementaryView(
+            ofKind: kind,
+            withReuseIdentifier: V2NReadingSectionHeader.reuseId,
+            for: indexPath
+        ) as! V2NReadingSectionHeader
+        switch sectionKind(indexPath.section) {
+        case .mine: header.configure(String(localized: "Meus planos"))
+        case .browse: header.configure(String(localized: "Explorar"))
+        case .searchCategories: header.configure(String(localized: "Categorias"))
+        case .searchPlans: header.configure(String(localized: "Planos"))
+        case .all, .none: header.configure(nil)
+        }
+        return header
+    }
+
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         switch sectionKind(indexPath.section) {
         case .mine:
-            let cell = tableView.dequeueReusableCell(withIdentifier: "row", for: indexPath)
-            let plan = myPlans[indexPath.row]
-            configurePlanCell(cell, plan: plan, progress: prefs?.planProgress?[plan.id] ?? [])
+            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NPlanRowCardCell.reuseId, for: indexPath) as! V2NPlanRowCardCell
+            let plan = myPlans[indexPath.item]
+            cell.configure(plan: plan, progress: prefs?.planProgress?[plan.id] ?? [])
             return cell
         case .browse, .searchCategories:
-            let cell = tableView.dequeueReusableCell(withIdentifier: V2NPlanCategoryCell.reuseId, for: indexPath) as! V2NPlanCategoryCell
-            cell.configure(categories[indexPath.row])
+            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NPlanCategoryCardCell.reuseId, for: indexPath) as! V2NPlanCategoryCardCell
+            cell.configure(categories[indexPath.item])
             return cell
         case .all:
-            let cell = tableView.dequeueReusableCell(withIdentifier: "row", for: indexPath)
-            var config = cell.defaultContentConfiguration()
-            config.text = String(localized: "Todos os planos")
-            config.secondaryText = String(localized: "\(planTotal) planos")
-            config.image = UIImage(systemName: "calendar")
-            cell.contentConfiguration = config
-            cell.accessoryType = .disclosureIndicator
-            cell.backgroundColor = V2NDesign.surface
+            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NPlanLinkCardCell.reuseId, for: indexPath) as! V2NPlanLinkCardCell
+            cell.configure(
+                title: String(localized: "Todos os planos"),
+                subtitle: String(localized: "\(planTotal) planos"),
+                symbol: "calendar"
+            )
             return cell
         case .searchPlans:
-            let cell = tableView.dequeueReusableCell(withIdentifier: "row", for: indexPath)
+            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NPlanRowCardCell.reuseId, for: indexPath) as! V2NPlanRowCardCell
             if plans.isEmpty {
-                var config = cell.defaultContentConfiguration()
-                config.text = String(localized: "Nenhum plano encontrado")
-                cell.contentConfiguration = config
-                cell.selectionStyle = .none
-                cell.accessoryType = .none
+                cell.configureEmpty(String(localized: "Nenhum plano encontrado"))
             } else {
-                configurePlanCell(cell, plan: plans[indexPath.row], progress: prefs?.planProgress?[plans[indexPath.row].id] ?? [])
+                let plan = plans[indexPath.item]
+                cell.configure(plan: plan, progress: prefs?.planProgress?[plan.id] ?? [])
             }
             return cell
         case .none:
-            return tableView.dequeueReusableCell(withIdentifier: "row", for: indexPath)
+            return collectionView.dequeueReusableCell(withReuseIdentifier: V2NPlanRowCardCell.reuseId, for: indexPath)
         }
     }
 
-    private func configurePlanCell(_ cell: UITableViewCell, plan: NativeAPIClient.PlanCardDTO, progress: [Int]) {
-        var config = cell.defaultContentConfiguration()
-        config.text = plan.name
-        if progress.isEmpty {
-            config.secondaryText = String(localized: "\(plan.days) dias")
-        } else {
-            config.secondaryText = String(localized: "\(progress.count) / \(plan.days) dias")
-        }
-        config.image = UIImage(systemName: "book.closed")
-        cell.contentConfiguration = config
-        cell.accessoryType = .disclosureIndicator
-        cell.selectionStyle = .default
-        cell.backgroundColor = V2NDesign.surface
-    }
-
-    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        tableView.deselectRow(at: indexPath, animated: true)
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        collectionView.deselectItem(at: indexPath, animated: true)
         V2NHaptics.selection()
         switch sectionKind(indexPath.section) {
         case .mine:
-            openPlan(myPlans[indexPath.row].id)
+            openPlan(myPlans[indexPath.item].id)
         case .browse, .searchCategories:
-            let category = categories[indexPath.row]
+            let category = categories[indexPath.item]
             navigationController?.pushViewController(
                 ReadingPlanListViewController(mode: .category(category)),
                 animated: true
@@ -238,7 +285,7 @@ final class ReadingHomeViewController: UIViewController, UITableViewDelegate, UI
             )
         case .searchPlans:
             guard !plans.isEmpty else { return }
-            openPlan(plans[indexPath.row].id)
+            openPlan(plans[indexPath.item].id)
         case .none:
             break
         }
@@ -278,7 +325,10 @@ final class ReadingPlanListViewController: UITableViewController {
         case .category(let category):
             title = category.name
         }
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "row")
+        tableView.register(V2NPlanRowTableCell.self, forCellReuseIdentifier: V2NPlanRowTableCell.reuseId)
+        tableView.separatorStyle = .none
+        tableView.rowHeight = UITableView.automaticDimension
+        tableView.estimatedRowHeight = 72
         refreshControl = UIRefreshControl()
         refreshControl?.addTarget(self, action: #selector(reload), for: .valueChanged)
         reload()
@@ -293,11 +343,8 @@ final class ReadingPlanListViewController: UITableViewController {
                 switch mode {
                 case .all:
                     result = try await NativeAPIClient.fetchReadingPlans()
-                    // Index returns category cards + plan cards for search; for all we need full list via empty q or a dedicated call.
-                    // `/api/plans` without filters returns plans[] in index — use that; if empty, fall back to category union is overkill.
                     plans = result.plans
                     if plans.isEmpty {
-                        // Aggregate by walking categories.
                         var seen = Set<String>()
                         var all: [NativeAPIClient.PlanCardDTO] = []
                         for category in result.categories {
@@ -326,24 +373,13 @@ final class ReadingPlanListViewController: UITableViewController {
     }
 
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "row", for: indexPath)
-        var config = cell.defaultContentConfiguration()
+        let cell = tableView.dequeueReusableCell(withIdentifier: V2NPlanRowTableCell.reuseId, for: indexPath) as! V2NPlanRowTableCell
         if plans.isEmpty {
-            config.text = String(localized: "Nenhum plano nesta categoria")
-            cell.selectionStyle = .none
-            cell.accessoryType = .none
+            cell.configureEmpty(String(localized: "Nenhum plano nesta categoria"))
         } else {
             let plan = plans[indexPath.row]
-            config.text = plan.name
-            let progress = prefs?.planProgress?[plan.id] ?? []
-            config.secondaryText = progress.isEmpty
-                ? String(localized: "\(plan.days) dias")
-                : String(localized: "\(progress.count) / \(plan.days) dias")
-            cell.accessoryType = .disclosureIndicator
-            cell.selectionStyle = .default
+            cell.configure(plan: plan, progress: prefs?.planProgress?[plan.id] ?? [])
         }
-        cell.contentConfiguration = config
-        cell.backgroundColor = V2NDesign.surface
         return cell
     }
 
@@ -623,32 +659,10 @@ final class ReadingPlanDetailViewController: UITableViewController {
     }
 }
 
-// MARK: - Category cell
+// MARK: - Reading card cells (match original web category grid + plan rows)
 
-final class V2NPlanCategoryCell: UITableViewCell {
-    static let reuseId = "V2NPlanCategoryCell"
-
-    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
-        super.init(style: style, reuseIdentifier: reuseIdentifier)
-        backgroundColor = V2NDesign.surface
-        accessoryType = .disclosureIndicator
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-
-    func configure(_ category: NativeAPIClient.PlanCategoryDTO) {
-        var config = defaultContentConfiguration()
-        config.text = category.name
-        if let count = category.count {
-            config.secondaryText = String(localized: "\(count) planos")
-        }
-        config.image = UIImage(systemName: Self.symbol(for: category.id))
-        contentConfiguration = config
-        accessibilityLabel = "\(category.name). \(config.secondaryText ?? "")"
-    }
-
-    private static func symbol(for id: String) -> String {
+enum V2NReadingSymbols {
+    static func category(_ id: String) -> String {
         switch id {
         case "duration": return "clock"
         case "gospels": return "book"
@@ -658,5 +672,374 @@ final class V2NPlanCategoryCell: UITableViewCell {
         case "chronological": return "calendar"
         default: return "calendar"
         }
+    }
+}
+
+final class V2NReadingSectionHeader: UICollectionReusableView {
+    static let reuseId = "V2NReadingSectionHeader"
+    private let label = UILabel()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        label.font = V2NDesign.sectionHeader()
+        label.textColor = .secondaryLabel
+        label.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(label)
+        NSLayoutConstraint.activate([
+            label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 20),
+            label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+            label.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -2),
+        ])
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func configure(_ title: String?) {
+        label.text = title?.uppercased()
+        isHidden = title == nil
+    }
+}
+
+/// Tall category card — 2-column grid like the web `CategoryGrid`.
+final class V2NPlanCategoryCardCell: UICollectionViewCell {
+    static let reuseId = "V2NPlanCategoryCardCell"
+    private let card = UIView()
+    private let iconWrap = UIView()
+    private let iconView = UIImageView()
+    private let titleLabel = UILabel()
+    private let subtitleLabel = UILabel()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        card.translatesAutoresizingMaskIntoConstraints = false
+        card.backgroundColor = V2NDesign.surface
+        card.layer.cornerRadius = V2NDesign.Radius.lg
+        card.layer.cornerCurve = .continuous
+        contentView.addSubview(card)
+
+        iconWrap.translatesAutoresizingMaskIntoConstraints = false
+        iconWrap.backgroundColor = V2NDesign.groupedBackground
+        iconWrap.layer.cornerRadius = V2NDesign.Radius.sm
+        iconWrap.layer.cornerCurve = .continuous
+        card.addSubview(iconWrap)
+
+        iconView.translatesAutoresizingMaskIntoConstraints = false
+        iconView.contentMode = .scaleAspectFit
+        iconView.tintColor = .secondaryLabel
+        iconWrap.addSubview(iconView)
+
+        titleLabel.font = V2NDesign.preferred(.subheadline, weight: .semibold)
+        titleLabel.textColor = .label
+        titleLabel.numberOfLines = 2
+        titleLabel.adjustsFontForContentSizeCategory = true
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        subtitleLabel.font = V2NDesign.caption()
+        subtitleLabel.textColor = .secondaryLabel
+        subtitleLabel.adjustsFontForContentSizeCategory = true
+        subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        card.addSubview(titleLabel)
+        card.addSubview(subtitleLabel)
+
+        NSLayoutConstraint.activate([
+            card.topAnchor.constraint(equalTo: contentView.topAnchor),
+            card.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            card.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            card.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+
+            iconWrap.topAnchor.constraint(equalTo: card.topAnchor, constant: 14),
+            iconWrap.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 14),
+            iconWrap.widthAnchor.constraint(equalToConstant: 40),
+            iconWrap.heightAnchor.constraint(equalToConstant: 40),
+
+            iconView.centerXAnchor.constraint(equalTo: iconWrap.centerXAnchor),
+            iconView.centerYAnchor.constraint(equalTo: iconWrap.centerYAnchor),
+            iconView.widthAnchor.constraint(equalToConstant: 20),
+            iconView.heightAnchor.constraint(equalToConstant: 20),
+
+            titleLabel.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 14),
+            titleLabel.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -14),
+            titleLabel.bottomAnchor.constraint(equalTo: subtitleLabel.topAnchor, constant: -4),
+
+            subtitleLabel.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 14),
+            subtitleLabel.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -14),
+            subtitleLabel.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -14),
+        ])
+        isAccessibilityElement = true
+        accessibilityTraits = .button
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func configure(_ category: NativeAPIClient.PlanCategoryDTO) {
+        titleLabel.text = category.name
+        let count = category.count ?? 0
+        subtitleLabel.text = String(localized: "\(count) planos")
+        iconView.image = UIImage(systemName: V2NReadingSymbols.category(category.id))
+        accessibilityLabel = "\(category.name). \(subtitleLabel.text ?? "")"
+    }
+}
+
+/// Single plan row card (name + days / progress).
+final class V2NPlanRowCardCell: UICollectionViewCell {
+    static let reuseId = "V2NPlanRowCardCell"
+    private let card = UIView()
+    private let titleLabel = UILabel()
+    private let subtitleLabel = UILabel()
+    private let chevron = UIImageView(image: UIImage(systemName: "chevron.right"))
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        Self.style(card: card, title: titleLabel, subtitle: subtitleLabel, chevron: chevron, in: contentView)
+        isAccessibilityElement = true
+        accessibilityTraits = .button
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func configure(plan: NativeAPIClient.PlanCardDTO, progress: [Int]) {
+        titleLabel.text = plan.name
+        if progress.isEmpty {
+            subtitleLabel.text = String(localized: "\(plan.days) dias")
+        } else {
+            subtitleLabel.text = String(localized: "\(progress.count) / \(plan.days) dias")
+        }
+        chevron.isHidden = false
+        accessibilityLabel = "\(plan.name). \(subtitleLabel.text ?? "")"
+    }
+
+    func configureEmpty(_ message: String) {
+        titleLabel.text = message
+        subtitleLabel.text = nil
+        chevron.isHidden = true
+        accessibilityLabel = message
+    }
+
+    static func style(card: UIView, title: UILabel, subtitle: UILabel, chevron: UIImageView, in contentView: UIView) {
+        card.translatesAutoresizingMaskIntoConstraints = false
+        card.backgroundColor = V2NDesign.surface
+        card.layer.cornerRadius = V2NDesign.Radius.lg
+        card.layer.cornerCurve = .continuous
+        contentView.addSubview(card)
+
+        title.font = V2NDesign.preferred(.body, weight: .regular)
+        title.textColor = .label
+        title.numberOfLines = 2
+        title.adjustsFontForContentSizeCategory = true
+        title.translatesAutoresizingMaskIntoConstraints = false
+
+        subtitle.font = V2NDesign.caption()
+        subtitle.textColor = .secondaryLabel
+        subtitle.adjustsFontForContentSizeCategory = true
+        subtitle.translatesAutoresizingMaskIntoConstraints = false
+
+        chevron.translatesAutoresizingMaskIntoConstraints = false
+        chevron.tintColor = .tertiaryLabel
+        chevron.contentMode = .scaleAspectFit
+        chevron.setContentHuggingPriority(.required, for: .horizontal)
+
+        card.addSubview(title)
+        card.addSubview(subtitle)
+        card.addSubview(chevron)
+
+        NSLayoutConstraint.activate([
+            card.topAnchor.constraint(equalTo: contentView.topAnchor),
+            card.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            card.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            card.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+
+            title.topAnchor.constraint(equalTo: card.topAnchor, constant: 12),
+            title.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 16),
+            title.trailingAnchor.constraint(equalTo: chevron.leadingAnchor, constant: -8),
+
+            subtitle.topAnchor.constraint(equalTo: title.bottomAnchor, constant: 2),
+            subtitle.leadingAnchor.constraint(equalTo: title.leadingAnchor),
+            subtitle.trailingAnchor.constraint(equalTo: title.trailingAnchor),
+            subtitle.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -12),
+
+            chevron.centerYAnchor.constraint(equalTo: card.centerYAnchor),
+            chevron.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -14),
+            chevron.widthAnchor.constraint(equalToConstant: 12),
+            chevron.heightAnchor.constraint(equalToConstant: 16),
+        ])
+    }
+}
+
+/// “Todos os planos” link card with accent icon well.
+final class V2NPlanLinkCardCell: UICollectionViewCell {
+    static let reuseId = "V2NPlanLinkCardCell"
+    private let card = UIView()
+    private let iconWrap = UIView()
+    private let iconView = UIImageView()
+    private let titleLabel = UILabel()
+    private let subtitleLabel = UILabel()
+    private let chevron = UIImageView(image: UIImage(systemName: "chevron.right"))
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        card.translatesAutoresizingMaskIntoConstraints = false
+        card.backgroundColor = V2NDesign.surface
+        card.layer.cornerRadius = V2NDesign.Radius.lg
+        card.layer.cornerCurve = .continuous
+        contentView.addSubview(card)
+
+        iconWrap.translatesAutoresizingMaskIntoConstraints = false
+        iconWrap.backgroundColor = V2NDesign.accent
+        iconWrap.layer.cornerRadius = V2NDesign.Radius.sm
+        iconWrap.layer.cornerCurve = .continuous
+        card.addSubview(iconWrap)
+
+        iconView.translatesAutoresizingMaskIntoConstraints = false
+        iconView.tintColor = .white
+        iconView.contentMode = .scaleAspectFit
+        iconWrap.addSubview(iconView)
+
+        titleLabel.font = V2NDesign.preferred(.body, weight: .regular)
+        titleLabel.textColor = .label
+        titleLabel.adjustsFontForContentSizeCategory = true
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        subtitleLabel.font = V2NDesign.caption()
+        subtitleLabel.textColor = .secondaryLabel
+        subtitleLabel.adjustsFontForContentSizeCategory = true
+        subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        chevron.translatesAutoresizingMaskIntoConstraints = false
+        chevron.tintColor = .tertiaryLabel
+
+        card.addSubview(titleLabel)
+        card.addSubview(subtitleLabel)
+        card.addSubview(chevron)
+
+        NSLayoutConstraint.activate([
+            card.topAnchor.constraint(equalTo: contentView.topAnchor),
+            card.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            card.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            card.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+
+            iconWrap.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 14),
+            iconWrap.centerYAnchor.constraint(equalTo: card.centerYAnchor),
+            iconWrap.widthAnchor.constraint(equalToConstant: 28),
+            iconWrap.heightAnchor.constraint(equalToConstant: 28),
+
+            iconView.centerXAnchor.constraint(equalTo: iconWrap.centerXAnchor),
+            iconView.centerYAnchor.constraint(equalTo: iconWrap.centerYAnchor),
+            iconView.widthAnchor.constraint(equalToConstant: 16),
+            iconView.heightAnchor.constraint(equalToConstant: 16),
+
+            titleLabel.leadingAnchor.constraint(equalTo: iconWrap.trailingAnchor, constant: 12),
+            titleLabel.trailingAnchor.constraint(equalTo: chevron.leadingAnchor, constant: -8),
+            titleLabel.bottomAnchor.constraint(equalTo: card.centerYAnchor, constant: -1),
+
+            subtitleLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+            subtitleLabel.trailingAnchor.constraint(equalTo: titleLabel.trailingAnchor),
+            subtitleLabel.topAnchor.constraint(equalTo: card.centerYAnchor, constant: 1),
+
+            chevron.centerYAnchor.constraint(equalTo: card.centerYAnchor),
+            chevron.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -14),
+            chevron.widthAnchor.constraint(equalToConstant: 12),
+            chevron.heightAnchor.constraint(equalToConstant: 16),
+        ])
+        isAccessibilityElement = true
+        accessibilityTraits = .button
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func configure(title: String, subtitle: String, symbol: String) {
+        titleLabel.text = title
+        subtitleLabel.text = subtitle
+        iconView.image = UIImage(systemName: symbol)
+        accessibilityLabel = "\(title). \(subtitle)"
+    }
+}
+
+/// Table-row twin of `V2NPlanRowCardCell` for category / all-plans lists.
+final class V2NPlanRowTableCell: UITableViewCell {
+    static let reuseId = "V2NPlanRowTableCell"
+    private let card = UIView()
+    private let titleLabel = UILabel()
+    private let subtitleLabel = UILabel()
+    private let chevron = UIImageView(image: UIImage(systemName: "chevron.right"))
+
+    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
+        super.init(style: style, reuseIdentifier: reuseIdentifier)
+        backgroundColor = .clear
+        selectionStyle = .none
+        contentView.backgroundColor = .clear
+
+        card.translatesAutoresizingMaskIntoConstraints = false
+        card.backgroundColor = V2NDesign.surface
+        card.layer.cornerRadius = V2NDesign.Radius.lg
+        card.layer.cornerCurve = .continuous
+        contentView.addSubview(card)
+
+        titleLabel.font = V2NDesign.preferred(.body, weight: .regular)
+        titleLabel.textColor = .label
+        titleLabel.numberOfLines = 2
+        titleLabel.adjustsFontForContentSizeCategory = true
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        subtitleLabel.font = V2NDesign.caption()
+        subtitleLabel.textColor = .secondaryLabel
+        subtitleLabel.adjustsFontForContentSizeCategory = true
+        subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        chevron.translatesAutoresizingMaskIntoConstraints = false
+        chevron.tintColor = .tertiaryLabel
+        chevron.contentMode = .scaleAspectFit
+
+        card.addSubview(titleLabel)
+        card.addSubview(subtitleLabel)
+        card.addSubview(chevron)
+
+        NSLayoutConstraint.activate([
+            card.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 4),
+            card.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 4),
+            card.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -4),
+            card.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -4),
+
+            titleLabel.topAnchor.constraint(equalTo: card.topAnchor, constant: 12),
+            titleLabel.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 16),
+            titleLabel.trailingAnchor.constraint(equalTo: chevron.leadingAnchor, constant: -8),
+
+            subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 2),
+            subtitleLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+            subtitleLabel.trailingAnchor.constraint(equalTo: titleLabel.trailingAnchor),
+            subtitleLabel.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -12),
+
+            chevron.centerYAnchor.constraint(equalTo: card.centerYAnchor),
+            chevron.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -14),
+            chevron.widthAnchor.constraint(equalToConstant: 12),
+            chevron.heightAnchor.constraint(equalToConstant: 16),
+        ])
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func configure(plan: NativeAPIClient.PlanCardDTO, progress: [Int]) {
+        titleLabel.text = plan.name
+        if progress.isEmpty {
+            subtitleLabel.text = String(localized: "\(plan.days) dias")
+        } else {
+            subtitleLabel.text = String(localized: "\(progress.count) / \(plan.days) dias")
+        }
+        chevron.isHidden = false
+        accessibilityLabel = "\(plan.name). \(subtitleLabel.text ?? "")"
+        isAccessibilityElement = true
+        accessibilityTraits = .button
+    }
+
+    func configureEmpty(_ message: String) {
+        titleLabel.text = message
+        subtitleLabel.text = nil
+        chevron.isHidden = true
+        accessibilityLabel = message
     }
 }
