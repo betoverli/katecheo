@@ -94,13 +94,21 @@ enum NativeDeepLinkRouter {
         }
 
         switch destination {
-        case .verses, .themes:
+        case .verses, .themes, .reading:
             tabs.selectedIndex = 0
-            if case .themes = destination,
-               let nav = tabs.selectedViewController as? UINavigationController
-            {
+            if let nav = tabs.selectedViewController as? UINavigationController {
                 nav.popToRootViewController(animated: false)
-                nav.pushViewController(ThemesHomeViewController(prefs: nil), animated: animated)
+                if let home = nav.viewControllers.first as? VersesHomeViewController {
+                    _ = home.view
+                    switch destination {
+                    case .themes:
+                        home.selectHomeFilter("themes")
+                    case .reading:
+                        home.selectHomeFilter("reading")
+                    default:
+                        home.selectHomeFilter("books")
+                    }
+                }
             }
         case .groups, .group:
             tabs.selectedIndex = 1
@@ -127,21 +135,24 @@ enum NativeDeepLinkRouter {
                 let cached = LocalNoteCache.loadNotes().first { $0.id == id }
                 nav.pushViewController(NoteDetailViewController(noteId: id, initial: cached), animated: animated)
             }
-        case .reading:
-            tabs.selectedIndex = 3
-            if let nav = tabs.selectedViewController as? UINavigationController {
-                nav.popToRootViewController(animated: false)
-            }
         case .readingPlan(let id):
-            tabs.selectedIndex = 3
+            tabs.selectedIndex = 0
             if let nav = tabs.selectedViewController as? UINavigationController {
                 nav.popToRootViewController(animated: false)
+                if let home = nav.viewControllers.first as? VersesHomeViewController {
+                    _ = home.view
+                    home.selectHomeFilter("reading")
+                }
                 nav.pushViewController(ReadingPlanDetailViewController(planId: id), animated: animated)
             }
         case .readingInvite(let groupId):
-            tabs.selectedIndex = 3
+            tabs.selectedIndex = 0
             if let nav = tabs.selectedViewController as? UINavigationController {
                 nav.popToRootViewController(animated: false)
+                if let home = nav.viewControllers.first as? VersesHomeViewController {
+                    _ = home.view
+                    home.selectHomeFilter("reading")
+                }
                 Task { @MainActor in
                     do {
                         if NativeAPIClient.hasBearer {
@@ -151,12 +162,12 @@ enum NativeDeepLinkRouter {
                             NotificationCenter.default.post(name: .nativeOpenSignIn, object: nil)
                         }
                     } catch {
-                        // Stay on Leitura home if join fails.
+                        // Stay on Leitura (Versículos → Leitura chip) if join fails.
                     }
                 }
             }
         case .profile, .signIn:
-            tabs.selectedIndex = 4
+            tabs.selectedIndex = 3
             if destination == .signIn, !NativeAPIClient.hasBearer {
                 NotificationCenter.default.post(name: .nativeOpenSignIn, object: nil)
             }

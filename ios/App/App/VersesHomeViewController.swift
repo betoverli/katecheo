@@ -1,12 +1,13 @@
 import UIKit
 
-/// Native Versículos tab: book picker (names ↔ siglas), Temas / Listas chips.
-/// Compact chrome; Siglas/Nomes lives with the book list (not in the nav header).
+/// Native Versículos tab: book picker (names ↔ siglas), Temas / Listas / Leitura chips.
+/// Large title restored; Siglas/Nomes lives on the Old Testament header row inside the scroll view.
 final class VersesHomeViewController: UIViewController, UICollectionViewDelegate, UICollectionViewDataSource {
     private enum HomeFilter: String {
         case books = "books"
         case themes = "themes"
         case lists = "lists"
+        case reading = "reading"
     }
 
     private let chips = V2NFilterChipsView()
@@ -28,6 +29,7 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
 
     private lazy var themesVC = ThemesHomeViewController(prefs: nil, embedded: true)
     private lazy var listsVC = MyCollectionsViewController(embedded: true)
+    private lazy var readingVC = ReadingHomeViewController(embedded: true)
 
     private var otBooks: [NativeAPIClient.BibleBookDTO] { filtered.filter { $0.testament == "ot" } }
     private var ntBooks: [NativeAPIClient.BibleBookDTO] { filtered.filter { $0.testament == "nt" } }
@@ -36,9 +38,8 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
         super.viewDidLoad()
         V2NChrome.styleCanvas(view)
         title = String(localized: "Versículos")
-        // Compact header like the original webapp — no large-title gap.
-        navigationItem.largeTitleDisplayMode = .never
-        navigationController?.navigationBar.prefersLargeTitles = false
+        navigationController?.navigationBar.prefersLargeTitles = true
+        navigationItem.largeTitleDisplayMode = .always
 
         applyBooksCompact(resolvedInitialBooksCompact(), rebuild: false)
         modeToggle.onChange = { [weak self] compact in
@@ -53,6 +54,7 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
                 V2NFilterChip(id: HomeFilter.books.rawValue, title: String(localized: "Livros"), systemImage: "book"),
                 V2NFilterChip(id: HomeFilter.themes.rawValue, title: String(localized: "Temas"), systemImage: "tag"),
                 V2NFilterChip(id: HomeFilter.lists.rawValue, title: String(localized: "Listas"), systemImage: "bookmark"),
+                V2NFilterChip(id: HomeFilter.reading.rawValue, title: String(localized: "Leitura"), systemImage: "calendar"),
             ],
             selectedId: HomeFilter.books.rawValue
         )
@@ -88,8 +90,7 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
         view.addSubview(chips)
         view.addSubview(contentHost)
         contentHost.addSubview(booksPanel)
-        // Toggle sits with the book list content (below chips), not in the nav header.
-        booksPanel.addSubview(modeToggle)
+        // Siglas/Nomes lives in the OT section header (scroll content), not above the list.
         booksPanel.addSubview(collectionView)
         booksPanel.addSubview(emptyState)
 
@@ -108,16 +109,12 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
             booksPanel.trailingAnchor.constraint(equalTo: contentHost.trailingAnchor),
             booksPanel.bottomAnchor.constraint(equalTo: contentHost.bottomAnchor),
 
-            modeToggle.topAnchor.constraint(equalTo: booksPanel.topAnchor),
-            modeToggle.trailingAnchor.constraint(equalTo: booksPanel.layoutMarginsGuide.trailingAnchor),
-            modeToggle.leadingAnchor.constraint(greaterThanOrEqualTo: booksPanel.layoutMarginsGuide.leadingAnchor),
-
-            collectionView.topAnchor.constraint(equalTo: modeToggle.bottomAnchor, constant: V2NDesign.Space.xs),
+            collectionView.topAnchor.constraint(equalTo: booksPanel.topAnchor),
             collectionView.leadingAnchor.constraint(equalTo: booksPanel.leadingAnchor),
             collectionView.trailingAnchor.constraint(equalTo: booksPanel.trailingAnchor),
             collectionView.bottomAnchor.constraint(equalTo: booksPanel.bottomAnchor),
 
-            emptyState.topAnchor.constraint(equalTo: modeToggle.bottomAnchor),
+            emptyState.topAnchor.constraint(equalTo: booksPanel.topAnchor),
             emptyState.leadingAnchor.constraint(equalTo: booksPanel.leadingAnchor),
             emptyState.trailingAnchor.constraint(equalTo: booksPanel.trailingAnchor),
             emptyState.bottomAnchor.constraint(equalTo: booksPanel.bottomAnchor),
@@ -125,8 +122,10 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
 
         embedChild(themesVC)
         embedChild(listsVC)
+        embedChild(readingVC)
         themesVC.view.isHidden = true
         listsVC.view.isHidden = true
+        readingVC.view.isHidden = true
         contentHost.bringSubviewToFront(booksPanel)
 
         _ = V2NGlassMaterial.sdkHasLiquidGlass()
@@ -134,8 +133,8 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        navigationItem.largeTitleDisplayMode = .never
-        navigationController?.navigationBar.prefersLargeTitles = false
+        navigationController?.navigationBar.prefersLargeTitles = true
+        navigationItem.largeTitleDisplayMode = .always
         Task { @MainActor in
             if NativeAPIClient.hasBearer {
                 _ = await NativeSessionBootstrap.migrateCookieToKeychainIfNeeded()
@@ -144,6 +143,7 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
             case .books: reload()
             case .themes: themesVC.reloadFromParent()
             case .lists: listsVC.reloadFromParent()
+            case .reading: readingVC.reloadFromParent()
             }
         }
     }
@@ -153,6 +153,12 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
         if pendingLayoutRefresh, collectionView.bounds.width > 1 {
             refreshCollectionLayoutIfNeeded(force: true)
         }
+    }
+
+    /// Deep links / parent chrome: switch the Versículos chip without a user tap.
+    func selectHomeFilter(_ id: String) {
+        chips.setSelected(id)
+        selectFilter(id)
     }
 
     private func embedChild(_ child: UIViewController) {
@@ -210,6 +216,7 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
             booksPanel.isHidden = false
             themesVC.view.isHidden = true
             listsVC.view.isHidden = true
+            readingVC.view.isHidden = true
             contentHost.bringSubviewToFront(booksPanel)
             applyFilter()
             refreshCollectionLayoutIfNeeded(force: true)
@@ -219,6 +226,7 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
             themesVC.updatePrefs(prefs)
             themesVC.view.isHidden = false
             listsVC.view.isHidden = true
+            readingVC.view.isHidden = true
             contentHost.bringSubviewToFront(themesVC.view)
             themesVC.reloadFromParent()
         case .lists:
@@ -226,21 +234,34 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
             booksPanel.isHidden = true
             themesVC.view.isHidden = true
             listsVC.view.isHidden = false
+            readingVC.view.isHidden = true
             contentHost.bringSubviewToFront(listsVC.view)
             listsVC.reloadFromParent()
+        case .reading:
+            emptyState.hide()
+            booksPanel.isHidden = true
+            themesVC.view.isHidden = true
+            listsVC.view.isHidden = true
+            readingVC.view.isHidden = false
+            contentHost.bringSubviewToFront(readingVC.view)
+            readingVC.reloadFromParent()
         }
     }
 
     private func updateChromeForFilter() {
         switch homeFilter {
-        case .books:
+        case .books, .themes:
             navigationItem.rightBarButtonItems = nil
+            navigationItem.searchController = nil
         case .lists:
+            navigationItem.searchController = nil
             navigationItem.rightBarButtonItems = [
                 UIBarButtonItem(title: String(localized: "Nova"), style: .plain, target: self, action: #selector(createListFromParent)),
             ]
-        case .themes:
+        case .reading:
             navigationItem.rightBarButtonItems = nil
+            // Reading keeps its search in the content area when embedded.
+            navigationItem.searchController = nil
         }
     }
 
@@ -328,7 +349,8 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
         header.configure(
             title: indexPath.section == 0
                 ? String(localized: "Antigo Testamento")
-                : String(localized: "Novo Testamento")
+                : String(localized: "Novo Testamento"),
+            trailing: indexPath.section == 0 ? modeToggle : nil
         )
         return header
     }

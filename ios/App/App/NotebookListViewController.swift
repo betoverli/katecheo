@@ -73,8 +73,6 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                     V2NFilterChip(id: NoteFilter.tags.rawValue, title: String(localized: "Tags"), systemImage: "number"),
                     V2NFilterChip(id: NoteFilter.speakers.rawValue, title: String(localized: "Speakers"), systemImage: "person.wave.2"),
                     V2NFilterChip(id: NoteFilter.shared.rawValue, title: String(localized: "Compartilhadas"), systemImage: "person.2"),
-                    V2NFilterChip(id: "themes", title: String(localized: "Temas"), systemImage: "tag"),
-                    V2NFilterChip(id: "lists", title: String(localized: "Listas"), systemImage: "bookmark"),
                 ],
                 selectedId: NoteFilter.all.rawValue
             )
@@ -611,16 +609,6 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
 
 
     private func handleNotebookChip(_ id: String) {
-        if id == "themes" {
-            filterChips.setSelected(noteFilter.rawValue)
-            navigationController?.pushViewController(ThemesHomeViewController(prefs: nil), animated: true)
-            return
-        }
-        if id == "lists" {
-            filterChips.setSelected(noteFilter.rawValue)
-            navigationController?.pushViewController(MyCollectionsViewController(), animated: true)
-            return
-        }
         guard let filter = NoteFilter(rawValue: id) else { return }
         noteFilter = filter
         selectedTag = nil
