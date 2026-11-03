@@ -15,6 +15,8 @@ enum NoteDocumentCodec {
     static let bibleRefKey = NSAttributedString.Key("v2n.bibleRef")
     static let linkKey = NSAttributedString.Key("v2n.link")
     static let speakerIdKey = NSAttributedString.Key("v2n.speakerId")
+    /// Marks a leading "• " / "1. " glyph that is display-only (not part of NoteDocumentV1 text).
+    static let listMarkerKey = NSAttributedString.Key("v2n.listMarker")
 
     /// NSObject so it can live in NSAttributedString attribute values.
     final class BibleRefPayload: NSObject {
@@ -50,8 +52,9 @@ enum NoteDocumentCodec {
             speakerId: nil,
             speakers: speakerMap
         )
+        var numberedIndex = 0
         for block in document.body.blocks {
-            appendBlock(block, to: result, speakers: speakerMap)
+            appendBlock(block, to: result, speakers: speakerMap, numberedIndex: &numberedIndex)
         }
         if result.length == 0 {
             appendLine(to: result, type: "paragraph", id: newId(), spans: [], checked: nil, speakerId: nil, speakers: speakerMap)
@@ -62,22 +65,38 @@ enum NoteDocumentCodec {
     private static func appendBlock(
         _ block: NativeAPIClient.LineBlock,
         to result: NSMutableAttributedString,
-        speakers: [String: NativeAPIClient.SpeakerDTO]
+        speakers: [String: NativeAPIClient.SpeakerDTO],
+        numberedIndex: inout Int
     ) {
         if block.type == "speakerSection" {
+            numberedIndex = 0
             let speakerName: String = {
                 if let sid = block.speakerId, let speaker = speakers[sid] { return speaker.name }
                 if let title = block.title, !title.isEmpty { return title }
                 return String(localized: "Speaker")
             }()
-            let titleSpans: [NativeAPIClient.TextSpan] = [
-                .init(type: "text", text: speakerName, marks: ["bold"], bookId: nil, chapter: nil, verseStart: nil, verseEnd: nil, href: nil),
-            ]
-            appendLine(to: result, type: "speakerSection", id: block.id, spans: titleSpans, checked: nil, speakerId: block.speakerId, speakers: speakers)
+            let colorHex = block.speakerId.flatMap { speakers[$0]?.color }
+            if result.length > 0 {
+                result.append(NSAttributedString(string: "\n"))
+            }
+            result.append(
+                speakerSectionHeader(
+                    name: speakerName,
+                    speakerId: block.speakerId,
+                    colorHex: colorHex,
+                    blockId: block.id
+                )
+            )
+            var childNumbered = 0
             for child in block.blocks ?? [] {
-                appendBlock(child, to: result, speakers: speakers)
+                appendBlock(child, to: result, speakers: speakers, numberedIndex: &childNumbered)
             }
             return
+        }
+        if block.type == "numbered" {
+            numberedIndex += 1
+        } else {
+            numberedIndex = 0
         }
         appendLine(
             to: result,
@@ -86,7 +105,8 @@ enum NoteDocumentCodec {
             spans: block.spans ?? [],
             checked: block.checked,
             speakerId: nil,
-            speakers: speakers
+            speakers: speakers,
+            listNumber: max(numberedIndex, 1)
         )
     }
 
@@ -97,18 +117,38 @@ enum NoteDocumentCodec {
         spans: [NativeAPIClient.TextSpan],
         checked: Bool?,
         speakerId: String?,
-        speakers: [String: NativeAPIClient.SpeakerDTO]
+        speakers: [String: NativeAPIClient.SpeakerDTO],
+        listNumber: Int = 1
     ) {
         if result.length > 0 {
             result.append(NSAttributedString(string: "\n"))
         }
         let base = baseAttributes(type: type, id: id, checked: checked, speakerId: speakerId, speakers: speakers)
+        if let marker = listMarkerString(type: type, checked: checked, number: listNumber) {
+            var markerAttrs = base
+            markerAttrs[listMarkerKey] = true
+            markerAttrs[.foregroundColor] = UIColor.secondaryLabel
+            result.append(NSAttributedString(string: marker, attributes: markerAttrs))
+        }
         if spans.isEmpty {
             result.append(NSAttributedString(string: "", attributes: base))
             return
         }
         for span in spans {
             result.append(spanAttributed(span, base: base))
+        }
+    }
+
+    static func listMarkerString(type: String, checked: Bool?, number: Int = 1) -> String? {
+        switch type {
+        case "bullet":
+            return "•\u{00A0}"
+        case "numbered":
+            return "\(number).\u{00A0}"
+        case "check":
+            return (checked == true ? "☑\u{00A0}" : "☐\u{00A0}")
+        default:
+            return nil
         }
     }
 
@@ -167,10 +207,8 @@ enum NoteDocumentCodec {
             style.paragraphSpacingBefore = id == "title" ? 0 : 8
         case "speakerSection":
             font = V2NDesign.preferred(.title3, weight: .semibold)
-            style.paragraphSpacingBefore = 14
-            style.paragraphSpacing = 4
-            style.headIndent = 12
-            style.firstLineHeadIndent = 12
+            style.paragraphSpacingBefore = 10
+            style.paragraphSpacing = 6
             if let speakerId, let speaker = speakers[speakerId], let color = UIColor(v2nHex: speaker.color) {
                 foreground = color
             } else {
@@ -199,10 +237,35 @@ enum NoteDocumentCodec {
         if let speakerId {
             attrs[speakerIdKey] = speakerId
         }
-        if type == "speakerSection" {
-            attrs[.backgroundColor] = V2NDesign.accentSoft
-        }
         return attrs
+    }
+
+    /// Speaker section header rendered as a card attachment (avatar + name + accent bar).
+    static func speakerSectionHeader(
+        name: String,
+        speakerId: String?,
+        colorHex: String?,
+        blockId: String
+    ) -> NSAttributedString {
+        let color = colorHex.flatMap { UIColor(v2nHex: $0) }
+            ?? UIColor(red: 0.77, green: 0.65, blue: 0.45, alpha: 1)
+        let attachment = SpeakerSectionAttachment(name: name, color: color, speakerId: speakerId)
+        let result = NSMutableAttributedString(attachment: attachment)
+        let style = NSMutableParagraphStyle()
+        style.paragraphSpacingBefore = 10
+        style.paragraphSpacing = 6
+        var attrs: [NSAttributedString.Key: Any] = [
+            .font: V2NDesign.preferred(.title3, weight: .semibold),
+            .foregroundColor: color,
+            .paragraphStyle: style,
+            blockTypeKey: "speakerSection",
+            blockIdKey: blockId,
+        ]
+        if let speakerId {
+            attrs[speakerIdKey] = speakerId
+        }
+        result.addAttributes(attrs, range: NSRange(location: 0, length: result.length))
+        return result
     }
 
     static func bibleRefPill(payload: BibleRefPayload, base: [NSAttributedString.Key: Any] = [:]) -> NSAttributedString {
@@ -284,12 +347,20 @@ enum NoteDocumentCodec {
             let id = (line.attributes[blockIdKey] as? String) ?? newId()
             if type == "speakerSection" {
                 flushSpeaker()
+                let speakerName: String = {
+                    if let attachment = line.attributes[.attachment] as? SpeakerSectionAttachment {
+                        return attachment.name
+                    }
+                    let raw = String(line.string).trimmingCharacters(in: .whitespacesAndNewlines)
+                    return raw.isEmpty ? String(localized: "Speaker") : raw
+                }()
                 currentSpeaker = NativeAPIClient.LineBlock(
                     id: id,
                     type: "speakerSection",
                     spans: nil,
-                    speakerId: line.attributes[speakerIdKey] as? String,
-                    title: String(line.string),
+                    speakerId: line.attributes[speakerIdKey] as? String
+                        ?? (line.attributes[.attachment] as? SpeakerSectionAttachment)?.speakerId,
+                    title: speakerName,
                     collapsed: false,
                     checked: nil,
                     blocks: []
@@ -348,6 +419,10 @@ enum NoteDocumentCodec {
         attributed.enumerateAttributes(in: full, options: []) { attrs, range, _ in
             let text = (attributed.string as NSString).substring(with: range)
             if text.isEmpty { return }
+            if attrs[.attachment] is SpeakerSectionAttachment {
+                // Speaker header is a block, not an inline span.
+                return
+            }
             if let attachment = attrs[.attachment] as? BibleRefPillAttachment {
                 let payload = attachment.payload
                 out.append(NativeAPIClient.TextSpan(
@@ -375,8 +450,10 @@ enum NoteDocumentCodec {
                 ))
                 return
             }
-            // Zero-width pads around pills
+            // Zero-width pads around pills / empty placeholders
             if text == "\u{200B}" { return }
+            // Display-only list markers must not enter NoteDocumentV1 spans.
+            if attrs[listMarkerKey] as? Bool == true { return }
             if let href = attrs[linkKey] as? String {
                 out.append(NativeAPIClient.TextSpan(
                     type: "link",
@@ -483,6 +560,98 @@ private extension UIFont {
             return self
         }
         return UIFont(descriptor: descriptor, size: pointSize)
+    }
+}
+
+// MARK: - Speaker section card attachment
+
+/// Card-style speaker block header: left accent bar, color avatar, name.
+final class SpeakerSectionAttachment: NSTextAttachment {
+    let name: String
+    let color: UIColor
+    let speakerId: String?
+
+    init(name: String, color: UIColor, speakerId: String?) {
+        self.name = name
+        self.color = color
+        self.speakerId = speakerId
+        super.init(data: nil, ofType: nil)
+        refreshImage()
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func refreshImage() {
+        let nameFont = V2NDesign.preferred(.headline, weight: .semibold)
+        let metaFont = V2NDesign.caption()
+        let nameText = NSAttributedString(string: name, attributes: [
+            .font: nameFont,
+            .foregroundColor: UIColor.label,
+        ])
+        let meta = NSAttributedString(string: String(localized: "Speaker"), attributes: [
+            .font: metaFont,
+            .foregroundColor: UIColor.secondaryLabel,
+        ])
+        let nameSize = nameText.size()
+        let metaSize = meta.size()
+        let padX: CGFloat = 12
+        let padY: CGFloat = 10
+        let avatar: CGFloat = 32
+        let gap: CGFloat = 10
+        let accentW: CGFloat = 4
+        let contentW = max(nameSize.width, metaSize.width)
+        let width = min(max(accentW + padX + avatar + gap + contentW + padX, 160), UIScreen.main.bounds.width - 48)
+        let height = max(avatar, nameSize.height + 2 + metaSize.height) + padY * 2
+        let size = CGSize(width: ceil(width), height: ceil(height))
+        let renderer = UIGraphicsImageRenderer(size: size)
+        image = renderer.image { ctx in
+            let rect = CGRect(origin: .zero, size: size)
+            let bg = UIBezierPath(roundedRect: rect, cornerRadius: V2NDesign.Radius.md)
+            V2NDesign.surface.setFill()
+            bg.fill()
+
+            let accentRect = CGRect(x: 0, y: 0, width: accentW, height: size.height)
+            color.setFill()
+            UIBezierPath(roundedRect: accentRect, cornerRadius: 1).fill()
+            V2NDesign.surface.setFill()
+            UIBezierPath(rect: CGRect(x: accentW, y: 0, width: 2, height: size.height)).fill()
+
+            let avatarRect = CGRect(
+                x: accentW + padX,
+                y: (size.height - avatar) / 2,
+                width: avatar,
+                height: avatar
+            )
+            ctx.cgContext.saveGState()
+            UIBezierPath(ovalIn: avatarRect).addClip()
+            color.setFill()
+            UIBezierPath(ovalIn: avatarRect).fill()
+            let initial = String(name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(1)).uppercased()
+            let initialFont = V2NDesign.preferred(.subheadline, weight: .bold)
+            let initialAttr = NSAttributedString(string: initial.isEmpty ? "S" : initial, attributes: [
+                .font: initialFont,
+                .foregroundColor: UIColor.white,
+            ])
+            let iSize = initialAttr.size()
+            initialAttr.draw(at: CGPoint(
+                x: avatarRect.midX - iSize.width / 2,
+                y: avatarRect.midY - iSize.height / 2
+            ))
+            ctx.cgContext.restoreGState()
+
+            let textX = avatarRect.maxX + gap
+            let textBlockH = nameSize.height + 2 + metaSize.height
+            let textY = (size.height - textBlockH) / 2
+            nameText.draw(at: CGPoint(x: textX, y: textY))
+            meta.draw(at: CGPoint(x: textX, y: textY + nameSize.height + 2))
+
+            V2NDesign.separator.setStroke()
+            bg.lineWidth = 0.5
+            bg.stroke()
+        }
+        let font = V2NDesign.preferred(.headline, weight: .semibold)
+        bounds = CGRect(x: 0, y: font.descender - 4, width: size.width, height: size.height)
     }
 }
 

@@ -616,3 +616,143 @@ final class V2NModeToggle: UIView {
         onChange?(false)
     }
 }
+
+// MARK: - Shared Bible book grid cells (Versículos + note “Add reference”)
+
+/// Abbreviation square used by Versículos (Siglas) and the note bible-ref insert picker.
+final class V2NBookAbbrCell: UICollectionViewCell {
+    static let reuseId = "V2NBookAbbrCell"
+    private let label = UILabel()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        contentView.backgroundColor = V2NDesign.surface
+        contentView.layer.cornerRadius = V2NDesign.Radius.sm
+        contentView.layer.cornerCurve = .continuous
+        contentView.layer.borderWidth = 0.5
+        contentView.layer.borderColor = V2NDesign.separator.cgColor
+
+        label.font = V2NDesign.preferred(.footnote, weight: .semibold)
+        label.textColor = .label
+        label.textAlignment = .center
+        label.adjustsFontForContentSizeCategory = true
+        label.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(label)
+        NSLayoutConstraint.activate([
+            label.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+            label.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
+            label.leadingAnchor.constraint(greaterThanOrEqualTo: contentView.leadingAnchor, constant: 2),
+            label.trailingAnchor.constraint(lessThanOrEqualTo: contentView.trailingAnchor, constant: -2),
+        ])
+        isAccessibilityElement = true
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func configure(abbr: String, accessibilityName: String) {
+        label.text = abbr
+        accessibilityLabel = accessibilityName
+    }
+}
+
+/// Name + abbr row cell used by Versículos (Nomes mode).
+final class V2NBookNameCell: UICollectionViewCell {
+    static let reuseId = "V2NBookNameCell"
+    private let nameLabel = UILabel()
+    private let abbrLabel = UILabel()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        contentView.backgroundColor = V2NDesign.surface
+        contentView.layer.cornerRadius = V2NDesign.Radius.sm
+        contentView.layer.cornerCurve = .continuous
+        contentView.layer.borderWidth = 0.5
+        contentView.layer.borderColor = V2NDesign.separator.cgColor
+
+        nameLabel.font = V2NDesign.preferred(.subheadline, weight: .medium)
+        nameLabel.textColor = .label
+        nameLabel.lineBreakMode = .byTruncatingTail
+        nameLabel.adjustsFontForContentSizeCategory = true
+        nameLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        abbrLabel.font = V2NDesign.caption()
+        abbrLabel.textColor = .secondaryLabel
+        abbrLabel.setContentHuggingPriority(.required, for: .horizontal)
+        abbrLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        contentView.addSubview(nameLabel)
+        contentView.addSubview(abbrLabel)
+        NSLayoutConstraint.activate([
+            nameLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 10),
+            nameLabel.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
+            abbrLabel.leadingAnchor.constraint(equalTo: nameLabel.trailingAnchor, constant: 6),
+            abbrLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -10),
+            abbrLabel.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
+        ])
+        isAccessibilityElement = true
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func configure(name: String, abbr: String) {
+        nameLabel.text = name
+        abbrLabel.text = abbr
+        accessibilityLabel = "\(name), \(abbr)"
+    }
+}
+
+final class V2NBookSectionHeaderView: UICollectionReusableView {
+    static let reuseId = "V2NBookSectionHeaderView"
+    private let label = UILabel()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        label.font = V2NDesign.sectionHeader()
+        label.textColor = .secondaryLabel
+        label.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(label)
+        NSLayoutConstraint.activate([
+            label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
+            label.trailingAnchor.constraint(equalTo: trailingAnchor),
+            label.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -4),
+        ])
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func configure(title: String) {
+        label.text = title.uppercased()
+    }
+}
+
+enum V2NBookGridLayout {
+    /// Compositional layout matching Versículos Siglas/Nomes grids.
+    static func make(compact: Bool) -> UICollectionViewCompositionalLayout {
+        UICollectionViewCompositionalLayout { _, env in
+            let columns: CGFloat = compact ? (env.container.effectiveContentSize.width > 500 ? 8 : 5) : 2
+            let itemSize = NSCollectionLayoutSize(
+                widthDimension: .fractionalWidth(1 / columns),
+                heightDimension: .absolute(compact ? 52 : 56)
+            )
+            let item = NSCollectionLayoutItem(layoutSize: itemSize)
+            item.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4)
+            let groupSize = NSCollectionLayoutSize(
+                widthDimension: .fractionalWidth(1),
+                heightDimension: .absolute(compact ? 52 : 56)
+            )
+            let group = NSCollectionLayoutGroup.horizontal(layoutSize: groupSize, subitems: [item])
+            let section = NSCollectionLayoutSection(group: group)
+            section.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 12, bottom: 12, trailing: 12)
+            let header = NSCollectionLayoutBoundarySupplementaryItem(
+                layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1), heightDimension: .absolute(32)),
+                elementKind: UICollectionView.elementKindSectionHeader,
+                alignment: .top
+            )
+            section.boundarySupplementaryItems = [header]
+            return section
+        }
+    }
+}

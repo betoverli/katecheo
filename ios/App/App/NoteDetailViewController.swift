@@ -24,7 +24,9 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
     override func viewDidLoad() {
         super.viewDidLoad()
         V2NChrome.styleCanvas(view)
-        updateTitle()
+        // Title lives in the editor body (first line) — keep the nav bar clear (matches original web editor).
+        title = nil
+        navigationItem.title = nil
         navigationItem.largeTitleDisplayMode = .never
 
         navigationItem.rightBarButtonItems = [
@@ -113,8 +115,9 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
     }
 
     private func updateTitle() {
-        let t = note.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        title = t.isEmpty ? String(localized: "Reunião") : t
+        // Do not mirror the note title into the navigation bar (duplicates the body title).
+        title = nil
+        navigationItem.title = nil
     }
 
     private func refreshFromAPI() async {
