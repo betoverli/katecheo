@@ -485,3 +485,79 @@ private extension UIFont {
         return UIFont(descriptor: descriptor, size: pointSize)
     }
 }
+
+// MARK: - Bible ref pill attachment
+
+final class BibleRefPillAttachment: NSTextAttachment {
+    let payload: NoteDocumentCodec.BibleRefPayload
+    let label: String
+    let kind: NoteDocumentCodec.BibleRefKind
+
+    init(payload: NoteDocumentCodec.BibleRefPayload, label: String, kind: NoteDocumentCodec.BibleRefKind) {
+        self.payload = payload
+        self.label = label
+        self.kind = kind
+        super.init(data: nil, ofType: nil)
+        refreshImage()
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    private func colors() -> (UIColor, UIColor) {
+        let dark = UITraitCollection.current.userInterfaceStyle == .dark
+        switch kind {
+        case .gospel:
+            return (V2NDesign.accent, .white)
+        case .nt:
+            return dark
+                ? (UIColor(red: 0.24, green: 0.29, blue: 0.36, alpha: 1), UIColor(red: 0.91, green: 0.93, blue: 0.96, alpha: 1))
+                : (UIColor(red: 0.84, green: 0.88, blue: 0.93, alpha: 1), UIColor(red: 0.11, green: 0.16, blue: 0.23, alpha: 1))
+        case .ot:
+            return dark
+                ? (UIColor(red: 0.29, green: 0.24, blue: 0.20, alpha: 1), UIColor(red: 0.95, green: 0.93, blue: 0.90, alpha: 1))
+                : (UIColor(red: 0.92, green: 0.85, blue: 0.78, alpha: 1), UIColor(red: 0.23, green: 0.16, blue: 0.11, alpha: 1))
+        }
+    }
+
+    func refreshImage() {
+        let font = V2NDesign.preferred(.footnote, weight: .semibold)
+        let (bg, fg) = colors()
+        let text = NSAttributedString(string: label, attributes: [
+            .font: font,
+            .foregroundColor: fg,
+        ])
+        let textSize = text.size()
+        let padX: CGFloat = 8
+        let padY: CGFloat = 3
+        let size = CGSize(width: ceil(textSize.width + padX * 2), height: ceil(textSize.height + padY * 2))
+        let renderer = UIGraphicsImageRenderer(size: size)
+        image = renderer.image { _ in
+            let rect = CGRect(origin: .zero, size: size)
+            let path = UIBezierPath(roundedRect: rect, cornerRadius: size.height / 2)
+            bg.setFill()
+            path.fill()
+            let textRect = CGRect(
+                x: padX,
+                y: (size.height - textSize.height) / 2,
+                width: textSize.width,
+                height: textSize.height
+            )
+            text.draw(in: textRect)
+        }
+        bounds = CGRect(x: 0, y: font.descender - 2, width: size.width, height: size.height)
+    }
+}
+
+extension UIColor {
+    /// Parse `#RRGGBB` speaker colors from the notebook API.
+    convenience init?(v2nHex: String) {
+        var hex = v2nHex.trimmingCharacters(in: .whitespacesAndNewlines)
+        if hex.hasPrefix("#") { hex.removeFirst() }
+        guard hex.count == 6, let value = UInt32(hex, radix: 16) else { return nil }
+        let r = CGFloat((value >> 16) & 0xff) / 255
+        let g = CGFloat((value >> 8) & 0xff) / 255
+        let b = CGFloat(value & 0xff) / 255
+        self.init(red: r, green: g, blue: b, alpha: 1)
+    }
+}
