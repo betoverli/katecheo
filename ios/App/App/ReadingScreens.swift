@@ -1,12 +1,15 @@
 import UIKit
 
-/// Native Leitura tab: browse plans, track days, share invites.
+/// Native Leitura: browse plans, track days, share invites.
+/// Embedded under Versículos chips (no own tab); standalone init kept for deep-link pushes.
 /// Layout mirrors the original web reading page — category card grid + plan rows.
-final class ReadingHomeViewController: UIViewController, UICollectionViewDelegate, UICollectionViewDataSource, UISearchResultsUpdating {
+final class ReadingHomeViewController: UIViewController, UICollectionViewDelegate, UICollectionViewDataSource, UISearchResultsUpdating, UISearchBarDelegate {
     private let refresh = UIRefreshControl()
     private let emptyState = V2NEmptyStateView()
     private let search = UISearchController(searchResultsController: nil)
+    private let embeddedSearch = UISearchBar()
     private var collectionView: UICollectionView!
+    private let embedded: Bool
 
     private var categories: [NativeAPIClient.PlanCategoryDTO] = []
     private var plans: [NativeAPIClient.PlanCardDTO] = []
@@ -19,19 +22,41 @@ final class ReadingHomeViewController: UIViewController, UICollectionViewDelegat
         case mine, browse, all, searchCategories, searchPlans
     }
 
+    init(embedded: Bool = false) {
+        self.embedded = embedded
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
     override func viewDidLoad() {
         super.viewDidLoad()
         V2NChrome.styleCanvas(view)
-        title = String(localized: "Leitura")
-        navigationController?.navigationBar.prefersLargeTitles = true
-        navigationItem.largeTitleDisplayMode = .always
+        if !embedded {
+            title = String(localized: "Leitura")
+            navigationController?.navigationBar.prefersLargeTitles = true
+            navigationItem.largeTitleDisplayMode = .always
+        } else {
+            // Parent Versículos owns the large title + chips.
+            navigationItem.largeTitleDisplayMode = .never
+        }
 
         search.searchResultsUpdater = self
         search.obscuresBackgroundDuringPresentation = false
         search.searchBar.placeholder = String(localized: "Buscar planos")
-        navigationItem.searchController = search
-        navigationItem.hidesSearchBarWhenScrolling = true
-        definesPresentationContext = true
+        if embedded {
+            embeddedSearch.placeholder = String(localized: "Buscar planos")
+            embeddedSearch.delegate = self
+            embeddedSearch.searchBarStyle = .minimal
+            embeddedSearch.translatesAutoresizingMaskIntoConstraints = false
+            embeddedSearch.autocapitalizationType = .none
+            embeddedSearch.returnKeyType = .search
+        } else {
+            navigationItem.searchController = search
+            navigationItem.hidesSearchBarWhenScrolling = true
+            definesPresentationContext = true
+        }
 
         collectionView = UICollectionView(frame: .zero, collectionViewLayout: makeLayout())
         collectionView.translatesAutoresizingMaskIntoConstraints = false
@@ -51,27 +76,59 @@ final class ReadingHomeViewController: UIViewController, UICollectionViewDelegat
         collectionView.refreshControl = refresh
         view.addSubview(collectionView)
         view.addSubview(emptyState)
-        NSLayoutConstraint.activate([
-            collectionView.topAnchor.constraint(equalTo: view.topAnchor),
-            collectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            emptyState.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            emptyState.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            emptyState.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            emptyState.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
-        ])
+
+        if embedded {
+            view.addSubview(embeddedSearch)
+            NSLayoutConstraint.activate([
+                embeddedSearch.topAnchor.constraint(equalTo: view.topAnchor, constant: V2NDesign.Space.xxs),
+                embeddedSearch.leadingAnchor.constraint(equalTo: view.layoutMarginsGuide.leadingAnchor),
+                embeddedSearch.trailingAnchor.constraint(equalTo: view.layoutMarginsGuide.trailingAnchor),
+
+                collectionView.topAnchor.constraint(equalTo: embeddedSearch.bottomAnchor, constant: V2NDesign.Space.xxs),
+                collectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+                collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+                collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+
+                emptyState.topAnchor.constraint(equalTo: embeddedSearch.bottomAnchor),
+                emptyState.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+                emptyState.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+                emptyState.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+            ])
+        } else {
+            NSLayoutConstraint.activate([
+                collectionView.topAnchor.constraint(equalTo: view.topAnchor),
+                collectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+                collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+                collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+                emptyState.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+                emptyState.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+                emptyState.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+                emptyState.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+            ])
+        }
     }
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        if !embedded {
+            reload()
+        }
+    }
+
+    func reloadFromParent() {
         reload()
     }
 
     @objc private func reload() {
         Task { @MainActor in
             defer { refresh.endRefreshing() }
-            let q = (search.searchBar.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            let rawQuery: String
+            if embedded {
+                rawQuery = embeddedSearch.text ?? ""
+            } else {
+                rawQuery = search.searchBar.text ?? ""
+            }
+            let q = rawQuery.trimmingCharacters(in: .whitespacesAndNewlines)
             searching = !q.isEmpty
             do {
                 if NativeAPIClient.hasBearer {
@@ -120,6 +177,21 @@ final class ReadingHomeViewController: UIViewController, UICollectionViewDelegat
     }
 
     func updateSearchResults(for searchController: UISearchController) {
+        reload()
+    }
+
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        reload()
+    }
+
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        searchBar.resignFirstResponder()
+        reload()
+    }
+
+    func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
+        searchBar.text = ""
+        searchBar.resignFirstResponder()
         reload()
     }
 

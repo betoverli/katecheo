@@ -707,25 +707,51 @@ final class V2NBookNameCell: UICollectionViewCell {
 final class V2NBookSectionHeaderView: UICollectionReusableView {
     static let reuseId = "V2NBookSectionHeaderView"
     private let label = UILabel()
+    private let trailingHost = UIView()
 
     override init(frame: CGRect) {
         super.init(frame: frame)
         label.font = V2NDesign.sectionHeader()
         label.textColor = .secondaryLabel
         label.translatesAutoresizingMaskIntoConstraints = false
+        label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+
+        trailingHost.translatesAutoresizingMaskIntoConstraints = false
+        trailingHost.setContentHuggingPriority(.required, for: .horizontal)
+        trailingHost.setContentCompressionResistancePriority(.required, for: .horizontal)
+
         addSubview(label)
+        addSubview(trailingHost)
         NSLayoutConstraint.activate([
             label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
-            label.trailingAnchor.constraint(equalTo: trailingAnchor),
-            label.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -4),
+            label.centerYAnchor.constraint(equalTo: centerYAnchor),
+            label.trailingAnchor.constraint(lessThanOrEqualTo: trailingHost.leadingAnchor, constant: -8),
+
+            trailingHost.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -4),
+            trailingHost.centerYAnchor.constraint(equalTo: centerYAnchor),
+            trailingHost.topAnchor.constraint(greaterThanOrEqualTo: topAnchor),
+            trailingHost.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor),
         ])
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    func configure(title: String) {
+    /// `trailing` is typically the Siglas/Nomes toggle on the Old Testament header row.
+    func configure(title: String, trailing: UIView? = nil) {
         label.text = title.uppercased()
+        for sub in trailingHost.subviews {
+            sub.removeFromSuperview()
+        }
+        guard let trailing else { return }
+        trailing.translatesAutoresizingMaskIntoConstraints = false
+        trailingHost.addSubview(trailing)
+        NSLayoutConstraint.activate([
+            trailing.leadingAnchor.constraint(equalTo: trailingHost.leadingAnchor),
+            trailing.trailingAnchor.constraint(equalTo: trailingHost.trailingAnchor),
+            trailing.topAnchor.constraint(equalTo: trailingHost.topAnchor),
+            trailing.bottomAnchor.constraint(equalTo: trailingHost.bottomAnchor),
+        ])
     }
 }
 
@@ -733,7 +759,7 @@ enum V2NBookGridLayout {
     /// Compositional layout matching Versículos Siglas/Nomes grids.
     /// Pass a provider so Siglas/Nomes toggles can `invalidateLayout()` without rebuilding.
     static func make(isCompact: @escaping () -> Bool) -> UICollectionViewCompositionalLayout {
-        UICollectionViewCompositionalLayout { _, env in
+        UICollectionViewCompositionalLayout { sectionIndex, env in
             let compact = isCompact()
             let width = env.container.effectiveContentSize.width
             let columns = max(1, Int(compact ? (width > 500 ? 8 : 5) : 2))
@@ -755,8 +781,10 @@ enum V2NBookGridLayout {
             )
             let section = NSCollectionLayoutSection(group: group)
             section.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 12, bottom: 12, trailing: 12)
+            // Taller OT header so Siglas/Nomes can sit on the same row inside the scroll view.
+            let headerHeight: CGFloat = sectionIndex == 0 ? 44 : 32
             let header = NSCollectionLayoutBoundarySupplementaryItem(
-                layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1), heightDimension: .absolute(32)),
+                layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1), heightDimension: .absolute(headerHeight)),
                 elementKind: UICollectionView.elementKindSectionHeader,
                 alignment: .top
             )

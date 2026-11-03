@@ -390,11 +390,18 @@ if (!rootTabs.includes("ProfileViewController") || rootTabs.includes('titleText:
 if (!rootTabs.includes("VersesHomeViewController") || rootTabs.includes('titleText: "Versículos"')) {
   errors.push("Phase 4: a aba Versículos tem de usar VersesHomeViewController.");
 }
-if (!rootTabs.includes("ReadingHomeViewController") || rootTabs.includes('titleText: "Leitura"')) {
-  errors.push("A aba Leitura tem de usar ReadingHomeViewController (não ComingSoon).");
+// TestFlight 156: Leitura is a Versículos chip, not a root tab.
+if (rootTabs.includes("ReadingHomeViewController") || /UITabBarItem\([\s\S]*Leitura/.test(rootTabs)) {
+  errors.push("Remova a aba Leitura do tab bar — Leitura fica sob Versículos (chip).");
 }
 if (!project.includes("ReadingScreens.swift in Sources")) {
   errors.push("ReadingScreens.swift tem de estar no target Xcode.");
+}
+if (
+  /V2NFilterChip\(id:\s*"themes"/.test(notebookList) ||
+  /V2NFilterChip\(id:\s*"lists"/.test(notebookList)
+) {
+  errors.push("Caderno não pode mostrar chips Temas/Listas (só filtros de notas).");
 }
 
 try {
@@ -417,11 +424,15 @@ try {
   if (!versesHome.includes("Temas") || !versesHome.includes("fetchBibleBooks")) {
     errors.push("VersesHomeViewController tem de listar livros e abrir Temas.");
   }
+  if (!versesHome.includes("ReadingHomeViewController") || !versesHome.includes('case reading = "reading"')) {
+    errors.push("Versículos tem de embutir Leitura como chip (ReadingHomeViewController).");
+  }
   if (
     /pushViewController\(\s*ThemesHomeViewController/.test(versesHome) ||
-    /pushViewController\(\s*MyCollectionsViewController/.test(versesHome)
+    /pushViewController\(\s*MyCollectionsViewController/.test(versesHome) ||
+    /pushViewController\(\s*ReadingHomeViewController/.test(versesHome)
   ) {
-    errors.push("Chips Livros/Temas/Listas têm de trocar o conteúdo in-place (sem push).");
+    errors.push("Chips Livros/Temas/Listas/Leitura têm de trocar o conteúdo in-place (sem push).");
   }
   if (!versesHome.includes("applyBooksCompact") || !versesHome.includes("booksCompact")) {
     errors.push("Versículos tem de manter Siglas/Nomes sincronizados com booksCompact no primeiro load.");
@@ -435,8 +446,15 @@ try {
   if (versesHome.includes("livros · Bíblia") || versesHome.includes("statusBanner")) {
     errors.push("Remova o subtítulo «N livros · Bíblia: …» do header de Versículos.");
   }
-  if (versesHome.includes("largeTitleDisplayMode = .always")) {
-    errors.push("Versículos tem de usar header compacto (largeTitleDisplayMode != .always).");
+  // TestFlight 156: restore large title; Siglas/Nomes lives on the OT header inside the scroll view.
+  if (!versesHome.includes("largeTitleDisplayMode = .always") || !versesHome.includes("prefersLargeTitles = true")) {
+    errors.push("Versículos tem de restaurar o large title (largeTitleDisplayMode = .always).");
+  }
+  if (!versesHome.includes("trailing: indexPath.section == 0 ? modeToggle") && !versesHome.includes("trailing: indexPath.section == 0 ? modeToggle : nil")) {
+    errors.push("Siglas/Nomes (modeToggle) tem de ficar na header do Antigo Testamento (scroll).");
+  }
+  if (!components.includes("trailing:") || !components.includes("trailingHost")) {
+    errors.push("V2NBookSectionHeaderView tem de aceitar trailing (Siglas/Nomes no scroll).");
   }
   const groupsListSync = read("ios/App/App/GroupsListViewController.swift");
   if (groupsListSync.includes("grupos · sincronizado")) {
@@ -445,6 +463,12 @@ try {
   const readingHome = read("ios/App/App/ReadingScreens.swift");
   if (!readingHome.includes("V2NPlanCategoryCardCell") || !readingHome.includes("UICollectionView")) {
     errors.push("Leitura home tem de usar cards (UICollectionView) como a web original.");
+  }
+  if (!readingHome.includes("init(embedded:") || !readingHome.includes("reloadFromParent")) {
+    errors.push("ReadingHomeViewController tem de suportar embedded + reloadFromParent sob Versículos.");
+  }
+  if (!deep.includes('selectHomeFilter("reading")') && !deep.includes("selectHomeFilter(\"reading\")")) {
+    errors.push("Deep links de Leitura têm de abrir o chip Leitura em Versículos.");
   }
   const versesScreens = read("ios/App/App/VersesScreens.swift");
   if (
