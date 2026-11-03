@@ -16,12 +16,22 @@ enum NoteDocumentCodec {
     static let linkKey = NSAttributedString.Key("v2n.link")
     static let speakerIdKey = NSAttributedString.Key("v2n.speakerId")
 
-    struct BibleRefPayload: Equatable {
-        var bookId: String
-        var chapter: Int
-        var verseStart: Int?
-        var verseEnd: Int?
-        var text: String?
+    /// NSObject so it can live in NSAttributedString attribute values.
+    final class BibleRefPayload: NSObject {
+        let bookId: String
+        let chapter: Int
+        let verseStart: Int?
+        let verseEnd: Int?
+        let text: String?
+
+        init(bookId: String, chapter: Int, verseStart: Int?, verseEnd: Int?, text: String?) {
+            self.bookId = bookId
+            self.chapter = chapter
+            self.verseStart = verseStart
+            self.verseEnd = verseEnd
+            self.text = text
+            super.init()
+        }
     }
 
     // MARK: - Document → Attributed
@@ -103,7 +113,6 @@ enum NoteDocumentCodec {
             attrs[.foregroundColor] = UIColor.systemBlue
             attrs[.underlineStyle] = NSUnderlineStyle.single.rawValue
             attrs[bibleRefKey] = payload
-            attrs[.accessibilityHint] = "Referência bíblica"
             return NSAttributedString(string: label, attributes: attrs)
         }
         if span.type == "link" {

@@ -73,15 +73,15 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             item("checklist", action: #selector(toggleCheck), label: "Checklist"),
             item("text.quote", action: #selector(toggleQuote), label: "Citação"),
             flex,
-            item("bold", action: #selector(toggleBold), label: "Negrito"),
-            item("italic", action: #selector(toggleItalic), label: "Itálico"),
-            item("underline", action: #selector(toggleUnderline), label: "Sublinhado"),
-            item("strikethrough", action: #selector(toggleStrike), label: "Riscado"),
+            item("bold", action: #selector(toggleBoldMark), label: "Negrito"),
+            item("italic", action: #selector(toggleItalicMark), label: "Itálico"),
+            item("underline", action: #selector(toggleUnderlineMark), label: "Sublinhado"),
+            item("strikethrough", action: #selector(toggleStrikeMark), label: "Riscado"),
             flex,
             item("book", action: #selector(insertBibleRef), label: "Referência bíblica"),
             item("person.wave.2", action: #selector(requestSpeaker), label: "Speaker"),
-            item("arrow.uturn.backward", action: #selector(undo), label: "Desfazer"),
-            item("arrow.uturn.forward", action: #selector(redo), label: "Refazer"),
+            item("arrow.uturn.backward", action: #selector(undoEdit), label: "Desfazer"),
+            item("arrow.uturn.forward", action: #selector(redoEdit), label: "Refazer"),
         ]
     }
 
@@ -277,7 +277,9 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         applyBlockType(currentBlockType() == "quote" ? "paragraph" : "quote", preserveChecked: false)
     }
 
-    @objc private func toggleBold() {
+    // Named *Mark / *Edit to avoid colliding with UIResponderStandardEditActions
+    // (toggleBoldface / toggleUnderline / undo / redo).
+    @objc private func toggleBoldMark() {
         toggleMark { attrs, font in
             var traits = font.fontDescriptor.symbolicTraits
             if traits.contains(.traitBold) { traits.remove(.traitBold) } else { traits.insert(.traitBold) }
@@ -287,7 +289,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         }
     }
 
-    @objc private func toggleItalic() {
+    @objc private func toggleItalicMark() {
         toggleMark { attrs, font in
             var traits = font.fontDescriptor.symbolicTraits
             if traits.contains(.traitItalic) { traits.remove(.traitItalic) } else { traits.insert(.traitItalic) }
@@ -297,7 +299,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         }
     }
 
-    @objc private func toggleUnderline() {
+    @objc private func toggleUnderlineMark() {
         toggleMark { attrs, _ in
             let current = attrs[.underlineStyle] as? Int ?? 0
             if current == 0 {
@@ -308,7 +310,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         }
     }
 
-    @objc private func toggleStrike() {
+    @objc private func toggleStrikeMark() {
         toggleMark { attrs, _ in
             let current = attrs[.strikethroughStyle] as? Int ?? 0
             if current == 0 {
@@ -327,12 +329,12 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         delegate?.nativeNoteEditorRequestSpeaker(self)
     }
 
-    @objc private func undo() {
+    @objc private func undoEdit() {
         textView.undoManager?.undo()
         emitChange()
     }
 
-    @objc private func redo() {
+    @objc private func redoEdit() {
         textView.undoManager?.redo()
         emitChange()
     }
