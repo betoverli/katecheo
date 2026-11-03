@@ -78,8 +78,8 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             item("underline", action: #selector(toggleUnderlineMark), label: "Sublinhado"),
             item("strikethrough", action: #selector(toggleStrikeMark), label: "Riscado"),
             flex,
-            item("book", action: #selector(insertBibleRef), label: "Referência bíblica"),
-            item("person.wave.2", action: #selector(requestSpeaker), label: "Speaker"),
+            item("book", action: #selector(presentBibleRefPicker), label: "Referência bíblica"),
+            item("person.wave.2", action: #selector(presentSpeakerPicker), label: "Speaker"),
             item("arrow.uturn.backward", action: #selector(undoEdit), label: "Desfazer"),
             item("arrow.uturn.forward", action: #selector(redoEdit), label: "Refazer"),
         ]
