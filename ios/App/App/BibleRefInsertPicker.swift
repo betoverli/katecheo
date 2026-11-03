@@ -18,6 +18,7 @@ final class BibleRefInsertPicker: UITableViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        v2nApplyGroupedChrome()
         title = "Inserir referência"
         navigationItem.leftBarButtonItem = UIBarButtonItem(title: "Cancelar", style: .plain, target: self, action: #selector(cancel))
         search.searchResultsUpdater = self
@@ -102,6 +103,7 @@ private final class BibleRefChapterPicker: UITableViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        v2nApplyGroupedChrome()
         title = book.name
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "chapter")
     }
@@ -152,6 +154,7 @@ private final class BibleRefVersePicker: UITableViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        v2nApplyGroupedChrome()
         title = "\(book.abbr) \(chapter)"
         navigationItem.rightBarButtonItem = UIBarButtonItem(
             title: "Capítulo inteiro",

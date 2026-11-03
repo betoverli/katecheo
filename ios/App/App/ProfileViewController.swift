@@ -35,12 +35,13 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .systemBackground
+        V2NChrome.styleCanvas(view)
         title = "Perfil"
         navigationController?.navigationBar.prefersLargeTitles = true
         navigationItem.largeTitleDisplayMode = .always
 
         tableView.translatesAutoresizingMaskIntoConstraints = false
+        V2NChrome.styleGroupedTable(tableView)
         tableView.delegate = self
         tableView.dataSource = self
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "cell")
@@ -79,33 +80,40 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
     private func buildHeader() {
         headerStack.axis = .vertical
         headerStack.alignment = .center
-        headerStack.spacing = 8
+        headerStack.spacing = V2NDesign.Space.xs
         headerStack.isLayoutMarginsRelativeArrangement = true
-        headerStack.layoutMargins = UIEdgeInsets(top: 16, left: 20, bottom: 8, right: 20)
+        headerStack.layoutMargins = UIEdgeInsets(top: V2NDesign.Space.md, left: 20, bottom: V2NDesign.Space.xs, right: 20)
 
         avatarView.translatesAutoresizingMaskIntoConstraints = false
         avatarView.contentMode = .scaleAspectFill
         avatarView.clipsToBounds = true
         avatarView.layer.cornerRadius = 48
-        avatarView.backgroundColor = .secondarySystemFill
-        avatarView.tintColor = .secondaryLabel
+        avatarView.backgroundColor = V2NDesign.accentSoft
+        avatarView.tintColor = V2NDesign.accent
+        avatarView.layer.borderWidth = 2
+        avatarView.layer.borderColor = V2NDesign.spine.withAlphaComponent(0.35).cgColor
+        avatarView.isAccessibilityElement = true
+        avatarView.accessibilityLabel = "Foto do perfil"
         NSLayoutConstraint.activate([
             avatarView.widthAnchor.constraint(equalToConstant: 96),
             avatarView.heightAnchor.constraint(equalToConstant: 96),
         ])
 
-        nameLabel.font = .preferredFont(forTextStyle: .title2)
+        nameLabel.font = V2NDesign.screenTitle()
         nameLabel.textAlignment = .center
         nameLabel.numberOfLines = 2
+        nameLabel.adjustsFontForContentSizeCategory = true
 
-        handleLabel.font = .preferredFont(forTextStyle: .subheadline)
+        handleLabel.font = V2NDesign.rowSubtitle()
         handleLabel.textColor = .secondaryLabel
         handleLabel.textAlignment = .center
+        handleLabel.adjustsFontForContentSizeCategory = true
 
-        emailLabel.font = .preferredFont(forTextStyle: .footnote)
+        emailLabel.font = V2NDesign.caption()
         emailLabel.textColor = .tertiaryLabel
         emailLabel.textAlignment = .center
         emailLabel.numberOfLines = 2
+        emailLabel.adjustsFontForContentSizeCategory = true
 
         headerStack.addArrangedSubview(avatarView)
         headerStack.addArrangedSubview(nameLabel)
@@ -239,6 +247,12 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
         }
     }
 
+    func tableView(_ tableView: UITableView, willDisplayHeaderView view: UIView, forSection section: Int) {
+        guard let header = view as? UITableViewHeaderFooterView else { return }
+        header.textLabel?.font = V2NDesign.sectionHeader()
+        header.textLabel?.textColor = .secondaryLabel
+    }
+
     func tableView(_ tableView: UITableView, titleForFooterInSection section: Int) -> String? {
         if sectionKind(at: section) == .guest, let loadError { return loadError }
         return nil
@@ -306,11 +320,13 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
         }
 
         cell.contentConfiguration = config
+        cell.backgroundColor = V2NDesign.surface
         return cell
     }
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
+        V2NHaptics.selection()
         switch sectionKind(at: indexPath.section) {
         case .guest:
             presentSignIn()

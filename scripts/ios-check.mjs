@@ -100,6 +100,9 @@ if (project.includes("NoteMioloEditorView.swift")) {
 if (!project.includes("NativeNoteEditorView.swift in Sources") || !project.includes("NoteDocumentCodec.swift in Sources")) {
   errors.push("NativeNoteEditorView / NoteDocumentCodec têm de estar no target Xcode.");
 }
+if (!project.includes("V2NDesign.swift in Sources") || !project.includes("V2NComponents.swift in Sources")) {
+  errors.push("V2NDesign / V2NComponents (design system) têm de estar no target Xcode.");
+}
 if (!project.includes("BibleRefInsertPicker.swift in Sources")) {
   errors.push("BibleRefInsertPicker tem de estar no target Xcode.");
 }
@@ -298,6 +301,28 @@ if (!deep.includes("destination(for") || !deep.includes("notebook") || !deep.inc
 const comingSoon = read("ios/App/App/ComingSoonTabViewController.swift");
 if (comingSoon.includes("capacitorSite") || comingSoon.includes("Verse2NoteBridge") || comingSoon.includes("Usar app clássico")) {
   errors.push("ComingSoon não pode oferecer o host Capacitor.");
+}
+
+const design = read("ios/App/App/V2NDesign.swift");
+if (!design.includes("static let accent") || !design.includes("static let canvas") || !design.includes("enum V2NChrome") || !design.includes("static func applyAppWide")) {
+  errors.push("V2NDesign tem de expor accent/canvas e V2NChrome.applyAppWide.");
+}
+if (!design.includes("userInterfaceStyle == .dark")) {
+  errors.push("V2NDesign tem de declarar cores com suporte a Dark Mode.");
+}
+const components = read("ios/App/App/V2NComponents.swift");
+if (!components.includes("V2NEmptyStateView") || !components.includes("V2NNoteRowCell") || !components.includes("V2NHaptics")) {
+  errors.push("V2NComponents tem de incluir empty state, note row e haptics.");
+}
+if (!appDelegate.includes("V2NChrome.applyAppWide")) {
+  errors.push("AppDelegate tem de aplicar V2NChrome.applyAppWide no launch.");
+}
+const rootTabsChrome = read("ios/App/App/NativeRootTabBarController.swift");
+if (!rootTabsChrome.includes("V2NDesign.accent") || !rootTabsChrome.includes("V2NChrome.style")) {
+  errors.push("NativeRootTabBarController tem de usar o design system (accent + chrome).");
+}
+if (/Partilhar|Guardar|utilizador|Definições/.test(design) || /Partilhar|Guardar|utilizador|Definições/.test(components)) {
+  errors.push("Design system: strings têm de ser pt-BR (não Partilhar/Guardar/utilizador/Definições).");
 }
 
 const signIn = read("ios/App/App/NativeSignInViewController.swift");

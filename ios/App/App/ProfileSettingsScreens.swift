@@ -74,6 +74,7 @@ final class ProfileEditViewController: UITableViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        v2nApplyGroupedChrome()
         title = "Editar perfil"
         navigationItem.rightBarButtonItem = UIBarButtonItem(
             title: "Salvar",
@@ -206,6 +207,7 @@ final class ProfileThemeViewController: UITableViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        v2nApplyGroupedChrome()
         title = "Aparência"
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "theme")
     }
@@ -281,6 +283,7 @@ final class ProfileLanguageViewController: UITableViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        v2nApplyGroupedChrome()
         title = "Idioma"
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "lang")
     }
@@ -344,6 +347,7 @@ final class ProfileBibleViewController: UITableViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        v2nApplyGroupedChrome()
         title = "App de Bíblia"
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "bible")
     }
@@ -443,6 +447,7 @@ final class ProfileNotifyViewController: UITableViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        v2nApplyGroupedChrome()
         title = "Avisos"
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "notify")
     }

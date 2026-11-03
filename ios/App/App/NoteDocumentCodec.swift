@@ -110,14 +110,14 @@ enum NoteDocumentCodec {
                 text: span.text
             )
             let label = displayText(for: payload)
-            attrs[.foregroundColor] = UIColor.systemBlue
+            attrs[.foregroundColor] = V2NDesign.bookmark
             attrs[.underlineStyle] = NSUnderlineStyle.single.rawValue
             attrs[bibleRefKey] = payload
             return NSAttributedString(string: label, attributes: attrs)
         }
         if span.type == "link" {
             let text = span.text?.isEmpty == false ? (span.text ?? "") : (span.href ?? "")
-            attrs[.foregroundColor] = UIColor.systemBlue
+            attrs[.foregroundColor] = V2NDesign.bookmark
             attrs[.underlineStyle] = NSUnderlineStyle.single.rawValue
             if let href = span.href { attrs[linkKey] = href }
             return NSAttributedString(string: text, attributes: attrs)

@@ -62,7 +62,7 @@ describe("Phase 2 native Groups UI", () => {
     assert.match(notebook, /convenience init\(group:/);
     assert.match(notebook, /listGroupNotes/);
     assert.match(notebook, /Renomear grupo/);
-    assert.match(notebook, /Apagar grupo/);
+    assert.match(notebook, /Excluir grupo|Apagar grupo/);
     assert.match(notebook, /publishNote/);
   });
 

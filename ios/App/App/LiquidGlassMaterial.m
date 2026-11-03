@@ -53,7 +53,8 @@
 #endif
     if (configuration == nil) {
         configuration = [UIButtonConfiguration filledButtonConfiguration];
-        configuration.baseBackgroundColor = [UIColor colorWithRed:0 green:(122.0 / 255.0) blue:1 alpha:1];
+        // Warm notebook accent (matches V2NDesign.accent light).
+        configuration.baseBackgroundColor = [UIColor colorWithRed:(176.0 / 255.0) green:(122.0 / 255.0) blue:(69.0 / 255.0) alpha:1];
         configuration.baseForegroundColor = UIColor.whiteColor;
         configuration.cornerStyle = UIButtonConfigurationCornerStyleCapsule;
     }

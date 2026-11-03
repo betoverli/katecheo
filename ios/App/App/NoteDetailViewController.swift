@@ -20,17 +20,20 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .systemBackground
+        V2NChrome.styleCanvas(view)
         updateTitle()
+        navigationItem.largeTitleDisplayMode = .never
 
         navigationItem.rightBarButtonItems = [
             UIBarButtonItem(image: UIImage(systemName: "ellipsis.circle"), style: .plain, target: self, action: #selector(openMore)),
         ]
+        navigationItem.rightBarButtonItem?.accessibilityLabel = "Mais opções da nota"
 
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
-        statusLabel.font = .preferredFont(forTextStyle: .caption2)
+        statusLabel.font = V2NDesign.caption()
         statusLabel.textColor = .secondaryLabel
         statusLabel.text = "Carregando…"
+        statusLabel.adjustsFontForContentSizeCategory = true
         statusLabel.accessibilityLabel = "Status da nota"
         view.addSubview(statusLabel)
 
@@ -39,11 +42,11 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         view.addSubview(editor)
 
         NSLayoutConstraint.activate([
-            statusLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 4),
+            statusLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: V2NDesign.Space.xxs),
             statusLabel.leadingAnchor.constraint(equalTo: view.layoutMarginsGuide.leadingAnchor),
             statusLabel.trailingAnchor.constraint(equalTo: view.layoutMarginsGuide.trailingAnchor),
 
-            editor.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: 4),
+            editor.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: V2NDesign.Space.xxs),
             editor.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             editor.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             editor.bottomAnchor.constraint(equalTo: view.bottomAnchor),
