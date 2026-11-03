@@ -414,12 +414,13 @@ Principles: **small**, **user-visible or foundational**, **reversible feature fl
 - **Shipped (Versículos):** native picker (livro → capítulo → versículo), temas/coleções, abrir na Bíblia (`UIApplication.open` + prefs do Perfil), compartilhar/copiar, adicionar `bibleRef` à nota de hoje (`POST /verses/append` → NoteDocumentV1), minhas listas (`/my-collections*`). API pública: `/bible/books|apps|link|themes`.
 - Reading plans + day marks — follow-up (aba Leitura ainda Em breve).
 
-### Phase 5 — Remove Capacitor site host
+### Phase 5 — Remove Capacitor site host — **shipped**
 
-- App no longer sets `server.url` to the full SPA as the root UI.
-- Capacitor optional only for plugins **or** replace Share/Push/Splash with pure native and drop Capacitor dependency.
-- Delete LiquidChrome-as-WebView-chrome path; keep design language in SwiftUI/UIKit.
-- Miolo WKWebView may still remain until Phase 7.
+- App root is always `NativeRootTabBarController` (`NativeShellMode.nativePrimary`).
+- Removed `CAPBridgeViewController` / LiquidChrome / NativeMenus Cap plugins, Cap `server.url`, CapApp-SPM link, classic fallbacks.
+- **Only WKWebView:** `NoteMioloEditorView` → `/native-editor` with Keychain Bearer (see `docs/ios-phase5-webview.md`).
+- Native APNs (`NativePushService`), universal links / push taps (`NativeDeepLinkRouter`), Share via `UIActivityViewController`.
+- `ios-check` fails if a new Cap/WKWebView surface appears outside the miolo.
 
 ### Phase 6 — Hardening (pre-final editor)
 
@@ -497,3 +498,4 @@ Principles: **small**, **user-visible or foundational**, **reversible feature fl
 | 2026-11-01 | Phase 1 TF 98: add **native login** (Google ASWebAuth, Apple ASAuthorization, email) + cookie→Keychain migration + sign-out. |
 | 2026-11-02 | Phase 2 Grupos merged (#41). **Phase 3:** native Perfil + Configurações (`/me`, `/prefs`, `/notify-prefs`, `/account/delete|export`). |
 | 2026-11-02 | **Phase 4 Versículos:** native picker + temas + append `bibleRef` (`/bible/*`, `/verses/append`, `/my-collections*`). Leitura (plans) fica para follow-up. |
+| 2026-11-03 | **Phase 5:** Capacitor site host removed. App is native tabs + isolated `NoteMioloEditorView`. Push/UL/sign-in/offline stay native. |

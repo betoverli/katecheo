@@ -1,14 +1,9 @@
 import UIKit
 
-/// Builds the window root for the current `NativeShellMode`.
+/// Builds the window root. Phase 5: always native tabs — no Capacitor site host.
 enum AppRoot {
     static func makeRootViewController() -> UIViewController {
-        switch NativeShellMode.current {
-        case .capacitorSite:
-            return Verse2NoteBridgeViewController()
-        case .hybrid, .editorSpike:
-            return NativeRootTabBarController()
-        }
+        NativeRootTabBarController()
     }
 
     static func applyToKeyWindow(animated: Bool = true) {

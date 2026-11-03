@@ -75,11 +75,6 @@ final class NativeSignInViewController: UIViewController {
         statusLabel.numberOfLines = 0
         statusLabel.textAlignment = .center
 
-        let classic = UIButton(type: .system)
-        classic.setTitle("Abrir site clássico", for: .normal)
-        classic.titleLabel?.font = .preferredFont(forTextStyle: .footnote)
-        classic.addTarget(self, action: #selector(openClassic), for: .touchUpInside)
-
         stack.addArrangedSubview(title)
         stack.addArrangedSubview(subtitle)
         stack.setCustomSpacing(28, after: subtitle)
@@ -90,7 +85,6 @@ final class NativeSignInViewController: UIViewController {
         stack.addArrangedSubview(passwordField)
         stack.addArrangedSubview(emailButton)
         stack.addArrangedSubview(statusLabel)
-        stack.addArrangedSubview(classic)
 
         NSLayoutConstraint.activate([
             stack.leadingAnchor.constraint(equalTo: view.layoutMarginsGuide.leadingAnchor),
@@ -162,13 +156,11 @@ final class NativeSignInViewController: UIViewController {
         }
     }
 
-    @objc private func openClassic() {
-        NativeShellMode.setCurrent(.capacitorSite)
-        AppRoot.applyToKeyWindow()
-    }
-
     private func finishSignedIn() {
         setBusy(false, message: "Sessão iniciada.")
+        Task { @MainActor in
+            _ = await NativePushService.shared.enable()
+        }
         if presentingViewController != nil {
             dismiss(animated: true) { [weak self] in self?.onSignedIn?() }
         } else {

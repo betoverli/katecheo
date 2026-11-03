@@ -1,14 +1,12 @@
 import UIKit
-import WebKit
 
-/// Native note chrome + miolo WKWebView (`/native-editor` + `v2n` bridge).
-final class NoteDetailViewController: UIViewController, WKScriptMessageHandler, WKNavigationDelegate {
+/// Native note chrome + isolated miolo (`NoteMioloEditorView`). No site shell.
+final class NoteDetailViewController: UIViewController, NoteMioloEditorViewDelegate {
     private let noteId: String
     private var note: NativeAPIClient.NoteDocument
     private var speakers: [NativeAPIClient.SpeakerDTO] = []
-    private var webView: WKWebView!
+    private let editor = NoteMioloEditorView()
     private var saveWork: DispatchWorkItem?
-    private var editorReady = false
     private let statusLabel = UILabel()
 
     init(noteId: String, initial: NativeAPIClient.NoteDocument?) {
@@ -35,29 +33,22 @@ final class NoteDetailViewController: UIViewController, WKScriptMessageHandler, 
         statusLabel.text = "A carregar…"
         view.addSubview(statusLabel)
 
-        let userContent = WKUserContentController()
-        userContent.add(self, name: "v2n")
-        injectBearer(into: userContent)
-        let config = WKWebViewConfiguration()
-        config.userContentController = userContent
-        webView = WKWebView(frame: .zero, configuration: config)
-        webView.navigationDelegate = self
-        webView.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(webView)
+        editor.delegate = self
+        editor.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(editor)
 
         NSLayoutConstraint.activate([
             statusLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 4),
             statusLabel.leadingAnchor.constraint(equalTo: view.layoutMarginsGuide.leadingAnchor),
             statusLabel.trailingAnchor.constraint(equalTo: view.layoutMarginsGuide.trailingAnchor),
 
-            webView.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: 4),
-            webView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            webView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            webView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            editor.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: 4),
+            editor.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            editor.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            editor.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
 
-        let url = NativeAPIClient.baseURL.appendingPathComponent("native-editor")
-        webView.load(URLRequest(url: url))
+        editor.loadEditor()
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(noteDidChangeExternally(_:)),
@@ -73,22 +64,7 @@ final class NoteDetailViewController: UIViewController, WKScriptMessageHandler, 
     }
 
     deinit {
-        webView?.configuration.userContentController.removeScriptMessageHandler(forName: "v2n")
         saveWork?.cancel()
-    }
-
-    private func injectBearer(into userContent: WKUserContentController) {
-        guard let token = KeychainStore.bearerToken(), !token.isEmpty else { return }
-        let escaped = token
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "'", with: "\\'")
-        let js = """
-        try {
-          window.localStorage.setItem('grok-auth.bearer-token', '\(escaped)');
-          window.sessionStorage.setItem('grok-auth.bearer-token', '\(escaped)');
-        } catch (e) {}
-        """
-        userContent.addUserScript(WKUserScript(source: js, injectionTime: .atDocumentStart, forMainFrameOnly: true))
     }
 
     private func updateTitle() {
@@ -104,57 +80,33 @@ final class NoteDetailViewController: UIViewController, WKScriptMessageHandler, 
                 self.speakers = packed.speakers
                 self.updateTitle()
                 self.statusLabel.text = "Nota sincronizada"
-                if self.editorReady { self.pushNoteToEditor() }
+                if self.editor.isReady { self.editor.pushNote(self.note, speakers: self.speakers) }
             }
         } catch {
             await MainActor.run {
                 self.statusLabel.text = "Cache local · \(error.localizedDescription)"
-                if self.editorReady { self.pushNoteToEditor() }
+                if self.editor.isReady { self.editor.pushNote(self.note, speakers: self.speakers) }
             }
         }
     }
 
-    private func pushNoteToEditor() {
-        guard let data = try? JSONEncoder().encode(note),
-              let noteJSON = String(data: data, encoding: .utf8)
-        else { return }
-        let speakersJSON: String
-        if let sData = try? JSONEncoder().encode(speakers),
-           let s = String(data: sData, encoding: .utf8)
-        {
-            speakersJSON = s
-        } else {
-            speakersJSON = "[]"
-        }
-        let js = """
-        (function(){
-          var msg = { type: 'loadNote', note: \(noteJSON), speakers: \(speakersJSON), readOnly: false };
-          if (window.__V2N_EDITOR_LOAD__) { window.__V2N_EDITOR_LOAD__(msg); }
-          else { window.postMessage(msg, '*'); }
-        })();
-        """
-        webView.evaluateJavaScript(js, completionHandler: nil)
+    // MARK: - NoteMioloEditorViewDelegate
+
+    func noteMioloEditorDidBecomeReady(_ editor: NoteMioloEditorView) {
+        statusLabel.text = "Editor pronto"
+        editor.pushNote(note, speakers: speakers)
     }
 
-    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        guard message.name == "v2n" else { return }
-        guard let body = message.body as? [String: Any], let type = body["type"] as? String else { return }
-        switch type {
-        case "ready":
-            editorReady = true
-            statusLabel.text = "Editor pronto"
-            pushNoteToEditor()
-        case "noteChanged":
-            if let noteObj = body["note"] {
-                applyEditorNote(noteObj)
-            }
-        case "error":
-            statusLabel.text = "Editor: \(body["message"] as? String ?? "erro")"
-        case "requestSpeaker":
-            openSpeakerPicker()
-        default:
-            break
-        }
+    func noteMioloEditor(_ editor: NoteMioloEditorView, didChangeNote raw: Any) {
+        applyEditorNote(raw)
+    }
+
+    func noteMioloEditor(_ editor: NoteMioloEditorView, didFail message: String) {
+        statusLabel.text = "Editor: \(message)"
+    }
+
+    func noteMioloEditorDidRequestSpeaker(_ editor: NoteMioloEditorView) {
+        openSpeakerPicker()
     }
 
     private func applyEditorNote(_ raw: Any) {
@@ -162,7 +114,6 @@ final class NoteDetailViewController: UIViewController, WKScriptMessageHandler, 
               let data = try? JSONSerialization.data(withJSONObject: raw),
               let decoded = try? JSONDecoder().decode(NativeAPIClient.NoteDocument.self, from: data)
         else { return }
-        // Preserve chrome fields the miolo may not edit.
         var next = decoded
         next.id = noteId
         next.title = note.title
@@ -214,7 +165,7 @@ final class NoteDetailViewController: UIViewController, WKScriptMessageHandler, 
                 self?.moveToGroup()
             })
         }
-        sheet.addAction(UIAlertAction(title: "Partilhar", style: .default) { [weak self] _ in
+        sheet.addAction(UIAlertAction(title: "Compartilhar", style: .default) { [weak self] _ in
             self?.shareNote()
         })
         sheet.addAction(UIAlertAction(title: "Apagar nota", style: .destructive) { [weak self] _ in
@@ -230,7 +181,6 @@ final class NoteDetailViewController: UIViewController, WKScriptMessageHandler, 
     private func moveToGroup() {
         Task { @MainActor in
             do {
-                // Persist latest chrome/body before publishing the association.
                 _ = try await NativeAPIClient.upsertNote(note)
                 let groups = try await NativeAPIClient.listGroupsForNote(noteId: noteId)
                 let eligible = groups.filter { $0.canPost }
@@ -289,7 +239,7 @@ final class NoteDetailViewController: UIViewController, WKScriptMessageHandler, 
             self.updateTitle()
             LocalNoteCache.upsertNote(updated)
             self.scheduleSave()
-            if self.editorReady { self.pushNoteToEditor() }
+            if self.editor.isReady { self.editor.pushNote(self.note, speakers: self.speakers) }
         }
         let nav = UINavigationController(rootViewController: settings)
         if let sheet = nav.sheetPresentationController {

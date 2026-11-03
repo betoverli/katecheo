@@ -301,7 +301,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     ) -> UISwipeActionsConfiguration? {
         if isGroupMode {
             guard let doc = filteredCards[indexPath.row].document else { return nil }
-            let share = UIContextualAction(style: .normal, title: "Partilhar") { [weak self] _, view, done in
+            let share = UIContextualAction(style: .normal, title: "Compartilhar") { [weak self] _, view, done in
                 self?.share(doc, from: view)
                 done(true)
             }
@@ -310,7 +310,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             return UISwipeActionsConfiguration(actions: [share])
         }
         let note = filtered[indexPath.row]
-        let share = UIContextualAction(style: .normal, title: "Partilhar") { [weak self] _, view, done in
+        let share = UIContextualAction(style: .normal, title: "Compartilhar") { [weak self] _, view, done in
             self?.share(note, from: view)
             done(true)
         }
@@ -447,11 +447,6 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                     self?.showSignIn(auto: false)
                 })
             }
-            // Hidden fallback — not the primary path.
-            sheet.addAction(UIAlertAction(title: "Site clássico (Capacitor)", style: .default) { _ in
-                NativeShellMode.setCurrent(.capacitorSite)
-                AppRoot.applyToKeyWindow()
-            })
         }
         sheet.addAction(UIAlertAction(title: "Cancelar", style: .cancel))
         if let pop = sheet.popoverPresentationController {

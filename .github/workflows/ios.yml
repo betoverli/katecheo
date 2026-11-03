@@ -28,8 +28,6 @@ jobs:
         run: node scripts/select-xcode.mjs
       - name: Verificar o projeto
         run: npm run ios:check
-      - name: Sync do Capacitor
-        run: npx cap sync ios
       - name: Compilar para o simulador
         run: |
           set -euo pipefail
@@ -62,8 +60,6 @@ jobs:
         run: npm ci
       - name: Xcode com SDK do iOS 26
         run: node scripts/select-xcode.mjs
-      - name: Sync do Capacitor
-        run: npx cap sync ios
       - name: Confirmar segredos
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}

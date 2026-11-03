@@ -8,21 +8,19 @@ function read(rel: string) {
   return readFileSync(new URL(rel, root), "utf8");
 }
 
-describe("Phase 1 native notebook shell", () => {
-  it("defaults NativeShellMode to hybrid", () => {
+describe("Phase 1 native notebook shell (updated Phase 5)", () => {
+  it("uses nativePrimary shell (Cap site host removed)", () => {
     const mode = read("ios/App/App/NativeShellMode.swift");
-    assert.match(mode, /return \.hybrid/);
-    assert.match(mode, /case hybrid/);
-    assert.match(mode, /case capacitorSite/);
+    assert.match(mode, /return \.nativePrimary/);
+    assert.match(mode, /case nativePrimary/);
   });
 
-  it("SceneDelegate roots through AppRoot (not Cap-only)", () => {
+  it("SceneDelegate roots through AppRoot (native tabs)", () => {
     const scene = read("ios/App/App/SceneDelegate.swift");
     assert.match(scene, /AppRoot\.makeRootViewController/);
-    assert.match(scene, /NativeShellMode\.didChangeNotification/);
   });
 
-  it("ships native list + note chrome + miolo bridge files", () => {
+  it("ships native list + note chrome + isolated miolo", () => {
     for (const file of [
       "ios/App/App/NotebookListViewController.swift",
       "ios/App/App/NoteDetailViewController.swift",
@@ -30,6 +28,7 @@ describe("Phase 1 native notebook shell", () => {
       "ios/App/App/SpeakerPickerViewController.swift",
       "ios/App/App/NativeRootTabBarController.swift",
       "ios/App/App/LocalNoteCache.swift",
+      "ios/App/App/NoteMioloEditorView.swift",
     ]) {
       const body = read(file);
       assert.ok(body.length > 100, file);
@@ -39,18 +38,18 @@ describe("Phase 1 native notebook shell", () => {
     assert.match(list, /leadingSwipeActionsConfigurationForRowAt/);
     assert.match(list, /UISearchResultsUpdating/);
     assert.match(list, /UIActivityViewController/);
-    assert.match(list, /Site clássico/);
+    assert.doesNotMatch(list, /Site clássico|capacitorSite/);
     const detail = read("ios/App/App/NoteDetailViewController.swift");
-    assert.match(detail, /WKScriptMessageHandler/);
-    assert.match(detail, /native-editor/);
+    assert.match(detail, /NoteMioloEditorView/);
     assert.match(detail, /NoteDocument/);
+    const miolo = read("ios/App/App/NoteMioloEditorView.swift");
+    assert.match(miolo, /WKScriptMessageHandler/);
+    assert.match(miolo, /native-editor/);
   });
 
-  it("keeps Capacitor fallback reachable without making it default", () => {
-    const rootTab = read("ios/App/App/ComingSoonTabViewController.swift");
-    assert.match(rootTab, /capacitorSite/);
-    const mode = read("ios/App/App/NativeShellMode.swift");
-    assert.doesNotMatch(mode, /return \.capacitorSite/);
+  it("does not offer Capacitor classic fallback", () => {
+    const coming = read("ios/App/App/ComingSoonTabViewController.swift");
+    assert.doesNotMatch(coming, /capacitorSite|Usar app clássico/);
   });
 
   it("Xcode project includes Phase 1 sources", () => {
@@ -58,6 +57,7 @@ describe("Phase 1 native notebook shell", () => {
     for (const name of [
       "NotebookListViewController.swift in Sources",
       "NoteDetailViewController.swift in Sources",
+      "NoteMioloEditorView.swift in Sources",
       "AppRoot.swift in Sources",
       "NativeRootTabBarController.swift in Sources",
     ]) {

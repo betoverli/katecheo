@@ -10,7 +10,7 @@ enum NativeSessionBootstrap {
     static let sessionCookieName = "__Host-grok-auth.session_token"
     static let migratedFlagKey = "verse2note.cookieBearerMigrated.v1"
 
-    /// Read WKWebView cookies for verse2note.com and adopt the session token as bearer.
+    /// Read website data-store cookies for verse2note.com and adopt the session token as bearer.
     static func migrateCookieToKeychainIfNeeded() async -> Bool {
         if NativeAPIClient.hasBearer { return true }
 

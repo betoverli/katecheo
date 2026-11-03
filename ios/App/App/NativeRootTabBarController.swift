@@ -1,6 +1,6 @@
 import UIKit
 
-/// Phase 1–4 root: native Caderno + Grupos + Perfil + Versículos; Leitura still placeholder.
+/// Phase 5 root: native Caderno + Grupos + Perfil + Versículos; Leitura still placeholder (no Cap host).
 final class NativeRootTabBarController: UITabBarController {
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -23,7 +23,7 @@ final class NativeRootTabBarController: UITabBarController {
             rootViewController: ComingSoonTabViewController(
                 titleText: "Leitura",
                 systemImage: "calendar",
-                sitePath: "/reading"
+                detailText: "Planos de leitura em breve nativo.\nOs outros separadores já estão no app."
             )
         )
         reading.tabBarItem = UITabBarItem(title: "Leitura", image: UIImage(systemName: "calendar"), tag: 3)

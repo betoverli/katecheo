@@ -971,5 +971,30 @@ enum NativeAPIClient {
         else { throw APIError.decoding }
         return collection
     }
+
+    // MARK: - APNs devices (Phase 5 — native, no Capacitor)
+
+    static func saveApnsDevice(token: String, sandbox: Bool) async throws {
+        let body = try JSONSerialization.data(withJSONObject: [
+            "token": token,
+            "sandbox": sandbox,
+        ])
+        let request = try authorizedRequest(path: "api/native/v1/devices/apns", method: "POST", body: body)
+        let (status, data) = try await perform(request)
+        if status == 401 { throw APIError.unauthorized }
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+    }
+
+    static func dropApnsDevice(token: String) async throws {
+        let body = try JSONSerialization.data(withJSONObject: ["token": token])
+        let request = try authorizedRequest(path: "api/native/v1/devices/apns", method: "DELETE", body: body)
+        let (status, data) = try await perform(request)
+        if status == 401 { throw APIError.unauthorized }
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+    }
 }
 
