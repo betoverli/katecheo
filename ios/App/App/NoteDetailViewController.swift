@@ -27,14 +27,14 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         navigationItem.rightBarButtonItems = [
             UIBarButtonItem(image: UIImage(systemName: "ellipsis.circle"), style: .plain, target: self, action: #selector(openMore)),
         ]
-        navigationItem.rightBarButtonItem?.accessibilityLabel = "Mais opções da nota"
+        navigationItem.rightBarButtonItem?.accessibilityLabel = String(localized: "Mais opções da nota")
 
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
         statusLabel.font = V2NDesign.caption()
         statusLabel.textColor = .secondaryLabel
-        statusLabel.text = "Carregando…"
+        statusLabel.text = String(localized: "Carregando…")
         statusLabel.adjustsFontForContentSizeCategory = true
-        statusLabel.accessibilityLabel = "Status da nota"
+        statusLabel.accessibilityLabel = String(localized: "Status da nota")
         view.addSubview(statusLabel)
 
         editor.delegate = self
@@ -53,7 +53,7 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         ])
 
         editor.pushNote(note, speakers: speakers)
-        statusLabel.text = "Editor nativo"
+        statusLabel.text = String(localized: "Editor nativo")
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(noteDidChangeExternally(_:)),
@@ -74,7 +74,7 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
 
     private func updateTitle() {
         let t = note.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        title = t.isEmpty ? "Reunião" : t
+        title = t.isEmpty ? String(localized: "Reunião") : t
     }
 
     private func refreshFromAPI() async {
@@ -84,12 +84,12 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
                 self.note = packed.note
                 self.speakers = packed.speakers
                 self.updateTitle()
-                self.statusLabel.text = "Nota sincronizada"
+                self.statusLabel.text = String(localized: "Nota sincronizada")
                 self.editor.pushNote(self.note, speakers: self.speakers)
             }
         } catch {
             await MainActor.run {
-                self.statusLabel.text = "Cache local · \(error.localizedDescription)"
+                self.statusLabel.text = String(localized: "Cache local · \(error.localizedDescription)")
                 self.editor.pushNote(self.note, speakers: self.speakers)
             }
         }
@@ -129,12 +129,12 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
                     preferNative: prefs?.preferNative
                 )
                 guard let url = URL(string: link.url) else {
-                    statusLabel.text = "Link da Bíblia indisponível"
+                    statusLabel.text = String(localized: "Link da Bíblia indisponível")
                     return
                 }
                 await UIApplication.shared.open(url)
             } catch {
-                statusLabel.text = "Não abriu a Bíblia: \(error.localizedDescription)"
+                statusLabel.text = String(localized: "Não abriu a Bíblia: \(error.localizedDescription)")
             }
         }
     }
@@ -163,7 +163,7 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         }
         saveWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.45, execute: work)
-        statusLabel.text = "Salvando…"
+        statusLabel.text = String(localized: "Salvando…")
     }
 
     private func persist() async {
@@ -171,41 +171,41 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
             let saved = try await NativeAPIClient.upsertNote(note)
             await MainActor.run {
                 self.note = saved
-                self.statusLabel.text = "Salvo"
+                self.statusLabel.text = String(localized: "Salvo")
             }
         } catch NativeAPIClient.APIError.unauthorized {
             NativeOutbox.enqueueNoteUpsert(note)
             await MainActor.run {
-                self.statusLabel.text = "Sessão expirada — alteração guardada no aparelho."
+                self.statusLabel.text = String(localized: "Sessão expirada — alteração guardada no aparelho.")
             }
         } catch {
             NativeOutbox.enqueueNoteUpsert(note)
             await MainActor.run {
-                self.statusLabel.text = "Salvo no aparelho — sincroniza quando houver rede."
+                self.statusLabel.text = String(localized: "Salvo no aparelho — sincroniza quando houver rede.")
             }
         }
     }
 
     @objc private func openMore() {
         let sheet = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
-        sheet.addAction(UIAlertAction(title: "Configurações", style: .default) { [weak self] _ in
+        sheet.addAction(UIAlertAction(title: String(localized: "Configurações"), style: .default) { [weak self] _ in
             self?.openSettings()
         })
-        sheet.addAction(UIAlertAction(title: "Speakers…", style: .default) { [weak self] _ in
+        sheet.addAction(UIAlertAction(title: String(localized: "Speakers…"), style: .default) { [weak self] _ in
             self?.openSpeakerPicker()
         })
         if NativeAPIClient.hasBearer {
-            sheet.addAction(UIAlertAction(title: "Mover para grupo…", style: .default) { [weak self] _ in
+            sheet.addAction(UIAlertAction(title: String(localized: "Mover para grupo…"), style: .default) { [weak self] _ in
                 self?.moveToGroup()
             })
         }
-        sheet.addAction(UIAlertAction(title: "Compartilhar", style: .default) { [weak self] _ in
+        sheet.addAction(UIAlertAction(title: String(localized: "Compartilhar"), style: .default) { [weak self] _ in
             self?.shareNote()
         })
-        sheet.addAction(UIAlertAction(title: "Excluir nota", style: .destructive) { [weak self] _ in
+        sheet.addAction(UIAlertAction(title: String(localized: "Excluir nota"), style: .destructive) { [weak self] _ in
             self?.confirmDelete()
         })
-        sheet.addAction(UIAlertAction(title: "Cancelar", style: .cancel))
+        sheet.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
         if let pop = sheet.popoverPresentationController {
             pop.barButtonItem = navigationItem.rightBarButtonItem
         }
@@ -220,29 +220,29 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
                 let eligible = groups.filter { $0.canPost }
                 guard !eligible.isEmpty else {
                     let empty = UIAlertController(
-                        title: "Sem grupos",
-                        message: "Crie ou entre em um grupo na aba Grupos.",
+                        title: String(localized: "Sem grupos"),
+                        message: String(localized: "Crie ou entre em um grupo na aba Grupos."),
                         preferredStyle: .alert
                     )
-                    empty.addAction(UIAlertAction(title: "OK", style: .default))
+                    empty.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
                     present(empty, animated: true)
                     return
                 }
-                let sheet = UIAlertController(title: "Mover para grupo", message: nil, preferredStyle: .actionSheet)
+                let sheet = UIAlertController(title: String(localized: "Mover para grupo"), message: nil, preferredStyle: .actionSheet)
                 for group in eligible {
                     let title = (group.published == true) ? "✓ \(group.name)" : group.name
                     sheet.addAction(UIAlertAction(title: title, style: .default) { [weak self] _ in
                         self?.togglePublish(group)
                     })
                 }
-                sheet.addAction(UIAlertAction(title: "Cancelar", style: .cancel))
+                sheet.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
                 if let pop = sheet.popoverPresentationController {
                     pop.barButtonItem = navigationItem.rightBarButtonItem
                 }
                 present(sheet, animated: true)
             } catch {
-                let err = UIAlertController(title: "Erro", message: error.localizedDescription, preferredStyle: .alert)
-                err.addAction(UIAlertAction(title: "OK", style: .default))
+                let err = UIAlertController(title: String(localized: "Erro"), message: error.localizedDescription, preferredStyle: .alert)
+                err.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
                 present(err, animated: true)
             }
         }
@@ -253,14 +253,14 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
             do {
                 if group.published == true {
                     try await NativeAPIClient.unpublishNote(noteId: noteId, fromGroupId: group.id)
-                    statusLabel.text = "Retirada de «\(group.name)»"
+                    statusLabel.text = String(localized: "Retirada de «\(group.name)»")
                 } else {
                     try await NativeAPIClient.publishNote(noteId: noteId, toGroupId: group.id)
-                    statusLabel.text = "Movida para «\(group.name)»"
+                    statusLabel.text = String(localized: "Movida para «\(group.name)»")
                 }
             } catch {
-                let err = UIAlertController(title: "Erro", message: error.localizedDescription, preferredStyle: .alert)
-                err.addAction(UIAlertAction(title: "OK", style: .default))
+                let err = UIAlertController(title: String(localized: "Erro"), message: error.localizedDescription, preferredStyle: .alert)
+                err.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
                 present(err, animated: true)
             }
         }
@@ -301,7 +301,7 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
     }
 
     private func shareNote() {
-        let title = note.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Reunião" : note.title
+        let title = note.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? String(localized: "Reunião") : note.title
         let url = NativeAPIClient.baseURL.appendingPathComponent("n/\(note.id)")
         let vc = UIActivityViewController(activityItems: [title, note.preview, url], applicationActivities: nil)
         if let pop = vc.popoverPresentationController {
@@ -311,9 +311,9 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
     }
 
     private func confirmDelete() {
-        let alert = UIAlertController(title: nil, message: "Excluir esta nota?", preferredStyle: .actionSheet)
-        alert.addAction(UIAlertAction(title: "Cancelar", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Excluir nota", style: .destructive) { [weak self] _ in
+        let alert = UIAlertController(title: nil, message: String(localized: "Excluir esta nota?"), preferredStyle: .actionSheet)
+        alert.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
+        alert.addAction(UIAlertAction(title: String(localized: "Excluir nota"), style: .destructive) { [weak self] _ in
             guard let self else { return }
             Task { @MainActor in
                 do {

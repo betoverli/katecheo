@@ -20,7 +20,8 @@
     "ios:sync": "cap sync ios",
     "ios:check": "node scripts/ios-check.mjs",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "ios:l10n-check": "node scripts/check-ios-l10n.mjs"
   },
   "dependencies": {
     "@capacitor/core": "^8.5.3",

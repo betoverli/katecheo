@@ -11,6 +11,9 @@
 		504EC30D1FED79650016851F /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30B1FED79650016851F /* Main.storyboard */; };
 		504EC30F1FED79650016851F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30E1FED79650016851F /* Assets.xcassets */; };
 		504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3101FED79650016851F /* LaunchScreen.storyboard */; };
+		B8L10N012FED7965001685D0 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B8L10N002FED7965001685D0 /* Localizable.xcstrings */; };
+		B8L10N032FED7965001685D0 /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B8L10N022FED7965001685D0 /* InfoPlist.xcstrings */; };
+		B8L10N052FED7965001685D0 /* AppLocale.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8L10N042FED7965001685D0 /* AppLocale.swift */; };
 		9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9582B6822FE993A50072D4E8 /* SceneDelegate.swift */; };
 		A1C0DE042FED796500168520 /* LiquidGlassMaterial.m in Sources */ = {isa = PBXBuildFile; fileRef = A1C0DE032FED796500168520 /* LiquidGlassMaterial.m */; };
 		D3E0F0012FED796500168540 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E0F0002FED796500168540 /* KeychainStore.swift */; };
@@ -49,6 +52,9 @@
 		504EC3071FED79650016851F /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		504EC30C1FED79650016851F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		504EC30E1FED79650016851F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B8L10N002FED7965001685D0 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		B8L10N022FED7965001685D0 /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
+		B8L10N042FED7965001685D0 /* AppLocale.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLocale.swift; sourceTree = "<group>"; };
 		504EC3111FED79650016851F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		504EC3131FED79650016851F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		9582B6822FE993A50072D4E8 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
@@ -119,6 +125,9 @@
 			isa = PBXGroup;
 			children = (
 				9582B6822FE993A50072D4E8 /* SceneDelegate.swift */,
+				B8L10N042FED7965001685D0 /* AppLocale.swift */,
+				B8L10N002FED7965001685D0 /* Localizable.xcstrings */,
+				B8L10N022FED7965001685D0 /* InfoPlist.xcstrings */,
 				F8B8E0132FED7965001685D0 /* V2NComponents.swift */,
 				F8B8E0112FED7965001685D0 /* V2NDesign.swift */,
 				F7A7E0112FED7965001685C0 /* NativeNoteEditorView.swift */,
@@ -200,11 +209,13 @@
 			};
 			buildConfigurationList = 504EC2FF1FED79650016851F /* Build configuration list for PBXProject "App" */;
 			compatibilityVersion = "Xcode 8.0";
-			developmentRegion = en;
+			developmentRegion = "pt-BR";
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
 				Base,
+				"pt-BR",
+				es,
 			);
 			mainGroup = 504EC2FB1FED79650016851F;
 			packageReferences = (
@@ -226,6 +237,8 @@
 				504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */,
 				504EC30F1FED79650016851F /* Assets.xcassets in Resources */,
 				504EC30D1FED79650016851F /* Main.storyboard in Resources */,
+				B8L10N012FED7965001685D0 /* Localizable.xcstrings in Resources */,
+				B8L10N032FED7965001685D0 /* InfoPlist.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -238,6 +251,7 @@
 			files = (
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
+				B8L10N052FED7965001685D0 /* AppLocale.swift in Sources */,
 				F8B8E0122FED7965001685D0 /* V2NComponents.swift in Sources */,
 				F8B8E0102FED7965001685D0 /* V2NDesign.swift in Sources */,
 				F7A7E0102FED7965001685C0 /* NativeNoteEditorView.swift in Sources */,

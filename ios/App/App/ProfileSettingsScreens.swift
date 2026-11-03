@@ -11,7 +11,7 @@ enum ProfileBibleCatalog {
         ("bible-gateway", "Bible Gateway"),
         ("blue-letter", "Blue Letter Bible"),
         ("esv", "ESV Bible"),
-        ("biblia-online", "Bíblia Online"),
+        ("biblia-online", String(localized: "Bíblia Online")),
         ("bible-hub", "Bible Hub"),
         ("accordance", "Accordance"),
         ("e-sword", "e-Sword"),
@@ -20,9 +20,9 @@ enum ProfileBibleCatalog {
     ]
 
     static let translations: [(id: String, name: String)] = [
-        ("nvi-pt", "NVI — Nova Versão Internacional"),
+        ("nvi-pt", String(localized: "NVI — Nova Versão Internacional")),
         ("ntlh", "NTLH"),
-        ("arc", "ARC — Almeida Revista e Corrigida"),
+        ("arc", String(localized: "ARC — Almeida Revista e Corrigida")),
         ("naa", "NAA"),
         ("ara", "ARA"),
         ("niv", "NIV"),
@@ -39,12 +39,12 @@ enum ProfileBibleCatalog {
 private func presentSaveError(on vc: UIViewController, _ error: Error) {
     let message: String
     if let api = error as? NativeAPIClient.APIError, case .http(let code, _) = api, code == 409 {
-        message = "Esse @ já está em uso."
+        message = String(localized: "Esse @ já está em uso.")
     } else {
         message = error.localizedDescription
     }
-    let alert = UIAlertController(title: "Não foi possível salvar", message: message, preferredStyle: .alert)
-    alert.addAction(UIAlertAction(title: "OK", style: .default))
+    let alert = UIAlertController(title: String(localized: "Não foi possível salvar"), message: message, preferredStyle: .alert)
+    alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
     vc.present(alert, animated: true)
 }
 
@@ -75,9 +75,9 @@ final class ProfileEditViewController: UITableViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         v2nApplyGroupedChrome()
-        title = "Editar perfil"
+        title = String(localized: "Editar perfil")
         navigationItem.rightBarButtonItem = UIBarButtonItem(
-            title: "Salvar",
+            title: String(localized: "Salvar"),
             style: .done,
             target: self,
             action: #selector(save)
@@ -90,7 +90,7 @@ final class ProfileEditViewController: UITableViewController {
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int { 4 }
 
     override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        "Nome e contato"
+        String(localized: "Nome e contato")
     }
 
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
@@ -107,11 +107,11 @@ final class ProfileEditViewController: UITableViewController {
 
         switch indexPath.row {
         case 0:
-            field.placeholder = "Nome"
+            field.placeholder = String(localized: "Nome")
             field.text = firstName
             field.textContentType = .givenName
         case 1:
-            field.placeholder = "Sobrenome"
+            field.placeholder = String(localized: "Sobrenome")
             field.text = lastName
             field.textContentType = .familyName
         case 2:
@@ -127,7 +127,7 @@ final class ProfileEditViewController: UITableViewController {
             field.leftView = prefix
             field.leftViewMode = .always
         default:
-            field.placeholder = "E-mail"
+            field.placeholder = String(localized: "E-mail")
             field.text = email
             field.keyboardType = .emailAddress
             field.autocapitalizationType = .none
@@ -191,9 +191,9 @@ final class ProfileThemeViewController: UITableViewController {
     private var theme: String
     private let onSaved: () -> Void
     private let options: [(id: String, title: String, symbol: String)] = [
-        ("system", "Sistema", "circle.lefthalf.filled"),
-        ("light", "Claro", "sun.max"),
-        ("dark", "Escuro", "moon.fill"),
+        ("system", String(localized: "Sistema"), "circle.lefthalf.filled"),
+        ("light", String(localized: "Claro"), "sun.max"),
+        ("dark", String(localized: "Escuro"), "moon.fill"),
     ]
 
     init(theme: String, onSaved: @escaping () -> Void) {
@@ -208,7 +208,7 @@ final class ProfileThemeViewController: UITableViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         v2nApplyGroupedChrome()
-        title = "Aparência"
+        title = String(localized: "Aparência")
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "theme")
     }
 
@@ -217,7 +217,7 @@ final class ProfileThemeViewController: UITableViewController {
     }
 
     override func tableView(_ tableView: UITableView, titleForFooterInSection section: Int) -> String? {
-        "A aparência se aplica às telas nativas. O tema fica salvo na sua conta."
+        String(localized: "A aparência se aplica às telas nativas. O tema fica salvo na sua conta.")
     }
 
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
@@ -266,10 +266,10 @@ final class ProfileThemeViewController: UITableViewController {
 final class ProfileLanguageViewController: UITableViewController {
     private var prefs: NativeAPIClient.PrefsDTO
     private let onSaved: () -> Void
-    private let locales: [(id: String, title: String)] = [
-        ("pt", "Português"),
-        ("en", "English"),
-        ("es", "Español"),
+    private let copyLocales: [(id: String, title: String)] = [
+        ("pt", String(localized: "Português")),
+        ("en", String(localized: "English")),
+        ("es", String(localized: "Español")),
     ]
 
     init(prefs: NativeAPIClient.PrefsDTO, onSaved: @escaping () -> Void) {
@@ -284,44 +284,72 @@ final class ProfileLanguageViewController: UITableViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         v2nApplyGroupedChrome()
-        title = "Idioma"
+        title = String(localized: "Idioma")
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "lang")
+        syncInterfaceLocaleToServer()
+    }
+
+    /// Interface language follows the iPhone; keep server `locale` in sync for prefs consumers.
+    private func syncInterfaceLocaleToServer() {
+        let device = AppLocale.apiCode
+        guard prefs.locale != device else { return }
+        prefs.locale = device
+        Task { @MainActor in
+            do {
+                _ = try await NativeAPIClient.patchPrefs(["locale": device])
+                onSaved()
+            } catch {
+                // Non-fatal: UI still follows the system language.
+            }
+        }
     }
 
     override func numberOfSections(in tableView: UITableView) -> Int { 2 }
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        locales.count
+        section == 0 ? 1 : copyLocales.count
     }
 
     override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        section == 0 ? "Navegação" : "Referências"
+        section == 0 ? String(localized: "Interface") : String(localized: "Referências")
+    }
+
+    override func tableView(_ tableView: UITableView, titleForFooterInSection section: Int) -> String? {
+        if section == 0 {
+            return String(localized: "O idioma da interface segue o do iPhone. Para mudar, abra as Configurações do app e escolha Português (Brasil), English ou Español.")
+        }
+        return String(localized: "Nomes e siglas ao copiar um versículo.")
     }
 
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "lang", for: indexPath)
-        let option = locales[indexPath.row]
         var config = cell.defaultContentConfiguration()
-        config.text = option.title
+        if indexPath.section == 0 {
+            config.text = String(localized: "Abrir Configurações do idioma")
+            config.secondaryText = AppLocale.interfaceLanguageLabel
+            config.image = UIImage(systemName: "gearshape")
+            cell.accessoryType = .disclosureIndicator
+        } else {
+            let option = copyLocales[indexPath.row]
+            config.text = option.title
+            cell.accessoryType = prefs.copyLocale == option.id ? .checkmark : .none
+        }
         cell.contentConfiguration = config
-        let selected = indexPath.section == 0 ? prefs.locale : prefs.copyLocale
-        cell.accessoryType = selected == option.id ? .checkmark : .none
         return cell
     }
 
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
-        let option = locales[indexPath.row]
-        let key = indexPath.section == 0 ? "locale" : "copyLocale"
         if indexPath.section == 0 {
-            prefs.locale = option.id
-        } else {
-            prefs.copyLocale = option.id
+            AppLocale.openSystemSettings()
+            return
         }
+        let option = copyLocales[indexPath.row]
+        prefs.copyLocale = option.id
         tableView.reloadData()
         Task { @MainActor in
             do {
-                _ = try await NativeAPIClient.patchPrefs([key: option.id])
+                _ = try await NativeAPIClient.patchPrefs(["copyLocale": option.id])
                 onSaved()
             } catch {
                 presentSaveError(on: self, error)
@@ -348,7 +376,7 @@ final class ProfileBibleViewController: UITableViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         v2nApplyGroupedChrome()
-        title = "App de Bíblia"
+        title = String(localized: "App de Bíblia")
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "bible")
     }
 
@@ -364,9 +392,9 @@ final class ProfileBibleViewController: UITableViewController {
 
     override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
         switch section {
-        case 0: return "Aplicativo"
-        case 1: return "Tradução"
-        default: return "Abertura"
+        case 0: return String(localized: "Aplicativo")
+        case 1: return String(localized: "Tradução")
+        default: return String(localized: "Abertura")
         }
     }
 
@@ -384,10 +412,10 @@ final class ProfileBibleViewController: UITableViewController {
             cell.accessoryType = prefs.translationId == tr.id ? .checkmark : .none
         default:
             if indexPath.row == 0 {
-                config.text = "Preferir o app"
+                config.text = String(localized: "Preferir o app")
                 cell.accessoryType = prefs.preferNative ? .checkmark : .none
             } else {
-                config.text = "Preferir a web"
+                config.text = String(localized: "Preferir a web")
                 cell.accessoryType = !prefs.preferNative ? .checkmark : .none
             }
         }
@@ -430,10 +458,10 @@ final class ProfileNotifyViewController: UITableViewController {
     private let onSaved: () -> Void
 
     private let rows: [(key: String, title: String, subtitle: String)] = [
-        ("reading", "Planos de leitura", "Lembretes dos seus planos"),
-        ("friends", "Amigos", "Pedidos e aceitações"),
-        ("shares", "Compartilhamentos", "Notas e coleções compartilhadas"),
-        ("groups", "Grupos", "Atividade nos seus grupos"),
+        ("reading", String(localized: "Planos de leitura"), String(localized: "Lembretes dos seus planos")),
+        ("friends", String(localized: "Amigos"), String(localized: "Pedidos e aceitações")),
+        ("shares", String(localized: "Compartilhamentos"), String(localized: "Notas e coleções compartilhadas")),
+        ("groups", String(localized: "Grupos"), String(localized: "Atividade nos seus grupos")),
     ]
 
     init(notify: NativeAPIClient.NotifyPrefsDTO, onSaved: @escaping () -> Void) {
@@ -448,7 +476,7 @@ final class ProfileNotifyViewController: UITableViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         v2nApplyGroupedChrome()
-        title = "Avisos"
+        title = String(localized: "Avisos")
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "notify")
     }
 
@@ -459,15 +487,15 @@ final class ProfileNotifyViewController: UITableViewController {
     }
 
     override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        section == 0 ? "Dispositivo" : "Tipos de alerta"
+        section == 0 ? String(localized: "Dispositivo") : String(localized: "Tipos de alerta")
     }
 
     override func tableView(_ tableView: UITableView, titleForFooterInSection section: Int) -> String? {
         if section == 0 {
             let count = notify.apnsDevices ?? 0
             return count > 0
-                ? "Este dispositivo pode receber notificações push (APNs)."
-                : "Ative as notificações nas Configurações do iOS se quiser alertas push."
+                ? String(localized: "Este dispositivo pode receber notificações push (APNs).")
+                : String(localized: "Ative as notificações nas Configurações do iOS se quiser alertas push.")
         }
         return nil
     }
@@ -477,8 +505,8 @@ final class ProfileNotifyViewController: UITableViewController {
         var config = cell.defaultContentConfiguration()
         if indexPath.section == 0 {
             let count = notify.apnsDevices ?? 0
-            config.text = "Ativar push neste iPhone"
-            config.secondaryText = count > 0 ? "Registrado (\(count))" : "Toque para pedir permissão"
+            config.text = String(localized: "Ativar push neste iPhone")
+            config.secondaryText = count > 0 ? String(localized: "Registrado (\(count))") : String(localized: "Toque para pedir permissão")
             cell.accessoryType = .disclosureIndicator
             cell.selectionStyle = .default
             cell.contentConfiguration = config
@@ -533,11 +561,11 @@ final class ProfileNotifyViewController: UITableViewController {
                 onSaved()
             } else {
                 let alert = UIAlertController(
-                    title: "Notificações",
-                    message: "Permissão negada. Ative nas Configurações do iOS se quiser alertas.",
+                    title: String(localized: "Notificações"),
+                    message: String(localized: "Permissão negada. Ative nas Configurações do iOS se quiser alertas."),
                     preferredStyle: .alert
                 )
-                alert.addAction(UIAlertAction(title: "OK", style: .default))
+                alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
                 present(alert, animated: true)
             }
         }

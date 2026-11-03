@@ -40,8 +40,8 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         textView.adjustsFontForContentSizeCategory = true
         textView.allowsEditingTextAttributes = true
         textView.tintColor = V2NDesign.accent
-        textView.accessibilityLabel = "Corpo da nota"
-        textView.accessibilityHint = "A primeira linha é o título"
+        textView.accessibilityLabel = String(localized: "Corpo da nota")
+        textView.accessibilityHint = String(localized: "A primeira linha é o título")
         addSubview(textView)
 
         toolbar.sizeToFit()
@@ -64,21 +64,21 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     private func makeToolbarItems() -> [UIBarButtonItem] {
         let flex = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
         return [
-            toolbarItem("textformat.size", #selector(toggleHeading), "Título"),
-            toolbarItem("list.bullet", #selector(toggleBullet), "Lista"),
-            toolbarItem("list.number", #selector(toggleNumbered), "Numerada"),
-            toolbarItem("checklist", #selector(toggleCheck), "Checklist"),
-            toolbarItem("text.quote", #selector(toggleQuote), "Citação"),
+            toolbarItem("textformat.size", #selector(toggleHeading), String(localized: "Título")),
+            toolbarItem("list.bullet", #selector(toggleBullet), String(localized: "Lista")),
+            toolbarItem("list.number", #selector(toggleNumbered), String(localized: "Numerada")),
+            toolbarItem("checklist", #selector(toggleCheck), String(localized: "Checklist")),
+            toolbarItem("text.quote", #selector(toggleQuote), String(localized: "Citação")),
             flex,
-            toolbarItem("bold", #selector(toggleBoldMark), "Negrito"),
-            toolbarItem("italic", #selector(toggleItalicMark), "Itálico"),
-            toolbarItem("underline", #selector(toggleUnderlineMark), "Sublinhado"),
-            toolbarItem("strikethrough", #selector(toggleStrikeMark), "Riscado"),
+            toolbarItem("bold", #selector(toggleBoldMark), String(localized: "Negrito")),
+            toolbarItem("italic", #selector(toggleItalicMark), String(localized: "Itálico")),
+            toolbarItem("underline", #selector(toggleUnderlineMark), String(localized: "Sublinhado")),
+            toolbarItem("strikethrough", #selector(toggleStrikeMark), String(localized: "Riscado")),
             flex,
-            toolbarItem("book", #selector(presentBibleRefPicker), "Referência bíblica"),
-            toolbarItem("person.wave.2", #selector(presentSpeakerPicker), "Speaker"),
-            toolbarItem("arrow.uturn.backward", #selector(undoEdit), "Desfazer"),
-            toolbarItem("arrow.uturn.forward", #selector(redoEdit), "Refazer"),
+            toolbarItem("book", #selector(presentBibleRefPicker), String(localized: "Referência bíblica")),
+            toolbarItem("person.wave.2", #selector(presentSpeakerPicker), String(localized: "Speaker")),
+            toolbarItem("arrow.uturn.backward", #selector(undoEdit), String(localized: "Desfazer")),
+            toolbarItem("arrow.uturn.forward", #selector(redoEdit), String(localized: "Refazer")),
         ]
     }
 

@@ -16,18 +16,18 @@ final class VersesHomeViewController: UIViewController, UITableViewDelegate, UIT
     override func viewDidLoad() {
         super.viewDidLoad()
         V2NChrome.styleCanvas(view)
-        title = "Versículos"
+        title = String(localized: "Versículos")
         navigationController?.navigationBar.prefersLargeTitles = true
         navigationItem.largeTitleDisplayMode = .always
 
         navigationItem.rightBarButtonItems = [
-            UIBarButtonItem(title: "Temas", style: .plain, target: self, action: #selector(openThemes)),
-            UIBarButtonItem(title: "Listas", style: .plain, target: self, action: #selector(openMyLists)),
+            UIBarButtonItem(title: String(localized: "Temas"), style: .plain, target: self, action: #selector(openThemes)),
+            UIBarButtonItem(title: String(localized: "Listas"), style: .plain, target: self, action: #selector(openMyLists)),
         ]
 
         search.searchResultsUpdater = self
         search.obscuresBackgroundDuringPresentation = false
-        search.searchBar.placeholder = "Buscar livro"
+        search.searchBar.placeholder = String(localized: "Buscar livro")
         navigationItem.searchController = search
         definesPresentationContext = true
 
@@ -82,17 +82,17 @@ final class VersesHomeViewController: UIViewController, UITableViewDelegate, UIT
         Task { @MainActor in
             defer { refresh.endRefreshing() }
             do {
-                async let booksTask = NativeAPIClient.fetchBibleBooks(locale: "pt")
+                async let booksTask = NativeAPIClient.fetchBibleBooks(locale: AppLocale.apiCode)
                 if NativeAPIClient.hasBearer {
                     prefs = try? await NativeAPIClient.getPrefs()
                 }
                 books = try await booksTask
                 let appName = ProfileBibleCatalog.name(for: prefs?.appId ?? "youversion")
-                statusBanner.text = "\(books.count) livros · Bíblia: \(appName)"
+                statusBanner.text = String(localized: "\(books.count) livros · Bíblia: \(appName)")
                 statusBanner.textColor = V2NDesign.accent
                 applyFilter()
             } catch {
-                statusBanner.text = "Não foi possível carregar. \(error.localizedDescription)"
+                statusBanner.text = String(localized: "Não foi possível carregar. \(error.localizedDescription)")
                 statusBanner.textColor = V2NDesign.danger
                 applyFilter()
             }
@@ -113,13 +113,13 @@ final class VersesHomeViewController: UIViewController, UITableViewDelegate, UIT
             if books.isEmpty {
                 emptyState.show(
                     symbol: "book.closed",
-                    title: "Não foi possível carregar",
-                    message: "Puxe para atualizar quando a rede voltar.",
-                    actionTitle: "Tentar de novo",
+                    title: String(localized: "Não foi possível carregar"),
+                    message: String(localized: "Puxe para atualizar quando a rede voltar."),
+                    actionTitle: String(localized: "Tentar de novo"),
                     action: { [weak self] in self?.reload() }
                 )
             } else {
-                emptyState.show(symbol: "magnifyingglass", title: "Nenhum livro encontrado", message: "Tente outro nome ou abreviação.")
+                emptyState.show(symbol: "magnifyingglass", title: String(localized: "Nenhum livro encontrado"), message: String(localized: "Tente outro nome ou abreviação."))
             }
         } else {
             emptyState.hide()
@@ -139,7 +139,7 @@ final class VersesHomeViewController: UIViewController, UITableViewDelegate, UIT
     func numberOfSections(in tableView: UITableView) -> Int { 2 }
 
     func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        section == 0 ? "Antigo Testamento" : "Novo Testamento"
+        section == 0 ? String(localized: "Antigo Testamento") : String(localized: "Novo Testamento")
     }
 
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -158,13 +158,13 @@ final class VersesHomeViewController: UIViewController, UITableViewDelegate, UIT
         var config = cell.defaultContentConfiguration()
         config.text = book.name
         config.textProperties.font = V2NDesign.rowTitle()
-        config.secondaryText = "\(book.abbr) · \(book.chapters) capítulos"
+        config.secondaryText = String(localized: "\(book.abbr) · \(book.chapters) capítulos")
         config.secondaryTextProperties.font = V2NDesign.rowSubtitle()
         config.secondaryTextProperties.color = .secondaryLabel
         cell.contentConfiguration = config
         cell.backgroundColor = V2NDesign.surface
         cell.accessoryType = .disclosureIndicator
-        cell.accessibilityLabel = "\(book.name), \(book.chapters) capítulos"
+        cell.accessibilityLabel = String(localized: "\(book.name), \(book.chapters) capítulos")
         return cell
     }
 

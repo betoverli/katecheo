@@ -10,37 +10,37 @@ final class NativeRootTabBarController: UITabBarController {
         let notebook = UINavigationController(rootViewController: NotebookListViewController())
         V2NChrome.style(navigationController: notebook)
         notebook.tabBarItem = UITabBarItem(
-            title: "Caderno",
+            title: String(localized: "Caderno"),
             image: UIImage(systemName: "note.text"),
             selectedImage: UIImage(systemName: "note.text")
         )
-        notebook.tabBarItem.accessibilityLabel = "Caderno"
+        notebook.tabBarItem.accessibilityLabel = String(localized: "Caderno")
 
         let verses = UINavigationController(rootViewController: VersesHomeViewController())
         V2NChrome.style(navigationController: verses)
-        verses.tabBarItem = UITabBarItem(title: "Versículos", image: UIImage(systemName: "book"), tag: 1)
-        verses.tabBarItem.accessibilityLabel = "Versículos"
+        verses.tabBarItem = UITabBarItem(title: String(localized: "Versículos"), image: UIImage(systemName: "book"), tag: 1)
+        verses.tabBarItem.accessibilityLabel = String(localized: "Versículos")
 
         let groups = UINavigationController(rootViewController: GroupsListViewController())
         V2NChrome.style(navigationController: groups)
-        groups.tabBarItem = UITabBarItem(title: "Grupos", image: UIImage(systemName: "person.2"), tag: 2)
-        groups.tabBarItem.accessibilityLabel = "Grupos"
+        groups.tabBarItem = UITabBarItem(title: String(localized: "Grupos"), image: UIImage(systemName: "person.2"), tag: 2)
+        groups.tabBarItem.accessibilityLabel = String(localized: "Grupos")
 
         let reading = UINavigationController(
             rootViewController: ComingSoonTabViewController(
-                titleText: "Leitura",
+                titleText: String(localized: "Leitura"),
                 systemImage: "calendar",
-                detailText: "Planos de leitura em breve nativo.\nOs outros separadores já estão no app."
+                detailText: String(localized: "Planos de leitura em breve nativo.\nOs outros separadores já estão no app.")
             )
         )
         V2NChrome.style(navigationController: reading)
-        reading.tabBarItem = UITabBarItem(title: "Leitura", image: UIImage(systemName: "calendar"), tag: 3)
-        reading.tabBarItem.accessibilityLabel = "Leitura"
+        reading.tabBarItem = UITabBarItem(title: String(localized: "Leitura"), image: UIImage(systemName: "calendar"), tag: 3)
+        reading.tabBarItem.accessibilityLabel = String(localized: "Leitura")
 
         let profile = UINavigationController(rootViewController: ProfileViewController())
         V2NChrome.style(navigationController: profile)
-        profile.tabBarItem = UITabBarItem(title: "Perfil", image: UIImage(systemName: "person"), tag: 4)
-        profile.tabBarItem.accessibilityLabel = "Perfil"
+        profile.tabBarItem = UITabBarItem(title: String(localized: "Perfil"), image: UIImage(systemName: "person"), tag: 4)
+        profile.tabBarItem.accessibilityLabel = String(localized: "Perfil")
 
         viewControllers = [verses, groups, notebook, reading, profile]
         selectedIndex = 2

@@ -118,7 +118,7 @@ final class V2NEmptyStateView: UIView {
         }
     }
 
-    func showLoading(message: String = "Carregando…") {
+    func showLoading(message: String = String(localized: "Carregando…")) {
         show(symbol: "arrow.triangle.2.circlepath", title: message, message: "")
         // Gentle pulse while loading.
         iconView.layer.removeAnimation(forKey: "spin")
@@ -361,9 +361,9 @@ final class V2NGroupRowCell: UITableViewCell {
 
     func configure(_ group: NativeAPIClient.GroupDTO) {
         titleLabel.text = group.name
-        let visibility = group.visibility == "listed" ? "Listado" : "Privado"
-        let pending = group.myStatus == "pending" ? " · pedido pendente" : ""
-        subtitleLabel.text = "\(group.memberCount) membros · \(visibility)\(pending)"
+        let visibility = group.visibility == "listed" ? String(localized: "Listado") : String(localized: "Privado")
+        let pending = group.myStatus == "pending" ? String(localized: " · pedido pendente") : ""
+        subtitleLabel.text = String(localized: "\(group.memberCount) membros · \(visibility)\(pending)")
         badge.image = UIImage(systemName: group.visibility == "listed" ? "globe" : "lock.fill")
         accessibilityLabel = "\(group.name). \(subtitleLabel.text ?? "")"
     }

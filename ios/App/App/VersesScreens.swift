@@ -32,8 +32,8 @@ final class VerseChapterViewController: UITableViewController {
         let chapter = indexPath.row + 1
         let verseCount = book.verses.indices.contains(indexPath.row) ? book.verses[indexPath.row] : 0
         var config = cell.defaultContentConfiguration()
-        config.text = "Capítulo \(chapter)"
-        config.secondaryText = "\(verseCount) versículos"
+        config.text = String(localized: "Capítulo \(chapter)")
+        config.secondaryText = String(localized: "\(verseCount) versículos")
         cell.contentConfiguration = config
         cell.accessoryType = .disclosureIndicator
         return cell
@@ -72,10 +72,10 @@ final class VerseNumberViewController: UITableViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         v2nApplyGroupedChrome()
-        title = "\(book.abbr) \(chapter)"
+        title = String(localized: "\(book.abbr) \(chapter)")
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "verse")
         navigationItem.rightBarButtonItem = UIBarButtonItem(
-            title: "Capítulo inteiro",
+            title: String(localized: "Capítulo inteiro"),
             style: .plain,
             target: self,
             action: #selector(selectWholeChapter)
@@ -94,9 +94,9 @@ final class VerseNumberViewController: UITableViewController {
 
     override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
         if let rangeStart, rangeEnd == nil {
-            return "Toque no versículo final (início: \(rangeStart))"
+            return String(localized: "Toque no versículo final (início: \(rangeStart))")
         }
-        return "Toque para escolher · segundo toque define o intervalo"
+        return String(localized: "Toque para escolher · segundo toque define o intervalo")
     }
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -107,7 +107,7 @@ final class VerseNumberViewController: UITableViewController {
         let cell = tableView.dequeueReusableCell(withIdentifier: "verse", for: indexPath)
         let verse = indexPath.row + 1
         var config = cell.defaultContentConfiguration()
-        config.text = "Versículo \(verse)"
+        config.text = String(localized: "Versículo \(verse)")
         cell.contentConfiguration = config
         let inRange: Bool
         if let start = rangeStart, let end = rangeEnd {
@@ -153,7 +153,7 @@ final class VerseNumberViewController: UITableViewController {
     private func formatLabel(_ passage: NativeAPIClient.PassageDTO) -> String {
         if let verseStart = passage.verseStart {
             if let verseEnd = passage.verseEnd, verseEnd != verseStart {
-                return "\(book.name) \(chapter):\(verseStart)–\(verseEnd)"
+                return String(localized: "\(book.name) \(chapter):\(verseStart)–\(verseEnd)")
             }
             return "\(book.name) \(chapter):\(verseStart)"
         }
@@ -223,12 +223,12 @@ final class VerseActionsViewController: UITableViewController {
                 preferNative: prefs?.preferNative
             )
             await MainActor.run {
-                statusLabel.text = linkItem?.url ?? "Link pronto"
+                statusLabel.text = linkItem?.url ?? String(localized: "Link pronto")
                 tableView.reloadData()
             }
         } catch {
             await MainActor.run {
-                statusLabel.text = "Link indisponível: \(error.localizedDescription)"
+                statusLabel.text = String(localized: "Link indisponível: \(error.localizedDescription)")
             }
         }
     }
@@ -243,20 +243,20 @@ final class VerseActionsViewController: UITableViewController {
         guard let row = Row(rawValue: indexPath.row) else { return cell }
         switch row {
         case .openBible:
-            config.text = "Abrir na Bíblia"
+            config.text = String(localized: "Abrir na Bíblia")
             config.secondaryText = ProfileBibleCatalog.name(for: prefs?.appId ?? "youversion")
             config.image = UIImage(systemName: "book.fill")
         case .share:
-            config.text = "Compartilhar"
+            config.text = String(localized: "Compartilhar")
             config.image = UIImage(systemName: "square.and.arrow.up")
         case .copy:
-            config.text = "Copiar referência"
+            config.text = String(localized: "Copiar referência")
             config.image = UIImage(systemName: "doc.on.doc")
         case .addToNote:
-            config.text = "Adicionar à nota de hoje"
+            config.text = String(localized: "Adicionar à nota de hoje")
             config.image = UIImage(systemName: "note.text.badge.plus")
         case .saveToList:
-            config.text = "Salvar na minha lista"
+            config.text = String(localized: "Salvar na minha lista")
             config.image = UIImage(systemName: "bookmark")
         }
         cell.contentConfiguration = config
@@ -280,7 +280,7 @@ final class VerseActionsViewController: UITableViewController {
         Task { @MainActor in
             if linkItem == nil { await resolveLink() }
             guard let raw = linkItem?.url, let url = URL(string: raw) else {
-                presentAlert(title: "Sem link", message: "Não foi possível montar o link da Bíblia.")
+                presentAlert(title: String(localized: "Sem link"), message: String(localized: "Não foi possível montar o link da Bíblia."))
                 return
             }
             await UIApplication.shared.open(url)
@@ -304,7 +304,7 @@ final class VerseActionsViewController: UITableViewController {
 
     private func copyRef() {
         UIPasteboard.general.string = linkItem?.plain ?? label
-        statusLabel.text = "Copiado: \(label)"
+        statusLabel.text = String(localized: "Copiado: \(label)")
     }
 
     private func addToNote() {
@@ -315,21 +315,21 @@ final class VerseActionsViewController: UITableViewController {
         Task { @MainActor in
             do {
                 let result = try await NativeAPIClient.appendVerse(passage)
-                statusLabel.text = "Adicionado à nota: \(result.label)"
+                statusLabel.text = String(localized: "Adicionado à nota: \(result.label)")
                 let alert = UIAlertController(
-                    title: "Na nota de hoje",
-                    message: "\(result.label) foi inserido como referência (bibleRef).",
+                    title: String(localized: "Na nota de hoje"),
+                    message: String(localized: "\(result.label) foi inserido como referência (bibleRef)."),
                     preferredStyle: .alert
                 )
-                alert.addAction(UIAlertAction(title: "OK", style: .default))
-                alert.addAction(UIAlertAction(title: "Abrir nota", style: .default) { [weak self] _ in
+                alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
+                alert.addAction(UIAlertAction(title: String(localized: "Abrir nota"), style: .default) { [weak self] _ in
                     self?.openNote(result.note)
                 })
                 present(alert, animated: true)
             } catch NativeAPIClient.APIError.unauthorized {
                 presentSignInNeeded()
             } catch {
-                presentAlert(title: "Não foi possível adicionar", message: error.localizedDescription)
+                presentAlert(title: String(localized: "Não foi possível adicionar"), message: error.localizedDescription)
             }
         }
     }
@@ -356,27 +356,27 @@ final class VerseActionsViewController: UITableViewController {
                 if collections.isEmpty {
                     let created = try await NativeAPIClient.savePassageToCollection(
                         passage: passage,
-                        title: "Minha lista"
+                        title: String(localized: "Minha lista")
                     )
-                    statusLabel.text = "Salvo em «\(created.title)»"
+                    statusLabel.text = String(localized: "Salvo em «\(created.title)»")
                     return
                 }
-                let sheet = UIAlertController(title: "Salvar na lista", message: nil, preferredStyle: .actionSheet)
+                let sheet = UIAlertController(title: String(localized: "Salvar na lista"), message: nil, preferredStyle: .actionSheet)
                 for collection in collections {
                     sheet.addAction(UIAlertAction(title: collection.title, style: .default) { [weak self] _ in
                         self?.save(to: collection.id)
                     })
                 }
-                sheet.addAction(UIAlertAction(title: "Nova lista…", style: .default) { [weak self] _ in
+                sheet.addAction(UIAlertAction(title: String(localized: "Nova lista…"), style: .default) { [weak self] _ in
                     self?.promptNewList()
                 })
-                sheet.addAction(UIAlertAction(title: "Cancelar", style: .cancel))
+                sheet.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
                 if let pop = sheet.popoverPresentationController {
                     pop.sourceView = tableView
                 }
                 present(sheet, animated: true)
             } catch {
-                presentAlert(title: "Listas", message: error.localizedDescription)
+                presentAlert(title: String(localized: "Listas"), message: error.localizedDescription)
             }
         }
     }
@@ -388,29 +388,29 @@ final class VerseActionsViewController: UITableViewController {
                     passage: passage,
                     collectionId: collectionId
                 )
-                statusLabel.text = "Salvo em «\(collection.title)»"
+                statusLabel.text = String(localized: "Salvo em «\(collection.title)»")
             } catch {
-                presentAlert(title: "Não foi possível salvar", message: error.localizedDescription)
+                presentAlert(title: String(localized: "Não foi possível salvar"), message: error.localizedDescription)
             }
         }
     }
 
     private func promptNewList() {
-        let alert = UIAlertController(title: "Nova lista", message: nil, preferredStyle: .alert)
-        alert.addTextField { $0.placeholder = "Nome da lista" }
-        alert.addAction(UIAlertAction(title: "Cancelar", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Salvar", style: .default) { [weak self] _ in
+        let alert = UIAlertController(title: String(localized: "Nova lista"), message: nil, preferredStyle: .alert)
+        alert.addTextField { $0.placeholder = String(localized: "Nome da lista") }
+        alert.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
+        alert.addAction(UIAlertAction(title: String(localized: "Salvar"), style: .default) { [weak self] _ in
             guard let self else { return }
             let title = alert.textFields?.first?.text?.trimmingCharacters(in: .whitespacesAndNewlines)
             Task { @MainActor in
                 do {
                     let collection = try await NativeAPIClient.savePassageToCollection(
                         passage: self.passage,
-                        title: (title?.isEmpty == false) ? title : "Minha lista"
+                        title: (title?.isEmpty == false) ? title : String(localized: "Minha lista")
                     )
-                    self.statusLabel.text = "Salvo em «\(collection.title)»"
+                    self.statusLabel.text = String(localized: "Salvo em «\(collection.title)»")
                 } catch {
-                    self.presentAlert(title: "Não foi possível salvar", message: error.localizedDescription)
+                    self.presentAlert(title: String(localized: "Não foi possível salvar"), message: error.localizedDescription)
                 }
             }
         })
@@ -418,12 +418,12 @@ final class VerseActionsViewController: UITableViewController {
     }
 
     private func presentSignInNeeded() {
-        presentAlert(title: "Entrar", message: "Inicie sessão na aba Perfil ou Caderno para salvar versículos.")
+        presentAlert(title: String(localized: "Entrar"), message: String(localized: "Inicie sessão na aba Perfil ou Caderno para salvar versículos."))
     }
 
     private func presentAlert(title: String, message: String) {
         let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
         present(alert, animated: true)
     }
 }
@@ -448,11 +448,11 @@ final class ThemesHomeViewController: UITableViewController, UISearchResultsUpda
     override func viewDidLoad() {
         super.viewDidLoad()
         v2nApplyGroupedChrome()
-        title = "Temas"
+        title = String(localized: "Temas")
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "theme")
         search.searchResultsUpdater = self
         search.obscuresBackgroundDuringPresentation = false
-        search.searchBar.placeholder = "Buscar temas"
+        search.searchBar.placeholder = String(localized: "Buscar temas")
         navigationItem.searchController = search
         refreshControl = UIRefreshControl()
         refreshControl?.addTarget(self, action: #selector(reload), for: .valueChanged)
@@ -471,8 +471,8 @@ final class ThemesHomeViewController: UITableViewController, UISearchResultsUpda
                 themes = result.themes
                 tableView.reloadData()
             } catch {
-                let alert = UIAlertController(title: "Temas", message: error.localizedDescription, preferredStyle: .alert)
-                alert.addAction(UIAlertAction(title: "OK", style: .default))
+                let alert = UIAlertController(title: String(localized: "Temas"), message: error.localizedDescription, preferredStyle: .alert)
+                alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
                 present(alert, animated: true)
             }
         }
@@ -487,8 +487,8 @@ final class ThemesHomeViewController: UITableViewController, UISearchResultsUpda
     }
 
     override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        if section == 0 { return categories.isEmpty ? nil : "Categorias" }
-        return "Temas"
+        if section == 0 { return categories.isEmpty ? nil : String(localized: "Categorias") }
+        return String(localized: "Temas")
     }
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -501,13 +501,13 @@ final class ThemesHomeViewController: UITableViewController, UISearchResultsUpda
         var config = cell.defaultContentConfiguration()
         if indexPath.section == 0 {
             if categories.isEmpty {
-                config.text = themes.isEmpty ? "Nenhum tema encontrado." : "—"
+                config.text = themes.isEmpty ? String(localized: "Nenhum tema encontrado.") : "—"
                 cell.selectionStyle = .none
             } else {
                 let category = categories[indexPath.row]
                 config.text = category.name
                 if let count = category.count {
-                    config.secondaryText = "\(count) temas"
+                    config.secondaryText = String(localized: "\(count) temas")
                 }
                 cell.accessoryType = .disclosureIndicator
             }
@@ -571,8 +571,8 @@ final class ThemeCategoryViewController: UITableViewController {
             }
         } catch {
             await MainActor.run {
-                let alert = UIAlertController(title: "Categoria", message: error.localizedDescription, preferredStyle: .alert)
-                alert.addAction(UIAlertAction(title: "OK", style: .default))
+                let alert = UIAlertController(title: String(localized: "Categoria"), message: error.localizedDescription, preferredStyle: .alert)
+                alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
                 present(alert, animated: true)
             }
         }
@@ -636,8 +636,8 @@ final class ThemeDetailViewController: UITableViewController {
             }
         } catch {
             await MainActor.run {
-                let alert = UIAlertController(title: "Tema", message: error.localizedDescription, preferredStyle: .alert)
-                alert.addAction(UIAlertAction(title: "OK", style: .default))
+                let alert = UIAlertController(title: String(localized: "Tema"), message: error.localizedDescription, preferredStyle: .alert)
+                alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
                 present(alert, animated: true)
             }
         }
@@ -678,12 +678,12 @@ final class MyCollectionsViewController: UITableViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         v2nApplyGroupedChrome()
-        title = "Minhas listas"
+        title = String(localized: "Minhas listas")
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "list")
         refreshControl = UIRefreshControl()
         refreshControl?.addTarget(self, action: #selector(reload), for: .valueChanged)
         navigationItem.rightBarButtonItem = UIBarButtonItem(
-            title: "Nova",
+            title: String(localized: "Nova"),
             style: .plain,
             target: self,
             action: #selector(createList)
@@ -702,11 +702,11 @@ final class MyCollectionsViewController: UITableViewController {
                 collections = []
                 tableView.reloadData()
                 let alert = UIAlertController(
-                    title: "Entrar",
-                    message: "Inicie sessão para ver suas listas de versículos.",
+                    title: String(localized: "Entrar"),
+                    message: String(localized: "Inicie sessão para ver suas listas de versículos."),
                     preferredStyle: .alert
                 )
-                alert.addAction(UIAlertAction(title: "OK", style: .default))
+                alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
                 present(alert, animated: true)
                 return
             }
@@ -714,18 +714,18 @@ final class MyCollectionsViewController: UITableViewController {
                 collections = try await NativeAPIClient.listMyCollections()
                 tableView.reloadData()
             } catch {
-                let alert = UIAlertController(title: "Listas", message: error.localizedDescription, preferredStyle: .alert)
-                alert.addAction(UIAlertAction(title: "OK", style: .default))
+                let alert = UIAlertController(title: String(localized: "Listas"), message: error.localizedDescription, preferredStyle: .alert)
+                alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
                 present(alert, animated: true)
             }
         }
     }
 
     @objc private func createList() {
-        let alert = UIAlertController(title: "Nova lista", message: nil, preferredStyle: .alert)
-        alert.addTextField { $0.placeholder = "Nome" }
-        alert.addAction(UIAlertAction(title: "Cancelar", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Criar", style: .default) { [weak self] _ in
+        let alert = UIAlertController(title: String(localized: "Nova lista"), message: nil, preferredStyle: .alert)
+        alert.addTextField { $0.placeholder = String(localized: "Nome") }
+        alert.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
+        alert.addAction(UIAlertAction(title: String(localized: "Criar"), style: .default) { [weak self] _ in
             let title = alert.textFields?.first?.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             guard !title.isEmpty else { return }
             Task { @MainActor in
@@ -733,8 +733,8 @@ final class MyCollectionsViewController: UITableViewController {
                     _ = try await NativeAPIClient.createMyCollection(title: title)
                     self?.reload()
                 } catch {
-                    let err = UIAlertController(title: "Erro", message: error.localizedDescription, preferredStyle: .alert)
-                    err.addAction(UIAlertAction(title: "OK", style: .default))
+                    let err = UIAlertController(title: String(localized: "Erro"), message: error.localizedDescription, preferredStyle: .alert)
+                    err.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
                     self?.present(err, animated: true)
                 }
             }
@@ -750,14 +750,14 @@ final class MyCollectionsViewController: UITableViewController {
         let cell = tableView.dequeueReusableCell(withIdentifier: "list", for: indexPath)
         var config = cell.defaultContentConfiguration()
         if collections.isEmpty {
-            config.text = "Nenhuma lista ainda."
-            config.secondaryText = "Salve um versículo em «Salvar na minha lista»."
+            config.text = String(localized: "Nenhuma lista ainda.")
+            config.secondaryText = String(localized: "Salve um versículo em «Salvar na minha lista».")
             cell.selectionStyle = .none
             cell.accessoryType = .none
         } else {
             let item = collections[indexPath.row]
             config.text = item.title
-            config.secondaryText = "\(item.passages?.count ?? 0) versículos"
+            config.secondaryText = String(localized: "\(item.passages?.count ?? 0) versículos")
             cell.accessoryType = .disclosureIndicator
             cell.selectionStyle = .default
         }
