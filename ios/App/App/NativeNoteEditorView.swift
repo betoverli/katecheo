@@ -14,8 +14,9 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     weak var delegate: NativeNoteEditorViewDelegate?
 
     private let textView = UITextView()
-    private let toolbar = UIToolbar()
+    private let accessory = NoteEditorAccessoryBar()
     private var documentBase: NativeAPIClient.NoteDocument = NativeAPIClient.emptyNote(id: "pending")
+    private var speakers: [NativeAPIClient.SpeakerDTO] = []
     private var applyingRemote = false
     private(set) var isReady = true
 
@@ -44,10 +45,10 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         textView.accessibilityHint = String(localized: "A primeira linha é o título")
         addSubview(textView)
 
-        toolbar.sizeToFit()
-        toolbar.tintColor = V2NDesign.accent
-        toolbar.items = makeToolbarItems()
-        textView.inputAccessoryView = toolbar
+        accessory.onAction = { [weak self] action in
+            self?.handleAccessory(action)
+        }
+        textView.inputAccessoryView = accessory
 
         NSLayoutConstraint.activate([
             textView.topAnchor.constraint(equalTo: topAnchor),
@@ -61,39 +62,13 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         textView.addGestureRecognizer(tap)
     }
 
-    private func makeToolbarItems() -> [UIBarButtonItem] {
-        let flex = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
-        return [
-            toolbarItem("textformat.size", #selector(toggleHeading), String(localized: "Título")),
-            toolbarItem("list.bullet", #selector(toggleBullet), String(localized: "Lista")),
-            toolbarItem("list.number", #selector(toggleNumbered), String(localized: "Numerada")),
-            toolbarItem("checklist", #selector(toggleCheck), String(localized: "Checklist")),
-            toolbarItem("text.quote", #selector(toggleQuote), String(localized: "Citação")),
-            flex,
-            toolbarItem("bold", #selector(toggleBoldMark), String(localized: "Negrito")),
-            toolbarItem("italic", #selector(toggleItalicMark), String(localized: "Itálico")),
-            toolbarItem("underline", #selector(toggleUnderlineMark), String(localized: "Sublinhado")),
-            toolbarItem("strikethrough", #selector(toggleStrikeMark), String(localized: "Riscado")),
-            flex,
-            toolbarItem("book", #selector(presentBibleRefPicker), String(localized: "Referência bíblica")),
-            toolbarItem("person.wave.2", #selector(presentSpeakerPicker), String(localized: "Speaker")),
-            toolbarItem("arrow.uturn.backward", #selector(undoEdit), String(localized: "Desfazer")),
-            toolbarItem("arrow.uturn.forward", #selector(redoEdit), String(localized: "Refazer")),
-        ]
-    }
-
-    private func toolbarItem(_ systemName: String, _ action: Selector, _ label: String) -> UIBarButtonItem {
-        let button = UIBarButtonItem(image: UIImage(systemName: systemName), style: .plain, target: self, action: action)
-        button.accessibilityLabel = label
-        return button
-    }
-
     /// Load / replace the document currently shown.
-    func pushNote(_ note: NativeAPIClient.NoteDocument, speakers _: [NativeAPIClient.SpeakerDTO] = [], readOnly: Bool = false) {
+    func pushNote(_ note: NativeAPIClient.NoteDocument, speakers: [NativeAPIClient.SpeakerDTO] = [], readOnly: Bool = false) {
         precondition(Thread.isMainThread)
         documentBase = note
+        self.speakers = speakers
         applyingRemote = true
-        let attributed = NoteDocumentCodec.attributedString(from: note)
+        let attributed = NoteDocumentCodec.attributedString(from: note, speakers: speakers)
         textView.attributedText = attributed
         textView.selectedRange = NSRange(location: 0, length: 0)
         textView.isEditable = !readOnly
@@ -108,16 +83,53 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
     func insertBibleRef(_ ref: NoteDocumentCodec.BibleRefPayload) {
         precondition(Thread.isMainThread)
-        let label = NoteDocumentCodec.displayText(for: ref)
-        var attrs = textView.typingAttributes
-        attrs[.foregroundColor] = V2NDesign.bookmark
-        attrs[.underlineStyle] = NSUnderlineStyle.single.rawValue
-        attrs[NoteDocumentCodec.bibleRefKey] = ref
-        let piece = NSAttributedString(string: label, attributes: attrs)
+        var base = textView.typingAttributes
+        base[NoteDocumentCodec.blockTypeKey] = currentBlockType()
+        base[NoteDocumentCodec.blockIdKey] = currentBlockId()
+        let piece = NoteDocumentCodec.bibleRefPill(payload: ref, base: base)
         textView.textStorage.replaceCharacters(in: textView.selectedRange, with: piece)
         let end = textView.selectedRange.location + piece.length
         textView.selectedRange = NSRange(location: end, length: 0)
         textView.typingAttributes = baseTypingAttributes()
+        emitChange()
+    }
+
+    func insertSpeakerSection(speakerId: String, name: String) {
+        precondition(Thread.isMainThread)
+        let id = NoteDocumentCodec.newId()
+        let style = NSMutableParagraphStyle()
+        style.paragraphSpacingBefore = 14
+        style.headIndent = 12
+        style.firstLineHeadIndent = 12
+        let color = speakers.first(where: { $0.id == speakerId }).flatMap { UIColor(v2nHex: $0.color) }
+            ?? UIColor(red: 0.77, green: 0.65, blue: 0.45, alpha: 1)
+        let header = NSAttributedString(string: name, attributes: [
+            .font: V2NDesign.preferred(.title3, weight: .semibold),
+            .foregroundColor: color,
+            .backgroundColor: V2NDesign.accentSoft,
+            .paragraphStyle: style,
+            NoteDocumentCodec.blockTypeKey: "speakerSection",
+            NoteDocumentCodec.blockIdKey: id,
+            NoteDocumentCodec.speakerIdKey: speakerId,
+        ])
+        let bodyStyle = NSMutableParagraphStyle()
+        bodyStyle.lineSpacing = 3
+        let body = NSAttributedString(string: "\n", attributes: [
+            .font: UIFont.preferredFont(forTextStyle: .body),
+            .foregroundColor: UIColor.label,
+            .paragraphStyle: bodyStyle,
+            NoteDocumentCodec.blockTypeKey: "paragraph",
+            NoteDocumentCodec.blockIdKey: NoteDocumentCodec.newId(),
+        ])
+        let chunk = NSMutableAttributedString()
+        if textView.selectedRange.location > 0, textView.textStorage.length > 0 {
+            chunk.append(NSAttributedString(string: "\n"))
+        }
+        chunk.append(header)
+        chunk.append(body)
+        textView.textStorage.replaceCharacters(in: textView.selectedRange, with: chunk)
+        let end = (textView.selectedRange.location) + chunk.length
+        textView.selectedRange = NSRange(location: end, length: 0)
         emitChange()
     }
 
@@ -130,10 +142,15 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
     func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
         if text == "\n" {
-            // Continue list / checklist styles on the new paragraph.
             let type = currentBlockType()
-            DispatchQueue.main.async { [weak self] in
-                self?.applyBlockType(type, preserveChecked: true)
+            if type == "speakerSection" {
+                DispatchQueue.main.async { [weak self] in
+                    self?.applyBlockType("paragraph", preserveChecked: false)
+                }
+            } else {
+                DispatchQueue.main.async { [weak self] in
+                    self?.applyBlockType(type, preserveChecked: true)
+                }
             }
         }
         return true
@@ -145,13 +162,33 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         delegate?.nativeNoteEditorDidChange(self, document: doc)
     }
 
+    // MARK: - Accessory
+
+    private func handleAccessory(_ action: NoteEditorAccessoryBar.Action) {
+        switch action {
+        case .bold: toggleBoldMark()
+        case .italic: toggleItalicMark()
+        case .heading: toggleHeading()
+        case .bullet: toggleBullet()
+        case .numbered: toggleNumbered()
+        case .check: toggleCheck()
+        case .quote: toggleQuote()
+        case .underline: toggleUnderlineMark()
+        case .strike: toggleStrikeMark()
+        case .bibleRef: presentBibleRefPicker()
+        case .speaker: presentSpeakerPicker()
+        case .undo: undoEdit()
+        case .redo: redoEdit()
+        }
+    }
+
     // MARK: - Formatting
 
     private func baseTypingAttributes() -> [NSAttributedString.Key: Any] {
         [
             .font: UIFont.preferredFont(forTextStyle: .body),
             .foregroundColor: UIColor.label,
-            NoteDocumentCodec.blockTypeKey: currentBlockType(),
+            NoteDocumentCodec.blockTypeKey: currentBlockType() == "speakerSection" ? "paragraph" : currentBlockType(),
             NoteDocumentCodec.blockIdKey: currentBlockId(),
         ]
     }
@@ -190,7 +227,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         } else {
             checked = nil
         }
-        let id = currentBlockId()
+        let id = NoteDocumentCodec.newId()
         textView.textStorage.enumerateAttributes(in: range, options: []) { _, sub, _ in
             textView.textStorage.addAttribute(NoteDocumentCodec.blockTypeKey, value: type, range: sub)
             textView.textStorage.addAttribute(NoteDocumentCodec.blockIdKey, value: id, range: sub)
@@ -200,7 +237,6 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
                 textView.textStorage.removeAttribute(NoteDocumentCodec.checkedKey, range: sub)
             }
         }
-        // Font / indent refresh for the paragraph.
         let font: UIFont
         let style = NSMutableParagraphStyle()
         style.lineSpacing = 3
@@ -220,6 +256,8 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         if range.length > 0 {
             textView.textStorage.addAttribute(.font, value: font, range: range)
             textView.textStorage.addAttribute(.paragraphStyle, value: style, range: range)
+            textView.textStorage.removeAttribute(.backgroundColor, range: range)
+            textView.textStorage.addAttribute(.foregroundColor, value: UIColor.label, range: range)
         }
         var typing = textView.typingAttributes
         typing[NoteDocumentCodec.blockTypeKey] = type
@@ -263,7 +301,6 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
     @objc private func toggleCheck() {
         if currentBlockType() == "check" {
-            // Toggle checked state when already a checklist line.
             let range = paragraphRange()
             if range.length > 0 {
                 let attrs = textView.textStorage.attributes(at: range.location, effectiveRange: nil)
@@ -280,8 +317,6 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         applyBlockType(currentBlockType() == "quote" ? "paragraph" : "quote", preserveChecked: false)
     }
 
-    // Named *Mark / *Edit to avoid colliding with UIResponderStandardEditActions
-    // (toggleBoldface / toggleUnderline / undo / redo).
     @objc private func toggleBoldMark() {
         toggleMark { attrs, font in
             var traits = font.fontDescriptor.symbolicTraits
@@ -353,12 +388,15 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         )
         guard index < textView.textStorage.length else { return }
         let attrs = textView.textStorage.attributes(at: index, effectiveRange: nil)
+        if let attachment = attrs[.attachment] as? BibleRefPillAttachment {
+            delegate?.nativeNoteEditor(self, openBibleRef: attachment.payload)
+            return
+        }
         if let ref = attrs[NoteDocumentCodec.bibleRefKey] as? NoteDocumentCodec.BibleRefPayload {
             delegate?.nativeNoteEditor(self, openBibleRef: ref)
             return
         }
         if let type = attrs[NoteDocumentCodec.blockTypeKey] as? String, type == "check" {
-            // Toggle checkbox near the start of the line.
             let range = (textView.text as NSString).paragraphRange(for: NSRange(location: index, length: 0))
             let checked = !((attrs[NoteDocumentCodec.checkedKey] as? Bool) ?? false)
             textView.textStorage.addAttribute(NoteDocumentCodec.checkedKey, value: checked, range: range)
@@ -370,5 +408,135 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 extension NativeNoteEditorView: UIGestureRecognizerDelegate {
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
         true
+    }
+}
+
+// MARK: - Compact keyboard accessory (scrollable + Liquid Glass)
+
+@MainActor
+final class NoteEditorAccessoryBar: UIView {
+    enum Action {
+        case bold, italic, underline, strike
+        case heading, bullet, numbered, check, quote
+        case bibleRef, speaker, undo, redo
+    }
+
+    var onAction: ((Action) -> Void)?
+
+    private let blur: UIVisualEffectView
+    private let scroll = UIScrollView()
+    private let stack = UIStackView()
+
+    init() {
+        let effect = V2NGlassMaterial.effect(withInteractive: true) ?? UIBlurEffect(style: .systemChromeMaterial)
+        blur = UIVisualEffectView(effect: effect)
+        super.init(frame: CGRect(x: 0, y: 0, width: UIScreen.main.bounds.width, height: 52))
+        autoresizingMask = [.flexibleWidth]
+        backgroundColor = .clear
+
+        blur.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(blur)
+
+        scroll.translatesAutoresizingMaskIntoConstraints = false
+        scroll.showsHorizontalScrollIndicator = false
+        scroll.alwaysBounceHorizontal = true
+        scroll.contentInset = UIEdgeInsets(top: 0, left: 8, bottom: 0, right: 8)
+        addSubview(scroll)
+
+        stack.axis = .horizontal
+        stack.spacing = 4
+        stack.alignment = .center
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        scroll.addSubview(stack)
+
+        let groups: [[(String, Action, String)]] = [
+            [
+                ("bold", .bold, String(localized: "Negrito")),
+                ("italic", .italic, String(localized: "Itálico")),
+                ("underline", .underline, String(localized: "Sublinhado")),
+                ("strikethrough", .strike, String(localized: "Riscado")),
+            ],
+            [
+                ("textformat.size", .heading, String(localized: "Título")),
+                ("list.bullet", .bullet, String(localized: "Lista")),
+                ("list.number", .numbered, String(localized: "Numerada")),
+                ("checklist", .check, String(localized: "Checklist")),
+                ("text.quote", .quote, String(localized: "Citação")),
+            ],
+            [
+                ("book", .bibleRef, String(localized: "Referência bíblica")),
+                ("person.wave.2", .speaker, String(localized: "Speaker")),
+                ("arrow.uturn.backward", .undo, String(localized: "Desfazer")),
+                ("arrow.uturn.forward", .redo, String(localized: "Refazer")),
+            ],
+        ]
+
+        for (groupIndex, group) in groups.enumerated() {
+            if groupIndex > 0 {
+                let sep = UIView()
+                sep.translatesAutoresizingMaskIntoConstraints = false
+                sep.backgroundColor = V2NDesign.separator
+                sep.widthAnchor.constraint(equalToConstant: 1).isActive = true
+                sep.heightAnchor.constraint(equalToConstant: 22).isActive = true
+                stack.addArrangedSubview(sep)
+            }
+            for (symbol, action, label) in group {
+                stack.addArrangedSubview(makeButton(symbol: symbol, action: action, label: label))
+            }
+        }
+
+        NSLayoutConstraint.activate([
+            blur.topAnchor.constraint(equalTo: topAnchor),
+            blur.leadingAnchor.constraint(equalTo: leadingAnchor),
+            blur.trailingAnchor.constraint(equalTo: trailingAnchor),
+            blur.bottomAnchor.constraint(equalTo: bottomAnchor),
+
+            scroll.topAnchor.constraint(equalTo: topAnchor),
+            scroll.leadingAnchor.constraint(equalTo: leadingAnchor),
+            scroll.trailingAnchor.constraint(equalTo: trailingAnchor),
+            scroll.bottomAnchor.constraint(equalTo: bottomAnchor),
+
+            stack.topAnchor.constraint(equalTo: scroll.contentLayoutGuide.topAnchor),
+            stack.bottomAnchor.constraint(equalTo: scroll.contentLayoutGuide.bottomAnchor),
+            stack.leadingAnchor.constraint(equalTo: scroll.contentLayoutGuide.leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: scroll.contentLayoutGuide.trailingAnchor),
+            stack.heightAnchor.constraint(equalTo: scroll.frameLayoutGuide.heightAnchor),
+        ])
+
+        let hairline = UIView()
+        hairline.translatesAutoresizingMaskIntoConstraints = false
+        hairline.backgroundColor = V2NDesign.separator
+        addSubview(hairline)
+        NSLayoutConstraint.activate([
+            hairline.topAnchor.constraint(equalTo: topAnchor),
+            hairline.leadingAnchor.constraint(equalTo: leadingAnchor),
+            hairline.trailingAnchor.constraint(equalTo: trailingAnchor),
+            hairline.heightAnchor.constraint(equalToConstant: 0.5),
+        ])
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    private func makeButton(symbol: String, action: Action, label: String) -> UIButton {
+        let button = UIButton(type: .system)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        var config = UIButton.Configuration.plain()
+        config.image = UIImage(systemName: symbol)
+        config.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 17, weight: .medium)
+        config.contentInsets = NSDirectionalEdgeInsets(top: 10, leading: 10, bottom: 10, trailing: 10)
+        config.baseForegroundColor = V2NDesign.accent
+        button.configuration = config
+        button.accessibilityLabel = label
+        button.addAction(UIAction { [weak self] _ in
+            self?.onAction?(action)
+        }, for: .touchUpInside)
+        button.widthAnchor.constraint(greaterThanOrEqualToConstant: 40).isActive = true
+        button.heightAnchor.constraint(equalToConstant: 44).isActive = true
+        return button
+    }
+
+    override var intrinsicContentSize: CGSize {
+        CGSize(width: UIView.noIntrinsicMetric, height: 52)
     }
 }

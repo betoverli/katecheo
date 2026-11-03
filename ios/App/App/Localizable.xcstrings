@@ -12301,7 +12301,7 @@
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Speaker"
+            "value": "Orador"
           }
         }
       }
@@ -12324,7 +12324,7 @@
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Speaker de la nota"
+            "value": "Orador de la nota"
           }
         }
       }
@@ -14372,6 +14372,75 @@
           "stringUnit": {
             "state": "translated",
             "value": "Últimos 14 días"
+          }
+        }
+      }
+    },
+    "Remover speaker": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remover speaker"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove speaker"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quitar orador"
+          }
+        }
+      }
+    },
+    "Todas as tags": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todas as tags"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All tags"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todas las etiquetas"
+          }
+        }
+      }
+    },
+    "Todos os speakers": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todos os speakers"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All speakers"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todos los oradores"
           }
         }
       }

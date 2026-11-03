@@ -388,3 +388,231 @@ extension UITableViewController {
         V2NChrome.styleGroupedTable(tableView)
     }
 }
+
+// MARK: - Filter chips (WhatsApp-style)
+
+struct V2NFilterChip: Equatable {
+    let id: String
+    let title: String
+    let systemImage: String?
+}
+
+/// Horizontal scrolling pill chips under a large title.
+final class V2NFilterChipsView: UIView {
+    var onSelect: ((String) -> Void)?
+
+    private let scroll = UIScrollView()
+    private let stack = UIStackView()
+    private var chips: [V2NFilterChip] = []
+    private var selectedId: String = ""
+    private var buttons: [String: UIButton] = [:]
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        translatesAutoresizingMaskIntoConstraints = false
+        scroll.translatesAutoresizingMaskIntoConstraints = false
+        scroll.showsHorizontalScrollIndicator = false
+        scroll.alwaysBounceHorizontal = true
+        scroll.contentInset = UIEdgeInsets(top: 0, left: V2NDesign.Space.md, bottom: 0, right: V2NDesign.Space.md)
+        addSubview(scroll)
+
+        stack.axis = .horizontal
+        stack.spacing = V2NDesign.Space.xs
+        stack.alignment = .center
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        scroll.addSubview(stack)
+
+        NSLayoutConstraint.activate([
+            scroll.topAnchor.constraint(equalTo: topAnchor),
+            scroll.leadingAnchor.constraint(equalTo: leadingAnchor),
+            scroll.trailingAnchor.constraint(equalTo: trailingAnchor),
+            scroll.bottomAnchor.constraint(equalTo: bottomAnchor),
+            heightAnchor.constraint(equalToConstant: 44),
+
+            stack.topAnchor.constraint(equalTo: scroll.contentLayoutGuide.topAnchor),
+            stack.bottomAnchor.constraint(equalTo: scroll.contentLayoutGuide.bottomAnchor),
+            stack.leadingAnchor.constraint(equalTo: scroll.contentLayoutGuide.leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: scroll.contentLayoutGuide.trailingAnchor),
+            stack.heightAnchor.constraint(equalTo: scroll.frameLayoutGuide.heightAnchor),
+        ])
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func configure(chips: [V2NFilterChip], selectedId: String) {
+        self.chips = chips
+        self.selectedId = selectedId
+        stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        buttons.removeAll()
+        for chip in chips {
+            let button = makeButton(chip: chip, selected: chip.id == selectedId)
+            buttons[chip.id] = button
+            stack.addArrangedSubview(button)
+        }
+    }
+
+    func setSelected(_ id: String) {
+        selectedId = id
+        for chip in chips {
+            applyStyle(to: buttons[chip.id], selected: chip.id == id)
+        }
+    }
+
+    private func makeButton(chip: V2NFilterChip, selected: Bool) -> UIButton {
+        let button = UIButton(type: .system)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.tag = chips.firstIndex(where: { $0.id == chip.id }) ?? 0
+        button.accessibilityLabel = chip.title
+        button.addTarget(self, action: #selector(tap(_:)), for: .touchUpInside)
+        button.heightAnchor.constraint(equalToConstant: 34).isActive = true
+        applyStyle(to: button, selected: selected, title: chip.title, systemImage: chip.systemImage)
+        return button
+    }
+
+    private func applyStyle(to button: UIButton?, selected: Bool, title: String? = nil, systemImage: String? = nil) {
+        guard let button else { return }
+        var config = UIButton.Configuration.filled()
+        if let title {
+            config.title = title
+        } else if let existing = button.configuration?.title {
+            config.title = existing
+        }
+        if let systemImage {
+            config.image = UIImage(systemName: systemImage)
+            config.imagePadding = 6
+            config.imagePlacement = .leading
+        } else if let existing = button.configuration?.image {
+            config.image = existing
+            config.imagePadding = 6
+        }
+        config.cornerStyle = .capsule
+        config.contentInsets = NSDirectionalEdgeInsets(top: 7, leading: 14, bottom: 7, trailing: 14)
+        config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
+            var out = incoming
+            out.font = V2NDesign.preferred(.subheadline, weight: .semibold)
+            return out
+        }
+        if selected {
+            config.baseBackgroundColor = V2NDesign.accent
+            config.baseForegroundColor = .white
+        } else {
+            config.baseBackgroundColor = UIColor { traits in
+                if traits.userInterfaceStyle == .dark {
+                    return UIColor(white: 1, alpha: 0.12)
+                }
+                return UIColor(white: 0, alpha: 0.08)
+            }
+            config.baseForegroundColor = .label
+        }
+        button.configuration = config
+    }
+
+    @objc private func tap(_ sender: UIButton) {
+        guard sender.tag >= 0, sender.tag < chips.count else { return }
+        let chip = chips[sender.tag]
+        setSelected(chip.id)
+        V2NHaptics.selection()
+        onSelect?(chip.id)
+    }
+}
+
+// MARK: - Segmented mode toggle (Siglas / Nomes)
+
+final class V2NModeToggle: UIView {
+    var onChange: ((Bool) -> Void)?
+    /// When true → compact abbreviations.
+    private(set) var isCompact = false
+    private let compactButton = UIButton(type: .system)
+    private let namesButton = UIButton(type: .system)
+    private let wrap = UIView()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        translatesAutoresizingMaskIntoConstraints = false
+        wrap.translatesAutoresizingMaskIntoConstraints = false
+        wrap.backgroundColor = V2NDesign.surface
+        wrap.layer.cornerRadius = V2NDesign.Radius.pill
+        wrap.layer.cornerCurve = .continuous
+        wrap.layer.borderWidth = 0.5
+        wrap.layer.borderColor = V2NDesign.separator.cgColor
+        addSubview(wrap)
+
+        for (button, title) in [(compactButton, String(localized: "Siglas")), (namesButton, String(localized: "Nomes"))] {
+            button.translatesAutoresizingMaskIntoConstraints = false
+            var config = UIButton.Configuration.plain()
+            config.title = title
+            config.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12)
+            config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
+                var out = incoming
+                out.font = V2NDesign.preferred(.footnote, weight: .semibold)
+                return out
+            }
+            button.configuration = config
+            button.layer.cornerRadius = V2NDesign.Radius.pill
+            button.layer.cornerCurve = .continuous
+            button.clipsToBounds = true
+            wrap.addSubview(button)
+        }
+        compactButton.addTarget(self, action: #selector(tapCompact), for: .touchUpInside)
+        namesButton.addTarget(self, action: #selector(tapNames), for: .touchUpInside)
+        compactButton.accessibilityLabel = String(localized: "Siglas")
+        namesButton.accessibilityLabel = String(localized: "Nomes")
+
+        NSLayoutConstraint.activate([
+            wrap.topAnchor.constraint(equalTo: topAnchor),
+            wrap.trailingAnchor.constraint(equalTo: trailingAnchor),
+            wrap.bottomAnchor.constraint(equalTo: bottomAnchor),
+            wrap.leadingAnchor.constraint(greaterThanOrEqualTo: leadingAnchor),
+            heightAnchor.constraint(equalToConstant: 34),
+
+            compactButton.leadingAnchor.constraint(equalTo: wrap.leadingAnchor, constant: 3),
+            compactButton.topAnchor.constraint(equalTo: wrap.topAnchor, constant: 3),
+            compactButton.bottomAnchor.constraint(equalTo: wrap.bottomAnchor, constant: -3),
+
+            namesButton.leadingAnchor.constraint(equalTo: compactButton.trailingAnchor, constant: 2),
+            namesButton.trailingAnchor.constraint(equalTo: wrap.trailingAnchor, constant: -3),
+            namesButton.topAnchor.constraint(equalTo: wrap.topAnchor, constant: 3),
+            namesButton.bottomAnchor.constraint(equalTo: wrap.bottomAnchor, constant: -3),
+        ])
+        refresh()
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func setCompact(_ compact: Bool) {
+        isCompact = compact
+        refresh()
+    }
+
+    private func refresh() {
+        style(compactButton, selected: isCompact)
+        style(namesButton, selected: !isCompact)
+        compactButton.accessibilityTraits = isCompact ? [.button, .selected] : .button
+        namesButton.accessibilityTraits = !isCompact ? [.button, .selected] : .button
+    }
+
+    private func style(_ button: UIButton, selected: Bool) {
+        var config = button.configuration ?? .plain()
+        config.baseForegroundColor = selected ? .white : .secondaryLabel
+        config.background.backgroundColor = selected ? V2NDesign.accent : .clear
+        button.configuration = config
+    }
+
+    @objc private func tapCompact() {
+        guard !isCompact else { return }
+        isCompact = true
+        refresh()
+        V2NHaptics.selection()
+        onChange?(true)
+    }
+
+    @objc private func tapNames() {
+        guard isCompact else { return }
+        isCompact = false
+        refresh()
+        V2NHaptics.selection()
+        onChange?(false)
+    }
+}

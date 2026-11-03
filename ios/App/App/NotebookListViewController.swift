@@ -13,6 +13,12 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     private let search = UISearchController(searchResultsController: nil)
     private let emptyState = V2NEmptyStateView()
     private let statusBanner = V2NStatusBanner()
+    private let filterChips = V2NFilterChipsView()
+    private enum NoteFilter: String { case all, tags, speakers, shared }
+    private var noteFilter: NoteFilter = .all
+    private var selectedTag: String?
+    private var selectedSpeakerId: String?
+    private var grantedNotes: [NativeAPIClient.NoteDocument] = []
     /// When set, this list shows notes published to the group (Phase 2).
     private var group: NativeAPIClient.GroupDTO?
 
@@ -58,8 +64,35 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
         view.addSubview(emptyState)
         view.addSubview(statusBanner)
 
+        let bannerTop: NSLayoutYAxisAnchor
+        if group == nil {
+            view.addSubview(filterChips)
+            filterChips.configure(
+                chips: [
+                    V2NFilterChip(id: NoteFilter.all.rawValue, title: String(localized: "Tudo"), systemImage: "square.stack"),
+                    V2NFilterChip(id: NoteFilter.tags.rawValue, title: String(localized: "Tags"), systemImage: "number"),
+                    V2NFilterChip(id: NoteFilter.speakers.rawValue, title: String(localized: "Speakers"), systemImage: "person.wave.2"),
+                    V2NFilterChip(id: NoteFilter.shared.rawValue, title: String(localized: "Compartilhadas"), systemImage: "person.2"),
+                    V2NFilterChip(id: "themes", title: String(localized: "Temas"), systemImage: "tag"),
+                    V2NFilterChip(id: "lists", title: String(localized: "Listas"), systemImage: "bookmark"),
+                ],
+                selectedId: NoteFilter.all.rawValue
+            )
+            filterChips.onSelect = { [weak self] id in
+                self?.handleNotebookChip(id)
+            }
+            NSLayoutConstraint.activate([
+                filterChips.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: V2NDesign.Space.xxs),
+                filterChips.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+                filterChips.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            ])
+            bannerTop = filterChips.bottomAnchor
+        } else {
+            bannerTop = view.safeAreaLayoutGuide.topAnchor
+        }
+
         NSLayoutConstraint.activate([
-            statusBanner.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: V2NDesign.Space.xxs),
+            statusBanner.topAnchor.constraint(equalTo: bannerTop, constant: V2NDesign.Space.xxs),
             statusBanner.leadingAnchor.constraint(equalTo: view.layoutMarginsGuide.leadingAnchor),
             statusBanner.trailingAnchor.constraint(equalTo: view.layoutMarginsGuide.trailingAnchor),
 
@@ -231,10 +264,30 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             tableView.reloadData()
             return
         }
+        var source = notes
+        switch noteFilter {
+        case .all:
+            break
+        case .tags:
+            if let selectedTag {
+                source = source.filter { $0.tags.contains(selectedTag) }
+            } else {
+                // Show notes that have any tag when filter is Tags without a secondary pick.
+                source = source.filter { !$0.tags.isEmpty }
+            }
+        case .speakers:
+            if let selectedSpeakerId {
+                source = source.filter { noteIncludesSpeaker($0, speakerId: selectedSpeakerId) }
+            } else {
+                source = source.filter { noteIncludesSpeaker($0, speakerId: nil) }
+            }
+        case .shared:
+            source = grantedNotes
+        }
         if q.isEmpty {
-            filtered = notes
+            filtered = source
         } else {
-            filtered = notes.filter { note in
+            filtered = source.filter { note in
                 if note.title.lowercased().contains(q) { return true }
                 if note.tags.contains(where: { $0.lowercased().contains(q) }) { return true }
                 if note.happenedAt.contains(q) { return true }
@@ -553,6 +606,97 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             pop.barButtonItem = navigationItem.rightBarButtonItems?.last
         }
         present(alert, animated: true)
+    }
+
+
+    private func handleNotebookChip(_ id: String) {
+        if id == "themes" {
+            filterChips.setSelected(noteFilter.rawValue)
+            navigationController?.pushViewController(ThemesHomeViewController(prefs: nil), animated: true)
+            return
+        }
+        if id == "lists" {
+            filterChips.setSelected(noteFilter.rawValue)
+            navigationController?.pushViewController(MyCollectionsViewController(), animated: true)
+            return
+        }
+        guard let filter = NoteFilter(rawValue: id) else { return }
+        noteFilter = filter
+        selectedTag = nil
+        selectedSpeakerId = nil
+        if filter == .shared {
+            Task { @MainActor in
+                // Shared grants reuse listNotes visibility until a dedicated grants API ships.
+                grantedNotes = notes.filter { $0.visibility == "shared" || $0.visibility == "link" }
+                applyFilter()
+            }
+        } else if filter == .tags {
+            presentTagPicker()
+        } else if filter == .speakers {
+            presentSpeakerFilter()
+        } else {
+            applyFilter()
+        }
+        applyFilter()
+    }
+
+    private func noteIncludesSpeaker(_ note: NativeAPIClient.NoteDocument, speakerId: String?) -> Bool {
+        if let speakerId {
+            if note.noteSpeakerId == speakerId { return true }
+            return note.body.blocks.contains { block in
+                if block.type == "speakerSection", block.speakerId == speakerId { return true }
+                return false
+            }
+        }
+        if note.noteSpeakerId != nil { return true }
+        return note.body.blocks.contains { $0.type == "speakerSection" }
+    }
+
+    private func presentTagPicker() {
+        let tags = Array(Set(notes.flatMap(\.tags))).sorted()
+        guard !tags.isEmpty else {
+            applyFilter()
+            return
+        }
+        let sheet = UIAlertController(title: String(localized: "Tags"), message: nil, preferredStyle: .actionSheet)
+        sheet.addAction(UIAlertAction(title: String(localized: "Todas as tags"), style: .default) { [weak self] _ in
+            self?.selectedTag = nil
+            self?.applyFilter()
+        })
+        for tag in tags.prefix(20) {
+            sheet.addAction(UIAlertAction(title: "#\(tag)", style: .default) { [weak self] _ in
+                self?.selectedTag = tag
+                self?.applyFilter()
+            })
+        }
+        sheet.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
+        if let pop = sheet.popoverPresentationController {
+            pop.sourceView = filterChips
+        }
+        present(sheet, animated: true)
+    }
+
+    private func presentSpeakerFilter() {
+        guard !speakers.isEmpty else {
+            applyFilter()
+            return
+        }
+        let sheet = UIAlertController(title: String(localized: "Speakers"), message: nil, preferredStyle: .actionSheet)
+        sheet.addAction(UIAlertAction(title: String(localized: "Todos os speakers"), style: .default) { [weak self] _ in
+            self?.selectedSpeakerId = nil
+            self?.applyFilter()
+        })
+        for speaker in speakers.prefix(20) {
+            sheet.addAction(UIAlertAction(title: speaker.name, style: .default) { [weak self] _ in
+                self?.selectedSpeakerId = speaker.id
+                self?.applyFilter()
+            })
+        }
+        sheet.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
+        if let pop = sheet.popoverPresentationController {
+            pop.sourceView = filterChips
+        }
+        present(sheet, animated: true)
     }
 
     /// Button / selector entry — must not overload `showSignIn(auto:)` (Swift `#selector` ambiguity).

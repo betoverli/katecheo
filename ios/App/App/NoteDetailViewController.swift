@@ -8,6 +8,9 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
     private let editor = NativeNoteEditorView()
     private var saveWork: DispatchWorkItem?
     private let statusLabel = UILabel()
+    private let speakerChip = UIButton(type: .system)
+    private let speakerChipRemove = UIButton(type: .system)
+    private let speakerChipRow = UIStackView()
 
     init(noteId: String, initial: NativeAPIClient.NoteDocument?) {
         self.noteId = noteId
@@ -37,6 +40,38 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         statusLabel.accessibilityLabel = String(localized: "Status da nota")
         view.addSubview(statusLabel)
 
+        speakerChipRow.axis = .horizontal
+        speakerChipRow.spacing = V2NDesign.Space.xxs
+        speakerChipRow.alignment = .center
+        speakerChipRow.translatesAutoresizingMaskIntoConstraints = false
+        speakerChipRow.isHidden = true
+
+        var chipConfig = UIButton.Configuration.filled()
+        chipConfig.cornerStyle = .capsule
+        chipConfig.baseBackgroundColor = V2NDesign.surface.withAlphaComponent(0.7)
+        chipConfig.baseForegroundColor = .secondaryLabel
+        chipConfig.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12)
+        chipConfig.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
+            var out = incoming
+            out.font = V2NDesign.preferred(.subheadline, weight: .medium)
+            return out
+        }
+        speakerChip.configuration = chipConfig
+        speakerChip.addTarget(self, action: #selector(editWholeSpeaker), for: .touchUpInside)
+        speakerChip.accessibilityLabel = String(localized: "Speaker da nota")
+
+        speakerChipRemove.setTitle("×", for: .normal)
+        speakerChipRemove.titleLabel?.font = V2NDesign.preferred(.title2, weight: .regular)
+        speakerChipRemove.setTitleColor(.secondaryLabel, for: .normal)
+        speakerChipRemove.addTarget(self, action: #selector(clearWholeSpeaker), for: .touchUpInside)
+        speakerChipRemove.accessibilityLabel = String(localized: "Remover speaker")
+        speakerChipRemove.widthAnchor.constraint(equalToConstant: 44).isActive = true
+        speakerChipRemove.heightAnchor.constraint(equalToConstant: 44).isActive = true
+
+        speakerChipRow.addArrangedSubview(speakerChip)
+        speakerChipRow.addArrangedSubview(speakerChipRemove)
+        view.addSubview(speakerChipRow)
+
         editor.delegate = self
         editor.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(editor)
@@ -46,13 +81,18 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
             statusLabel.leadingAnchor.constraint(equalTo: view.layoutMarginsGuide.leadingAnchor),
             statusLabel.trailingAnchor.constraint(equalTo: view.layoutMarginsGuide.trailingAnchor),
 
-            editor.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: V2NDesign.Space.xxs),
+            speakerChipRow.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: V2NDesign.Space.xs),
+            speakerChipRow.leadingAnchor.constraint(equalTo: view.layoutMarginsGuide.leadingAnchor),
+            speakerChipRow.trailingAnchor.constraint(lessThanOrEqualTo: view.layoutMarginsGuide.trailingAnchor),
+
+            editor.topAnchor.constraint(equalTo: speakerChipRow.bottomAnchor, constant: V2NDesign.Space.xxs),
             editor.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             editor.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             editor.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
 
         editor.pushNote(note, speakers: speakers)
+        refreshSpeakerChip()
         statusLabel.text = String(localized: "Editor nativo")
         NotificationCenter.default.addObserver(
             self,
@@ -86,13 +126,45 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
                 self.updateTitle()
                 self.statusLabel.text = String(localized: "Nota sincronizada")
                 self.editor.pushNote(self.note, speakers: self.speakers)
+                self.refreshSpeakerChip()
             }
         } catch {
             await MainActor.run {
                 self.statusLabel.text = String(localized: "Cache local · \(error.localizedDescription)")
                 self.editor.pushNote(self.note, speakers: self.speakers)
+                self.refreshSpeakerChip()
             }
         }
+    }
+
+    private func refreshSpeakerChip() {
+        guard let speakerId = note.noteSpeakerId,
+              let speaker = speakers.first(where: { $0.id == speakerId })
+        else {
+            speakerChipRow.isHidden = true
+            return
+        }
+        speakerChipRow.isHidden = false
+        var config = speakerChip.configuration ?? .filled()
+        config.title = speaker.name
+        config.image = UIImage(systemName: "circle.fill")
+        config.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 8, weight: .bold)
+        config.imagePadding = 8
+        if let color = UIColor(v2nHex: speaker.color) {
+            config.imageColorTransformer = UIConfigurationColorTransformer { _ in color }
+        }
+        speakerChip.configuration = config
+    }
+
+    @objc private func editWholeSpeaker() {
+        openSpeakerPicker(forSection: false)
+    }
+
+    @objc private func clearWholeSpeaker() {
+        note.noteSpeakerId = nil
+        refreshSpeakerChip()
+        LocalNoteCache.upsertNote(note)
+        scheduleSave()
     }
 
     // MARK: - NativeNoteEditorViewDelegate
@@ -152,7 +224,7 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
     }
 
     func nativeNoteEditorRequestSpeaker(_ editor: NativeNoteEditorView) {
-        openSpeakerPicker()
+        openSpeakerPicker(forSection: true)
     }
 
     private func scheduleSave() {
@@ -192,7 +264,7 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
             self?.openSettings()
         })
         sheet.addAction(UIAlertAction(title: String(localized: "Speakers…"), style: .default) { [weak self] _ in
-            self?.openSpeakerPicker()
+            self?.openSpeakerPicker(forSection: false)
         })
         if NativeAPIClient.hasBearer {
             sheet.addAction(UIAlertAction(title: String(localized: "Mover para grupo…"), style: .default) { [weak self] _ in
@@ -285,12 +357,29 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         present(nav, animated: true)
     }
 
-    private func openSpeakerPicker() {
+    private func openSpeakerPicker(forSection: Bool) {
         let picker = SpeakerPickerViewController(mode: .pick(selectedId: note.noteSpeakerId), onPicked: { [weak self] speakerId in
             guard let self else { return }
-            self.note.noteSpeakerId = speakerId
-            LocalNoteCache.upsertNote(self.note)
-            self.scheduleSave()
+            guard let speakerId,
+                  let speaker = self.speakers.first(where: { $0.id == speakerId })
+                    ?? LocalNoteCache.loadSpeakers().first(where: { $0.id == speakerId })
+            else {
+                if !forSection {
+                    self.note.noteSpeakerId = nil
+                    self.refreshSpeakerChip()
+                    LocalNoteCache.upsertNote(self.note)
+                    self.scheduleSave()
+                }
+                return
+            }
+            if forSection {
+                self.editor.insertSpeakerSection(speakerId: speaker.id, name: speaker.name)
+            } else {
+                self.note.noteSpeakerId = speakerId
+                self.refreshSpeakerChip()
+                LocalNoteCache.upsertNote(self.note)
+                self.scheduleSave()
+            }
         })
         let nav = UINavigationController(rootViewController: picker)
         if let sheet = nav.sheetPresentationController {
