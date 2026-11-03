@@ -1,10 +1,11 @@
 import Foundation
 
 /// Shell mode for the migration.
-/// Phase 5: Cap site host removed — only `nativePrimary` remains.
+/// Phase 5+: Cap site host removed — only `nativePrimary` remains.
+/// Phase 7: note body is `NativeNoteEditorView` (no WebView).
 /// Legacy `hybrid` / `capacitorSite` / `editorSpike` values in UserDefaults map to native.
 enum NativeShellMode: String {
-    /// Native tabs + miolo editor view only inside `NoteMioloEditorView`.
+    /// Native tabs + native note editor (`NativeNoteEditorView`).
     case nativePrimary
     /// Legacy aliases kept for decoding old UserDefaults (never returned as current).
     case hybrid

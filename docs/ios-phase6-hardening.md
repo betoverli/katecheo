@@ -45,5 +45,5 @@ Coleções: `POST /api/native/v1/my-collections` aceita `id` do cliente (upsert 
 3. Forçar sessão expirada (token inválido) → pede login; após entrar, outbox retoma.
 4. Confirmar textos em português do Brasil (Entre / Excluir / Senha / Salvar — não
    “Inicia / Apagar / Palavra-passe / Guardar”).
-5. Smoke: criar nota, speakers, grupo, perfil, versículos; miolo `/native-editor` ainda
+5. Smoke: criar nota, speakers, grupo, perfil, versículos; miolo nativo (Fase 7)
    é o único editor WebView.

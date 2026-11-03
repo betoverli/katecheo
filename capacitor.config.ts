@@ -1,16 +1,12 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 /**
- * Phase 5 — Capacitor is **not** the iOS UI host anymore.
- *
- * The App Store binary is a native UIKit tab shell. The only WKWebView is
- * `NoteMioloEditorView`, which loads `https://verse2note.com/native-editor`
- * with a Keychain Bearer (not Cap cookies / CAPBridgeViewController).
+ * Phase 7 — Capacitor is **not** the iOS UI host. Note editing is fully native
+ * (`NativeNoteEditorView` / UITextView). No product WKWebView for notes.
  *
  * This file remains so `npx cap` tooling does not break for residual
  * package metadata. It does **not** set `server.url` to the full SPA.
- * Push / Share / Splash / StatusBar plugins are unused on iOS (native
- * replacements). See `docs/ios-phase5-webview.md`.
+ * See `docs/ios-phase7-native-editor.md`.
  */
 const config: CapacitorConfig = {
   appId: "com.verse2note.app",

@@ -7,8 +7,14 @@ import { UnauthorizedError, getSessionUser } from "@/lib/auth/verify.server";
 import { getSql } from "@/lib/db";
 import { saveApnsDevice, dropApnsDevice } from "@/lib/native/devices.server";
 import { asSpeaker, cleanBlocks, cleanTags, noteSpeakerIds, type Note, type Speaker } from "@/lib/notebook";
+import { htmlToDocumentBlocks, looksLikeHtml } from "./html-to-document";
 import {
   coerceIncomingNote,
+  cleanDocBlocks,
+  documentToNote,
+  encodeDocumentStorage,
+  isDocumentStorage,
+  looksLikeDocBlocksArray,
   noteToDocument,
   type LegacyNote,
   type NoteDocumentV1,
@@ -21,6 +27,7 @@ type NoteRow = {
   happened_at: string;
   tags: string;
   blocks: string;
+  blocks_backup?: string | null;
   visibility: string;
   updated_at: string;
   speaker_id?: string | null;
@@ -41,9 +48,80 @@ function parseJson<T>(raw: string, fallback: T): T {
   }
 }
 
-export function noteFromRow(row: NoteRow): Note {
+/**
+ * Parse `notebook_notes.blocks` into NoteDocumentV1.
+ * Supports: V1 storage envelope, raw V1 block arrays, legacy Note.blocks JSON, HTML.
+ * HTML conversion is lazy + idempotent (caller may persist backup + rewritten JSON).
+ */
+export function documentFromRow(row: NoteRow): {
+  document: NoteDocumentV1;
+  migratedFromHtml: boolean;
+  originalBlocksRaw: string;
+} {
   const happened =
-    typeof row.happened_at === "string" ? row.happened_at.slice(0, 10) : row.happened_at;
+    typeof row.happened_at === "string" ? row.happened_at.slice(0, 10) : String(row.happened_at).slice(0, 10);
+  const rawBlocks = typeof row.blocks === "string" ? row.blocks : JSON.stringify(row.blocks ?? []);
+  const baseMeta = {
+    schemaVersion: NOTE_DOCUMENT_SCHEMA_VERSION,
+    id: row.id,
+    title: row.title ?? "",
+    happenedAt: happened,
+    tags: cleanTags(parseJson(row.tags, [])),
+    noteSpeakerId: row.speaker_id || null,
+    visibility: (row.visibility === "unlisted" ? "unlisted" : "private") as "private" | "unlisted",
+    updatedAt: String(row.updated_at ?? ""),
+  };
+
+  if (looksLikeHtml(rawBlocks)) {
+    return {
+      document: {
+        ...baseMeta,
+        body: { blocks: htmlToDocumentBlocks(rawBlocks) },
+      },
+      migratedFromHtml: true,
+      originalBlocksRaw: rawBlocks,
+    };
+  }
+
+  const parsed = parseJson<unknown>(rawBlocks, []);
+  if (isDocumentStorage(parsed)) {
+    return {
+      document: { ...baseMeta, body: { blocks: cleanDocBlocks(parsed.blocks) } },
+      migratedFromHtml: false,
+      originalBlocksRaw: rawBlocks,
+    };
+  }
+  if (looksLikeDocBlocksArray(parsed)) {
+    return {
+      document: { ...baseMeta, body: { blocks: cleanDocBlocks(parsed) } },
+      migratedFromHtml: false,
+      originalBlocksRaw: rawBlocks,
+    };
+  }
+
+  const legacy = {
+    id: row.id,
+    title: row.title ?? "",
+    happenedAt: happened,
+    tags: cleanTags(parseJson(row.tags, [])),
+    speakerId: row.speaker_id || null,
+    blocks: cleanBlocks(Array.isArray(parsed) ? parsed : []),
+    visibility: (row.visibility === "unlisted" ? "unlisted" : "private") as "private" | "unlisted",
+    updatedAt: String(row.updated_at ?? ""),
+  } satisfies Note;
+  return {
+    document: noteToDocument(asLegacyForDocument(legacy)),
+    migratedFromHtml: false,
+    originalBlocksRaw: rawBlocks,
+  };
+}
+
+export function noteFromRow(row: NoteRow): Note {
+  const { document } = documentFromRow(row);
+  const legacy = documentToNote(document);
+  if (legacy) return legacy as Note;
+  const happened =
+    typeof row.happened_at === "string" ? row.happened_at.slice(0, 10) : String(row.happened_at).slice(0, 10);
   return {
     id: row.id,
     title: row.title ?? "",
@@ -61,6 +139,32 @@ export function noteFromRow(row: NoteRow): Note {
 function asLegacyForDocument(note: Note): LegacyNote {
   // Note and LegacyNote are structurally identical; keep an explicit cast at the boundary.
   return note as LegacyNote;
+}
+
+/** Persist V1 body; when migrating from HTML, keep the original in blocks_backup once. */
+async function persistDocumentStorage(
+  userId: string,
+  document: NoteDocumentV1,
+  opts?: { backupHtml?: string | null },
+): Promise<void> {
+  const sql = await getSql();
+  const encoded = encodeDocumentStorage(document.body.blocks);
+  if (opts?.backupHtml) {
+    await sql`
+      update notebook_notes
+      set blocks = ${encoded},
+          blocks_backup = coalesce(blocks_backup, ${opts.backupHtml}),
+          updated_at = ${document.updatedAt}::timestamptz
+      where id = ${document.id} and user_id = ${userId}
+    `;
+    return;
+  }
+  await sql`
+    update notebook_notes
+    set blocks = ${encoded}
+    where id = ${document.id} and user_id = ${userId}
+      and blocks is distinct from ${encoded}
+  `;
 }
 
 export function speakerFromRow(row: SpeakerRow): Speaker {
@@ -98,25 +202,46 @@ export async function getNativeSession(userId: string, email: string | null) {
 export async function listNotesForUser(userId: string): Promise<NoteDocumentV1[]> {
   const sql = await getSql();
   const rows = await sql<NoteRow>`
-    select id, title, happened_at::text, tags, blocks, visibility, updated_at, speaker_id
+    select id, title, happened_at::text, tags, blocks, blocks_backup, visibility, updated_at, speaker_id
     from notebook_notes
     where user_id = ${userId}
     order by happened_at desc, updated_at desc
     limit 200
   `;
-  return rows.map((row) => noteToDocument(asLegacyForDocument(noteFromRow(row))));
+  const out: NoteDocumentV1[] = [];
+  for (const row of rows) {
+    const parsed = documentFromRow(row);
+    if (parsed.migratedFromHtml) {
+      try {
+        await persistDocumentStorage(userId, parsed.document, { backupHtml: parsed.originalBlocksRaw });
+      } catch {
+        /* read still succeeds even if rewrite fails */
+      }
+    }
+    out.push(parsed.document);
+  }
+  return out;
 }
 
 export async function getNoteForUser(userId: string, noteId: string): Promise<NoteDocumentV1 | null> {
   const sql = await getSql();
   const rows = await sql<NoteRow>`
-    select id, title, happened_at::text, tags, blocks, visibility, updated_at, speaker_id
+    select id, title, happened_at::text, tags, blocks, blocks_backup, visibility, updated_at, speaker_id
     from notebook_notes
     where id = ${noteId} and user_id = ${userId}
     limit 1
   `;
   const row = rows[0];
-  return row ? noteToDocument(asLegacyForDocument(noteFromRow(row))) : null;
+  if (!row) return null;
+  const parsed = documentFromRow(row);
+  if (parsed.migratedFromHtml) {
+    try {
+      await persistDocumentStorage(userId, parsed.document, { backupHtml: parsed.originalBlocksRaw });
+    } catch {
+      /* ignore */
+    }
+  }
+  return parsed.document;
 }
 
 export async function upsertNoteForUser(
@@ -134,11 +259,12 @@ export async function upsertNoteForUser(
     select id from notebook_notes where id = ${note.id} and user_id = ${userId}
   `;
   if (!existing[0] && Number(count[0]?.n ?? 0) >= 200) return { ok: false, error: "limit" };
+  const encodedBlocks = encodeDocumentStorage(document.body.blocks);
   await sql`
     insert into notebook_notes (id, user_id, title, happened_at, tags, blocks, visibility, updated_at, speaker_id)
     values (
       ${note.id}, ${userId}, ${note.title}, ${note.happenedAt}::date,
-      ${JSON.stringify(note.tags)}, ${JSON.stringify(note.blocks)}, ${note.visibility}, ${note.updatedAt}::timestamptz,
+      ${JSON.stringify(note.tags)}, ${encodedBlocks}, ${note.visibility}, ${note.updatedAt}::timestamptz,
       ${note.speakerId}
     )
     on conflict (id) do update set

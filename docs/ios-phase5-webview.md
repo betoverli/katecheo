@@ -1,8 +1,8 @@
-# Phase 5 — WebView / Capacitor isolation
+# Phase 5 — WebView / Capacitor isolation (historical)
 
 **Goal:** the iOS app never loads the Verse2Note website as its root UI.
 
-## What was removed
+## What was removed in Phase 5
 
 | Surface | Before | After |
 | --- | --- | --- |
@@ -12,29 +12,23 @@
 | Cap Push / Share / Splash / StatusBar | Used from JS | Native APNs + `UIActivityViewController` + LaunchScreen |
 | Cap `server.url` | Pointed at the SPA | Removed from `capacitor.config.ts` |
 
-## The one allowed WKWebView
+## Interim (Phase 5–6): one allowed note WKWebView
 
-**File:** `ios/App/App/NoteMioloEditorView.swift`
+**File (removed in Phase 7):** `NoteMioloEditorView.swift`
 
-- Loads only `/native-editor` (miolo / note body).
-- Auth: Keychain Bearer injected via `WKUserScript` into `localStorage` /
-  `sessionStorage` / `window.__V2N_EDITOR__.bearer` — **not** Cap cookies.
-- Bridge: `WKScriptMessageHandler` name `v2n`.
-- Hosted by `NoteDetailViewController` (native chrome: nav, ⋯, settings, share).
+- Loaded only `/native-editor` (miolo / note body).
+- Auth: Keychain Bearer via `WKUserScript`.
+- Hosted by `NoteDetailViewController`.
 
-`ios-check` fails CI if Cap bridges reappear, or if `WKWebView` appears outside
-`NoteMioloEditorView` and the Phase 6 one-time `LegacyWebStorageImporter`.
+## Phase 7 (done)
+
+`NoteMioloEditorView` was replaced by `NativeNoteEditorView` (UITextView).
+Product note editing has **zero WKWebView**. See
+`docs/ios-phase7-native-editor.md` and `docs/note-document-v1.md`.
 
 ## Still using WebKit (not a product UI WebView)
 
 - `NativeSessionBootstrap` — one-time cookie → Keychain migration via
   `WKWebsiteDataStore` (**must** run on the main thread).
 - `LegacyWebStorageImporter` (Phase 6) — hidden `WKWebView` once, to read
-  leftover `localStorage` (`cita-settings`, `verse2note-outbox`) from the old
-  Cap `https://verse2note.com` host.
-
-## Phase 7
-
-Replace `NoteMioloEditorView` with a fully native editor reading/writing
-`NoteDocumentV1`. Then delete this file and the `/native-editor` route from
-the app path.
+  leftover `localStorage` from the old Cap host.

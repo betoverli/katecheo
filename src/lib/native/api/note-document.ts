@@ -51,7 +51,10 @@ export type LegacyNote = {
 
 export const NOTE_DOCUMENT_SCHEMA_VERSION = 1 as const;
 
-export type TextMark = "bold" | "italic";
+/** Marker written into `notebook_notes.blocks` when storing V1 body JSON. */
+export const NOTE_DOCUMENT_STORAGE_MARKER = 1 as const;
+
+export type TextMark = "bold" | "italic" | "underline" | "strikethrough";
 
 export type NoteDocTextSpan = {
   type: "text";
@@ -66,6 +69,8 @@ export type NoteDocBibleRefSpan = {
   chapter: number;
   verseStart: number | null;
   verseEnd: number | null;
+  /** Optional display label (locale-formatted). Clients may regenerate. */
+  text?: string;
 };
 
 /**
@@ -80,12 +85,14 @@ export type NoteDocLinkSpan = {
 
 export type NoteDocSpan = NoteDocTextSpan | NoteDocBibleRefSpan | NoteDocLinkSpan;
 
-export type NoteDocLineType = "paragraph" | "heading" | "bullet" | "numbered";
+export type NoteDocLineType = "paragraph" | "heading" | "bullet" | "numbered" | "check" | "quote";
 
 export type NoteDocLineBlock = {
   id: string;
   type: NoteDocLineType;
   spans: NoteDocSpan[];
+  /** Only for `type: "check"`. */
+  checked?: boolean;
 };
 
 export type NoteDocSpeakerSection = {
@@ -125,12 +132,128 @@ const LINE_TO_DOC: Record<LegacyLineType, NoteDocLineType> = {
   ol: "numbered",
 };
 
+/** check/quote flatten to closest legacy line types when writing the old store. */
 const DOC_TO_LINE: Record<NoteDocLineType, LegacyLineType> = {
   paragraph: "p",
   heading: "h",
   bullet: "ul",
   numbered: "ol",
+  check: "ul",
+  quote: "p",
 };
+
+const ALL_MARKS: TextMark[] = ["bold", "italic", "underline", "strikethrough"];
+
+function asDocLineType(value: unknown): NoteDocLineType {
+  if (value === "heading" || value === "bullet" || value === "numbered" || value === "check" || value === "quote") {
+    return value;
+  }
+  return "paragraph";
+}
+
+function cleanMarks(input: unknown): TextMark[] | undefined {
+  if (!Array.isArray(input)) return undefined;
+  const marks = input.filter((m): m is TextMark => typeof m === "string" && (ALL_MARKS as string[]).includes(m));
+  return marks.length ? marks : undefined;
+}
+
+function cleanSpan(input: unknown): NoteDocSpan | null {
+  if (!input || typeof input !== "object") return null;
+  const row = input as Record<string, unknown>;
+  if (row.type === "bibleRef") {
+    const bookId = typeof row.bookId === "string" ? row.bookId.slice(0, 12) : "";
+    const chapter = typeof row.chapter === "number" ? row.chapter : Number(row.chapter);
+    if (!bookId || !Number.isFinite(chapter)) return null;
+    const span: NoteDocBibleRefSpan = {
+      type: "bibleRef",
+      bookId,
+      chapter,
+      verseStart: typeof row.verseStart === "number" ? row.verseStart : null,
+      verseEnd: typeof row.verseEnd === "number" ? row.verseEnd : null,
+    };
+    if (typeof row.text === "string" && row.text.trim()) span.text = row.text.trim().slice(0, 120);
+    return span;
+  }
+  if (row.type === "link") {
+    const href = typeof row.href === "string" ? row.href.trim().slice(0, 2000) : "";
+    if (!href) return null;
+    const text =
+      typeof row.text === "string" && row.text.trim() ? row.text.trim().slice(0, 500) : href.slice(0, 500);
+    return { type: "link", href, text };
+  }
+  if (typeof row.text === "string") {
+    const marks = cleanMarks(row.marks);
+    return marks ? { type: "text", text: row.text, marks } : { type: "text", text: row.text };
+  }
+  return null;
+}
+
+function cleanDocLine(input: unknown): NoteDocLineBlock | null {
+  if (!input || typeof input !== "object") return null;
+  const row = input as Record<string, unknown>;
+  const type = asDocLineType(row.type);
+  const spans = Array.isArray(row.spans)
+    ? row.spans.map(cleanSpan).filter((span): span is NoteDocSpan => Boolean(span)).slice(0, 200)
+    : [];
+  const block: NoteDocLineBlock = {
+    id: typeof row.id === "string" && row.id ? row.id.slice(0, 40) : newId(),
+    type,
+    spans,
+  };
+  if (type === "check") block.checked = Boolean(row.checked);
+  return block;
+}
+
+/** Normalize V1 body.blocks (line + speakerSection). */
+export function cleanDocBlocks(input: unknown): NoteDocBlock[] {
+  if (!Array.isArray(input)) return [emptyDocLine()];
+  const out: NoteDocBlock[] = [];
+  for (const item of input) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as Record<string, unknown>;
+    if (row.type === "speakerSection") {
+      const speakerId = typeof row.speakerId === "string" ? row.speakerId.slice(0, 40) : "";
+      if (!speakerId) continue;
+      const children = Array.isArray(row.blocks)
+        ? row.blocks.map(cleanDocLine).filter((block): block is NoteDocLineBlock => Boolean(block)).slice(0, 80)
+        : [emptyDocLine()];
+      out.push({
+        id: typeof row.id === "string" && row.id ? row.id.slice(0, 40) : newId(),
+        type: "speakerSection",
+        speakerId,
+        title: typeof row.title === "string" ? row.title.trim().slice(0, 80) : "",
+        ...(row.collapsed ? { collapsed: true as const } : {}),
+        blocks: children.length ? children : [emptyDocLine()],
+      });
+    } else {
+      const line = cleanDocLine(row);
+      if (line) out.push(line);
+    }
+    if (out.length >= 200) break;
+  }
+  return out.length ? out : [emptyDocLine()];
+}
+
+/** Persist shape for `notebook_notes.blocks` after Phase 7. */
+export type NoteDocumentStorageV1 = {
+  v: typeof NOTE_DOCUMENT_STORAGE_MARKER;
+  blocks: NoteDocBlock[];
+};
+
+export function encodeDocumentStorage(blocks: NoteDocBlock[]): string {
+  const payload: NoteDocumentStorageV1 = { v: NOTE_DOCUMENT_STORAGE_MARKER, blocks: cleanDocBlocks(blocks) };
+  return JSON.stringify(payload);
+}
+
+export function isDocumentStorage(raw: unknown): raw is NoteDocumentStorageV1 {
+  return Boolean(
+    raw &&
+      typeof raw === "object" &&
+      !Array.isArray(raw) &&
+      (raw as NoteDocumentStorageV1).v === NOTE_DOCUMENT_STORAGE_MARKER &&
+      Array.isArray((raw as NoteDocumentStorageV1).blocks),
+  );
+}
 
 function newId(): string {
   return crypto.randomUUID().replaceAll("-", "");
@@ -283,6 +406,7 @@ function spanToInline(span: NoteDocSpan): LegacyNoteInline | null {
     // Legacy store has no link node — flatten to visible text for web compat.
     return { type: "text", text: span.text || span.href };
   }
+  // underline / strikethrough are V1-only; legacy keeps bold/italic only.
   return {
     type: "text",
     text: span.text,
@@ -373,7 +497,8 @@ export function documentToNote(doc: NoteDocumentV1): LegacyNote | null {
 
 /**
  * Accept either a NoteDocumentV1 or a legacy Note-shaped payload.
- * Always returns a validated legacy Note for DB write, or null if invalid.
+ * Returns a validated legacy Note (for append/web helpers) plus a lossless
+ * NoteDocumentV1 (preferred for native persistence).
  */
 export function coerceIncomingNote(raw: unknown): { note: LegacyNote; document: NoteDocumentV1 } | null {
   if (!raw || typeof raw !== "object") return null;
@@ -384,7 +509,9 @@ export function coerceIncomingNote(raw: unknown): { note: LegacyNote; document: 
     if (!doc) return null;
     const note = documentToNote(doc);
     if (!note) return null;
-    return { note, document: noteToDocument(note) };
+    // Keep the cleaned V1 document (do not round-trip through legacy — that
+    // would drop check/quote/underline/strikethrough/bibleRef.text).
+    return { note, document: doc };
   }
 
   const note = asLegacyNote(raw);
@@ -396,18 +523,22 @@ function normalizeDocument(row: Record<string, unknown>): NoteDocumentV1 | null 
   const id = typeof row.id === "string" ? row.id.slice(0, 40) : "";
   if (!id) return null;
   const body = row.body && typeof row.body === "object" ? (row.body as { blocks?: unknown }) : null;
-  const blocks = Array.isArray(body?.blocks) ? (body!.blocks as NoteDocBlock[]) : [];
+  const blocks = cleanDocBlocks(body?.blocks);
+  const happenedAt =
+    typeof row.happenedAt === "string" && /^\d{4}-\d{2}-\d{2}$/.test(row.happenedAt)
+      ? row.happenedAt
+      : todayKey();
   return {
     schemaVersion: NOTE_DOCUMENT_SCHEMA_VERSION,
     id,
-    title: typeof row.title === "string" ? row.title : "",
-    happenedAt: typeof row.happenedAt === "string" ? row.happenedAt : "",
-    tags: Array.isArray(row.tags) ? (row.tags as string[]) : [],
+    title: typeof row.title === "string" ? row.title.trim().slice(0, 80) : "",
+    happenedAt,
+    tags: cleanTags(row.tags),
     noteSpeakerId:
-      typeof row.noteSpeakerId === "string"
-        ? row.noteSpeakerId
-        : typeof row.speakerId === "string"
-          ? row.speakerId
+      typeof row.noteSpeakerId === "string" && row.noteSpeakerId
+        ? row.noteSpeakerId.slice(0, 40)
+        : typeof row.speakerId === "string" && row.speakerId
+          ? row.speakerId.slice(0, 40)
           : null,
     visibility: row.visibility === "unlisted" ? "unlisted" : "private",
     updatedAt: typeof row.updatedAt === "string" ? row.updatedAt : new Date().toISOString(),
@@ -454,6 +585,7 @@ function spansToPlain(spans: NoteDocSpan[]): string {
   return spans
     .map((span) => {
       if (span.type === "bibleRef") {
+        if (span.text?.trim()) return span.text.trim();
         const verse = span.verseStart != null ? `:${span.verseStart}` : "";
         return `${span.bookId} ${span.chapter}${verse}`;
       }
@@ -461,4 +593,21 @@ function spansToPlain(spans: NoteDocSpan[]): string {
       return span.text;
     })
     .join("");
+}
+
+/** Detect V1 line types inside a raw JSON array (not legacy p/h/ul/ol). */
+export function looksLikeDocBlocksArray(raw: unknown): boolean {
+  if (!Array.isArray(raw) || raw.length === 0) return false;
+  const first = raw[0];
+  if (!first || typeof first !== "object") return false;
+  const type = (first as { type?: unknown }).type;
+  return (
+    type === "paragraph" ||
+    type === "heading" ||
+    type === "bullet" ||
+    type === "numbered" ||
+    type === "check" ||
+    type === "quote" ||
+    type === "speakerSection"
+  );
 }

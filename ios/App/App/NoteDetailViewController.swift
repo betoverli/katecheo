@@ -1,11 +1,11 @@
 import UIKit
 
-/// Native note chrome + isolated miolo (`NoteMioloEditorView`). No site shell.
-final class NoteDetailViewController: UIViewController, NoteMioloEditorViewDelegate {
+/// Native note chrome + native miolo (`NativeNoteEditorView`).
+final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDelegate {
     private let noteId: String
     private var note: NativeAPIClient.NoteDocument
     private var speakers: [NativeAPIClient.SpeakerDTO] = []
-    private let editor = NoteMioloEditorView()
+    private let editor = NativeNoteEditorView()
     private var saveWork: DispatchWorkItem?
     private let statusLabel = UILabel()
 
@@ -31,6 +31,7 @@ final class NoteDetailViewController: UIViewController, NoteMioloEditorViewDeleg
         statusLabel.font = .preferredFont(forTextStyle: .caption2)
         statusLabel.textColor = .secondaryLabel
         statusLabel.text = "Carregando…"
+        statusLabel.accessibilityLabel = "Status da nota"
         view.addSubview(statusLabel)
 
         editor.delegate = self
@@ -48,7 +49,8 @@ final class NoteDetailViewController: UIViewController, NoteMioloEditorViewDeleg
             editor.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
 
-        editor.loadEditor()
+        editor.pushNote(note, speakers: speakers)
+        statusLabel.text = "Editor nativo"
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(noteDidChangeExternally(_:)),
@@ -80,51 +82,74 @@ final class NoteDetailViewController: UIViewController, NoteMioloEditorViewDeleg
                 self.speakers = packed.speakers
                 self.updateTitle()
                 self.statusLabel.text = "Nota sincronizada"
-                if self.editor.isReady { self.editor.pushNote(self.note, speakers: self.speakers) }
+                self.editor.pushNote(self.note, speakers: self.speakers)
             }
         } catch {
             await MainActor.run {
                 self.statusLabel.text = "Cache local · \(error.localizedDescription)"
-                if self.editor.isReady { self.editor.pushNote(self.note, speakers: self.speakers) }
+                self.editor.pushNote(self.note, speakers: self.speakers)
             }
         }
     }
 
-    // MARK: - NoteMioloEditorViewDelegate
+    // MARK: - NativeNoteEditorViewDelegate
 
-    func noteMioloEditorDidBecomeReady(_ editor: NoteMioloEditorView) {
-        statusLabel.text = "Editor pronto"
-        editor.pushNote(note, speakers: speakers)
-    }
-
-    func noteMioloEditor(_ editor: NoteMioloEditorView, didChangeNote raw: Any) {
-        applyEditorNote(raw)
-    }
-
-    func noteMioloEditor(_ editor: NoteMioloEditorView, didFail message: String) {
-        statusLabel.text = "Editor: \(message)"
-    }
-
-    func noteMioloEditorDidRequestSpeaker(_ editor: NoteMioloEditorView) {
-        openSpeakerPicker()
-    }
-
-    private func applyEditorNote(_ raw: Any) {
-        guard JSONSerialization.isValidJSONObject(raw),
-              let data = try? JSONSerialization.data(withJSONObject: raw),
-              let decoded = try? JSONDecoder().decode(NativeAPIClient.NoteDocument.self, from: data)
-        else { return }
-        var next = decoded
+    func nativeNoteEditorDidChange(_ editor: NativeNoteEditorView, document: NativeAPIClient.NoteDocument) {
+        var next = document
         next.id = noteId
-        next.title = note.title
         next.happenedAt = note.happenedAt
         next.tags = note.tags
         next.noteSpeakerId = note.noteSpeakerId
         next.visibility = note.visibility
         next.schemaVersion = 1
+        // Title comes from the first line of the editor.
         note = next
+        updateTitle()
         LocalNoteCache.upsertNote(note)
         scheduleSave()
+    }
+
+    func nativeNoteEditor(_ editor: NativeNoteEditorView, openBibleRef ref: NoteDocumentCodec.BibleRefPayload) {
+        Task { @MainActor in
+            do {
+                let prefs = try? await NativeAPIClient.getPrefs()
+                let passage = NativeAPIClient.PassageDTO(
+                    bookId: ref.bookId,
+                    chapter: ref.chapter,
+                    verseStart: ref.verseStart,
+                    verseEnd: ref.verseEnd
+                )
+                let link = try await NativeAPIClient.resolveBibleLink(
+                    passage: passage,
+                    appId: prefs?.appId,
+                    translationId: prefs?.translationId,
+                    preferNative: prefs?.preferNative
+                )
+                guard let url = URL(string: link.url) else {
+                    statusLabel.text = "Link da Bíblia indisponível"
+                    return
+                }
+                await UIApplication.shared.open(url)
+            } catch {
+                statusLabel.text = "Não abriu a Bíblia: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    func nativeNoteEditorRequestInsertBibleRef(_ editor: NativeNoteEditorView) {
+        let picker = BibleRefInsertPicker { [weak self] ref in
+            self?.editor.insertBibleRef(ref)
+        }
+        let nav = UINavigationController(rootViewController: picker)
+        if let sheet = nav.sheetPresentationController {
+            sheet.detents = [.large()]
+            sheet.prefersGrabberVisible = true
+        }
+        present(nav, animated: true)
+    }
+
+    func nativeNoteEditorRequestSpeaker(_ editor: NativeNoteEditorView) {
+        openSpeakerPicker()
     }
 
     private func scheduleSave() {
@@ -239,13 +264,15 @@ final class NoteDetailViewController: UIViewController, NoteMioloEditorViewDeleg
     }
 
     private func openSettings() {
+        // Keep chrome metadata in sync with first-line title before editing settings.
+        note = editor.currentDocument()
         let settings = NoteSettingsViewController(note: note, speakers: speakers) { [weak self] updated in
             guard let self else { return }
             self.note = updated
             self.updateTitle()
             LocalNoteCache.upsertNote(updated)
             self.scheduleSave()
-            if self.editor.isReady { self.editor.pushNote(self.note, speakers: self.speakers) }
+            self.editor.pushNote(self.note, speakers: self.speakers)
         }
         let nav = UINavigationController(rootViewController: settings)
         if let sheet = nav.sheetPresentationController {
