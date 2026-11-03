@@ -60,29 +60,30 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     }
 
     private func makeToolbarItems() -> [UIBarButtonItem] {
-        func item(_ system: String, action: Selector, label: String) -> UIBarButtonItem {
-            let button = UIBarButtonItem(image: UIImage(systemName: system), style: .plain, target: self, action: action)
-            button.accessibilityLabel = label
-            return button
-        }
         let flex = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
         return [
-            item("textformat.size", action: #selector(toggleHeading), label: "Título"),
-            item("list.bullet", action: #selector(toggleBullet), label: "Lista"),
-            item("list.number", action: #selector(toggleNumbered), label: "Numerada"),
-            item("checklist", action: #selector(toggleCheck), label: "Checklist"),
-            item("text.quote", action: #selector(toggleQuote), label: "Citação"),
+            toolbarItem("textformat.size", #selector(toggleHeading), "Título"),
+            toolbarItem("list.bullet", #selector(toggleBullet), "Lista"),
+            toolbarItem("list.number", #selector(toggleNumbered), "Numerada"),
+            toolbarItem("checklist", #selector(toggleCheck), "Checklist"),
+            toolbarItem("text.quote", #selector(toggleQuote), "Citação"),
             flex,
-            item("bold", action: #selector(toggleBoldMark), label: "Negrito"),
-            item("italic", action: #selector(toggleItalicMark), label: "Itálico"),
-            item("underline", action: #selector(toggleUnderlineMark), label: "Sublinhado"),
-            item("strikethrough", action: #selector(toggleStrikeMark), label: "Riscado"),
+            toolbarItem("bold", #selector(toggleBoldMark), "Negrito"),
+            toolbarItem("italic", #selector(toggleItalicMark), "Itálico"),
+            toolbarItem("underline", #selector(toggleUnderlineMark), "Sublinhado"),
+            toolbarItem("strikethrough", #selector(toggleStrikeMark), "Riscado"),
             flex,
-            item("book", action: #selector(presentBibleRefPicker), label: "Referência bíblica"),
-            item("person.wave.2", action: #selector(presentSpeakerPicker), label: "Speaker"),
-            item("arrow.uturn.backward", action: #selector(undoEdit), label: "Desfazer"),
-            item("arrow.uturn.forward", action: #selector(redoEdit), label: "Refazer"),
+            toolbarItem("book", #selector(presentBibleRefPicker), "Referência bíblica"),
+            toolbarItem("person.wave.2", #selector(presentSpeakerPicker), "Speaker"),
+            toolbarItem("arrow.uturn.backward", #selector(undoEdit), "Desfazer"),
+            toolbarItem("arrow.uturn.forward", #selector(redoEdit), "Refazer"),
         ]
+    }
+
+    private func toolbarItem(_ systemName: String, _ action: Selector, _ label: String) -> UIBarButtonItem {
+        let button = UIBarButtonItem(image: UIImage(systemName: systemName), style: .plain, target: self, action: action)
+        button.accessibilityLabel = label
+        return button
     }
 
     /// Load / replace the document currently shown.
@@ -321,11 +322,11 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         }
     }
 
-    @objc private func insertBibleRef() {
+    @objc private func presentBibleRefPicker() {
         delegate?.nativeNoteEditorRequestInsertBibleRef(self)
     }
 
-    @objc private func requestSpeaker() {
+    @objc private func presentSpeakerPicker() {
         delegate?.nativeNoteEditorRequestSpeaker(self)
     }
 
