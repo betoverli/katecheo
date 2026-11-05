@@ -255,6 +255,23 @@ if (!editor.includes("paragraphBlockType") || !editor.includes("normalizeSpeaker
 if (!editor.includes("testing_insertText") || !editor.includes("testing_prepare") || !project.includes("NativeNoteEditorSpeakerPathTests.swift in Sources")) {
   errors.push("AppTests têm de exercer o caminho real NativeNoteEditorView/UITextView (NativeNoteEditorSpeakerPathTests).");
 }
+if (!project.includes("NativeNoteEditorTF194Tests.swift in Sources")) {
+  errors.push("AppTests TF194 (NativeNoteEditorTF194Tests) têm de estar no target.");
+}
+if (!editor.includes("confirmRemoveSpeakerSection") || !editor.includes("Remover seção do speaker?")) {
+  errors.push("× do speaker tem de pedir confirmação localizada antes de apagar.");
+}
+if (!project.includes("V2NSheetPresenter.swift in Sources")) {
+  errors.push("V2NSheetPresenter tem de estar no target (dismiss por backdrop).");
+}
+try {
+  const sheet = read("ios/App/App/V2NSheetPresenter.swift");
+  if (!sheet.includes("isModalInPresentation = false") || !sheet.includes(".medium()")) {
+    errors.push("V2NSheetPresenter tem de permitir dismiss por fora (medium detent + não modal-in-presentation).");
+  }
+} catch {
+  errors.push("Falta V2NSheetPresenter.swift");
+}
 if (!editor.includes("from: textView.textStorage")) {
   errors.push("currentDocument tem de ler textStorage (attributedText pode perder speakerBodyKey).");
 }

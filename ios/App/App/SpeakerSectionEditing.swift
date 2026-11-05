@@ -32,7 +32,33 @@ enum SpeakerSectionEditing {
             speakerId: nil,
             speakers: [:]
         )
-        attrs.removeValue(forKey: NoteDocumentCodec.speakerBodyKey)
+        attrs = NoteDocumentCodec.clearingParagraphIndent(attrs)
+        return attrs
+    }
+
+    /// Attributes for continuing a bullet / numbered / check list item.
+    static func listTypingAttributes(
+        type: String,
+        blockId: String = NoteDocumentCodec.newId(),
+        inSpeakerSection: Bool = false
+    ) -> [NSAttributedString.Key: Any] {
+        var attrs = NoteDocumentCodec.baseAttributes(
+            type: type,
+            id: blockId,
+            checked: type == "check" ? false : nil,
+            speakerId: nil,
+            speakers: [:]
+        )
+        if inSpeakerSection {
+            // Keep list hanging relative to the section inset.
+            let style = ((attrs[.paragraphStyle] as? NSParagraphStyle)?.mutableCopy() as? NSMutableParagraphStyle)
+                ?? NSMutableParagraphStyle()
+            let inset = NoteDocumentCodec.speakerSectionContentInset
+            style.firstLineHeadIndent = inset
+            style.headIndent = inset + 22
+            attrs[.paragraphStyle] = style
+            attrs[NoteDocumentCodec.speakerBodyKey] = true
+        }
         return attrs
     }
 
@@ -67,11 +93,23 @@ enum SpeakerSectionEditing {
             return Result(caret: min(caret, storage.length), typingAttributes: attrs)
         }
 
-        // Mid-paragraph split: move the remainder onto the new body line.
-        let moved = NSMutableAttributedString(attributedString: storage.attributedSubstring(from: afterRange))
-        storage.replaceCharacters(in: afterRange, with: "")
-        if (moved.string as NSString).hasPrefix("\n") {
-            moved.replaceCharacters(in: NSRange(location: 0, length: 1), with: "")
+        // Mid-paragraph split (web `splitLineAtCaret`): move only content *before*
+        // the paragraph terminator. Consuming the `\n` glued the moved tail onto
+        // the following paragraph (TF194 bug #10).
+        let paraEnd = NSMaxRange(para)
+        let terminatorLen: Int = {
+            guard paraEnd > caretLocation else { return 0 }
+            let last = (storage.string as NSString).substring(with: NSRange(location: paraEnd - 1, length: 1))
+            return (last == "\n" || last == "\r") ? 1 : 0
+        }()
+        let contentEnd = paraEnd - terminatorLen
+        let afterContent = NSRange(location: caretLocation, length: max(0, contentEnd - caretLocation))
+        let moved: NSMutableAttributedString
+        if afterContent.length > 0 {
+            moved = NSMutableAttributedString(attributedString: storage.attributedSubstring(from: afterContent))
+            storage.replaceCharacters(in: afterContent, with: "")
+        } else {
+            moved = NSMutableAttributedString()
         }
         if moved.length == 0 {
             piece.append(NSAttributedString(string: "\u{200B}", attributes: attrs))
@@ -81,19 +119,90 @@ enum SpeakerSectionEditing {
                 value: true,
                 range: NSRange(location: 0, length: moved.length)
             )
-            // Drop a trailing paragraph terminator from the moved run — the `\n` we
-            // prepend already starts the new paragraph.
-            if (moved.string as NSString).hasSuffix("\n") {
-                moved.replaceCharacters(
-                    in: NSRange(location: moved.length - 1, length: 1),
-                    with: ""
-                )
-            }
             piece.append(moved)
         }
         storage.replaceCharacters(in: NSRange(location: caretLocation, length: 0), with: piece)
         // Land at the start of the new paragraph (after `\n`, on ZWSP or moved text).
         let caret = caretLocation + 1 + (moved.length == 0 ? 1 : 0)
+        return Result(caret: min(caret, storage.length), typingAttributes: attrs)
+    }
+
+    /// Enter outside a speaker — one new flush paragraph (never inherit speaker/list indent).
+    @discardableResult
+    static func insertContinuingOutsideParagraph(
+        in storage: NSMutableAttributedString,
+        at caretLocation: Int
+    ) -> Result {
+        let attrs = outsideTypingAttributes()
+        let para = paragraphRange(in: storage, at: caretLocation)
+        let paraEnd = NSMaxRange(para)
+        let terminatorLen: Int = {
+            guard paraEnd > caretLocation else { return 0 }
+            let last = (storage.string as NSString).substring(with: NSRange(location: paraEnd - 1, length: 1))
+            return (last == "\n" || last == "\r") ? 1 : 0
+        }()
+        let contentEnd = paraEnd - terminatorLen
+        let afterContent = NSRange(location: caretLocation, length: max(0, contentEnd - caretLocation))
+        let afterText = afterContent.length > 0
+            ? (storage.string as NSString).substring(with: afterContent)
+            : ""
+        let onlyTerminator = afterText.isEmpty
+
+        let piece = NSMutableAttributedString(string: "\n", attributes: attrs)
+        if onlyTerminator {
+            piece.append(NSAttributedString(string: "\u{200B}", attributes: attrs))
+            storage.replaceCharacters(in: NSRange(location: caretLocation, length: 0), with: piece)
+            return Result(caret: min(caretLocation + 2, storage.length), typingAttributes: attrs)
+        }
+
+        let moved = NSMutableAttributedString(attributedString: storage.attributedSubstring(from: afterContent))
+        storage.replaceCharacters(in: afterContent, with: "")
+        moved.addAttributes(attrs, range: NSRange(location: 0, length: moved.length))
+        piece.append(moved)
+        storage.replaceCharacters(in: NSRange(location: caretLocation, length: 0), with: piece)
+        return Result(caret: min(caretLocation + 1, storage.length), typingAttributes: attrs)
+    }
+
+    /// Enter on a non-empty list item → continue with the same list kind (web splitLineAtCaret).
+    @discardableResult
+    static func insertContinuingListParagraph(
+        in storage: NSMutableAttributedString,
+        at caretLocation: Int,
+        listType: String,
+        marker: String,
+        inSpeakerSection: Bool
+    ) -> Result {
+        let blockId = NoteDocumentCodec.newId()
+        var attrs = listTypingAttributes(type: listType, blockId: blockId, inSpeakerSection: inSpeakerSection)
+        let para = paragraphRange(in: storage, at: caretLocation)
+        let paraEnd = NSMaxRange(para)
+        let terminatorLen: Int = {
+            guard paraEnd > caretLocation else { return 0 }
+            let last = (storage.string as NSString).substring(with: NSRange(location: paraEnd - 1, length: 1))
+            return (last == "\n" || last == "\r") ? 1 : 0
+        }()
+        let contentEnd = paraEnd - terminatorLen
+        let afterContent = NSRange(location: caretLocation, length: max(0, contentEnd - caretLocation))
+
+        var markerAttrs = attrs
+        markerAttrs[NoteDocumentCodec.listMarkerKey] = true
+        markerAttrs[.foregroundColor] = UIColor.secondaryLabel
+
+        let piece = NSMutableAttributedString(string: "\n", attributes: attrs)
+        piece.append(NSAttributedString(string: marker, attributes: markerAttrs))
+
+        if afterContent.length > 0 {
+            let moved = NSMutableAttributedString(attributedString: storage.attributedSubstring(from: afterContent))
+            storage.replaceCharacters(in: afterContent, with: "")
+            moved.addAttributes(attrs, range: NSRange(location: 0, length: moved.length))
+            piece.append(moved)
+        } else {
+            piece.append(NSAttributedString(string: "\u{200B}", attributes: attrs))
+        }
+        storage.replaceCharacters(in: NSRange(location: caretLocation, length: 0), with: piece)
+        let caret = caretLocation + 1 + marker.count + (afterContent.length > 0 ? 0 : 1)
+        // typingAttributes without the marker flag for subsequent typed text
+        attrs.removeValue(forKey: NoteDocumentCodec.listMarkerKey)
         return Result(caret: min(caret, storage.length), typingAttributes: attrs)
     }
 
@@ -211,10 +320,7 @@ enum SpeakerSectionEditing {
         var blocks = document.body.blocks
         let bare = blocks.allSatisfy { block in
             if block.type == "speakerSection" { return false }
-            let text = (block.spans ?? []).compactMap(\.text).joined()
-                .replacingOccurrences(of: "\u{200B}", with: "")
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            return text.isEmpty
+            return isVisuallyEmpty(block)
         }
 
         if bare {
@@ -222,16 +328,31 @@ enum SpeakerSectionEditing {
         } else if let afterBlockId,
                   let idx = indexOfTopLevel(blockId: afterBlockId, in: blocks)
         {
-            blocks.insert(section, at: idx + 1)
-            if idx + 1 == blocks.count - 1 {
+            // Empty top-level anchor (e.g. trailing line after a prior section) is a
+            // slot to replace — web focus inside the prior speaker skips it; replacing
+            // prevents a blank paragraph between back-to-back sections (TF194 #11).
+            if isVisuallyEmpty(blocks[idx]), blocks[idx].type != "speakerSection" {
+                blocks[idx] = section
+            } else {
+                blocks.insert(section, at: idx + 1)
+            }
+            if blocks.last?.id == sectionId {
                 blocks.append(trailing)
             }
         } else if let afterBlockId,
                   let parentIdx = indexOfSpeakerContaining(lineId: afterBlockId, in: blocks)
         {
             // Focus inside a speaker → insert new section after that whole speaker.
-            blocks.insert(section, at: parentIdx + 1)
-            if parentIdx + 1 == blocks.count - 1 {
+            let insertAt = parentIdx + 1
+            if insertAt < blocks.count,
+               isVisuallyEmpty(blocks[insertAt]),
+               blocks[insertAt].type != "speakerSection"
+            {
+                blocks[insertAt] = section
+            } else {
+                blocks.insert(section, at: insertAt)
+            }
+            if blocks.last?.id == sectionId {
                 blocks.append(trailing)
             }
         } else {
@@ -242,6 +363,14 @@ enum SpeakerSectionEditing {
         var next = document
         next.body.blocks = blocks
         return (next, childId, sectionId)
+    }
+
+    private static func isVisuallyEmpty(_ block: NativeAPIClient.LineBlock) -> Bool {
+        if block.type == "speakerSection" { return false }
+        let text = (block.spans ?? []).compactMap(\.text).joined()
+            .replacingOccurrences(of: "\u{200B}", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return text.isEmpty
     }
 
     private static func indexOfTopLevel(blockId: String, in blocks: [NativeAPIClient.LineBlock]) -> Int? {

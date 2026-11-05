@@ -364,16 +364,17 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
                 exitSpeakerSection()
                 return false
             case .continueList(let listType):
-                DispatchQueue.main.async { [weak self] in
-                    self?.applyBlockType(listType, preserveChecked: true)
-                }
-                return true
+                insertContinuingListItem(listType: listType)
+                return false
             case .defaultNewline:
                 if inside {
                     insertContinuingSpeakerBodyParagraph()
                     return false
                 }
-                return true
+                // Manual insert so the new outside paragraph never inherits
+                // speaker/list hanging indent from UIKit's attribute copy (TF194 #1).
+                insertContinuingOutsideParagraph()
+                return false
             }
         }
 
@@ -513,6 +514,43 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         let result = SpeakerSectionEditing.insertContinuingBodyParagraph(
             in: textView.textStorage,
             at: textView.selectedRange.location
+        )
+        textView.selectedRange = NSRange(location: result.caret, length: 0)
+        textView.typingAttributes = result.typingAttributes
+        emitChange()
+        refreshSpeakerRails()
+        scrollCaretVisible(animated: true)
+    }
+
+    private func insertContinuingOutsideParagraph() {
+        let result = SpeakerSectionEditing.insertContinuingOutsideParagraph(
+            in: textView.textStorage,
+            at: textView.selectedRange.location
+        )
+        textView.selectedRange = NSRange(location: result.caret, length: 0)
+        textView.typingAttributes = result.typingAttributes
+        emitChange()
+        refreshSpeakerRails()
+        scrollCaretVisible(animated: true)
+    }
+
+    private func insertContinuingListItem(listType: String) {
+        let range = paragraphRange()
+        let number = numberedIndex(
+            forParagraphStartingAt: range.location,
+            promotingToNumbered: listType == "numbered"
+        ) + (listType == "numbered" ? 1 : 0)
+        let marker = NoteDocumentCodec.listMarkerString(
+            type: listType,
+            checked: listType == "check" ? false : nil,
+            number: max(number, 1)
+        ) ?? "•\u{00A0}"
+        let result = SpeakerSectionEditing.insertContinuingListParagraph(
+            in: textView.textStorage,
+            at: textView.selectedRange.location,
+            listType: listType,
+            marker: marker,
+            inSpeakerSection: caretIsInsideSpeakerSection()
         )
         textView.selectedRange = NSRange(location: result.caret, length: 0)
         textView.typingAttributes = result.typingAttributes
@@ -1118,7 +1156,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
                 let hit = speakerHeaderHit(attachment: header, characterIndex: index, point: point)
                 switch hit {
                 case .remove:
-                    removeSpeakerSection(blockId: header.blockId)
+                    confirmRemoveSpeakerSection(blockId: header.blockId)
                 case .toggleCollapse:
                     toggleSpeakerCollapsed(blockId: header.blockId)
                 case .rename:
@@ -1187,6 +1225,33 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         UIView.animate(withDuration: 0.22) {
             self.textView.layoutIfNeeded()
         }
+    }
+
+    /// TF194: ask before × delete (product override vs web's immediate remove).
+    private func confirmRemoveSpeakerSection(blockId: String) {
+        let alert = UIAlertController(
+            title: String(localized: "Remover seção do speaker?"),
+            message: String(localized: "O texto dentro da seção também será apagado."),
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
+        alert.addAction(UIAlertAction(title: String(localized: "Remover seção"), style: .destructive) { [weak self] _ in
+            self?.removeSpeakerSection(blockId: blockId)
+        })
+        guard let host = nearestViewController() else {
+            removeSpeakerSection(blockId: blockId)
+            return
+        }
+        host.present(alert, animated: true)
+    }
+
+    private func nearestViewController() -> UIViewController? {
+        var responder: UIResponder? = self
+        while let current = responder {
+            if let vc = current as? UIViewController { return vc }
+            responder = current.next
+        }
+        return nil
     }
 
     private func removeSpeakerSection(blockId: String) {
@@ -1542,6 +1607,10 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         removeSpeakerSection(blockId: sectionId)
     }
 
+    func testing_applyBlockTypeHook(_ type: String) {
+        applyBlockType(type, preserveChecked: false)
+    }
+
     func testing_headerAttachment(at location: Int) -> SpeakerHeaderAttachment? {
         guard textView.textStorage.length > 0 else { return nil }
         let loc = min(max(0, location), textView.textStorage.length - 1)
@@ -1621,6 +1690,10 @@ enum SpeakerEnterDecision: Equatable {
             return .continueInSection
         }
         if blockType == "bullet" || blockType == "numbered" || blockType == "check" || blockType == "quote" {
+            // Web onEnter: empty ul/ol → demote to paragraph; else continue kind.
+            if paragraphEmpty {
+                return .demoteListToParagraph
+            }
             return .continueList(blockType)
         }
         return .defaultNewline

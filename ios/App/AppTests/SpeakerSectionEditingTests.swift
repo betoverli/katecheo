@@ -122,6 +122,109 @@ final class SpeakerSectionEditingTests: XCTestCase {
         )
     }
 
+    func testMidParagraphSplit_preservesFollowingParagraph() {
+        var note = NativeAPIClient.emptyNote()
+        note.title = "Nota"
+        note.body.blocks = [
+            NativeAPIClient.LineBlock(
+                id: "s1",
+                type: "speakerSection",
+                spans: nil,
+                speakerId: "sp1",
+                title: "Beto",
+                collapsed: nil,
+                checked: nil,
+                blocks: [
+                    NativeAPIClient.LineBlock(
+                        id: "c1",
+                        type: "paragraph",
+                        spans: [.init(type: "text", text: "AAAA BBBB", marks: nil, bookId: nil, chapter: nil, verseStart: nil, verseEnd: nil, href: nil)],
+                        speakerId: nil,
+                        title: nil,
+                        collapsed: nil,
+                        checked: nil,
+                        blocks: nil
+                    ),
+                    NativeAPIClient.LineBlock(
+                        id: "c2",
+                        type: "paragraph",
+                        spans: [.init(type: "text", text: "CCCC", marks: nil, bookId: nil, chapter: nil, verseStart: nil, verseEnd: nil, href: nil)],
+                        speakerId: nil,
+                        title: nil,
+                        collapsed: nil,
+                        checked: nil,
+                        blocks: nil
+                    ),
+                ]
+            ),
+        ]
+        let storage = NSMutableAttributedString(attributedString: NoteDocumentCodec.attributedString(from: note))
+        let ns = storage.string as NSString
+        let range = ns.range(of: "BBBB")
+        XCTAssertNotEqual(range.location, NSNotFound)
+        _ = SpeakerSectionEditing.insertContinuingBodyParagraph(in: storage, at: range.location)
+        let doc = NoteDocumentCodec.document(from: storage, base: note)
+        let texts = (doc.body.blocks.first?.blocks ?? []).map {
+            ($0.spans ?? []).compactMap(\.text).joined()
+        }.filter { !$0.isEmpty }
+        XCTAssertEqual(texts, ["AAAA", "BBBB", "CCCC"])
+    }
+
+    func testInsertSpeaker_replacesEmptyTrailingBetweenSections() {
+        var note = NativeAPIClient.emptyNote()
+        note.title = "Nota"
+        note.body.blocks = [
+            NativeAPIClient.LineBlock(
+                id: "s1",
+                type: "speakerSection",
+                spans: nil,
+                speakerId: "sp1",
+                title: "Beto",
+                collapsed: nil,
+                checked: nil,
+                blocks: [
+                    NativeAPIClient.LineBlock(
+                        id: "c1",
+                        type: "paragraph",
+                        spans: [],
+                        speakerId: nil,
+                        title: nil,
+                        collapsed: nil,
+                        checked: nil,
+                        blocks: nil
+                    ),
+                ]
+            ),
+            NativeAPIClient.LineBlock(
+                id: "trail",
+                type: "paragraph",
+                spans: [],
+                speakerId: nil,
+                title: nil,
+                collapsed: nil,
+                checked: nil,
+                blocks: nil
+            ),
+        ]
+        let result = SpeakerSectionEditing.insertSpeakerBlock(
+            into: note,
+            speakerId: "sp2",
+            speakerName: "Ana",
+            afterBlockId: "trail"
+        )
+        let types = result.document.body.blocks.map(\.type)
+        XCTAssertEqual(types.filter { $0 == "speakerSection" }.count, 2)
+        if let i0 = types.firstIndex(of: "speakerSection"),
+           let i1 = types.lastIndex(of: "speakerSection"),
+           i1 > i0
+        {
+            XCTAssertTrue(
+                Array(types[(i0 + 1)..<i1]).allSatisfy { $0 == "speakerSection" },
+                "no blank between sections: \(types)"
+            )
+        }
+    }
+
     func testExitOnEmptyLastBody() {
         var note = NativeAPIClient.emptyNote()
         note.title = "Nota"
