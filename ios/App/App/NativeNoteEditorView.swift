@@ -640,6 +640,21 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         let storage = textView.textStorage
         let para = paragraphRange()
         guard para.length > 0 else { return true }
+        // Paragraphs that are only a list marker (+ ZWSP) count as empty (web empty ul/ol).
+        var onlyMarker = true
+        storage.enumerateAttributes(in: para, options: []) { attrs, sub, stop in
+            let chunk = (storage.string as NSString).substring(with: sub)
+                .replacingOccurrences(of: "\u{200B}", with: "")
+                .replacingOccurrences(of: "\u{00A0}", with: "")
+                .replacingOccurrences(of: "\n", with: "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if chunk.isEmpty { return }
+            if attrs[NoteDocumentCodec.listMarkerKey] as? Bool == true { return }
+            onlyMarker = false
+            stop.pointee = true
+        }
+        if onlyMarker { return true }
+
         var text = (storage.string as NSString).substring(with: para)
         text = text
             .replacingOccurrences(of: "\u{200B}", with: "")

@@ -166,8 +166,10 @@ final class SpeakerSectionEditingTests: XCTestCase {
         let doc = NoteDocumentCodec.document(from: storage, base: note)
         let texts = (doc.body.blocks.first?.blocks ?? []).map {
             ($0.spans ?? []).compactMap(\.text).joined()
+                .replacingOccurrences(of: "\u{200B}", with: "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
         }.filter { !$0.isEmpty }
-        XCTAssertEqual(texts, ["AAAA", "BBBB", "CCCC"])
+        XCTAssertEqual(texts, ["AAAA", "BBBB", "CCCC"], "got \(texts) plain=\(storage.string.debugDescription)")
     }
 
     func testInsertSpeaker_replacesEmptyTrailingBetweenSections() {

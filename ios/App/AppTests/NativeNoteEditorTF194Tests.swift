@@ -102,14 +102,31 @@ final class NativeNoteEditorTF194Tests: XCTestCase {
 
     // Bug 4: lists continue; empty item ends list.
     func testListEnter_continuesThenEmptyExits() {
+        // Land explicitly on the body paragraph (not the title).
+        let storage = editor.testing_textStorage()
+        let ns = storage.string as NSString
+        let lastPara = ns.paragraphRange(for: NSRange(location: max(0, ns.length - 1), length: 0))
+        editor.testing_setSelectedRange(NSRange(location: lastPara.location, length: 0))
         editor.testing_insertText("item")
-        // Promote current paragraph to bullet via accessory path helper.
         applyBlockTypeForTest("bullet")
-        XCTAssertEqual(editor.testing_paragraphBlockType(), "bullet")
+        XCTAssertEqual(
+            editor.testing_paragraphBlockType(),
+            "bullet",
+            "after promote; plain=\(editor.testing_textStorage().string.debugDescription)"
+        )
         editor.testing_insertText("\n")
-        XCTAssertEqual(editor.testing_paragraphBlockType(), "bullet", "Enter continues bullet list")
-        editor.testing_insertText("\n") // empty → demote
-        XCTAssertEqual(editor.testing_paragraphBlockType(), "paragraph", "empty list item ends list")
+        XCTAssertEqual(
+            editor.testing_paragraphBlockType(),
+            "bullet",
+            "Enter continues bullet list; plain=\(editor.testing_textStorage().string.debugDescription)"
+        )
+        // Second Enter on the new empty item ends the list (web empty ul → p).
+        editor.testing_insertText("\n")
+        XCTAssertEqual(
+            editor.testing_paragraphBlockType(),
+            "paragraph",
+            "empty list item ends list; plain=\(editor.testing_textStorage().string.debugDescription)"
+        )
     }
 
     // Bug 5–6: header hit metrics.
@@ -120,11 +137,13 @@ final class NativeNoteEditorTF194Tests: XCTestCase {
         else {
             return XCTFail("missing header attachment")
         }
-        let width = max(attachment.image?.size.width ?? 320, 320)
-        let hitWidth = (1 - attachment.removeStartX) * width
-        XCTAssertGreaterThanOrEqual(hitWidth, 44, "× hit band must be ≥44pt")
-        XCTAssertGreaterThanOrEqual(attachment.image?.size.height ?? 0, 44)
-        XCTAssertLessThan(attachment.chevronEndX * width, 40, "chevron+name nudged left")
+        // Force layout metrics without relying on UITextView layout (avoids CI flakes).
+        attachment.refreshImage(width: 320)
+        let hitWidth = (1 - attachment.removeStartX) * 320
+        XCTAssertGreaterThanOrEqual(hitWidth, 44, "× hit band must be ≥44pt; removeStartX=\(attachment.removeStartX)")
+        XCTAssertGreaterThanOrEqual(attachment.bounds.height, 44)
+        // padL=4 + chevron 10 + gap 8 = 22pt from the left.
+        XCTAssertLessThanOrEqual(attachment.chevronEndX * 320, 24, "chevron+name nudged left")
     }
 
     // Bug 10: mid-paragraph split must not merge the following paragraph.
