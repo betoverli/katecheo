@@ -29,8 +29,11 @@ enum NativeAPIClient {
     }
 
     /// Clear Keychain bearer and notify UI to re-login. Idempotent.
+    /// Only call for explicit 401 / invalid token — never for transport/network failures.
     static func handleUnauthorized() {
         KeychainStore.deleteBearerToken()
+        LocalSessionCache.clearAll()
+        LocalSessionCache.showOfflineHint = false
         NotificationCenter.default.post(name: .nativeSessionDidExpire, object: nil)
         NotificationCenter.default.post(name: .nativeSessionDidChange, object: nil)
     }
@@ -212,6 +215,33 @@ enum NativeAPIClient {
     struct GroupNotesResponse: Decodable {
         let ok: Bool?
         let notes: [GroupNoteCardDTO]?
+        let error: String?
+    }
+
+    struct GroupMemberDTO: Codable, Equatable {
+        var userId: String
+        var handle: String
+        var firstName: String
+        var lastName: String
+        var avatarId: String
+        var avatarUrl: String
+        var role: String
+        var status: String
+
+        var displayName: String {
+            let full = "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
+            if !full.isEmpty { return full }
+            if !handle.isEmpty { return "@\(handle)" }
+            return String(localized: "Membro")
+        }
+
+        var isAdmin: Bool { role == "admin" }
+        var isPending: Bool { status == "pending" }
+    }
+
+    struct GroupMembersResponse: Decodable {
+        let ok: Bool?
+        let members: [GroupMemberDTO]?
         let error: String?
     }
 
@@ -443,6 +473,8 @@ enum NativeAPIClient {
         guard let decoded = try? JSONDecoder().decode(GroupsResponse.self, from: data),
               let groups = decoded.groups
         else { throw APIError.decoding }
+        LocalSessionCache.saveGroups(groups)
+        LocalSessionCache.showOfflineHint = false
         return groups
     }
 
@@ -551,6 +583,56 @@ enum NativeAPIClient {
         return groups
     }
 
+    static func listGroupMembers(groupId: String) async throws -> [GroupMemberDTO] {
+        let request = try authorizedRequest(path: "api/native/v1/groups/\(groupId)/members", method: "GET")
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(GroupMembersResponse.self, from: data),
+              let members = decoded.members
+        else { throw APIError.decoding }
+        return members
+    }
+
+    static func decideGroupMember(groupId: String, userId: String, accept: Bool) async throws {
+        struct Body: Encodable {
+            let userId: String
+            let accept: Bool
+        }
+        let body = try JSONEncoder().encode(Body(userId: userId, accept: accept))
+        let request = try authorizedRequest(path: "api/native/v1/groups/\(groupId)/members/decide", method: "POST", body: body)
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+    }
+
+    static func setGroupMemberRole(groupId: String, userId: String, role: String) async throws {
+        struct Body: Encodable {
+            let userId: String
+            let role: String
+        }
+        let body = try JSONEncoder().encode(Body(userId: userId, role: role))
+        let request = try authorizedRequest(path: "api/native/v1/groups/\(groupId)/members/role", method: "POST", body: body)
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+    }
+
+    static func removeGroupMember(groupId: String, userId: String) async throws {
+        let request = try authorizedRequest(path: "api/native/v1/groups/\(groupId)/members/\(userId)", method: "DELETE")
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+    }
+
     // MARK: - Profile (Phase 3)
 
     static func getMe() async throws -> MeDTO {
@@ -563,6 +645,8 @@ enum NativeAPIClient {
         guard let decoded = try? JSONDecoder().decode(MeResponse.self, from: data),
               let me = decoded.me
         else { throw APIError.decoding }
+        LocalSessionCache.saveMe(me)
+        LocalSessionCache.showOfflineHint = false
         return me
     }
 
@@ -577,6 +661,7 @@ enum NativeAPIClient {
         guard let decoded = try? JSONDecoder().decode(MeResponse.self, from: data),
               let me = decoded.me
         else { throw APIError.decoding }
+        LocalSessionCache.saveMe(me)
         return me
     }
 

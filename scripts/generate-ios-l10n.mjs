@@ -376,6 +376,32 @@ const MANUAL = {
     "Toca el versículo final (inicio: %lld)",
   ],
   "HTTP %lld: %@": ["HTTP %lld: %@", "HTTP %lld: %@"],
+  Membros: ["Members", "Miembros"],
+  Convidar: ["Invite", "Invitar"],
+  "Convidar…": ["Invite…", "Invitar…"],
+  Pedidos: ["Requests", "Solicitudes"],
+  Aceitar: ["Accept", "Aceptar"],
+  Recusar: ["Decline", "Rechazar"],
+  "Tornar membro": ["Make member", "Hacer miembro"],
+  "Tornar admin": ["Make admin", "Hacer admin"],
+  "Remover do grupo": ["Remove from group", "Quitar del grupo"],
+  "Sair do grupo": ["Leave group", "Salir del grupo"],
+  pendente: ["pending", "pendiente"],
+  admin: ["admin", "admin"],
+  Offline: ["Offline", "Sin conexión"],
+  "Offline — mostrando grupos em cache.": [
+    "Offline — showing cached groups.",
+    "Sin conexión — mostrando grupos en caché.",
+  ],
+  "Entre no grupo «%@» no Verse2Note": [
+    "Join the “%@” group on Verse2Note",
+    "Únete al grupo «%@» en Verse2Note",
+  ],
+  "Tentar de novo": ["Try again", "Intentar de nuevo"],
+  "Puxe para atualizar quando a rede voltar.": [
+    "Pull to refresh when you’re back online.",
+    "Desliza para actualizar cuando vuelva la red.",
+  ],
 };
 
 for (const [pt, [en, es]] of Object.entries(MANUAL)) {

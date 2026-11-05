@@ -311,6 +311,58 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
       }
     }
 
+    if (route.kind === "group-members") {
+      if (!route.userId) {
+        const result = await groupsApi.listMembersForGroup(user.id, route.groupId);
+        if (!result.ok) return json(result, 403);
+        return json(result);
+      }
+      if (method === "DELETE") {
+        const result = await groupsApi.removeGroupMemberForUser(user.id, route.groupId, route.userId);
+        if (!result.ok) {
+          const status =
+            result.error === "missing" ? 404 : result.error === "lastAdmin" ? 409 : 403;
+          return json(result, status);
+        }
+        return json(result);
+      }
+    }
+
+    if (route.kind === "group-members-decide") {
+      const body = await readBody(request);
+      if (body === Symbol.for("invalid-json")) return json({ ok: false, error: "invalid_json" }, 400);
+      const payload = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+      const targetUserId = typeof payload.userId === "string" ? payload.userId.trim() : "";
+      const accept = payload.accept === true;
+      if (!targetUserId) return json({ ok: false, error: "invalid" }, 400);
+      const result = await groupsApi.decideGroupMemberForUser(user.id, route.groupId, targetUserId, accept);
+      if (!result.ok) {
+        return json(result, result.error === "missing" ? 404 : 403);
+      }
+      return json(result);
+    }
+
+    if (route.kind === "group-members-role") {
+      const body = await readBody(request);
+      if (body === Symbol.for("invalid-json")) return json({ ok: false, error: "invalid_json" }, 400);
+      const payload = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+      const targetUserId = typeof payload.userId === "string" ? payload.userId.trim() : "";
+      const role = payload.role === "admin" ? "admin" : payload.role === "member" ? "member" : "";
+      if (!targetUserId || !role) return json({ ok: false, error: "invalid" }, 400);
+      const result = await groupsApi.setGroupMemberRoleForUser(
+        user.id,
+        route.groupId,
+        targetUserId,
+        role,
+      );
+      if (!result.ok) {
+        const status =
+          result.error === "missing" ? 404 : result.error === "lastAdmin" ? 409 : 403;
+        return json(result, status);
+      }
+      return json(result);
+    }
+
     if (route.kind === "note-groups") {
       const groups = await groupsApi.listGroupsForNote(user.id, route.noteId);
       return json({ ok: true, groups });

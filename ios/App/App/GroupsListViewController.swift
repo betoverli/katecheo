@@ -60,6 +60,15 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
             emptyState.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
         ])
 
+        // Offline-first paint from cache.
+        if NativeAPIClient.hasBearer {
+            groups = LocalSessionCache.loadGroups()
+            applyFilter()
+            if LocalSessionCache.showOfflineHint {
+                statusBanner.setStatus(String(localized: "Offline — mostrando grupos em cache."), kind: .warning)
+            }
+        }
+
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(reload),
@@ -73,6 +82,10 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
         Task { @MainActor in
             if !NativeAPIClient.hasBearer {
                 _ = await NativeSessionBootstrap.migrateCookieToKeychainIfNeeded()
+            }
+            if NativeAPIClient.hasBearer, groups.isEmpty {
+                groups = LocalSessionCache.loadGroups()
+                applyFilter()
             }
             reload()
         }
@@ -96,6 +109,10 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
                 tableView.isHidden = true
                 return
             }
+            if groups.isEmpty {
+                groups = LocalSessionCache.loadGroups()
+                applyFilter()
+            }
             do {
                 groups = try await NativeAPIClient.listGroups()
                 // Success: no persistent "sincronizado" banner (was leaking across screens).
@@ -106,7 +123,12 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
                 groups = []
                 applyFilter()
             } catch {
-                statusBanner.setStatus(String(localized: "Sem rede. \(error.localizedDescription)"), kind: .error)
+                // Keep cached groups — never treat network failure as logout.
+                if groups.isEmpty {
+                    groups = LocalSessionCache.loadGroups()
+                }
+                LocalSessionCache.showOfflineHint = true
+                statusBanner.setStatus(String(localized: "Offline — mostrando grupos em cache."), kind: .warning)
                 applyFilter()
             }
         }

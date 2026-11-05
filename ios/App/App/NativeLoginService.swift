@@ -163,6 +163,8 @@ final class NativeLoginService: NSObject {
             _ = try? await URLSession.shared.data(for: request)
         }
         KeychainStore.deleteBearerToken()
+        LocalSessionCache.clearAll()
+        LocalSessionCache.showOfflineHint = false
         UserDefaults.standard.removeObject(forKey: NativeSessionBootstrap.migratedFlagKey)
     }
 

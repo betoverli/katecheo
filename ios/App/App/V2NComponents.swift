@@ -389,7 +389,7 @@ extension UITableViewController {
     }
 }
 
-// MARK: - Filter chips (WhatsApp-style)
+// MARK: - Filter chips (icon-only ↔ icon + name)
 
 struct V2NFilterChip: Equatable {
     let id: String
@@ -397,14 +397,18 @@ struct V2NFilterChip: Equatable {
     let systemImage: String?
 }
 
-/// Horizontal scrolling pill chips under a large title.
+/// Shared pill row under large titles (Caderno + Ferramentas).
+/// Unselected pills show only the icon; the selected pill expands to icon + name.
 final class V2NFilterChipsView: UIView {
-    var onSelect: ((String) -> Void)?
+    /// Called with the newly selected id, or `nil` when the selection was cleared.
+    var onSelect: ((String?) -> Void)?
+    /// When true, tapping the selected pill clears selection (default / all).
+    var allowsDeselect = true
 
     private let scroll = UIScrollView()
     private let stack = UIStackView()
     private var chips: [V2NFilterChip] = []
-    private var selectedId: String = ""
+    private(set) var selectedId: String?
     private var buttons: [String: UIButton] = [:]
 
     override init(frame: CGRect) {
@@ -440,7 +444,7 @@ final class V2NFilterChipsView: UIView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    func configure(chips: [V2NFilterChip], selectedId: String) {
+    func configure(chips: [V2NFilterChip], selectedId: String?) {
         self.chips = chips
         self.selectedId = selectedId
         stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
@@ -452,10 +456,27 @@ final class V2NFilterChipsView: UIView {
         }
     }
 
-    func setSelected(_ id: String) {
+    /// Convenience for call sites that always pass a non-optional id.
+    func configure(chips: [V2NFilterChip], selectedId: String) {
+        configure(chips: chips, selectedId: Optional(selectedId))
+    }
+
+    func setSelected(_ id: String?, animated: Bool = true) {
         selectedId = id
-        for chip in chips {
-            applyStyle(to: buttons[chip.id], selected: chip.id == id)
+        let updates = {
+            for chip in self.chips {
+                self.applyStyle(to: self.buttons[chip.id], chip: chip, selected: chip.id == id)
+            }
+            self.stack.layoutIfNeeded()
+            self.scroll.layoutIfNeeded()
+        }
+        if animated {
+            UIView.animate(withDuration: 0.28, delay: 0, options: [.curveEaseInOut, .allowUserInteraction], animations: updates)
+        } else {
+            updates()
+        }
+        if let id, let button = buttons[id] {
+            scroll.scrollRectToVisible(button.frame.insetBy(dx: -24, dy: 0), animated: animated)
         }
     }
 
@@ -466,28 +487,23 @@ final class V2NFilterChipsView: UIView {
         button.accessibilityLabel = chip.title
         button.addTarget(self, action: #selector(tap(_:)), for: .touchUpInside)
         button.heightAnchor.constraint(equalToConstant: 34).isActive = true
-        applyStyle(to: button, selected: selected, title: chip.title, systemImage: chip.systemImage)
+        applyStyle(to: button, chip: chip, selected: selected)
         return button
     }
 
-    private func applyStyle(to button: UIButton?, selected: Bool, title: String? = nil, systemImage: String? = nil) {
+    private func applyStyle(to button: UIButton?, chip: V2NFilterChip, selected: Bool) {
         guard let button else { return }
         var config = UIButton.Configuration.filled()
-        if let title {
-            config.title = title
-        } else if let existing = button.configuration?.title {
-            config.title = existing
-        }
-        if let systemImage {
+        // Selected → icon + name; unselected → icon only (title stays for VoiceOver).
+        config.title = selected ? chip.title : nil
+        if let systemImage = chip.systemImage {
             config.image = UIImage(systemName: systemImage)
-            config.imagePadding = 6
+            config.imagePadding = selected ? 6 : 0
             config.imagePlacement = .leading
-        } else if let existing = button.configuration?.image {
-            config.image = existing
-            config.imagePadding = 6
         }
         config.cornerStyle = .capsule
-        config.contentInsets = NSDirectionalEdgeInsets(top: 7, leading: 14, bottom: 7, trailing: 14)
+        let horizontal: CGFloat = selected ? 14 : 10
+        config.contentInsets = NSDirectionalEdgeInsets(top: 7, leading: horizontal, bottom: 7, trailing: horizontal)
         config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
             var out = incoming
             out.font = V2NDesign.preferred(.subheadline, weight: .semibold)
@@ -506,14 +522,22 @@ final class V2NFilterChipsView: UIView {
             config.baseForegroundColor = .label
         }
         button.configuration = config
+        button.accessibilityLabel = chip.title
+        button.accessibilityTraits = selected ? [.button, .selected] : .button
     }
 
     @objc private func tap(_ sender: UIButton) {
         guard sender.tag >= 0, sender.tag < chips.count else { return }
         let chip = chips[sender.tag]
-        setSelected(chip.id)
+        let next: String?
+        if chip.id == selectedId, allowsDeselect {
+            next = nil
+        } else {
+            next = chip.id
+        }
+        setSelected(next, animated: true)
         V2NHaptics.selection()
-        onSelect?(chip.id)
+        onSelect?(next)
     }
 }
 

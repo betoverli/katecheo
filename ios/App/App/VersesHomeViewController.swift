@@ -1,6 +1,7 @@
 import UIKit
 
-/// Ferramentas (Tools) tab home: four polished cards → Livros, Temas, Listas, Leitura.
+/// Ferramentas (Tools) tab: shared pills + cards home.
+/// Pills switch embedded content in place; deselect returns to the cards hub.
 final class VersesHomeViewController: UIViewController, UICollectionViewDelegate, UICollectionViewDataSource {
     private enum Tool: String, CaseIterable {
         case books, themes, lists, reading
@@ -33,8 +34,17 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
         }
     }
 
+    private let chips = V2NFilterChipsView()
+    private let contentHost = UIView()
+    private let cardsPanel = UIView()
     private var collectionView: UICollectionView!
     private var prefs: NativeAPIClient.PrefsDTO?
+    private var selectedTool: Tool?
+
+    private lazy var booksVC = BooksHomeViewController(prefs: nil, embedded: true)
+    private lazy var themesVC = ThemesHomeViewController(prefs: nil, embedded: true)
+    private lazy var listsVC = MyCollectionsViewController(embedded: true)
+    private lazy var readingVC = ReadingHomeViewController(embedded: true)
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -42,6 +52,20 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
         title = String(localized: "Ferramentas")
         navigationController?.navigationBar.prefersLargeTitles = true
         navigationItem.largeTitleDisplayMode = .always
+
+        chips.allowsDeselect = true
+        chips.configure(
+            chips: Tool.allCases.map { V2NFilterChip(id: $0.rawValue, title: $0.title, systemImage: $0.symbol) },
+            selectedId: nil
+        )
+        chips.onSelect = { [weak self] id in
+            self?.selectTool(id.flatMap(Tool.init(rawValue:)), animated: true)
+        }
+
+        contentHost.translatesAutoresizingMaskIntoConstraints = false
+        contentHost.backgroundColor = .clear
+        cardsPanel.translatesAutoresizingMaskIntoConstraints = false
+        cardsPanel.backgroundColor = .clear
 
         let layout = UICollectionViewCompositionalLayout { _, env in
             let width = env.container.effectiveContentSize.width
@@ -69,14 +93,39 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
         collectionView.delegate = self
         collectionView.dataSource = self
         collectionView.register(V2NToolCardCell.self, forCellWithReuseIdentifier: V2NToolCardCell.reuseId)
-        view.addSubview(collectionView)
+
+        view.addSubview(chips)
+        view.addSubview(contentHost)
+        contentHost.addSubview(cardsPanel)
+        cardsPanel.addSubview(collectionView)
 
         NSLayoutConstraint.activate([
-            collectionView.topAnchor.constraint(equalTo: view.topAnchor),
-            collectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            chips.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: V2NDesign.Space.xxs),
+            chips.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            chips.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+
+            contentHost.topAnchor.constraint(equalTo: chips.bottomAnchor, constant: V2NDesign.Space.xxs),
+            contentHost.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            contentHost.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            contentHost.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+
+            cardsPanel.topAnchor.constraint(equalTo: contentHost.topAnchor),
+            cardsPanel.leadingAnchor.constraint(equalTo: contentHost.leadingAnchor),
+            cardsPanel.trailingAnchor.constraint(equalTo: contentHost.trailingAnchor),
+            cardsPanel.bottomAnchor.constraint(equalTo: contentHost.bottomAnchor),
+
+            collectionView.topAnchor.constraint(equalTo: cardsPanel.topAnchor),
+            collectionView.leadingAnchor.constraint(equalTo: cardsPanel.leadingAnchor),
+            collectionView.trailingAnchor.constraint(equalTo: cardsPanel.trailingAnchor),
+            collectionView.bottomAnchor.constraint(equalTo: cardsPanel.bottomAnchor),
         ])
+
+        embedChild(booksVC)
+        embedChild(themesVC)
+        embedChild(listsVC)
+        embedChild(readingVC)
+        hideEmbeddedTools()
+        cardsPanel.isHidden = false
 
         _ = V2NGlassMaterial.sdkHasLiquidGlass()
     }
@@ -88,17 +137,83 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
         Task { @MainActor in
             if NativeAPIClient.hasBearer {
                 prefs = try? await NativeAPIClient.getPrefs()
+                booksVC.updatePrefs(prefs)
             }
+            refreshSelectedEmbedded()
         }
     }
 
-    /// Deep links / parent chrome: open the matching Tools destination.
+    /// Deep links / parent chrome: select the matching Tools pill (embedded, not a push).
     func selectHomeFilter(_ id: String) {
         guard let tool = Tool(rawValue: id) else { return }
-        open(tool, animated: false)
+        chips.setSelected(tool.rawValue, animated: false)
+        selectTool(tool, animated: false)
+    }
+
+    private func embedChild(_ child: UIViewController) {
+        addChild(child)
+        child.view.translatesAutoresizingMaskIntoConstraints = false
+        contentHost.addSubview(child.view)
+        NSLayoutConstraint.activate([
+            child.view.topAnchor.constraint(equalTo: contentHost.topAnchor),
+            child.view.leadingAnchor.constraint(equalTo: contentHost.leadingAnchor),
+            child.view.trailingAnchor.constraint(equalTo: contentHost.trailingAnchor),
+            child.view.bottomAnchor.constraint(equalTo: contentHost.bottomAnchor),
+        ])
+        child.didMove(toParent: self)
+        child.view.isHidden = true
+    }
+
+    private func hideEmbeddedTools() {
+        booksVC.view.isHidden = true
+        themesVC.view.isHidden = true
+        listsVC.view.isHidden = true
+        readingVC.view.isHidden = true
+    }
+
+    private func selectTool(_ tool: Tool?, animated: Bool) {
+        selectedTool = tool
+        let apply = {
+            self.hideEmbeddedTools()
+            guard let tool else {
+                self.cardsPanel.isHidden = false
+                return
+            }
+            self.cardsPanel.isHidden = true
+            switch tool {
+            case .books:
+                self.booksVC.view.isHidden = false
+                self.booksVC.reloadFromParent()
+            case .themes:
+                self.themesVC.view.isHidden = false
+                self.themesVC.reloadFromParent()
+            case .lists:
+                self.listsVC.view.isHidden = false
+                self.listsVC.reloadFromParent()
+            case .reading:
+                self.readingVC.view.isHidden = false
+                self.readingVC.reloadFromParent()
+            }
+        }
+        if animated {
+            UIView.transition(with: contentHost, duration: 0.22, options: [.transitionCrossDissolve, .allowUserInteraction], animations: apply)
+        } else {
+            apply()
+        }
+    }
+
+    private func refreshSelectedEmbedded() {
+        guard let selectedTool else { return }
+        switch selectedTool {
+        case .books: booksVC.reloadFromParent()
+        case .themes: themesVC.reloadFromParent()
+        case .lists: listsVC.reloadFromParent()
+        case .reading: readingVC.reloadFromParent()
+        }
     }
 
     private func open(_ tool: Tool, animated: Bool = true) {
+        // Cards still push a dedicated screen; pills keep chrome in place.
         V2NHaptics.selection()
         let vc: UIViewController
         switch tool {
@@ -137,6 +252,7 @@ final class BooksHomeViewController: UIViewController, UICollectionViewDelegate,
     private let modeToggle = V2NModeToggle()
     private let emptyState = V2NEmptyStateView()
     private var collectionView: UICollectionView!
+    private let embedded: Bool
 
     private var books: [NativeAPIClient.BibleBookDTO] = []
     private var filtered: [NativeAPIClient.BibleBookDTO] = []
@@ -148,8 +264,9 @@ final class BooksHomeViewController: UIViewController, UICollectionViewDelegate,
     private var otBooks: [NativeAPIClient.BibleBookDTO] { filtered.filter { $0.testament == "ot" } }
     private var ntBooks: [NativeAPIClient.BibleBookDTO] { filtered.filter { $0.testament == "nt" } }
 
-    init(prefs: NativeAPIClient.PrefsDTO?) {
+    init(prefs: NativeAPIClient.PrefsDTO?, embedded: Bool = false) {
         self.prefs = prefs
+        self.embedded = embedded
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -159,9 +276,14 @@ final class BooksHomeViewController: UIViewController, UICollectionViewDelegate,
     override func viewDidLoad() {
         super.viewDidLoad()
         V2NChrome.styleCanvas(view)
-        title = String(localized: "Livros")
-        navigationItem.largeTitleDisplayMode = .always
-        navigationController?.navigationBar.prefersLargeTitles = true
+        if embedded {
+            title = nil
+            navigationItem.largeTitleDisplayMode = .never
+        } else {
+            title = String(localized: "Livros")
+            navigationItem.largeTitleDisplayMode = .always
+            navigationController?.navigationBar.prefersLargeTitles = true
+        }
 
         applyBooksCompact(resolvedInitialBooksCompact(), rebuild: false)
         modeToggle.onChange = { [weak self] compact in
@@ -208,6 +330,10 @@ final class BooksHomeViewController: UIViewController, UICollectionViewDelegate,
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        if !embedded {
+            navigationController?.navigationBar.prefersLargeTitles = true
+            navigationItem.largeTitleDisplayMode = .always
+        }
         reload()
     }
 
@@ -216,6 +342,18 @@ final class BooksHomeViewController: UIViewController, UICollectionViewDelegate,
         if pendingLayoutRefresh, collectionView.bounds.width > 1 {
             refreshCollectionLayoutIfNeeded(force: true)
         }
+    }
+
+    func updatePrefs(_ prefs: NativeAPIClient.PrefsDTO?) {
+        self.prefs = prefs
+        if isViewLoaded {
+            applyBooksCompact(resolvedInitialBooksCompact(), rebuild: true)
+        }
+    }
+
+    func reloadFromParent() {
+        guard isViewLoaded else { return }
+        reload()
     }
 
     private func resolvedInitialBooksCompact() -> Bool {

@@ -59,6 +59,16 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
         buildHeader()
         applyGlassChromeIfAvailable()
 
+        // Paint immediately from cache so the tab never flashes empty while networking.
+        if NativeAPIClient.hasBearer, let cached = LocalSessionCache.loadMe() {
+            me = cached
+            updateHeader()
+            tableView.reloadData()
+            layoutHeader()
+        } else {
+            updateHeader()
+        }
+
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(reload),
@@ -72,6 +82,12 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
         Task { @MainActor in
             if !NativeAPIClient.hasBearer {
                 _ = await NativeSessionBootstrap.migrateCookieToKeychainIfNeeded()
+            }
+            if me == nil, NativeAPIClient.hasBearer, let cached = LocalSessionCache.loadMe() {
+                me = cached
+                updateHeader()
+                tableView.reloadData()
+                layoutHeader()
             }
             reload()
         }
@@ -161,18 +177,32 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
             guard NativeAPIClient.hasBearer else {
                 me = nil
                 loadError = nil
+                LocalSessionCache.clearMe()
                 updateHeader()
                 tableView.reloadData()
                 return
             }
+            // Keep cached identity on screen while refreshing in the background.
+            if me == nil, let cached = LocalSessionCache.loadMe() {
+                me = cached
+                updateHeader()
+                tableView.reloadData()
+            }
             do {
                 me = try await NativeAPIClient.getMe()
+                LocalSessionCache.showOfflineHint = false
                 loadError = nil
             } catch NativeAPIClient.APIError.unauthorized {
+                // Only real auth failure clears session — never a transport error.
                 me = nil
+                LocalSessionCache.clearMe()
                 loadError = String(localized: "Sessão expirada.")
             } catch {
-                loadError = error.localizedDescription
+                if me == nil, let cached = LocalSessionCache.loadMe() {
+                    me = cached
+                }
+                LocalSessionCache.showOfflineHint = true
+                loadError = me == nil ? error.localizedDescription : nil
             }
             updateHeader()
             tableView.reloadData()
@@ -184,13 +214,19 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
         if let me {
             nameLabel.text = me.displayName.isEmpty ? String(localized: "Sem nome") : me.displayName
             let handle = me.prefs.handle
-            handleLabel.text = handle.isEmpty ? String(localized: "Defina um @usuário") : "@\(handle)"
+            var handleText = handle.isEmpty ? String(localized: "Defina um @usuário") : "@\(handle)"
+            if LocalSessionCache.showOfflineHint {
+                handleText += " · " + String(localized: "Offline")
+            }
+            handleLabel.text = handleText
             emailLabel.text = me.email ?? me.prefs.profileEmail
             tableView.tableHeaderView?.isHidden = false
             loadAvatar(urlString: me.prefs.avatarUrl)
         } else {
             nameLabel.text = String(localized: "Conta Verse2Note")
-            handleLabel.text = NativeAPIClient.hasBearer ? (loadError ?? String(localized: "Carregando…")) : String(localized: "Entre para ver seu perfil.")
+            handleLabel.text = NativeAPIClient.hasBearer
+                ? (loadError ?? String(localized: "Carregando…"))
+                : String(localized: "Entre para ver seu perfil.")
             emailLabel.text = ""
             avatarView.image = UIImage(systemName: "person.crop.circle.fill")
             avatarView.contentMode = .scaleAspectFit
@@ -220,7 +256,8 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
         }
     }
 
-    private var signedIn: Bool { me != nil }
+    /// Bearer (or cached me) means logged in — network errors must not look like logout.
+    private var signedIn: Bool { me != nil || NativeAPIClient.hasBearer }
 
     private func sectionKind(at section: Int) -> Section {
         if !signedIn { return .guest }
