@@ -6,7 +6,7 @@ final class SpeakerEnterDecisionTests: XCTestCase {
         let decision = SpeakerEnterDecision.decide(
             blockType: "speakerSection",
             insideSpeaker: true,
-            paragraphEmpty: true,
+            paragraphEmpty: false,
             isLastBodyOfSection: true
         )
         XCTAssertEqual(decision, .insertBodyFromHeader)
@@ -22,24 +22,24 @@ final class SpeakerEnterDecisionTests: XCTestCase {
         XCTAssertEqual(decision, .exitSection)
     }
 
-    func testEnterOnNonEmptyBodyStaysInside() {
+    func testEnterOnNonEmptyBodyContinuesInSection() {
         let decision = SpeakerEnterDecision.decide(
             blockType: "paragraph",
             insideSpeaker: true,
             paragraphEmpty: false,
             isLastBodyOfSection: true
         )
-        XCTAssertEqual(decision, .defaultNewline)
+        XCTAssertEqual(decision, .continueInSection)
     }
 
-    func testEnterOnEmptyNonLastBodyStaysInside() {
+    func testEnterOnEmptyNonLastBodyContinuesInSection() {
         let decision = SpeakerEnterDecision.decide(
             blockType: "paragraph",
             insideSpeaker: true,
             paragraphEmpty: true,
             isLastBodyOfSection: false
         )
-        XCTAssertEqual(decision, .defaultNewline)
+        XCTAssertEqual(decision, .continueInSection)
     }
 
     func testEmptyListDemotesBeforeExit() {

@@ -693,6 +693,10 @@ enum NoteDocumentCodec {
             var attrs: [NSAttributedString.Key: Any] = [:]
             if piece.length > 0 {
                 attrs = piece.attributes(at: 0, effectiveRange: nil)
+            } else if found.location != NSNotFound, found.location < attributed.length {
+                // Empty paragraph before a newline — take attrs from the newline itself
+                // (body "\n" carries speakerBodyKey; do not copy the previous header).
+                attrs = attributed.attributes(at: found.location, effectiveRange: nil)
             } else if attributed.length > start {
                 attrs = attributed.attributes(at: min(start, attributed.length - 1), effectiveRange: nil)
             }
@@ -701,7 +705,8 @@ enum NoteDocumentCodec {
             start = found.location + found.length
             if start >= ns.length, found.location + found.length == ns.length {
                 // Trailing newline → extra empty paragraph (Apple Notes behavior).
-                let emptyAttrs = attrs
+                // Attributes come from the newline run (speaker body vs outside), not the prior line.
+                let emptyAttrs = attributed.attributes(at: found.location, effectiveRange: nil)
                 lines.append(ParagraphSlice(string: "", attributed: NSAttributedString(string: ""), attributes: emptyAttrs))
                 break
             }

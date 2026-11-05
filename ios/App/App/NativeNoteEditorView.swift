@@ -321,8 +321,11 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             )
             switch decision {
             case .insertBodyFromHeader:
-                // Consume the system newline — applyBlockType inserts the body line once.
                 insertSpeakerBodyParagraph()
+                return false
+            case .continueInSection:
+                // Never let UIKit insert a bare "\n" — new paragraph must carry speakerBodyKey.
+                insertContinuingSpeakerBodyParagraph()
                 return false
             case .demoteListToParagraph:
                 applyBlockType("paragraph", preserveChecked: false)
@@ -338,6 +341,13 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             case .defaultNewline:
                 return true
             }
+        }
+
+        // Typing inside an existing speaker body must keep speakerBodyKey + inset.
+        if caretIsInsideSpeakerSection(), currentBlockType() != "speakerSection" {
+            textView.typingAttributes = SpeakerSectionEditing.bodyTypingAttributes(
+                blockId: currentBlockId()
+            )
         }
 
         if text == "@" || text == "/" {
@@ -477,8 +487,28 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     }
 
     private func insertSpeakerBodyParagraph() {
-        // Sync insert — never also let UITextView insert a second newline.
-        applyBlockType("paragraph", preserveChecked: false)
+        let header = paragraphRange()
+        let result = SpeakerSectionEditing.insertBodyAfterHeader(
+            in: textView.textStorage,
+            headerRange: header
+        )
+        textView.selectedRange = NSRange(location: result.caret, length: 0)
+        textView.typingAttributes = result.typingAttributes
+        emitChange()
+        refreshSpeakerRails()
+        scrollCaretVisible(animated: true)
+    }
+
+    private func insertContinuingSpeakerBodyParagraph() {
+        let result = SpeakerSectionEditing.insertContinuingBodyParagraph(
+            in: textView.textStorage,
+            paragraphRange: paragraphRange()
+        )
+        textView.selectedRange = NSRange(location: result.caret, length: 0)
+        textView.typingAttributes = result.typingAttributes
+        emitChange()
+        refreshSpeakerRails()
+        scrollCaretVisible(animated: true)
     }
 
     /// True when the caret sits in a speaker header or any body paragraph of that section.
@@ -557,34 +587,12 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
     /// Remove the empty trailing body line and place a normal paragraph after the speaker section.
     private func exitSpeakerSection() {
-        let storage = textView.textStorage
-        let ns = storage.string as NSString
-        let para = paragraphRange()
-        var deleteLocation = para.location
-        var deleteLength = para.length
-        if para.location > 0 {
-            let prev = ns.substring(with: NSRange(location: para.location - 1, length: 1))
-            if prev == "\n" {
-                deleteLocation = para.location - 1
-                deleteLength = para.length + 1
-            }
-        }
-        storage.replaceCharacters(in: NSRange(location: deleteLocation, length: deleteLength), with: "")
-
-        var attrs = NoteDocumentCodec.baseAttributesPublic(
-            type: "paragraph",
-            id: NoteDocumentCodec.newId(),
-            checked: nil,
-            speakerId: nil,
-            speakers: [:]
+        let result = SpeakerSectionEditing.exitSection(
+            in: textView.textStorage,
+            emptyBodyRange: paragraphRange()
         )
-        // Do not apply speaker inset / speakerBodyKey — this paragraph is outside the section.
-        attrs.removeValue(forKey: NoteDocumentCodec.speakerBodyKey)
-        let piece = NSAttributedString(string: "\n", attributes: attrs)
-        let insertAt = min(deleteLocation, storage.length)
-        storage.replaceCharacters(in: NSRange(location: insertAt, length: 0), with: piece)
-        textView.selectedRange = NSRange(location: insertAt + 1, length: 0)
-        textView.typingAttributes = attrs
+        textView.selectedRange = NSRange(location: result.caret, length: 0)
+        textView.typingAttributes = result.typingAttributes
         emitChange()
         refreshSpeakerRails()
         scrollCaretVisible(animated: true)
@@ -614,22 +622,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     private func applyBlockType(_ type: String, preserveChecked: Bool) {
         // Never restyle the speaker name header itself into a list/heading.
         if currentBlockType() == "speakerSection", type != "speakerSection" {
-            // Enter on the header → start a body paragraph under the same section.
-            let insertLoc = NSMaxRange(paragraphRange())
-            var attrs = NoteDocumentCodec.baseAttributesPublic(
-                type: "paragraph",
-                id: NoteDocumentCodec.newId(),
-                checked: nil,
-                speakerId: nil,
-                speakers: [:]
-            )
-            attrs = NoteDocumentCodec.applyingSpeakerSectionInset(attrs)
-            let piece = NSAttributedString(string: "\n", attributes: attrs)
-            textView.textStorage.replaceCharacters(in: NSRange(location: insertLoc, length: 0), with: piece)
-            textView.selectedRange = NSRange(location: insertLoc + 1, length: 0)
-            textView.typingAttributes = attrs
-            emitChange()
-            refreshSpeakerRails()
+            insertSpeakerBodyParagraph()
             return
         }
 
@@ -1232,6 +1225,8 @@ extension NoteDocumentCodec {
 /// Pure decision for Enter inside/near speaker sections — keeps UIKit out of XCTest.
 enum SpeakerEnterDecision: Equatable {
     case insertBodyFromHeader
+    /// New paragraph that must stay inside the speaker (manual insert with speakerBodyKey).
+    case continueInSection
     case demoteListToParagraph
     case exitSection
     case continueList(String)
@@ -1246,13 +1241,17 @@ enum SpeakerEnterDecision: Equatable {
         if blockType == "speakerSection" {
             return .insertBodyFromHeader
         }
-        if insideSpeaker, paragraphEmpty {
-            if blockType == "bullet" || blockType == "numbered" || blockType == "check" || blockType == "quote" {
-                return .demoteListToParagraph
+        if insideSpeaker {
+            if paragraphEmpty {
+                if blockType == "bullet" || blockType == "numbered" || blockType == "check" || blockType == "quote" {
+                    return .demoteListToParagraph
+                }
+                if isLastBodyOfSection {
+                    return .exitSection
+                }
             }
-            if isLastBodyOfSection {
-                return .exitSection
-            }
+            // Non-empty body Enter, or empty non-last body → stay inside with a real body run.
+            return .continueInSection
         }
         if blockType == "bullet" || blockType == "numbered" || blockType == "check" || blockType == "quote" {
             return .continueList(blockType)
