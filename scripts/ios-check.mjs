@@ -218,6 +218,20 @@ if (!editor.includes("exitSpeakerSection") || !editor.includes("isLastBodyParagr
 if (!editor.includes("enum SpeakerEnterDecision") || !editor.includes("insertSpeakerBodyParagraph") || !editor.includes("ensureTypingAttributes")) {
   errors.push("Editor tem de estabilizar typingAttributes e Enter do speaker (SpeakerEnterDecision).");
 }
+if (!editor.includes("continueInSection") || !editor.includes("insertContinuingSpeakerBodyParagraph")) {
+  errors.push("Enter no corpo do orador tem de continuar dentro da secção (continueInSection).");
+}
+try {
+  const speakerEdit = read("ios/App/App/SpeakerSectionEditing.swift");
+  if (!speakerEdit.includes("insertBodyAfterHeader") || !speakerEdit.includes("\\u{200B}") || !speakerEdit.includes("speakerBodyKey")) {
+    errors.push("SpeakerSectionEditing tem de inserir corpo com ZWSP + speakerBodyKey.");
+  }
+} catch {
+  errors.push("Falta SpeakerSectionEditing.swift");
+}
+if (!project.includes("SpeakerSectionEditing.swift in Sources") || !project.includes("SpeakerSectionEditingTests.swift in Sources")) {
+  errors.push("SpeakerSectionEditing (+ tests) têm de estar no target Xcode.");
+}
 if (!editor.includes("typingAttributesForCaret") || !codec.includes("\\u{200B}")) {
   errors.push("Nota vazia / load path tem de criar runs atribuídos (ZWSP) e definir typingAttributes no pushNote.");
 }
