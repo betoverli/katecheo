@@ -20,6 +20,8 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
     private let topChrome = UIStackView()
     private let syncButton = UIButton(type: .system)
     private var syncState: SyncState = .idle
+    /// Local edits since the last clean `pushNote` — blocks API refresh from wiping the caret/IME.
+    private var hasLocalEdits = false
 
     init(noteId: String, initial: NativeAPIClient.NoteDocument?) {
         self.noteId = noteId
@@ -189,17 +191,25 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         do {
             let packed = try await NativeAPIClient.getNote(id: noteId)
             await MainActor.run {
-                self.note = packed.note
                 self.speakers = packed.speakers
+                if self.hasLocalEdits {
+                    // Keep the live editor buffer — only refresh speaker chrome / metadata.
+                    self.refreshSpeakerChip()
+                    return
+                }
+                self.note = packed.note
                 self.updateTitle()
                 self.applySyncState(.synced)
                 self.editor.pushNote(self.note, speakers: self.speakers)
+                self.hasLocalEdits = false
                 self.refreshSpeakerChip()
             }
         } catch {
             await MainActor.run {
                 self.applySyncState(.pendingLocal)
-                self.editor.pushNote(self.note, speakers: self.speakers)
+                if !self.hasLocalEdits {
+                    self.editor.pushNote(self.note, speakers: self.speakers)
+                }
                 self.refreshSpeakerChip()
             }
         }
@@ -246,6 +256,7 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         next.visibility = note.visibility
         next.schemaVersion = 1
         note = next
+        hasLocalEdits = true
         updateTitle()
         LocalNoteCache.upsertNote(note)
         scheduleSave()
@@ -315,7 +326,9 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         do {
             let saved = try await NativeAPIClient.upsertNote(note)
             await MainActor.run {
-                self.note = saved
+                // Don't pushNote after save — that would reset caret / undo / IME.
+                self.note.updatedAt = saved.updatedAt
+                self.hasLocalEdits = false
                 self.applySyncState(.synced)
             }
         } catch NativeAPIClient.APIError.unauthorized {
@@ -415,6 +428,7 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
             LocalNoteCache.upsertNote(updated)
             self.scheduleSave()
             self.editor.pushNote(self.note, speakers: self.speakers)
+            self.hasLocalEdits = false
         }
         let nav = UINavigationController(rootViewController: settings)
         if let sheet = nav.sheetPresentationController {

@@ -43,6 +43,45 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             DEVELOPMENT_TEAM="" \
             build
+      - name: Testes do editor (AppTests)
+        run: |
+          set -euo pipefail
+          DEST="$(
+            python3 - <<'PY'
+import json, subprocess
+raw = subprocess.check_output(["xcrun", "simctl", "list", "devices", "available", "-j"], text=True)
+data = json.loads(raw)
+preferred = ("iPhone 16", "iPhone 16 Pro", "iPhone 15", "iPhone 15 Pro", "iPhone SE")
+found = []
+for runtime, devices in data.get("devices", {}).items():
+    if "iOS" not in runtime and "iPhone" not in runtime:
+        continue
+    for d in devices:
+        if d.get("isAvailable") and d.get("name", "").startswith("iPhone"):
+            found.append(d["name"])
+for name in preferred:
+    if name in found:
+        print(f"platform=iOS Simulator,name={name}")
+        break
+else:
+    if not found:
+        raise SystemExit("Nenhum iPhone Simulator disponível")
+    print(f"platform=iOS Simulator,name={found[0]}")
+PY
+          )"
+          echo "Destino dos testes: $DEST"
+          xcodebuild \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination "$DEST" \
+            -derivedDataPath "${RUNNER_TEMP}/verse2note-ios" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            test
 
   testflight:
     name: Assinar e enviar ao TestFlight
