@@ -46,29 +46,21 @@ jobs:
       - name: Testes do editor (AppTests)
         run: |
           set -euo pipefail
-          DEST="$(
-            python3 - <<'PY'
-import json, subprocess
-raw = subprocess.check_output(["xcrun", "simctl", "list", "devices", "available", "-j"], text=True)
-data = json.loads(raw)
-preferred = ("iPhone 16", "iPhone 16 Pro", "iPhone 15", "iPhone 15 Pro", "iPhone SE")
-found = []
-for runtime, devices in data.get("devices", {}).items():
-    if "iOS" not in runtime and "iPhone" not in runtime:
-        continue
-    for d in devices:
-        if d.get("isAvailable") and d.get("name", "").startswith("iPhone"):
-            found.append(d["name"])
-for name in preferred:
-    if name in found:
-        print(f"platform=iOS Simulator,name={name}")
-        break
-else:
-    if not found:
-        raise SystemExit("Nenhum iPhone Simulator disponível")
-    print(f"platform=iOS Simulator,name={found[0]}")
-PY
-          )"
+          DEST="$(node -e '
+            const {execSync}=require("child_process");
+            const data=JSON.parse(execSync("xcrun simctl list devices available -j",{encoding:"utf8"}));
+            const preferred=["iPhone 16","iPhone 16 Pro","iPhone 15","iPhone 15 Pro","iPhone SE"];
+            const found=[];
+            for (const [runtime, devices] of Object.entries(data.devices||{})) {
+              if (!/iOS|iPhone/i.test(runtime)) continue;
+              for (const d of devices) {
+                if (d.isAvailable && String(d.name||"").startsWith("iPhone")) found.push(d.name);
+              }
+            }
+            const pick = preferred.find((n)=>found.includes(n)) || found[0];
+            if (!pick) { console.error("Nenhum iPhone Simulator disponível"); process.exit(1); }
+            process.stdout.write("platform=iOS Simulator,name="+pick);
+          ')"
           echo "Destino dos testes: $DEST"
           xcodebuild \
             -project ios/App/App.xcodeproj \
