@@ -487,6 +487,8 @@ final class V2NFilterChipsView: UIView {
         button.accessibilityLabel = chip.title
         button.addTarget(self, action: #selector(tap(_:)), for: .touchUpInside)
         button.heightAnchor.constraint(equalToConstant: 34).isActive = true
+        // Floor width so icon-only pills stay capsule-shaped (wider than tall).
+        button.widthAnchor.constraint(greaterThanOrEqualToConstant: 48).isActive = true
         applyStyle(to: button, chip: chip, selected: selected)
         return button
     }
@@ -502,7 +504,9 @@ final class V2NFilterChipsView: UIView {
             config.imagePlacement = .leading
         }
         config.cornerStyle = .capsule
-        let horizontal: CGFloat = selected ? 14 : 10
+        // Unselected icon-only pills need generous horizontal inset so they read as
+        // capsules (wider than tall), not near-circles.
+        let horizontal: CGFloat = selected ? 14 : 16
         config.contentInsets = NSDirectionalEdgeInsets(top: 7, leading: horizontal, bottom: 7, trailing: horizontal)
         config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
             var out = incoming

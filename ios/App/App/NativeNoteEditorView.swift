@@ -84,6 +84,8 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
         let tap = UITapGestureRecognizer(target: self, action: #selector(handleTap(_:)))
         tap.delegate = self
+        // Cancel the text view's caret move when we handle bible/speaker/check taps.
+        tap.cancelsTouchesInView = true
         textView.addGestureRecognizer(tap)
 
         observeKeyboard()
@@ -707,8 +709,15 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         guard gesture.state == .ended else { return }
         dismissTriggerMenu()
         let point = gesture.location(in: textView)
+        let savedSelection = textView.selectedRange
+        let wasEditing = textView.isFirstResponder
 
         if let ref = bibleRef(at: point) {
+            // Opening a bible app must not move the caret or begin editing.
+            textView.selectedRange = savedSelection
+            if !wasEditing {
+                textView.resignFirstResponder()
+            }
             delegate?.nativeNoteEditor(self, openBibleRef: ref)
             return
         }
@@ -729,6 +738,15 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
                 emitChange()
             }
         }
+    }
+
+    private func isSpecialTapTarget(at point: CGPoint) -> Bool {
+        if bibleRef(at: point) != nil { return true }
+        guard let index = characterIndex(at: point, requireHitBounds: false),
+              index < textView.textStorage.length
+        else { return false }
+        let type = textView.textStorage.attributes(at: index, effectiveRange: nil)[NoteDocumentCodec.blockTypeKey] as? String
+        return type == "speakerSection" || type == "check"
     }
 
     private func toggleSpeakerCollapsed(at index: Int) {
@@ -992,8 +1010,18 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 }
 
 extension NativeNoteEditorView: UIGestureRecognizerDelegate {
-    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-        true
+    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        // Only steal taps that hit bible pills / speaker headers / checkboxes —
+        // so a bible-ref tap never moves the caret into the next line.
+        let point = gestureRecognizer.location(in: textView)
+        return isSpecialTapTarget(at: point)
+    }
+
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+        false
     }
 }
 
@@ -1011,18 +1039,22 @@ extension NoteDocumentCodec {
         // Mirror private baseAttributes by round-tripping a tiny attributed string.
         let style = NSMutableParagraphStyle()
         style.lineSpacing = 3
+        style.paragraphSpacing = 10
         var font = UIFont.preferredFont(forTextStyle: .body)
         let foreground: UIColor = .label
         switch type {
         case "heading":
             font = UIFont.preferredFont(forTextStyle: id == "title" ? .title1 : .title2)
-            style.paragraphSpacingBefore = id == "title" ? 0 : 8
+            style.paragraphSpacingBefore = id == "title" ? 0 : 10
+            style.paragraphSpacing = id == "title" ? 8 : 10
         case "bullet", "numbered", "check":
             style.headIndent = 22
             style.firstLineHeadIndent = 0
+            style.paragraphSpacing = 8
         case "quote":
             style.headIndent = 16
             style.firstLineHeadIndent = 16
+            style.paragraphSpacing = 10
             if let descriptor = font.fontDescriptor.withSymbolicTraits(font.fontDescriptor.symbolicTraits.union(.traitItalic)) {
                 font = UIFont(descriptor: descriptor, size: font.pointSize)
             }

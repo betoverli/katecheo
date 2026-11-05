@@ -1,8 +1,8 @@
 import UIKit
 
-/// Ferramentas (Tools) tab: shared pills + cards home.
-/// Pills switch embedded content in place; deselect returns to the cards hub.
-final class VersesHomeViewController: UIViewController, UICollectionViewDelegate, UICollectionViewDataSource {
+/// Ferramentas (Tools) tab: shared pills switch embedded content in place.
+/// Opens on the last-used pill (UserDefaults) or Livros by default — no cards hub.
+final class VersesHomeViewController: UIViewController {
     private enum Tool: String, CaseIterable {
         case books, themes, lists, reading
 
@@ -12,15 +12,6 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
             case .themes: return String(localized: "Temas")
             case .lists: return String(localized: "Listas")
             case .reading: return String(localized: "Leitura")
-            }
-        }
-
-        var subtitle: String {
-            switch self {
-            case .books: return String(localized: "Escolha livro, capítulo e versículo")
-            case .themes: return String(localized: "Coleções temáticas de referências")
-            case .lists: return String(localized: "Suas listas pessoais de versículos")
-            case .reading: return String(localized: "Planos de leitura por capítulos")
             }
         }
 
@@ -34,12 +25,12 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
         }
     }
 
+    private static let lastToolKey = "v2n.ferramentas.lastTool"
+
     private let chips = V2NFilterChipsView()
     private let contentHost = UIView()
-    private let cardsPanel = UIView()
-    private var collectionView: UICollectionView!
     private var prefs: NativeAPIClient.PrefsDTO?
-    private var selectedTool: Tool?
+    private var selectedTool: Tool = .books
 
     private lazy var booksVC = BooksHomeViewController(prefs: nil, embedded: true)
     private lazy var themesVC = ThemesHomeViewController(prefs: nil, embedded: true)
@@ -53,51 +44,24 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
         navigationController?.navigationBar.prefersLargeTitles = true
         navigationItem.largeTitleDisplayMode = .always
 
-        chips.allowsDeselect = true
+        let initial = restoredTool()
+        selectedTool = initial
+        // Always keep one pill selected — no cards fallback.
+        chips.allowsDeselect = false
         chips.configure(
             chips: Tool.allCases.map { V2NFilterChip(id: $0.rawValue, title: $0.title, systemImage: $0.symbol) },
-            selectedId: nil
+            selectedId: initial.rawValue
         )
         chips.onSelect = { [weak self] id in
-            self?.selectTool(id.flatMap(Tool.init(rawValue:)), animated: true)
+            guard let id, let tool = Tool(rawValue: id) else { return }
+            self?.selectTool(tool, animated: true)
         }
 
         contentHost.translatesAutoresizingMaskIntoConstraints = false
         contentHost.backgroundColor = .clear
-        cardsPanel.translatesAutoresizingMaskIntoConstraints = false
-        cardsPanel.backgroundColor = .clear
-
-        let layout = UICollectionViewCompositionalLayout { _, env in
-            let width = env.container.effectiveContentSize.width
-            let columns = width > 600 ? 2 : 2
-            let itemSize = NSCollectionLayoutSize(
-                widthDimension: .fractionalWidth(1 / CGFloat(columns)),
-                heightDimension: .absolute(148)
-            )
-            let item = NSCollectionLayoutItem(layoutSize: itemSize)
-            item.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8)
-            let group = NSCollectionLayoutGroup.horizontal(
-                layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1), heightDimension: .absolute(148)),
-                subitem: item,
-                count: columns
-            )
-            let section = NSCollectionLayoutSection(group: group)
-            section.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 12, bottom: 24, trailing: 12)
-            return section
-        }
-
-        collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
-        collectionView.translatesAutoresizingMaskIntoConstraints = false
-        collectionView.backgroundColor = .clear
-        collectionView.alwaysBounceVertical = true
-        collectionView.delegate = self
-        collectionView.dataSource = self
-        collectionView.register(V2NToolCardCell.self, forCellWithReuseIdentifier: V2NToolCardCell.reuseId)
 
         view.addSubview(chips)
         view.addSubview(contentHost)
-        contentHost.addSubview(cardsPanel)
-        cardsPanel.addSubview(collectionView)
 
         NSLayoutConstraint.activate([
             chips.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: V2NDesign.Space.xxs),
@@ -108,24 +72,13 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
             contentHost.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             contentHost.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             contentHost.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-
-            cardsPanel.topAnchor.constraint(equalTo: contentHost.topAnchor),
-            cardsPanel.leadingAnchor.constraint(equalTo: contentHost.leadingAnchor),
-            cardsPanel.trailingAnchor.constraint(equalTo: contentHost.trailingAnchor),
-            cardsPanel.bottomAnchor.constraint(equalTo: contentHost.bottomAnchor),
-
-            collectionView.topAnchor.constraint(equalTo: cardsPanel.topAnchor),
-            collectionView.leadingAnchor.constraint(equalTo: cardsPanel.leadingAnchor),
-            collectionView.trailingAnchor.constraint(equalTo: cardsPanel.trailingAnchor),
-            collectionView.bottomAnchor.constraint(equalTo: cardsPanel.bottomAnchor),
         ])
 
         embedChild(booksVC)
         embedChild(themesVC)
         embedChild(listsVC)
         embedChild(readingVC)
-        hideEmbeddedTools()
-        cardsPanel.isHidden = false
+        selectTool(initial, animated: false)
 
         _ = V2NGlassMaterial.sdkHasLiquidGlass()
     }
@@ -150,6 +103,19 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
         selectTool(tool, animated: false)
     }
 
+    private func restoredTool() -> Tool {
+        if let raw = UserDefaults.standard.string(forKey: Self.lastToolKey),
+           let tool = Tool(rawValue: raw)
+        {
+            return tool
+        }
+        return .books
+    }
+
+    private func persistTool(_ tool: Tool) {
+        UserDefaults.standard.set(tool.rawValue, forKey: Self.lastToolKey)
+    }
+
     private func embedChild(_ child: UIViewController) {
         addChild(child)
         child.view.translatesAutoresizingMaskIntoConstraints = false
@@ -171,15 +137,11 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
         readingVC.view.isHidden = true
     }
 
-    private func selectTool(_ tool: Tool?, animated: Bool) {
+    private func selectTool(_ tool: Tool, animated: Bool) {
         selectedTool = tool
+        persistTool(tool)
         let apply = {
             self.hideEmbeddedTools()
-            guard let tool else {
-                self.cardsPanel.isHidden = false
-                return
-            }
-            self.cardsPanel.isHidden = true
             switch tool {
             case .books:
                 self.booksVC.view.isHidden = false
@@ -203,45 +165,12 @@ final class VersesHomeViewController: UIViewController, UICollectionViewDelegate
     }
 
     private func refreshSelectedEmbedded() {
-        guard let selectedTool else { return }
         switch selectedTool {
         case .books: booksVC.reloadFromParent()
         case .themes: themesVC.reloadFromParent()
         case .lists: listsVC.reloadFromParent()
         case .reading: readingVC.reloadFromParent()
         }
-    }
-
-    private func open(_ tool: Tool, animated: Bool = true) {
-        // Cards still push a dedicated screen; pills keep chrome in place.
-        V2NHaptics.selection()
-        let vc: UIViewController
-        switch tool {
-        case .books:
-            vc = BooksHomeViewController(prefs: prefs)
-        case .themes:
-            vc = ThemesHomeViewController(prefs: prefs, embedded: false)
-        case .lists:
-            vc = MyCollectionsViewController(embedded: false)
-        case .reading:
-            vc = ReadingHomeViewController(embedded: false)
-        }
-        navigationController?.pushViewController(vc, animated: animated)
-    }
-
-    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        Tool.allCases.count
-    }
-
-    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NToolCardCell.reuseId, for: indexPath) as! V2NToolCardCell
-        let tool = Tool.allCases[indexPath.item]
-        cell.configure(title: tool.title, subtitle: tool.subtitle, systemImage: tool.symbol)
-        return cell
-    }
-
-    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
-        open(Tool.allCases[indexPath.item])
     }
 }
 

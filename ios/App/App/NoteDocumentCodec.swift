@@ -262,26 +262,31 @@ enum NoteDocumentCodec {
     ) -> [NSAttributedString.Key: Any] {
         let style = NSMutableParagraphStyle()
         style.lineSpacing = 3
+        // Breathing room between paragraphs (reading + editing) — not blank lines.
+        style.paragraphSpacing = 10
         var font = UIFont.preferredFont(forTextStyle: .body)
         var foreground: UIColor = .label
         switch type {
         case "heading":
             font = UIFont.preferredFont(forTextStyle: id == "title" ? .title1 : .title2)
-            style.paragraphSpacingBefore = id == "title" ? 0 : 8
+            style.paragraphSpacingBefore = id == "title" ? 0 : 10
+            style.paragraphSpacing = id == "title" ? 8 : 10
         case "speakerSection":
             // Name-only header (no "Speaker" label) — matches original web `.note-speaker-name`.
             font = V2NDesign.preferred(.title3, weight: .semibold)
-            style.paragraphSpacingBefore = 12
-            style.paragraphSpacing = 2
+            style.paragraphSpacingBefore = 14
+            style.paragraphSpacing = 8
             foreground = .label
             _ = speakers
         case "bullet", "numbered", "check":
             style.headIndent = 22
             style.firstLineHeadIndent = 0
+            style.paragraphSpacing = 8
         case "quote":
             style.headIndent = 16
             style.firstLineHeadIndent = 16
             font = UIFont.preferredFont(forTextStyle: .body).italic()
+            style.paragraphSpacing = 10
         default:
             break
         }
