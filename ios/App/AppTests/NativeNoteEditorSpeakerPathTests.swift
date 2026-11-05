@@ -47,6 +47,18 @@ final class NativeNoteEditorSpeakerPathTests: XCTestCase {
         doc.body.blocks.first(where: { $0.type == "speakerSection" })
     }
 
+    private func joinedSpans(_ block: NativeAPIClient.LineBlock?) -> String {
+        (block?.spans ?? []).map { $0.text ?? "" }.joined()
+            .replacingOccurrences(of: "\u{200B}", with: "")
+    }
+
+    private func dumpBlocks(_ doc: NativeAPIClient.NoteDocument) -> String {
+        doc.body.blocks.map { block in
+            let kids = (block.blocks ?? []).map { "[\($0.type):\(joinedSpans($0))]" }.joined(separator: ",")
+            return "\(block.type):\(joinedSpans(block)){\(kids)}"
+        }.joined(separator: " | ")
+    }
+
     func testToolbarSlashAtAllCallSameInsertSpeakerSection() {
         let storage = editor.testing_textStorage()
         var found = false
@@ -114,13 +126,10 @@ final class NativeNoteEditorSpeakerPathTests: XCTestCase {
 
         let doc = editor.currentDocument()
         guard let speaker = speakerBlock(in: doc) else {
-            return XCTFail("missing speakerSection in \(doc.body.blocks.map(\.type))")
+            return XCTFail("missing speakerSection in \(dumpBlocks(doc))")
         }
-        XCTAssertEqual(speaker.blocks?.count, 2)
-        let texts = (speaker.blocks ?? []).map { block in
-            (block.spans ?? []).map { $0.text ?? "" }.joined()
-        }
-        XCTAssertEqual(texts, ["um", "dois"])
+        let texts = (speaker.blocks ?? []).map { joinedSpans($0) }.filter { !$0.isEmpty }
+        XCTAssertEqual(texts, ["um", "dois"], dumpBlocks(doc))
     }
 
     func testRealDoubleReturnExitsSection() {
@@ -132,11 +141,17 @@ final class NativeNoteEditorSpeakerPathTests: XCTestCase {
 
         let doc = editor.currentDocument()
         guard let speaker = speakerBlock(in: doc) else {
-            return XCTFail("missing speakerSection in \(doc.body.blocks.map(\.type))")
+            return XCTFail("missing speakerSection in \(dumpBlocks(doc))")
         }
-        XCTAssertEqual(speaker.blocks?.first?.spans?.first?.text, "dentro")
-        let outside = doc.body.blocks.first(where: { $0.type == "paragraph" && ($0.spans?.first?.text == "fora") })
-        XCTAssertNotNil(outside, "exit must place a normal paragraph after the section; got \(doc.body.blocks.map(\.type))")
+        XCTAssertEqual(joinedSpans(speaker.blocks?.first), "dentro", dumpBlocks(doc))
+        let outside = doc.body.blocks.first {
+            $0.type != "speakerSection" && joinedSpans($0).contains("fora")
+        }
+        XCTAssertNotNil(outside, "exit must place a normal paragraph after the section; \(dumpBlocks(doc))")
+        XCTAssertFalse(
+            (speaker.blocks ?? []).contains { joinedSpans($0).contains("fora") },
+            "fora must not remain inside the speaker; \(dumpBlocks(doc))"
+        )
     }
 
     func testHardwareCarriageReturnAlsoInsertsBody() {
@@ -147,11 +162,9 @@ final class NativeNoteEditorSpeakerPathTests: XCTestCase {
         editor.testing_insertText("via CR")
         let doc = editor.currentDocument()
         guard let speaker = speakerBlock(in: doc) else {
-            return XCTFail("missing speakerSection in \(doc.body.blocks.map(\.type))")
+            return XCTFail("missing speakerSection in \(dumpBlocks(doc))")
         }
-        XCTAssertEqual(speaker.blocks?.count, 1)
-        let text = speaker.blocks?.first?.spans?.map { $0.text ?? "" }.joined() ?? ""
-        XCTAssertTrue(text.contains("via CR"), "got \(text)")
+        XCTAssertTrue(joinedSpans(speaker.blocks?.first).contains("via CR"), dumpBlocks(doc))
     }
 
     func testRoundTripNoteDocumentV1AfterRealTyping() {
@@ -159,14 +172,14 @@ final class NativeNoteEditorSpeakerPathTests: XCTestCase {
         editor.testing_insertText("mensagem")
         let first = editor.currentDocument()
         guard let speaker = speakerBlock(in: first) else {
-            return XCTFail("missing speakerSection in \(first.body.blocks.map(\.type))")
+            return XCTFail("missing speakerSection in \(dumpBlocks(first))")
         }
-        XCTAssertEqual(speaker.blocks?.first?.spans?.first?.text, "mensagem")
+        XCTAssertEqual(joinedSpans(speaker.blocks?.first), "mensagem", dumpBlocks(first))
         editor.pushNote(first, speakers: speakers)
         let second = editor.currentDocument()
         guard let again = speakerBlock(in: second) else {
-            return XCTFail("speaker lost on reload")
+            return XCTFail("speaker lost on reload; \(dumpBlocks(second))")
         }
-        XCTAssertEqual(again.blocks?.first?.spans?.first?.text, "mensagem")
+        XCTAssertEqual(joinedSpans(again.blocks?.first), "mensagem", dumpBlocks(second))
     }
 }

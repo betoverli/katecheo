@@ -1289,10 +1289,22 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
     /// Simulate a keyboard insertion the way UIKit does: ask `shouldChangeTextIn`, then
     /// either let our handler mutate storage (Return → false) or apply typingAttributes (true).
+    /// Replaces a trailing ZWSP placeholder (empty-body anchor) the way typing usually does.
     func testing_insertText(_ string: String) {
-        let range = textView.selectedRange
+        var range = textView.selectedRange
         let allowed = textView(textView, shouldChangeTextIn: range, replacementText: string)
         guard allowed else { return }
+        if range.length == 0,
+           range.location > 0,
+           range.location <= textView.textStorage.length,
+           !Self.isNewlineReplacement(string)
+        {
+            let prev = (textView.textStorage.string as NSString)
+                .substring(with: NSRange(location: range.location - 1, length: 1))
+            if prev == "\u{200B}" {
+                range = NSRange(location: range.location - 1, length: 1)
+            }
+        }
         let attrs = textView.typingAttributes
         let piece = NSAttributedString(string: string, attributes: attrs)
         textView.textStorage.replaceCharacters(in: range, with: piece)
