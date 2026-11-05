@@ -19,6 +19,8 @@ enum NoteDocumentCodec {
     static let collapsedKey = NSAttributedString.Key("v2n.collapsed")
     /// Marks a leading "• " / "1. " glyph that is display-only (not part of NoteDocumentV1 text).
     static let listMarkerKey = NSAttributedString.Key("v2n.listMarker")
+    /// Body paragraphs that still belong to the open speaker section (cleared when the user exits).
+    static let speakerBodyKey = NSAttributedString.Key("v2n.speakerBody")
     /// Left inset for speaker-section header + body (matches web `.note-speaker` padding-left).
     static let speakerSectionContentInset: CGFloat = 14
     /// Vertical rail width (matches web `border-left: 2px`).
@@ -199,7 +201,13 @@ enum NoteDocumentCodec {
         style.firstLineHeadIndent = max(style.firstLineHeadIndent, inset)
         style.headIndent = max(style.headIndent, inset)
         next[.paragraphStyle] = style
+        next[speakerBodyKey] = true
         return next
+    }
+
+    /// True when the paragraph still belongs to a speaker section body (not after double-Enter exit).
+    static func isSpeakerBody(_ attrs: [NSAttributedString.Key: Any]) -> Bool {
+        (attrs[speakerBodyKey] as? Bool) == true
     }
 
     static func listMarkerString(type: String, checked: Bool?, number: Int = 1) -> String? {
@@ -388,6 +396,10 @@ enum NoteDocumentCodec {
                     if (nextAttrs[blockTypeKey] as? String) == "speakerSection" {
                         break
                     }
+                    // Stop before paragraphs that exited the section (double Enter).
+                    if !isSpeakerBody(nextAttrs) {
+                        break
+                    }
                     end = NSMaxRange(next)
                     look += 1
                 }
@@ -437,17 +449,15 @@ enum NoteDocumentCodec {
         case gospel, nt, ot
     }
 
+    /// Always formats from `bookId` + chapter/verses using the user's reference language
+    /// (`copyLocale`, falling back to the iPhone language) — never trusts stored English labels.
     static func displayText(for ref: BibleRefPayload) -> String {
-        if let text = ref.text?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty {
-            return text
-        }
-        if let start = ref.verseStart {
-            if let end = ref.verseEnd, end != start {
-                return "\(ref.bookId) \(ref.chapter):\(start)–\(end)"
-            }
-            return "\(ref.bookId) \(ref.chapter):\(start)"
-        }
-        return "\(ref.bookId) \(ref.chapter)"
+        BibleBookCatalog.formatPassage(
+            bookId: ref.bookId,
+            chapter: ref.chapter,
+            verseStart: ref.verseStart,
+            verseEnd: ref.verseEnd
+        )
     }
 
     // MARK: - Attributed → Document
@@ -502,10 +512,16 @@ enum NoteDocumentCodec {
             }
             let block = lineBlock(from: line, type: type, id: id)
             if var speaker = currentSpeaker {
-                var children = speaker.blocks ?? []
-                children.append(block)
-                speaker.blocks = children
-                currentSpeaker = speaker
+                // Paragraphs after double-Enter exit lose `speakerBodyKey` and must not be absorbed.
+                if isSpeakerBody(line.attributes) {
+                    var children = speaker.blocks ?? []
+                    children.append(block)
+                    speaker.blocks = children
+                    currentSpeaker = speaker
+                } else {
+                    flushSpeaker()
+                    bodyBlocks.append(block)
+                }
             } else {
                 bodyBlocks.append(block)
             }

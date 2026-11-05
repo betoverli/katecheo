@@ -15219,6 +15219,52 @@
           }
         }
       }
+    },
+    "Tente outra busca ou crie um tema pessoal.": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tente outra busca ou crie um tema pessoal."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try another search or create a personal theme."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prueba otra búsqueda o crea un tema personal."
+          }
+        }
+      }
+    },
+    "Lista vazia": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lista vazia"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Empty list"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lista vacía"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

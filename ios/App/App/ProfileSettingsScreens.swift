@@ -346,6 +346,7 @@ final class ProfileLanguageViewController: UITableViewController {
         }
         let option = copyLocales[indexPath.row]
         prefs.copyLocale = option.id
+        ReferencePrefs.copyLocale = option.id
         tableView.reloadData()
         Task { @MainActor in
             do {

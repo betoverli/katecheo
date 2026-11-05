@@ -206,8 +206,20 @@ if (!editor.includes("toggleSpeakerCollapsed") || !codec.includes("collapsedKey"
 if (!editor.includes("isSpecialTapTarget") || !editor.includes("gestureRecognizerShouldBegin")) {
   errors.push("Toque em referência bíblica não pode mover o caret.");
 }
+if (!editor.includes("override func gestureRecognizerShouldBegin")) {
+  errors.push("gestureRecognizerShouldBegin tem de usar override (UIView já define o método).");
+}
 if (!codec.includes("paragraphSpacing = 10") || !editor.includes("paragraphSpacing = 10")) {
   errors.push("Corpo da nota tem de ter espaçamento entre parágrafos (paragraphSpacing).");
+}
+if (!editor.includes("exitSpeakerSection") || !editor.includes("isLastBodyParagraphOfSpeakerSection") || !codec.includes("speakerBodyKey")) {
+  errors.push("Enter duplo num parágrafo vazio tem de sair da secção de speaker (speakerBodyKey + exitSpeakerSection).");
+}
+if (!editor.includes("class NoteEditorTextView") || !editor.includes("override func caretRect(for")) {
+  errors.push("Caret do editor tem de limitar a altura à lineHeight da fonte (NoteEditorTextView.caretRect).");
+}
+if (!codec.includes("BibleBookCatalog.formatPassage") || !project.includes("BibleBookCatalog.swift in Sources")) {
+  errors.push("Referências nas notas têm de formatar nomes via BibleBookCatalog (idioma de referências).");
 }
 const biblePicker = read("ios/App/App/BibleRefInsertPicker.swift");
 if (!biblePicker.includes("V2NNumberCell") || !biblePicker.includes("V2NNumberGridLayout") || biblePicker.includes("UITableViewController")) {
@@ -440,8 +452,15 @@ if (!notebookList.includes("Membros") || !notebookList.includes("GroupMembersVie
 if (!components.includes("allowsDeselect") || !components.includes("config.title = selected ? chip.title")) {
   errors.push("V2NFilterChipsView: ícone só quando não selecionado; ícone+nome quando selecionado.");
 }
-if (!components.includes("leading: horizontal") || !/selected \? 14 : 16/.test(components) || !components.includes("greaterThanOrEqualToConstant: 48")) {
-  errors.push("Pills não selecionadas têm de ser cápsulas largas (padding ≥16 / min width 48).");
+if (!components.includes("leading: horizontal") || !/selected \? 16 : 24/.test(components) || !components.includes("greaterThanOrEqualToConstant: 72")) {
+  errors.push("Pills não selecionadas têm de ser cápsulas largas (padding ≥24 / min width 72).");
+}
+if (!components.includes("v2nApplyBrandListStyle") || !components.includes("v2nApplyBrandChrome")) {
+  errors.push("Temas/Listas têm de usar helpers de marca (sem tint azul de sistema).");
+}
+const versesScreens = read("ios/App/App/VersesScreens.swift");
+if (!versesScreens.includes("v2nApplyBrandListStyle") || !versesScreens.includes("V2NEmptyStateView") || !versesScreens.includes("V2NDesign.accent")) {
+  errors.push("Temas e Listas têm de usar empty states e tint de marca.");
 }
 if (!project.includes("LocalSessionCache.swift in Sources") || !project.includes("GroupMembersViewController.swift in Sources")) {
   errors.push("LocalSessionCache / GroupMembersViewController têm de estar no target Xcode.");

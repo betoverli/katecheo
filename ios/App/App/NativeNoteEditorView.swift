@@ -13,7 +13,7 @@ protocol NativeNoteEditorViewDelegate: AnyObject {
 final class NativeNoteEditorView: UIView, UITextViewDelegate {
     weak var delegate: NativeNoteEditorViewDelegate?
 
-    private let textView: UITextView
+    private let textView: NoteEditorTextView
     private let railLayoutManager: NoteSpeakerRailLayoutManager
     private let accessory = NoteEditorAccessoryBar()
     private var documentBase: NativeAPIClient.NoteDocument = NativeAPIClient.emptyNote(id: "pending")
@@ -36,7 +36,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         layout.addTextContainer(container)
         storage.addLayoutManager(layout)
         railLayoutManager = layout
-        textView = UITextView(frame: .zero, textContainer: container)
+        textView = NoteEditorTextView(frame: .zero, textContainer: container)
         super.init(frame: frame)
         setup()
     }
@@ -298,7 +298,21 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
                 DispatchQueue.main.async { [weak self] in
                     self?.applyBlockType("paragraph", preserveChecked: false)
                 }
-            } else if type == "bullet" || type == "numbered" || type == "check" || type == "quote" {
+                return true
+            }
+            // Double-Enter on an empty line at the end of a speaker section → leave the section.
+            if caretIsInsideSpeakerSection(), isCurrentParagraphVisuallyEmpty() {
+                if type == "bullet" || type == "numbered" || type == "check" || type == "quote" {
+                    // First empty Enter demotes list/quote to a normal body paragraph (still inside).
+                    applyBlockType("paragraph", preserveChecked: false)
+                    return false
+                }
+                if isLastBodyParagraphOfSpeakerSection() {
+                    exitSpeakerSection()
+                    return false
+                }
+            }
+            if type == "bullet" || type == "numbered" || type == "check" || type == "quote" {
                 // Continue the same list / block on the next paragraph.
                 DispatchQueue.main.async { [weak self] in
                     self?.applyBlockType(type, preserveChecked: true)
@@ -384,10 +398,17 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
     /// True when the caret sits in a speaker header or any body paragraph of that section.
     private func caretIsInsideSpeakerSection() -> Bool {
-        enclosingSpeakerSectionStart() != nil
+        if currentBlockType() == "speakerSection" { return true }
+        let storage = textView.textStorage
+        guard storage.length > 0 else { return false }
+        let loc = min(textView.selectedRange.location, max(0, storage.length - 1))
+        let attrs = storage.attributes(at: loc, effectiveRange: nil)
+        // After double-Enter exit, body paragraphs lose `speakerBodyKey`.
+        return NoteDocumentCodec.isSpeakerBody(attrs)
     }
 
     private func enclosingSpeakerSectionStart() -> Int? {
+        guard caretIsInsideSpeakerSection() else { return nil }
         let storage = textView.textStorage
         guard storage.length > 0 else { return nil }
         let loc = min(textView.selectedRange.location, max(0, storage.length - 1))
@@ -410,6 +431,78 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             cursor = para.location - 1
         }
         return nil
+    }
+
+    private func isCurrentParagraphVisuallyEmpty() -> Bool {
+        let storage = textView.textStorage
+        let para = paragraphRange()
+        guard para.length > 0 else { return true }
+        var text = (storage.string as NSString).substring(with: para)
+        text = text
+            .replacingOccurrences(of: "\u{200B}", with: "")
+            .replacingOccurrences(of: "\u{00A0}", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        // Strip common list markers left as display glyphs.
+        let markers = ["•", "☐", "☑"]
+        for marker in markers where text.hasPrefix(marker) {
+            text = String(text.dropFirst(marker.count)).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        if let numbered = text.range(of: #"^\d+\.\s*"#, options: .regularExpression) {
+            text.removeSubrange(numbered)
+            text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return text.isEmpty
+    }
+
+    private func isLastBodyParagraphOfSpeakerSection() -> Bool {
+        let storage = textView.textStorage
+        let ns = storage.string as NSString
+        let para = paragraphRange()
+        let after = NSMaxRange(para)
+        if after >= storage.length { return true }
+        let nextPara = ns.paragraphRange(for: NSRange(location: after, length: 0))
+        guard nextPara.location < storage.length else { return true }
+        let attrs = storage.attributes(at: nextPara.location, effectiveRange: nil)
+        // Next speaker header ⇒ current body line is the last of this section.
+        if (attrs[NoteDocumentCodec.blockTypeKey] as? String) == "speakerSection" { return true }
+        // Another body paragraph still inside the same section.
+        if NoteDocumentCodec.isSpeakerBody(attrs) { return false }
+        return true
+    }
+
+    /// Remove the empty trailing body line and place a normal paragraph after the speaker section.
+    private func exitSpeakerSection() {
+        let storage = textView.textStorage
+        let ns = storage.string as NSString
+        let para = paragraphRange()
+        var deleteLocation = para.location
+        var deleteLength = para.length
+        if para.location > 0 {
+            let prev = ns.substring(with: NSRange(location: para.location - 1, length: 1))
+            if prev == "\n" {
+                deleteLocation = para.location - 1
+                deleteLength = para.length + 1
+            }
+        }
+        storage.replaceCharacters(in: NSRange(location: deleteLocation, length: deleteLength), with: "")
+
+        var attrs = NoteDocumentCodec.baseAttributesPublic(
+            type: "paragraph",
+            id: NoteDocumentCodec.newId(),
+            checked: nil,
+            speakerId: nil,
+            speakers: [:]
+        )
+        // Do not apply speaker inset / speakerBodyKey — this paragraph is outside the section.
+        attrs.removeValue(forKey: NoteDocumentCodec.speakerBodyKey)
+        let piece = NSAttributedString(string: "\n", attributes: attrs)
+        let insertAt = min(deleteLocation, storage.length)
+        storage.replaceCharacters(in: NSRange(location: insertAt, length: 0), with: piece)
+        textView.selectedRange = NSRange(location: insertAt + 1, length: 0)
+        textView.typingAttributes = attrs
+        emitChange()
+        refreshSpeakerRails()
+        scrollCaretVisible(animated: true)
     }
 
     private func currentBlockType() -> String {
@@ -1083,6 +1176,36 @@ extension NoteDocumentCodec {
         }
         _ = speakers
         return attrs
+    }
+}
+
+// MARK: - Text view (caret height = font line height)
+
+/// Clamps the caret to the font line height so `paragraphSpacing` does not stretch the cursor.
+final class NoteEditorTextView: UITextView {
+    override func caretRect(for position: UITextPosition) -> CGRect {
+        var rect = super.caretRect(for: position)
+        let font = caretFont(at: position)
+        let lineHeight = ceil(font.lineHeight)
+        if rect.height > lineHeight + 0.5 {
+            rect.size.height = lineHeight
+        }
+        return rect
+    }
+
+    private func caretFont(at position: UITextPosition) -> UIFont {
+        if let font = typingAttributes[.font] as? UIFont {
+            return font
+        }
+        let offset = self.offset(from: beginningOfDocument, to: position)
+        let storage = textStorage
+        if storage.length > 0 {
+            let index = min(max(offset, 0), storage.length - 1)
+            if let font = storage.attribute(.font, at: index, effectiveRange: nil) as? UIFont {
+                return font
+            }
+        }
+        return .preferredFont(forTextStyle: .body)
     }
 }
 
