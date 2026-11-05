@@ -19,8 +19,11 @@ final class NativeNoteEditorSpeakerPathTests: XCTestCase {
         try await super.setUp()
         editor = NativeNoteEditorView(frame: .zero)
         editor.testing_prepare()
+        // Title-only body so the inserted speaker is the sole body block (matches a fresh note
+        // where the user replaced the first empty paragraph / typed at the end after clearing).
         var note = NativeAPIClient.emptyNote(id: "note-speaker-path")
         note.title = "Reunião"
+        note.body.blocks = []
         editor.pushNote(note, speakers: speakers)
 
         let storage = editor.testing_textStorage()
@@ -40,6 +43,10 @@ final class NativeNoteEditorSpeakerPathTests: XCTestCase {
         try await super.tearDown()
     }
 
+    private func speakerBlock(in doc: NativeAPIClient.NoteDocument) -> NativeAPIClient.LineBlock? {
+        doc.body.blocks.first(where: { $0.type == "speakerSection" })
+    }
+
     func testToolbarSlashAtAllCallSameInsertSpeakerSection() {
         let storage = editor.testing_textStorage()
         var found = false
@@ -53,6 +60,7 @@ final class NativeNoteEditorSpeakerPathTests: XCTestCase {
             }
         }
         XCTAssertTrue(found)
+        XCTAssertNotNil(speakerBlock(in: editor.currentDocument()))
     }
 
     func testRealReturnOnNameThenType_landsInSectionBodyAndRail() {
@@ -74,11 +82,19 @@ final class NativeNoteEditorSpeakerPathTests: XCTestCase {
 
         editor.testing_insertText("corpo dentro")
         let doc = editor.currentDocument()
-        XCTAssertEqual(doc.body.blocks.count, 1, "body text must not escape as a sibling block; got \(doc.body.blocks.map(\.type))")
-        XCTAssertEqual(doc.body.blocks[0].type, "speakerSection")
-        XCTAssertEqual(doc.body.blocks[0].blocks?.count, 1)
-        let bodyText = doc.body.blocks[0].blocks?.first?.spans?.map { $0.text ?? "" }.joined() ?? ""
+        guard let speaker = speakerBlock(in: doc) else {
+            return XCTFail("missing speakerSection in \(doc.body.blocks.map(\.type))")
+        }
+        XCTAssertEqual(speaker.blocks?.count, 1, "body must be a child of the speaker section")
+        let bodyText = speaker.blocks?.first?.spans?.map { $0.text ?? "" }.joined() ?? ""
         XCTAssertTrue(bodyText.contains("corpo dentro"), "got \(bodyText)")
+
+        // Sibling paragraphs after the section must not steal the typed body.
+        let escaped = doc.body.blocks.contains { block in
+            block.type != "speakerSection"
+                && (block.spans ?? []).contains { ($0.text ?? "").contains("corpo dentro") }
+        }
+        XCTAssertFalse(escaped, "typed body escaped the speaker container: \(doc.body.blocks.map(\.type))")
 
         let rails = editor.testing_railCharacterRanges()
         XCTAssertFalse(rails.isEmpty, "rail must be drawn")
@@ -97,10 +113,11 @@ final class NativeNoteEditorSpeakerPathTests: XCTestCase {
         editor.testing_insertText("dois")
 
         let doc = editor.currentDocument()
-        XCTAssertEqual(doc.body.blocks.count, 1, "got \(doc.body.blocks.map(\.type))")
-        XCTAssertEqual(doc.body.blocks[0].type, "speakerSection")
-        XCTAssertEqual(doc.body.blocks[0].blocks?.count, 2)
-        let texts = (doc.body.blocks[0].blocks ?? []).map { block in
+        guard let speaker = speakerBlock(in: doc) else {
+            return XCTFail("missing speakerSection in \(doc.body.blocks.map(\.type))")
+        }
+        XCTAssertEqual(speaker.blocks?.count, 2)
+        let texts = (speaker.blocks ?? []).map { block in
             (block.spans ?? []).map { $0.text ?? "" }.joined()
         }
         XCTAssertEqual(texts, ["um", "dois"])
@@ -114,11 +131,12 @@ final class NativeNoteEditorSpeakerPathTests: XCTestCase {
         editor.testing_insertText("fora")
 
         let doc = editor.currentDocument()
-        XCTAssertEqual(doc.body.blocks.count, 2, "got \(doc.body.blocks.map(\.type))")
-        XCTAssertEqual(doc.body.blocks[0].type, "speakerSection")
-        XCTAssertEqual(doc.body.blocks[0].blocks?.first?.spans?.first?.text, "dentro")
-        XCTAssertEqual(doc.body.blocks[1].type, "paragraph")
-        XCTAssertEqual(doc.body.blocks[1].spans?.first?.text, "fora")
+        guard let speaker = speakerBlock(in: doc) else {
+            return XCTFail("missing speakerSection in \(doc.body.blocks.map(\.type))")
+        }
+        XCTAssertEqual(speaker.blocks?.first?.spans?.first?.text, "dentro")
+        let outside = doc.body.blocks.first(where: { $0.type == "paragraph" && ($0.spans?.first?.text == "fora") })
+        XCTAssertNotNil(outside, "exit must place a normal paragraph after the section; got \(doc.body.blocks.map(\.type))")
     }
 
     func testHardwareCarriageReturnAlsoInsertsBody() {
@@ -128,20 +146,27 @@ final class NativeNoteEditorSpeakerPathTests: XCTestCase {
         XCTAssertTrue(NoteDocumentCodec.isSpeakerBody(attrs), "\\r must take the same Enter path as \\n")
         editor.testing_insertText("via CR")
         let doc = editor.currentDocument()
-        XCTAssertEqual(doc.body.blocks.count, 1, "got \(doc.body.blocks.map(\.type))")
-        XCTAssertEqual(doc.body.blocks[0].type, "speakerSection")
-        XCTAssertEqual(doc.body.blocks[0].blocks?.count, 1)
+        guard let speaker = speakerBlock(in: doc) else {
+            return XCTFail("missing speakerSection in \(doc.body.blocks.map(\.type))")
+        }
+        XCTAssertEqual(speaker.blocks?.count, 1)
+        let text = speaker.blocks?.first?.spans?.map { $0.text ?? "" }.joined() ?? ""
+        XCTAssertTrue(text.contains("via CR"), "got \(text)")
     }
 
     func testRoundTripNoteDocumentV1AfterRealTyping() {
         editor.testing_insertText("\n")
         editor.testing_insertText("mensagem")
         let first = editor.currentDocument()
-        XCTAssertEqual(first.body.blocks[0].type, "speakerSection")
+        guard let speaker = speakerBlock(in: first) else {
+            return XCTFail("missing speakerSection in \(first.body.blocks.map(\.type))")
+        }
+        XCTAssertEqual(speaker.blocks?.first?.spans?.first?.text, "mensagem")
         editor.pushNote(first, speakers: speakers)
         let second = editor.currentDocument()
-        XCTAssertEqual(second.body.blocks.count, 1)
-        XCTAssertEqual(second.body.blocks[0].type, "speakerSection")
-        XCTAssertEqual(second.body.blocks[0].blocks?.first?.spans?.first?.text, "mensagem")
+        guard let again = speakerBlock(in: second) else {
+            return XCTFail("speaker lost on reload")
+        }
+        XCTAssertEqual(again.blocks?.first?.spans?.first?.text, "mensagem")
     }
 }
