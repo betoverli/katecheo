@@ -51,17 +51,28 @@ enum SpeakerSectionEditing {
         let attrs = bodyTypingAttributes()
         let para = paragraphRange(in: storage, at: caretLocation)
         let afterRange = NSRange(location: caretLocation, length: NSMaxRange(para) - caretLocation)
-        let moved: NSMutableAttributedString
-        if afterRange.length > 0 {
-            moved = NSMutableAttributedString(attributedString: storage.attributedSubstring(from: afterRange))
-            storage.replaceCharacters(in: afterRange, with: "")
-            if (moved.string as NSString).hasPrefix("\n") {
-                moved.replaceCharacters(in: NSRange(location: 0, length: 1), with: "")
-            }
-        } else {
-            moved = NSMutableAttributedString()
-        }
+        let afterText = afterRange.length > 0
+            ? (storage.string as NSString).substring(with: afterRange)
+            : ""
+        // Caret at end of the line (only the paragraph terminator left): insert a new
+        // body paragraph *without* consuming that `\n`. Replacing it glued the new ZWSP
+        // onto the following block and produced 0 net paragraphs (build-189 Enter bug).
+        let onlyTerminator = afterText == "\n" || afterText == "\r\n" || afterRange.length == 0
+
         let piece = NSMutableAttributedString(string: "\n", attributes: attrs)
+        if onlyTerminator {
+            piece.append(NSAttributedString(string: "\u{200B}", attributes: attrs))
+            storage.replaceCharacters(in: NSRange(location: caretLocation, length: 0), with: piece)
+            let caret = caretLocation + 2 // after `\n`, on ZWSP
+            return Result(caret: min(caret, storage.length), typingAttributes: attrs)
+        }
+
+        // Mid-paragraph split: move the remainder onto the new body line.
+        let moved = NSMutableAttributedString(attributedString: storage.attributedSubstring(from: afterRange))
+        storage.replaceCharacters(in: afterRange, with: "")
+        if (moved.string as NSString).hasPrefix("\n") {
+            moved.replaceCharacters(in: NSRange(location: 0, length: 1), with: "")
+        }
         if moved.length == 0 {
             piece.append(NSAttributedString(string: "\u{200B}", attributes: attrs))
         } else {
@@ -70,6 +81,14 @@ enum SpeakerSectionEditing {
                 value: true,
                 range: NSRange(location: 0, length: moved.length)
             )
+            // Drop a trailing paragraph terminator from the moved run — the `\n` we
+            // prepend already starts the new paragraph.
+            if (moved.string as NSString).hasSuffix("\n") {
+                moved.replaceCharacters(
+                    in: NSRange(location: moved.length - 1, length: 1),
+                    with: ""
+                )
+            }
             piece.append(moved)
         }
         storage.replaceCharacters(in: NSRange(location: caretLocation, length: 0), with: piece)

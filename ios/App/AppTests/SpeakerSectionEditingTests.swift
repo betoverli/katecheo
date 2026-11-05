@@ -85,19 +85,41 @@ final class SpeakerSectionEditingTests: XCTestCase {
                     ),
                 ]
             ),
+            // Trailing outside line — Enter must not glue the new body ZWSP onto this.
+            NativeAPIClient.LineBlock(
+                id: "p-after",
+                type: "paragraph",
+                spans: [],
+                speakerId: nil,
+                title: nil,
+                collapsed: nil,
+                checked: nil,
+                blocks: nil
+            ),
         ]
         let storage = NSMutableAttributedString(attributedString: NoteDocumentCodec.attributedString(from: note))
-        // Caret at end of "um"
+        // Caret at end of "um" (on/before the paragraph terminator).
         guard let header = SpeakerSectionEditing.findSpeakerHeaderRange(in: storage) else {
             return XCTFail("missing header")
         }
         let bodyStart = NSMaxRange(header)
         let bodyPara = SpeakerSectionEditing.paragraphRange(in: storage, at: bodyStart)
-        let caret = NSMaxRange(bodyPara) - ((storage.string as NSString).substring(with: bodyPara).hasSuffix("\n") ? 1 : 0)
+        let bodyText = (storage.string as NSString).substring(with: bodyPara)
+        let caret = NSMaxRange(bodyPara) - (bodyText.hasSuffix("\n") ? 1 : 0)
         let beforeParas = paragraphCount(storage)
-        _ = SpeakerSectionEditing.insertContinuingBodyParagraph(in: storage, at: max(bodyStart, caret - 1))
+        _ = SpeakerSectionEditing.insertContinuingBodyParagraph(in: storage, at: caret)
         let afterParas = paragraphCount(storage)
         XCTAssertEqual(afterParas, beforeParas + 1, "one Enter must add exactly one paragraph")
+        let doc = NoteDocumentCodec.document(from: storage, base: note)
+        let bodyTexts = (doc.body.blocks.first(where: { $0.type == "speakerSection" })?.blocks ?? [])
+            .map { ($0.spans ?? []).compactMap(\.text).joined() }
+            .map { $0.replacingOccurrences(of: "\u{200B}", with: "") }
+        XCTAssertEqual(bodyTexts.filter { !$0.isEmpty }, ["um"])
+        XCTAssertGreaterThanOrEqual(
+            (doc.body.blocks.first(where: { $0.type == "speakerSection" })?.blocks ?? []).count,
+            2,
+            "Enter must seed a second empty body child"
+        )
     }
 
     func testExitOnEmptyLastBody() {

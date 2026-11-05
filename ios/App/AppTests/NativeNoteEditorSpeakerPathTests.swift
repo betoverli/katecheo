@@ -120,13 +120,21 @@ final class NativeNoteEditorSpeakerPathTests: XCTestCase {
         let before = paragraphCount(editor.testing_textStorage())
         editor.testing_insertText("\n")
         let after = paragraphCount(editor.testing_textStorage())
-        XCTAssertEqual(after, before + 1, "Enter must create exactly one paragraph")
+        XCTAssertEqual(
+            after,
+            before + 1,
+            "Enter must create exactly one paragraph; before=\(before) after=\(after) plain=\(editor.testing_textStorage().string.debugDescription)"
+        )
         editor.testing_insertText("segundo")
         let doc = editor.currentDocument()
         let texts = (speakerBlock(in: doc)?.blocks ?? []).map { block in
             (block.spans ?? []).compactMap(\.text).joined()
         }.filter { !$0.isEmpty }
-        XCTAssertEqual(texts, ["primeiro", "segundo"])
+        XCTAssertEqual(
+            texts,
+            ["primeiro", "segundo"],
+            "blocks=\(speakerBlock(in: doc)?.blocks?.map { $0.spans?.compactMap(\.text) } ?? [])"
+        )
     }
 
     // Bug 4: collapse toggle persists and hides body.
