@@ -26,6 +26,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     private var triggerMenuLeadingConstraint: NSLayoutConstraint?
     private var keyboardOverlap: CGFloat = 0
     private var isBodyEditing = false
+    private var tapGesture: UITapGestureRecognizer!
 
     override init(frame: CGRect) {
         let storage = NSTextStorage()
@@ -86,6 +87,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         tap.delegate = self
         // Cancel the text view's caret move when we handle bible/speaker/check taps.
         tap.cancelsTouchesInView = true
+        tapGesture = tap
         textView.addGestureRecognizer(tap)
 
         observeKeyboard()
@@ -1010,9 +1012,14 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 }
 
 extension NativeNoteEditorView: UIGestureRecognizerDelegate {
-    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+    override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
         // Only steal taps that hit bible pills / speaker headers / checkboxes —
         // so a bible-ref tap never moves the caret into the next line.
+        // UIView already defines this method, so we must override it (not only
+        // satisfy the delegate protocol).
+        guard gestureRecognizer === tapGesture else {
+            return super.gestureRecognizerShouldBegin(gestureRecognizer)
+        }
         let point = gestureRecognizer.location(in: textView)
         return isSpecialTapTarget(at: point)
     }
