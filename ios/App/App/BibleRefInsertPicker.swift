@@ -157,15 +157,18 @@ final class BibleRefInsertPicker: UIViewController, UICollectionViewDelegate, UI
     }
 }
 
+/// Chapter grid — same `V2NNumberCell` / `V2NNumberGridLayout` as Ferramentas → Livros.
 @MainActor
-private final class BibleRefChapterPicker: UITableViewController {
+private final class BibleRefChapterPicker: UIViewController, UICollectionViewDelegate, UICollectionViewDataSource {
     private let book: NativeAPIClient.BibleBookDTO
     private let onPick: (NoteDocumentCodec.BibleRefPayload) -> Void
+    private var collectionView: UICollectionView!
+    private let hintLabel = UILabel()
 
     init(book: NativeAPIClient.BibleBookDTO, onPick: @escaping (NoteDocumentCodec.BibleRefPayload) -> Void) {
         self.book = book
         self.onPick = onPick
-        super.init(style: .insetGrouped)
+        super.init(nibName: nil, bundle: nil)
     }
 
     @available(*, unavailable)
@@ -173,50 +176,75 @@ private final class BibleRefChapterPicker: UITableViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        v2nApplyGroupedChrome()
+        V2NChrome.styleCanvas(view)
         title = book.name
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "chapter")
+
+        hintLabel.text = String(localized: "Capítulo")
+        hintLabel.font = V2NDesign.sectionHeader()
+        hintLabel.textColor = .secondaryLabel
+        hintLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        collectionView = UICollectionView(frame: .zero, collectionViewLayout: V2NNumberGridLayout.make())
+        collectionView.translatesAutoresizingMaskIntoConstraints = false
+        collectionView.backgroundColor = .clear
+        collectionView.alwaysBounceVertical = true
+        collectionView.delegate = self
+        collectionView.dataSource = self
+        collectionView.register(V2NNumberCell.self, forCellWithReuseIdentifier: V2NNumberCell.reuseId)
+
+        view.addSubview(hintLabel)
+        view.addSubview(collectionView)
+        NSLayoutConstraint.activate([
+            hintLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: V2NDesign.Space.sm),
+            hintLabel.leadingAnchor.constraint(equalTo: view.layoutMarginsGuide.leadingAnchor),
+            hintLabel.trailingAnchor.constraint(equalTo: view.layoutMarginsGuide.trailingAnchor),
+
+            collectionView.topAnchor.constraint(equalTo: hintLabel.bottomAnchor, constant: V2NDesign.Space.xs),
+            collectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
     }
 
-    override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
         book.chapters
     }
 
-    override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "chapter", for: indexPath)
-        var config = cell.defaultContentConfiguration()
-        config.text = String(localized: "Capítulo \(indexPath.row + 1)")
-        cell.contentConfiguration = config
-        cell.accessoryType = .disclosureIndicator
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NNumberCell.reuseId, for: indexPath) as! V2NNumberCell
+        cell.configure(number: indexPath.item + 1, style: .plain)
         return cell
     }
 
-    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        tableView.deselectRow(at: indexPath, animated: true)
-        let chapter = indexPath.row + 1
-        let verses = book.verses.indices.contains(indexPath.row) ? book.verses[indexPath.row] : 0
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        V2NHaptics.selection()
+        let chapter = indexPath.item + 1
+        let verses = book.verses.indices.contains(indexPath.item) ? book.verses[indexPath.item] : 0
         navigationController?.pushViewController(
-            BibleRefVersePicker(book: book, chapter: chapter, verseCount: verses, onPick: onPick),
+            BibleRefVersePicker(book: book, chapter: chapter, verseCount: max(verses, 1), onPick: onPick),
             animated: true
         )
     }
 }
 
+/// Verse grid with range highlight — same UX as Ferramentas → Livros → capítulo.
 @MainActor
-private final class BibleRefVersePicker: UITableViewController {
+private final class BibleRefVersePicker: UIViewController, UICollectionViewDelegate, UICollectionViewDataSource {
     private let book: NativeAPIClient.BibleBookDTO
     private let chapter: Int
     private let verseCount: Int
     private let onPick: (NoteDocumentCodec.BibleRefPayload) -> Void
     private var rangeStart: Int?
     private var rangeEnd: Int?
+    private var collectionView: UICollectionView!
+    private let hintLabel = UILabel()
 
     init(book: NativeAPIClient.BibleBookDTO, chapter: Int, verseCount: Int, onPick: @escaping (NoteDocumentCodec.BibleRefPayload) -> Void) {
         self.book = book
         self.chapter = chapter
         self.verseCount = verseCount
         self.onPick = onPick
-        super.init(style: .insetGrouped)
+        super.init(nibName: nil, bundle: nil)
     }
 
     @available(*, unavailable)
@@ -224,7 +252,7 @@ private final class BibleRefVersePicker: UITableViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        v2nApplyGroupedChrome()
+        V2NChrome.styleCanvas(view)
         title = String(localized: "\(book.abbr) \(chapter)")
         navigationItem.rightBarButtonItem = UIBarButtonItem(
             title: String(localized: "Capítulo inteiro"),
@@ -232,54 +260,88 @@ private final class BibleRefVersePicker: UITableViewController {
             target: self,
             action: #selector(wholeChapter)
         )
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "verse")
+
+        hintLabel.font = V2NDesign.caption()
+        hintLabel.textColor = .secondaryLabel
+        hintLabel.numberOfLines = 0
+        hintLabel.translatesAutoresizingMaskIntoConstraints = false
+        refreshHint()
+
+        collectionView = UICollectionView(frame: .zero, collectionViewLayout: V2NNumberGridLayout.make())
+        collectionView.translatesAutoresizingMaskIntoConstraints = false
+        collectionView.backgroundColor = .clear
+        collectionView.alwaysBounceVertical = true
+        collectionView.delegate = self
+        collectionView.dataSource = self
+        collectionView.register(V2NNumberCell.self, forCellWithReuseIdentifier: V2NNumberCell.reuseId)
+
+        view.addSubview(hintLabel)
+        view.addSubview(collectionView)
+        NSLayoutConstraint.activate([
+            hintLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: V2NDesign.Space.sm),
+            hintLabel.leadingAnchor.constraint(equalTo: view.layoutMarginsGuide.leadingAnchor),
+            hintLabel.trailingAnchor.constraint(equalTo: view.layoutMarginsGuide.trailingAnchor),
+
+            collectionView.topAnchor.constraint(equalTo: hintLabel.bottomAnchor, constant: V2NDesign.Space.xs),
+            collectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
+    }
+
+    private func refreshHint() {
+        if let rangeStart, rangeEnd == nil {
+            hintLabel.text = String(localized: "Toque no versículo final (início: \(rangeStart))")
+        } else {
+            hintLabel.text = String(localized: "Toque para escolher · segundo toque define o intervalo")
+        }
     }
 
     @objc private func wholeChapter() {
         finish(verseStart: nil, verseEnd: nil)
     }
 
-    override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        if let rangeStart, rangeEnd == nil {
-            return String(localized: "Toque no versículo final (início: \(rangeStart))")
-        }
-        return String(localized: "Toque para escolher · segundo toque define o intervalo")
-    }
-
-    override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        max(verseCount, 1)
-    }
-
-    override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "verse", for: indexPath)
-        let verse = indexPath.row + 1
-        var config = cell.defaultContentConfiguration()
-        config.text = String(localized: "Versículo \(verse)")
-        cell.contentConfiguration = config
-        let selected: Bool
+    private func style(for verse: Int) -> V2NNumberCell.Style {
         if let start = rangeStart, let end = rangeEnd {
-            selected = verse >= min(start, end) && verse <= max(start, end)
-        } else {
-            selected = verse == rangeStart
+            let lo = min(start, end)
+            let hi = max(start, end)
+            if verse == lo || verse == hi { return .edge }
+            if verse > lo && verse < hi { return .inRange }
+            return .plain
         }
-        cell.accessoryType = selected ? .checkmark : .none
+        if let start = rangeStart, verse == start { return .edge }
+        return .plain
+    }
+
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        verseCount
+    }
+
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NNumberCell.reuseId, for: indexPath) as! V2NNumberCell
+        let verse = indexPath.item + 1
+        cell.configure(number: verse, style: style(for: verse))
         return cell
     }
 
-    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        tableView.deselectRow(at: indexPath, animated: true)
-        let verse = indexPath.row + 1
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        V2NHaptics.selection()
+        let verse = indexPath.item + 1
         if rangeStart == nil || rangeEnd != nil {
             rangeStart = verse
             rangeEnd = nil
-            tableView.reloadData()
+            refreshHint()
+            collectionView.reloadData()
             return
         }
         rangeEnd = verse
-        tableView.reloadData()
+        refreshHint()
+        collectionView.reloadData()
         let start = min(rangeStart!, rangeEnd!)
         let end = max(rangeStart!, rangeEnd!)
-        finish(verseStart: start, verseEnd: end == start ? start : end)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { [weak self] in
+            self?.finish(verseStart: start, verseEnd: end == start ? start : end)
+        }
     }
 
     private func finish(verseStart: Int?, verseEnd: Int?) {

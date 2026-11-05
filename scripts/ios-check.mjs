@@ -203,6 +203,16 @@ if (!editor.includes("NoteSpeakerRailLayoutManager") || !editor.includes("refres
 if (!editor.includes("toggleSpeakerCollapsed") || !codec.includes("collapsedKey")) {
   errors.push("Secção de speaker tem de colapsar/expandir (collapsed no NoteDocumentV1).");
 }
+if (!editor.includes("isSpecialTapTarget") || !editor.includes("gestureRecognizerShouldBegin")) {
+  errors.push("Toque em referência bíblica não pode mover o caret.");
+}
+if (!codec.includes("paragraphSpacing = 10") || !editor.includes("paragraphSpacing = 10")) {
+  errors.push("Corpo da nota tem de ter espaçamento entre parágrafos (paragraphSpacing).");
+}
+const biblePicker = read("ios/App/App/BibleRefInsertPicker.swift");
+if (!biblePicker.includes("V2NNumberCell") || !biblePicker.includes("V2NNumberGridLayout") || biblePicker.includes("UITableViewController")) {
+  errors.push("Picker de referência na nota tem de usar grelha (V2NNumberCell), não lista.");
+}
 
 const noteDetail = read("ios/App/App/NoteDetailViewController.swift");
 if (noteDetail.includes("WKWebView") || noteDetail.includes("import WebKit") || noteDetail.includes("NoteMioloEditorView")) {
@@ -430,6 +440,9 @@ if (!notebookList.includes("Membros") || !notebookList.includes("GroupMembersVie
 if (!components.includes("allowsDeselect") || !components.includes("config.title = selected ? chip.title")) {
   errors.push("V2NFilterChipsView: ícone só quando não selecionado; ícone+nome quando selecionado.");
 }
+if (!components.includes("leading: horizontal") || !/selected \? 14 : 16/.test(components) || !components.includes("greaterThanOrEqualToConstant: 48")) {
+  errors.push("Pills não selecionadas têm de ser cápsulas largas (padding ≥16 / min width 48).");
+}
 if (!project.includes("LocalSessionCache.swift in Sources") || !project.includes("GroupMembersViewController.swift in Sources")) {
   errors.push("LocalSessionCache / GroupMembersViewController têm de estar no target Xcode.");
 }
@@ -451,17 +464,20 @@ if (!noteDetail.includes("Mover para grupo") || !noteDetail.includes("listGroups
 
 try {
   const versesHome = read("ios/App/App/VersesHomeViewController.swift");
-  if (!versesHome.includes("Ferramentas") || !versesHome.includes("BooksHomeViewController") || !versesHome.includes("V2NToolCardCell")) {
-    errors.push("Ferramentas: home com 4 cards + BooksHomeViewController.");
+  if (!versesHome.includes("Ferramentas") || !versesHome.includes("BooksHomeViewController")) {
+    errors.push("Ferramentas: home com pills + BooksHomeViewController.");
+  }
+  if (versesHome.includes("V2NToolCardCell") || versesHome.includes("cardsPanel")) {
+    errors.push("Remova o hub de cards legado da Ferramentas — abrir direto na pill.");
   }
   if (!versesHome.includes("ThemesHomeViewController") || !versesHome.includes("ReadingHomeViewController") || !versesHome.includes("MyCollectionsViewController")) {
     errors.push("Ferramentas tem de abrir Temas, Listas e Leitura.");
   }
-  if (!versesHome.includes("V2NFilterChipsView") || !versesHome.includes("chips.configure") || !versesHome.includes("allowsDeselect")) {
+  if (!versesHome.includes("V2NFilterChipsView") || !versesHome.includes("chips.configure")) {
     errors.push("Ferramentas tem de ter pills (V2NFilterChipsView) Livros/Temas/Listas/Leitura.");
   }
-  if (!versesHome.includes("selectTool") || !versesHome.includes("embedded: true")) {
-    errors.push("Ferramentas: pills trocam conteúdo embutido; deselect volta aos cards.");
+  if (!versesHome.includes("selectTool") || !versesHome.includes("embedded: true") || !versesHome.includes("lastToolKey") || !versesHome.includes("allowsDeselect = false")) {
+    errors.push("Ferramentas: abrir na última pill (persistida) ou Livros; sem cards.");
   }
   if (!versesHome.includes("applyBooksCompact") || !versesHome.includes("booksCompact")) {
     errors.push("Livros tem de manter Siglas/Nomes sincronizados com booksCompact no primeiro load.");
