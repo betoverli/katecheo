@@ -17,6 +17,9 @@ export type NativeV1Route =
   | { kind: "auth-sign-out" }
   | { kind: "groups"; groupId?: string }
   | { kind: "group-notes"; groupId: string; noteId?: string }
+  | { kind: "group-members"; groupId: string; userId?: string }
+  | { kind: "group-members-decide"; groupId: string }
+  | { kind: "group-members-role"; groupId: string }
   | { kind: "me" }
   | { kind: "prefs" }
   | { kind: "notify-prefs" }
@@ -72,6 +75,18 @@ export function matchNativeV1Route(splat: string): NativeV1Route {
   }
   if (a === "groups" && b && c === "notes" && d && parts.length === 4) {
     return { kind: "group-notes", groupId: b, noteId: d };
+  }
+  if (a === "groups" && b && c === "members" && parts.length === 3) {
+    return { kind: "group-members", groupId: b };
+  }
+  if (a === "groups" && b && c === "members" && d === "decide" && parts.length === 4) {
+    return { kind: "group-members-decide", groupId: b };
+  }
+  if (a === "groups" && b && c === "members" && d === "role" && parts.length === 4) {
+    return { kind: "group-members-role", groupId: b };
+  }
+  if (a === "groups" && b && c === "members" && d && parts.length === 4) {
+    return { kind: "group-members", groupId: b, userId: d };
   }
 
   if (a === "me" && parts.length === 1) return { kind: "me" };
@@ -156,6 +171,12 @@ export function methodAllowed(route: NativeV1Route, method: string): boolean {
     case "group-notes":
       if (!route.noteId) return m === "GET" || m === "POST";
       return m === "DELETE";
+    case "group-members":
+      if (!route.userId) return m === "GET";
+      return m === "DELETE";
+    case "group-members-decide":
+    case "group-members-role":
+      return m === "POST";
     case "me":
       return m === "GET" || m === "PATCH" || m === "PUT";
     case "prefs":

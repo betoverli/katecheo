@@ -61,11 +61,14 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
         tableView.estimatedRowHeight = 80
         refresh.addTarget(self, action: #selector(reload), for: .valueChanged)
         tableView.refreshControl = refresh
-        // Edge-to-edge under the nav bar so hidesSearchBarWhenScrolling can track this scroll view.
+        // Chips stay pinned under the large title so empty/filter states never hide them.
         view.addSubview(tableView)
         view.addSubview(emptyState)
 
+        var tableTop = view.topAnchor
+        var emptyTop = view.safeAreaLayoutGuide.topAnchor
         if group == nil {
+            filterChips.allowsDeselect = true
             filterChips.configure(
                 chips: [
                     V2NFilterChip(id: NoteFilter.all.rawValue, title: String(localized: "Tudo"), systemImage: "square.stack"),
@@ -78,15 +81,23 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             filterChips.onSelect = { [weak self] id in
                 self?.handleNotebookChip(id)
             }
+            view.addSubview(filterChips)
+            NSLayoutConstraint.activate([
+                filterChips.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: V2NDesign.Space.xxs),
+                filterChips.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+                filterChips.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            ])
+            tableTop = filterChips.bottomAnchor
+            emptyTop = filterChips.bottomAnchor
         }
 
         NSLayoutConstraint.activate([
-            tableView.topAnchor.constraint(equalTo: view.topAnchor),
+            tableView.topAnchor.constraint(equalTo: tableTop, constant: group == nil ? V2NDesign.Space.xxs : 0),
             tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
 
-            emptyState.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            emptyState.topAnchor.constraint(equalTo: emptyTop),
             emptyState.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             emptyState.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             emptyState.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
@@ -205,38 +216,25 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
 
     private var isGroupMode: Bool { group != nil }
 
-    /// Chips + status live in the table header so scrolling the list collapses the nav search bar.
+    /// Status banner stays in the table header; Caderno chips are pinned above the table.
     private func installTableHeader() {
         let width = max(view.bounds.width, UIScreen.main.bounds.width)
         let header = UIView(frame: CGRect(x: 0, y: 0, width: width, height: 1))
         header.backgroundColor = .clear
 
-        var topAnchor = header.topAnchor
-        var topPad: CGFloat = V2NDesign.Space.xxs
-
-        if group == nil {
-            filterChips.removeFromSuperview()
-            filterChips.translatesAutoresizingMaskIntoConstraints = false
-            header.addSubview(filterChips)
-            NSLayoutConstraint.activate([
-                filterChips.topAnchor.constraint(equalTo: header.topAnchor, constant: V2NDesign.Space.xxs),
-                filterChips.leadingAnchor.constraint(equalTo: header.leadingAnchor),
-                filterChips.trailingAnchor.constraint(equalTo: header.trailingAnchor),
-            ])
-            topAnchor = filterChips.bottomAnchor
-            topPad = V2NDesign.Space.xxs
-        }
-
         statusBanner.removeFromSuperview()
         statusBanner.translatesAutoresizingMaskIntoConstraints = false
         header.addSubview(statusBanner)
-        let bannerHeight = statusBanner.text?.isEmpty == false ? statusBanner.heightAnchor.constraint(greaterThanOrEqualToConstant: 18) : statusBanner.heightAnchor.constraint(equalToConstant: 0)
+        let hasText = !(statusBanner.text?.isEmpty ?? true)
+        let bannerHeight = hasText
+            ? statusBanner.heightAnchor.constraint(greaterThanOrEqualToConstant: 18)
+            : statusBanner.heightAnchor.constraint(equalToConstant: 0)
         NSLayoutConstraint.activate([
-            statusBanner.topAnchor.constraint(equalTo: topAnchor, constant: topPad),
+            statusBanner.topAnchor.constraint(equalTo: header.topAnchor, constant: hasText ? V2NDesign.Space.xxs : 0),
             statusBanner.leadingAnchor.constraint(equalTo: header.layoutMarginsGuide.leadingAnchor),
             statusBanner.trailingAnchor.constraint(equalTo: header.layoutMarginsGuide.trailingAnchor),
             bannerHeight,
-            statusBanner.bottomAnchor.constraint(equalTo: header.bottomAnchor, constant: -V2NDesign.Space.xxs),
+            statusBanner.bottomAnchor.constraint(equalTo: header.bottomAnchor, constant: hasText ? -V2NDesign.Space.xxs : 0),
         ])
 
         header.setNeedsLayout()
@@ -246,7 +244,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             withHorizontalFittingPriority: .required,
             verticalFittingPriority: .fittingSizeLevel
         ).height
-        header.frame = CGRect(x: 0, y: 0, width: width, height: max(height, 1))
+        header.frame = CGRect(x: 0, y: 0, width: width, height: max(height, hasText ? 1 : 0.5))
         tableView.tableHeaderView = header
     }
 
@@ -263,7 +261,14 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             actionTitle: actionTitle,
             action: actionTitle != nil ? { [weak self] in self?.presentSignInTapped() } : nil
         )
-        tableView.isHidden = true
+        // Keep the table (and its chip header) visible so Caderno pills never disappear.
+        // Empty state overlays the rows; only hide the table in group mode without chips.
+        if isGroupMode {
+            tableView.isHidden = true
+        } else {
+            tableView.isHidden = false
+            tableView.backgroundView = nil
+        }
     }
 
     private func hideEmpty() {
@@ -554,6 +559,14 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     @objc private func moreMenu() {
         let sheet = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
         sheet.addAction(UIAlertAction(title: String(localized: "Atualizar"), style: .default) { [weak self] _ in self?.reload() })
+        if let group, group.isAccepted {
+            sheet.addAction(UIAlertAction(title: String(localized: "Membros"), style: .default) { [weak self] _ in
+                self?.openGroupMembers()
+            })
+            sheet.addAction(UIAlertAction(title: String(localized: "Convidar…"), style: .default) { [weak self] _ in
+                self?.shareGroupInvite()
+            })
+        }
         if let group, group.isAdmin {
             sheet.addAction(UIAlertAction(title: String(localized: "Renomear grupo…"), style: .default) { [weak self] _ in
                 self?.promptRenameGroup()
@@ -646,25 +659,48 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     }
 
 
-    private func handleNotebookChip(_ id: String) {
-        guard let filter = NoteFilter(rawValue: id) else { return }
+    private func handleNotebookChip(_ id: String?) {
+        guard let id, let filter = NoteFilter(rawValue: id) else {
+            noteFilter = .all
+            selectedTag = nil
+            selectedSpeakerId = nil
+            filterChips.setSelected(NoteFilter.all.rawValue, animated: true)
+            applyFilter()
+            return
+        }
         noteFilter = filter
         selectedTag = nil
         selectedSpeakerId = nil
         if filter == .shared {
-            Task { @MainActor in
-                // Shared grants reuse listNotes visibility until a dedicated grants API ships.
-                grantedNotes = notes.filter { $0.visibility == "shared" || $0.visibility == "link" }
-                applyFilter()
-            }
+            // Shared grants reuse listNotes visibility until a dedicated grants API ships.
+            grantedNotes = notes.filter { $0.visibility == "shared" || $0.visibility == "link" }
+            applyFilter()
         } else if filter == .tags {
             presentTagPicker()
+            applyFilter()
         } else if filter == .speakers {
             presentSpeakerFilter()
+            applyFilter()
         } else {
             applyFilter()
         }
-        applyFilter()
+    }
+
+    private func openGroupMembers() {
+        guard let group else { return }
+        let members = GroupMembersViewController(group: group)
+        navigationController?.pushViewController(members, animated: true)
+    }
+
+    private func shareGroupInvite() {
+        guard let group else { return }
+        let url = NativeAPIClient.baseURL.appendingPathComponent("groups/\(group.id)")
+        let text = String(format: String(localized: "Entre no grupo «%@» no Verse2Note"), group.name)
+        let vc = UIActivityViewController(activityItems: [text, url], applicationActivities: nil)
+        if let pop = vc.popoverPresentationController {
+            pop.barButtonItem = navigationItem.rightBarButtonItems?.last
+        }
+        present(vc, animated: true)
     }
 
     private func noteIncludesSpeaker(_ note: NativeAPIClient.NoteDocument, speakerId: String?) -> Bool {

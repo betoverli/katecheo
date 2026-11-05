@@ -372,3 +372,123 @@ export async function unpublishNoteFromGroupForUser(
   await sql`delete from notebook_group_notes where group_id = ${groupId} and note_id = ${noteId}`;
   return { ok: true };
 }
+
+export type NativeGroupMember = {
+  userId: string;
+  handle: string;
+  firstName: string;
+  lastName: string;
+  avatarId: string;
+  avatarUrl: string;
+  role: NativeGroupRole;
+  status: NativeGroupStatus;
+};
+
+async function adminCount(sql: Sql, groupId: string) {
+  const rows = await sql<{ n: number }>`
+    select count(*)::int as n from notebook_group_members
+    where group_id = ${groupId} and status = 'accepted' and "role" = 'admin'
+  `;
+  return Number(rows[0]?.n ?? 0);
+}
+
+export async function listMembersForGroup(
+  userId: string,
+  groupId: string,
+): Promise<{ ok: true; members: NativeGroupMember[] } | { ok: false; error: "forbidden" }> {
+  const sql = await getSql();
+  const mine = await memberOf(sql, groupId, userId);
+  if (mine?.status !== "accepted") return { ok: false, error: "forbidden" };
+  const rows = await sql<{
+    user_id: string;
+    handle: string;
+    first_name: string;
+    last_name: string;
+    avatar_id: string;
+    avatar_url: string;
+    role: string;
+    status: string;
+  }>`
+    select p.user_id, coalesce(p.handle, '') as handle, coalesce(p.first_name, '') as first_name,
+           coalesce(p.last_name, '') as last_name, coalesce(p.avatar_id, '') as avatar_id,
+           coalesce(p.avatar_url, '') as avatar_url, m."role", m.status
+    from notebook_group_members m
+    join user_prefs p on p.user_id = m.user_id
+    where m.group_id = ${groupId}
+    order by m."role" asc, m.status asc, p.first_name
+  `;
+  const members = rows
+    .filter((row) => mine.role === "admin" || row.status === "accepted")
+    .map((row) => ({
+      userId: row.user_id,
+      handle: row.handle,
+      firstName: row.first_name,
+      lastName: row.last_name,
+      avatarId: row.avatar_id,
+      avatarUrl: row.avatar_url,
+      role: (asRole(row.role) ?? "member") as NativeGroupRole,
+      status: (asStatus(row.status) ?? "pending") as NativeGroupStatus,
+    }));
+  return { ok: true, members };
+}
+
+export async function decideGroupMemberForUser(
+  userId: string,
+  groupId: string,
+  targetUserId: string,
+  accept: boolean,
+): Promise<{ ok: true } | { ok: false; error: "forbidden" | "missing" }> {
+  const sql = await getSql();
+  const mine = await memberOf(sql, groupId, userId);
+  if (mine?.role !== "admin" || mine.status !== "accepted") return { ok: false, error: "forbidden" };
+  const other = await memberOf(sql, groupId, targetUserId);
+  if (!other || other.status !== "pending") return { ok: false, error: "missing" };
+  if (accept) {
+    await sql`
+      update notebook_group_members set status = 'accepted'
+      where group_id = ${groupId} and user_id = ${targetUserId}
+    `;
+  } else {
+    await sql`delete from notebook_group_members where group_id = ${groupId} and user_id = ${targetUserId}`;
+  }
+  return { ok: true };
+}
+
+export async function setGroupMemberRoleForUser(
+  userId: string,
+  groupId: string,
+  targetUserId: string,
+  role: NativeGroupRole,
+): Promise<{ ok: true } | { ok: false; error: "forbidden" | "missing" | "lastAdmin" }> {
+  const sql = await getSql();
+  const mine = await memberOf(sql, groupId, userId);
+  if (mine?.role !== "admin" || mine.status !== "accepted") return { ok: false, error: "forbidden" };
+  const other = await memberOf(sql, groupId, targetUserId);
+  if (!other || other.status !== "accepted") return { ok: false, error: "missing" };
+  if (other.role === "admin" && role !== "admin" && (await adminCount(sql, groupId)) <= 1) {
+    return { ok: false, error: "lastAdmin" };
+  }
+  await sql`
+    update notebook_group_members set "role" = ${role}
+    where group_id = ${groupId} and user_id = ${targetUserId}
+  `;
+  return { ok: true };
+}
+
+export async function removeGroupMemberForUser(
+  userId: string,
+  groupId: string,
+  targetUserId: string,
+): Promise<{ ok: true } | { ok: false; error: "forbidden" | "missing" | "lastAdmin" }> {
+  const sql = await getSql();
+  const mine = await memberOf(sql, groupId, userId);
+  if (!mine || mine.status !== "accepted") return { ok: false, error: "forbidden" };
+  if (targetUserId !== userId && mine.role !== "admin") return { ok: false, error: "forbidden" };
+  const other = await memberOf(sql, groupId, targetUserId);
+  if (!other) return { ok: false, error: "missing" };
+  if (other.role === "admin" && (await adminCount(sql, groupId)) <= 1) {
+    return { ok: false, error: "lastAdmin" };
+  }
+  await sql`delete from notebook_group_members where group_id = ${groupId} and user_id = ${targetUserId}`;
+  return { ok: true };
+}

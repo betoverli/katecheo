@@ -87,6 +87,10 @@ Checklist:
 }
 ```
 
+`collapsed` is an **optional** boolean (default expanded / omitted). Clients may hide the
+nested `blocks` in the UI when `collapsed === true` and still persist the children on
+write. Unknown clients should ignore the field (forward compatible; no schema bump).
+
 ## Spans (inline)
 
 | `type` | Fields | Marks / notes |

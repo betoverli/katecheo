@@ -177,6 +177,12 @@ if (!editor.includes("UITextView") || editor.includes("WKWebView") || editor.inc
 if (!editor.includes("inputAccessoryView") || !editor.includes("Referência bíblica")) {
   errors.push("NativeNoteEditorView tem de ter toolbar com referência bíblica (pt-BR).");
 }
+if (!editor.includes("setEditingChrome") || !editor.includes("textViewDidBeginEditing")) {
+  errors.push("Toolbar de formatação só depois de entrar em modo edição.");
+}
+if (!editor.includes("repositionTriggerMenuIfNeeded") || !editor.includes("keyboardOverlap")) {
+  errors.push("Popup @/ tem de ficar acima do teclado (keyboard-aware).");
+}
 if (!editor.includes("@MainActor") && !editor.includes("Thread.isMainThread")) {
   errors.push("NativeNoteEditorView tem de exigir main thread / @MainActor.");
 }
@@ -193,6 +199,9 @@ if (!codec.includes("speakerRailSpecs") || !codec.includes("speakerSectionConten
 }
 if (!editor.includes("NoteSpeakerRailLayoutManager") || !editor.includes("refreshSpeakerRails")) {
   errors.push("NativeNoteEditorView tem de desenhar a barra lateral do speaker (rail).");
+}
+if (!editor.includes("toggleSpeakerCollapsed") || !codec.includes("collapsedKey")) {
+  errors.push("Secção de speaker tem de colapsar/expandir (collapsed no NoteDocumentV1).");
 }
 
 const noteDetail = read("ios/App/App/NoteDetailViewController.swift");
@@ -412,6 +421,18 @@ if (
 if (!notebookList.includes("hidesSearchBarWhenScrolling = true")) {
   errors.push("Caderno: a busca tem de ocultar ao rolar (hidesSearchBarWhenScrolling).");
 }
+if (!notebookList.includes("allowsDeselect") || !notebookList.includes("handleNotebookChip")) {
+  errors.push("Caderno: pills têm de permitir deselect e trocar filtros sem sumir.");
+}
+if (!notebookList.includes("Membros") || !notebookList.includes("GroupMembersViewController")) {
+  errors.push("Menu … do grupo tem de incluir Membros (GroupMembersViewController).");
+}
+if (!components.includes("allowsDeselect") || !components.includes("config.title = selected ? chip.title")) {
+  errors.push("V2NFilterChipsView: ícone só quando não selecionado; ícone+nome quando selecionado.");
+}
+if (!project.includes("LocalSessionCache.swift in Sources") || !project.includes("GroupMembersViewController.swift in Sources")) {
+  errors.push("LocalSessionCache / GroupMembersViewController têm de estar no target Xcode.");
+}
 
 try {
   const groupsList = read("ios/App/App/GroupsListViewController.swift");
@@ -436,8 +457,11 @@ try {
   if (!versesHome.includes("ThemesHomeViewController") || !versesHome.includes("ReadingHomeViewController") || !versesHome.includes("MyCollectionsViewController")) {
     errors.push("Ferramentas tem de abrir Temas, Listas e Leitura.");
   }
-  if (versesHome.includes("V2NFilterChipsView") || versesHome.includes("chips.configure")) {
-    errors.push("Remova o seletor de chips da home de Ferramentas.");
+  if (!versesHome.includes("V2NFilterChipsView") || !versesHome.includes("chips.configure") || !versesHome.includes("allowsDeselect")) {
+    errors.push("Ferramentas tem de ter pills (V2NFilterChipsView) Livros/Temas/Listas/Leitura.");
+  }
+  if (!versesHome.includes("selectTool") || !versesHome.includes("embedded: true")) {
+    errors.push("Ferramentas: pills trocam conteúdo embutido; deselect volta aos cards.");
   }
   if (!versesHome.includes("applyBooksCompact") || !versesHome.includes("booksCompact")) {
     errors.push("Livros tem de manter Siglas/Nomes sincronizados com booksCompact no primeiro load.");
@@ -538,6 +562,9 @@ if (!authRouter.includes("auth-claim") || !authRouter.includes("auth-email") || 
 if (!authRouter.includes("group-notes") || !authRouter.includes('"groups"')) {
   errors.push("Faltam rotas /api/native/v1/groups* no router nativo.");
 }
+if (!authRouter.includes("group-members")) {
+  errors.push("Faltam rotas /api/native/v1/groups/:id/members* no router nativo.");
+}
 if (!authRouter.includes('"me"') || !authRouter.includes("account-delete") || !authRouter.includes("notify-prefs")) {
   errors.push("Faltam rotas /api/native/v1/me|prefs|account* no router nativo.");
 }
@@ -554,6 +581,9 @@ if (!authRouter.includes("plans-mark") || !authRouter.includes("plans-start")) {
 const apiClient = read("ios/App/App/NativeAPIClient.swift");
 if (!apiClient.includes("func getMe(") || !apiClient.includes("func deleteAccount(")) {
   errors.push("NativeAPIClient tem de expor getMe e deleteAccount.");
+}
+if (!apiClient.includes("listGroupMembers") || !apiClient.includes("decideGroupMember")) {
+  errors.push("NativeAPIClient tem de expor listGroupMembers / decideGroupMember.");
 }
 if (!apiClient.includes("func fetchBibleBooks(") || !apiClient.includes("func appendVerse(")) {
   errors.push("NativeAPIClient tem de expor fetchBibleBooks e appendVerse.");

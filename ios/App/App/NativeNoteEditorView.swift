@@ -22,6 +22,10 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     private(set) var isReady = true
     private var baseBottomInset: CGFloat = V2NDesign.Space.lg
     private var triggerMenu: NoteEditorTriggerMenuView?
+    private var triggerMenuTopConstraint: NSLayoutConstraint?
+    private var triggerMenuLeadingConstraint: NSLayoutConstraint?
+    private var keyboardOverlap: CGFloat = 0
+    private var isBodyEditing = false
 
     override init(frame: CGRect) {
         let storage = NSTextStorage()
@@ -68,7 +72,8 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         accessory.onAction = { [weak self] action in
             self?.handleAccessory(action)
         }
-        textView.inputAccessoryView = accessory
+        // Formatting toolbar appears only after the user taps into the body (edit mode).
+        textView.inputAccessoryView = nil
 
         NSLayoutConstraint.activate([
             textView.topAnchor.constraint(equalTo: topAnchor),
@@ -140,16 +145,27 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             overlap = max(0, bounds.maxY - frameInView.minY)
         }
 
+        keyboardOverlap = overlap
         // Accessory bar sits above the keyboard; add a little breathing room for the caret.
-        let accessoryH = textView.isFirstResponder ? accessory.bounds.height : 0
-        let bottom = overlap + (overlap > 0 ? max(accessoryH, 0) + V2NDesign.Space.md : 0)
+        let accessoryH = (textView.isFirstResponder && textView.inputAccessoryView != nil) ? max(accessory.bounds.height, 44) : 0
+        let bottom = overlap + (overlap > 0 ? accessoryH + V2NDesign.Space.md : 0)
 
         UIView.animate(withDuration: duration, delay: 0, options: options) {
             self.textView.contentInset.bottom = bottom
             self.textView.verticalScrollIndicatorInsets.bottom = bottom
             self.textView.textContainerInset.bottom = self.baseBottomInset + (overlap > 0 ? V2NDesign.Space.sm : 0)
+            self.repositionTriggerMenuIfNeeded()
         } completion: { _ in
             self.scrollCaretVisible(animated: true)
+        }
+    }
+
+    private func setEditingChrome(_ editing: Bool) {
+        isBodyEditing = editing
+        let next: UIView? = editing ? accessory : nil
+        if textView.inputAccessoryView !== next {
+            textView.inputAccessoryView = next
+            textView.reloadInputViews()
         }
     }
 
@@ -238,6 +254,15 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
     // MARK: - UITextViewDelegate
 
+    func textViewDidBeginEditing(_ textView: UITextView) {
+        setEditingChrome(true)
+    }
+
+    func textViewDidEndEditing(_ textView: UITextView) {
+        setEditingChrome(false)
+        dismissTriggerMenu()
+    }
+
     func textViewDidChange(_ textView: UITextView) {
         guard !applyingRemote else { return }
         // Keep body lines inside a speaker section indented so the rail stays aligned.
@@ -257,7 +282,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
     func textViewDidChangeSelection(_ textView: UITextView) {
         if triggerMenu != nil {
-            // Keep menu anchored while typing filter text after @ /
+            repositionTriggerMenuIfNeeded()
         }
     }
 
@@ -688,11 +713,15 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             return
         }
 
-        // Checklist toggle when tapping the line (not a pill).
         if let index = characterIndex(at: point, requireHitBounds: false),
            index < textView.textStorage.length
         {
             let attrs = textView.textStorage.attributes(at: index, effectiveRange: nil)
+            if (attrs[NoteDocumentCodec.blockTypeKey] as? String) == "speakerSection" {
+                toggleSpeakerCollapsed(at: index)
+                return
+            }
+            // Checklist toggle when tapping the line (not a pill).
             if let type = attrs[NoteDocumentCodec.blockTypeKey] as? String, type == "check" {
                 let range = (textView.text as NSString).paragraphRange(for: NSRange(location: index, length: 0))
                 let checked = !((attrs[NoteDocumentCodec.checkedKey] as? Bool) ?? false)
@@ -700,6 +729,52 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
                 emitChange()
             }
         }
+    }
+
+    private func toggleSpeakerCollapsed(at index: Int) {
+        // Capture full document (incl. expanded children) before flipping the flag.
+        var doc = currentDocument()
+        let ns = textView.textStorage.string as NSString
+        let para = ns.paragraphRange(for: NSRange(location: index, length: 0))
+        let attrs = textView.textStorage.attributes(at: para.location, effectiveRange: nil)
+        let blockId = attrs[NoteDocumentCodec.blockIdKey] as? String
+        guard let blockId,
+              let matchIdx = doc.body.blocks.firstIndex(where: { $0.id == blockId && $0.type == "speakerSection" })
+        else { return }
+        var block = doc.body.blocks[matchIdx]
+        let nextCollapsed = !(block.collapsed == true)
+        block.collapsed = nextCollapsed ? true : nil
+        doc.body.blocks[matchIdx] = block
+        documentBase = doc
+        applyingRemote = true
+        let selected = textView.selectedRange
+        textView.attributedText = NoteDocumentCodec.attributedString(from: doc, speakers: speakers)
+        if let headerLoc = findSpeakerHeaderLocation(blockId: block.id) {
+            textView.selectedRange = NSRange(location: headerLoc, length: 0)
+        } else {
+            textView.selectedRange = NSRange(location: min(selected.location, textView.textStorage.length), length: 0)
+        }
+        applyingRemote = false
+        refreshSpeakerRails()
+        emitChange()
+        V2NHaptics.selection()
+        UIView.animate(withDuration: 0.22) {
+            self.textView.layoutIfNeeded()
+        }
+    }
+
+    private func findSpeakerHeaderLocation(blockId: String) -> Int? {
+        let storage = textView.textStorage
+        var found: Int?
+        storage.enumerateAttribute(NoteDocumentCodec.blockIdKey, in: NSRange(location: 0, length: storage.length)) { value, range, stop in
+            guard (value as? String) == blockId else { return }
+            let attrs = storage.attributes(at: range.location, effectiveRange: nil)
+            if (attrs[NoteDocumentCodec.blockTypeKey] as? String) == "speakerSection" {
+                found = range.location
+                stop.pointee = true
+            }
+        }
+        return found
     }
 
     private func textPoint(_ point: CGPoint) -> CGPoint {
@@ -855,26 +930,64 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         let menu = NoteEditorTriggerMenuView(title: title, items: items) { [weak self] in
             self?.dismissTriggerMenu()
         }
-        let anchor = caretAnchorPoint()
         menu.translatesAutoresizingMaskIntoConstraints = false
         addSubview(menu)
         triggerMenu = menu
 
         let width: CGFloat = min(280, bounds.width - 24)
-        let leading = max(12, min(anchor.x, bounds.width - width - 12))
-        let top = min(max(anchor.y, 8), bounds.height - 220)
+        let leadingConstraint = menu.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12)
+        let topConstraint = menu.topAnchor.constraint(equalTo: topAnchor, constant: 8)
+        triggerMenuLeadingConstraint = leadingConstraint
+        triggerMenuTopConstraint = topConstraint
         NSLayoutConstraint.activate([
-            menu.leadingAnchor.constraint(equalTo: leadingAnchor, constant: leading),
-            menu.topAnchor.constraint(equalTo: topAnchor, constant: top),
+            leadingConstraint,
+            topConstraint,
             menu.widthAnchor.constraint(equalToConstant: width),
             menu.heightAnchor.constraint(lessThanOrEqualToConstant: 280),
         ])
+        layoutIfNeeded()
+        repositionTriggerMenuIfNeeded()
         V2NHaptics.selection()
+    }
+
+    private func repositionTriggerMenuIfNeeded() {
+        guard let menu = triggerMenu else { return }
+        let width = menu.bounds.width > 1 ? menu.bounds.width : min(280, bounds.width - 24)
+        let height = menu.systemLayoutSizeFitting(
+            CGSize(width: width, height: UIView.layoutFittingCompressedSize.height),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        ).height
+        let caret = caretRectInSelf()
+        let keyboardTop = bounds.height - keyboardOverlap
+        let maxBottom = (keyboardOverlap > 0 ? keyboardTop : bounds.height) - 8
+        // Prefer above the caret so the menu stays clear of the keyboard.
+        var top = caret.minY - height - 8
+        if top < 8 {
+            top = min(caret.maxY + 6, maxBottom - height)
+        }
+        top = max(8, min(top, maxBottom - height))
+        let leading = max(12, min(caret.minX, bounds.width - width - 12))
+        triggerMenuTopConstraint?.constant = top
+        triggerMenuLeadingConstraint?.constant = leading
+        layoutIfNeeded()
+    }
+
+    private func caretRectInSelf() -> CGRect {
+        let range = textView.selectedRange
+        let start = min(range.location, max(0, textView.textStorage.length))
+        var rect = textView.caretRect(for: textView.position(from: textView.beginningOfDocument, offset: start) ?? textView.endOfDocument)
+        if rect.isNull || rect.isInfinite {
+            rect = CGRect(x: textView.textContainerInset.left, y: textView.textContainerInset.top, width: 1, height: 20)
+        }
+        return textView.convert(rect, to: self)
     }
 
     private func dismissTriggerMenu() {
         triggerMenu?.removeFromSuperview()
         triggerMenu = nil
+        triggerMenuTopConstraint = nil
+        triggerMenuLeadingConstraint = nil
     }
 }
 

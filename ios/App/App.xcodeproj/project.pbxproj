@@ -21,6 +21,8 @@
 		D3E0F0052FED796500168540 /* NativeAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E0F0042FED796500168540 /* NativeAPIClient.swift */; };
 		E4F1A0102FED796500168550 /* AppRoot.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4F1A0112FED796500168550 /* AppRoot.swift */; };
 		E4F1A0122FED796500168550 /* LocalNoteCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4F1A0132FED796500168550 /* LocalNoteCache.swift */; };
+		A1B2C0122FED7965001685F2 /* GroupMembersViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C0132FED7965001685F2 /* GroupMembersViewController.swift */; };
+		A1B2C0102FED7965001685F1 /* LocalSessionCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C0112FED7965001685F1 /* LocalSessionCache.swift */; };
 		E4F1A0142FED796500168550 /* NativeRootTabBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4F1A0152FED796500168550 /* NativeRootTabBarController.swift */; };
 		E4F1A0162FED796500168550 /* ComingSoonTabViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4F1A0172FED796500168550 /* ComingSoonTabViewController.swift */; };
 		E4F1A0182FED796500168550 /* NotebookListViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4F1A0192FED796500168550 /* NotebookListViewController.swift */; };
@@ -68,6 +70,8 @@
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 		E4F1A0112FED796500168550 /* AppRoot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRoot.swift; sourceTree = "<group>"; };
 		E4F1A0132FED796500168550 /* LocalNoteCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalNoteCache.swift; sourceTree = "<group>"; };
+		A1B2C0132FED7965001685F2 /* GroupMembersViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupMembersViewController.swift; sourceTree = "<group>"; };
+		A1B2C0112FED7965001685F1 /* LocalSessionCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalSessionCache.swift; sourceTree = "<group>"; };
 		E4F1A0152FED796500168550 /* NativeRootTabBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeRootTabBarController.swift; sourceTree = "<group>"; };
 		E4F1A0172FED796500168550 /* ComingSoonTabViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComingSoonTabViewController.swift; sourceTree = "<group>"; };
 		E4F1A0192FED796500168550 /* NotebookListViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotebookListViewController.swift; sourceTree = "<group>"; };
@@ -142,6 +146,8 @@
 				D3E0F0042FED796500168540 /* NativeAPIClient.swift */,
 				E4F1A0112FED796500168550 /* AppRoot.swift */,
 				E4F1A0132FED796500168550 /* LocalNoteCache.swift */,
+				A1B2C0132FED7965001685F2 /* GroupMembersViewController.swift */,
+				A1B2C0112FED7965001685F1 /* LocalSessionCache.swift */,
 				F6A6E0112FED7965001685B0 /* LegacyNoteConverter.swift */,
 				F6A6E0132FED7965001685B0 /* NativeOutbox.swift */,
 				F6A6E0152FED7965001685B0 /* LegacyWebStorageImporter.swift */,
@@ -268,6 +274,8 @@
 				D3E0F0052FED796500168540 /* NativeAPIClient.swift in Sources */,
 				E4F1A0102FED796500168550 /* AppRoot.swift in Sources */,
 				E4F1A0122FED796500168550 /* LocalNoteCache.swift in Sources */,
+				A1B2C0122FED7965001685F2 /* GroupMembersViewController.swift in Sources */,
+				A1B2C0102FED7965001685F1 /* LocalSessionCache.swift in Sources */,
 				F6A6E0102FED7965001685B0 /* LegacyNoteConverter.swift in Sources */,
 				F6A6E0122FED7965001685B0 /* NativeOutbox.swift in Sources */,
 				F6A6E0142FED7965001685B0 /* LegacyWebStorageImporter.swift in Sources */,

@@ -29,7 +29,7 @@ describe("matchNativeV1Route", () => {
     assert.deepEqual(matchNativeV1Route("auth/sign-out"), { kind: "auth-sign-out" });
   });
 
-  it("maps groups collection, item, and notes", () => {
+  it("maps groups collection, item, notes, and members", () => {
     assert.deepEqual(matchNativeV1Route("groups"), { kind: "groups" });
     assert.deepEqual(matchNativeV1Route("groups/g1"), { kind: "groups", groupId: "g1" });
     assert.deepEqual(matchNativeV1Route("groups/g1/notes"), { kind: "group-notes", groupId: "g1" });
@@ -37,6 +37,20 @@ describe("matchNativeV1Route", () => {
       kind: "group-notes",
       groupId: "g1",
       noteId: "n1",
+    });
+    assert.deepEqual(matchNativeV1Route("groups/g1/members"), { kind: "group-members", groupId: "g1" });
+    assert.deepEqual(matchNativeV1Route("groups/g1/members/decide"), {
+      kind: "group-members-decide",
+      groupId: "g1",
+    });
+    assert.deepEqual(matchNativeV1Route("groups/g1/members/role"), {
+      kind: "group-members-role",
+      groupId: "g1",
+    });
+    assert.deepEqual(matchNativeV1Route("groups/g1/members/u1"), {
+      kind: "group-members",
+      groupId: "g1",
+      userId: "u1",
     });
     assert.deepEqual(matchNativeV1Route("notes/n1/groups"), { kind: "note-groups", noteId: "n1" });
   });

@@ -15,12 +15,17 @@ enum NoteDocumentCodec {
     static let bibleRefKey = NSAttributedString.Key("v2n.bibleRef")
     static let linkKey = NSAttributedString.Key("v2n.link")
     static let speakerIdKey = NSAttributedString.Key("v2n.speakerId")
+    /// Optional UI/wire flag for speaker sections (`collapsed` on NoteDocumentV1).
+    static let collapsedKey = NSAttributedString.Key("v2n.collapsed")
     /// Marks a leading "• " / "1. " glyph that is display-only (not part of NoteDocumentV1 text).
     static let listMarkerKey = NSAttributedString.Key("v2n.listMarker")
     /// Left inset for speaker-section header + body (matches web `.note-speaker` padding-left).
     static let speakerSectionContentInset: CGFloat = 14
     /// Vertical rail width (matches web `border-left: 2px`).
     static let speakerRailWidth: CGFloat = 2
+    /// Chevron prefixes shown on speaker headers (stripped when encoding title).
+    static let speakerExpandedChevron = "▾ "
+    static let speakerCollapsedChevron = "▸ "
 
     /// NSObject so it can live in NSAttributedString attribute values.
     final class BibleRefPayload: NSObject {
@@ -79,6 +84,7 @@ enum NoteDocumentCodec {
                 if let title = block.title, !title.isEmpty { return title }
                 return String(localized: "Speaker")
             }()
+            let collapsed = block.collapsed == true
             if result.length > 0 {
                 result.append(NSAttributedString(string: "\n"))
             }
@@ -87,9 +93,11 @@ enum NoteDocumentCodec {
                     name: speakerName,
                     speakerId: block.speakerId,
                     colorHex: block.speakerId.flatMap { speakers[$0]?.color },
-                    blockId: block.id
+                    blockId: block.id,
+                    collapsed: collapsed
                 )
             )
+            if collapsed { return }
             var childNumbered = 0
             for child in block.blocks ?? [] {
                 appendBlock(
@@ -298,7 +306,8 @@ enum NoteDocumentCodec {
         name: String,
         speakerId: String?,
         colorHex: String?,
-        blockId: String
+        blockId: String,
+        collapsed: Bool = false
     ) -> NSAttributedString {
         _ = colorHex // Color is used for the vertical rail, not the title text.
         var attrs = baseAttributes(
@@ -309,10 +318,21 @@ enum NoteDocumentCodec {
             speakers: [:]
         )
         attrs = applyingSpeakerSectionInset(attrs)
-        let display = name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            ? String(localized: "Speaker")
-            : name
-        return NSAttributedString(string: display, attributes: attrs)
+        attrs[collapsedKey] = collapsed
+        let raw = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let baseName = stripSpeakerChevron(raw).isEmpty ? String(localized: "Speaker") : stripSpeakerChevron(raw)
+        let chevron = collapsed ? speakerCollapsedChevron : speakerExpandedChevron
+        return NSAttributedString(string: chevron + baseName, attributes: attrs)
+    }
+
+    static func stripSpeakerChevron(_ name: String) -> String {
+        var text = name
+        for prefix in [speakerExpandedChevron, speakerCollapsedChevron, "▾", "▸"] {
+            if text.hasPrefix(prefix) {
+                text = String(text.dropFirst(prefix.count)).trimmingCharacters(in: .whitespaces)
+            }
+        }
+        return text
     }
 
     /// Character ranges + rail colors for every speaker section (header through body until next section).
@@ -455,17 +475,24 @@ enum NoteDocumentCodec {
             if type == "speakerSection" {
                 flushSpeaker()
                 let raw = String(line.string).trimmingCharacters(in: .whitespacesAndNewlines)
-                let speakerName = raw.isEmpty ? String(localized: "Speaker") : raw
+                let speakerName = stripSpeakerChevron(raw)
+                let collapsed = (line.attributes[collapsedKey] as? Bool) ?? false
+                let preservedChildren = collapsed
+                    ? (base.body.blocks.first(where: { $0.id == id && $0.type == "speakerSection" })?.blocks ?? [])
+                    : []
                 currentSpeaker = NativeAPIClient.LineBlock(
                     id: id,
                     type: "speakerSection",
                     spans: nil,
                     speakerId: line.attributes[speakerIdKey] as? String,
-                    title: speakerName,
-                    collapsed: false,
+                    title: speakerName.isEmpty ? String(localized: "Speaker") : speakerName,
+                    collapsed: collapsed ? true : nil,
                     checked: nil,
-                    blocks: []
+                    blocks: preservedChildren
                 )
+                // Collapsed sections keep children from `base` — flush so later paragraphs
+                // are not absorbed as body of this speaker.
+                if collapsed { flushSpeaker() }
                 continue
             }
             let block = lineBlock(from: line, type: type, id: id)
