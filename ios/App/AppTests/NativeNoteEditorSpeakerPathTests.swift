@@ -1,10 +1,10 @@
 import XCTest
 @testable import App
 
-/// Drives a real `NativeNoteEditorView` / `UITextView` — the path PR #60's pure helpers missed.
+/// Drives `NativeNoteEditorView`'s real `shouldChangeTextIn` path (what PR #60 never tested).
+/// Does **not** create a key window — AppTests host inside the app and a second UIWindow hangs CI.
 @MainActor
 final class NativeNoteEditorSpeakerPathTests: XCTestCase {
-    private var window: UIWindow?
     private var editor: NativeNoteEditorView!
     private let speakers = [
         NativeAPIClient.SpeakerDTO(
@@ -18,17 +18,15 @@ final class NativeNoteEditorSpeakerPathTests: XCTestCase {
     override func setUp() async throws {
         try await super.setUp()
         editor = NativeNoteEditorView(frame: .zero)
-        window = editor.testing_attachToKeyWindow()
+        editor.testing_prepare()
         var note = NativeAPIClient.emptyNote(id: "note-speaker-path")
         note.title = "Reunião"
         editor.pushNote(note, speakers: speakers)
-        _ = editor.testing_becomeFirstResponder()
 
-        // Caret at end of the note — typical place when inserting from the toolbar / @ / /.
         let storage = editor.testing_textStorage()
         editor.testing_setSelectedRange(NSRange(location: storage.length, length: 0))
 
-        // All UI entry points (accessory toolbar, `/` → Speaker, `@` menu) call this.
+        // Accessory toolbar, `/` → Speaker, and `@` menu all call this.
         editor.insertSpeakerSection(speakerId: "sp1", name: "Beto")
         XCTAssertEqual(
             editor.testing_paragraphBlockType(),
@@ -38,8 +36,6 @@ final class NativeNoteEditorSpeakerPathTests: XCTestCase {
     }
 
     override func tearDown() async throws {
-        window?.isHidden = true
-        window = nil
         editor = nil
         try await super.tearDown()
     }
@@ -60,13 +56,15 @@ final class NativeNoteEditorSpeakerPathTests: XCTestCase {
     }
 
     func testRealReturnOnNameThenType_landsInSectionBodyAndRail() {
-        // Edit the name (this is what demoted typingAttributes to paragraph before the fix).
+        // Edit the name (previously demoted typingAttributes to paragraph mid-header).
         editor.testing_insertText(" X")
         XCTAssertEqual(editor.testing_paragraphBlockType(), "speakerSection")
 
         editor.testing_insertText("\n")
+        let caret = editor.testing_selectedRange().location
+        XCTAssertGreaterThan(caret, 0)
         let bodyAttrs = editor.testing_textStorage().attributes(
-            at: max(0, editor.testing_selectedRange().location - 1),
+            at: caret - 1,
             effectiveRange: nil
         )
         XCTAssertTrue(
@@ -76,7 +74,7 @@ final class NativeNoteEditorSpeakerPathTests: XCTestCase {
 
         editor.testing_insertText("corpo dentro")
         let doc = editor.currentDocument()
-        XCTAssertEqual(doc.body.blocks.count, 1, "body text must not escape as a sibling block")
+        XCTAssertEqual(doc.body.blocks.count, 1, "body text must not escape as a sibling block; got \(doc.body.blocks.map(\.type))")
         XCTAssertEqual(doc.body.blocks[0].type, "speakerSection")
         XCTAssertEqual(doc.body.blocks[0].blocks?.count, 1)
         let bodyText = doc.body.blocks[0].blocks?.first?.spans?.map { $0.text ?? "" }.joined() ?? ""
@@ -89,7 +87,7 @@ final class NativeNoteEditorSpeakerPathTests: XCTestCase {
             NSLocationInRange(bodyLoc, $0)
                 || NSIntersectionRange($0, NSRange(location: bodyLoc, length: 1)).length > 0
         }
-        XCTAssertTrue(covered, "rail must cover the body characters, not only the name line")
+        XCTAssertTrue(covered, "rail must cover the body characters, not only the name line; rails=\(rails)")
     }
 
     func testRealReturnInsideBody_staysInside() {
@@ -99,7 +97,7 @@ final class NativeNoteEditorSpeakerPathTests: XCTestCase {
         editor.testing_insertText("dois")
 
         let doc = editor.currentDocument()
-        XCTAssertEqual(doc.body.blocks.count, 1)
+        XCTAssertEqual(doc.body.blocks.count, 1, "got \(doc.body.blocks.map(\.type))")
         XCTAssertEqual(doc.body.blocks[0].type, "speakerSection")
         XCTAssertEqual(doc.body.blocks[0].blocks?.count, 2)
         let texts = (doc.body.blocks[0].blocks ?? []).map { block in
@@ -116,7 +114,7 @@ final class NativeNoteEditorSpeakerPathTests: XCTestCase {
         editor.testing_insertText("fora")
 
         let doc = editor.currentDocument()
-        XCTAssertEqual(doc.body.blocks.count, 2)
+        XCTAssertEqual(doc.body.blocks.count, 2, "got \(doc.body.blocks.map(\.type))")
         XCTAssertEqual(doc.body.blocks[0].type, "speakerSection")
         XCTAssertEqual(doc.body.blocks[0].blocks?.first?.spans?.first?.text, "dentro")
         XCTAssertEqual(doc.body.blocks[1].type, "paragraph")
@@ -127,9 +125,10 @@ final class NativeNoteEditorSpeakerPathTests: XCTestCase {
         editor.testing_insertText("\r")
         let loc = max(0, editor.testing_selectedRange().location - 1)
         let attrs = editor.testing_textStorage().attributes(at: loc, effectiveRange: nil)
-        XCTAssertTrue(NoteDocumentCodec.isSpeakerBody(attrs))
+        XCTAssertTrue(NoteDocumentCodec.isSpeakerBody(attrs), "\\r must take the same Enter path as \\n")
         editor.testing_insertText("via CR")
         let doc = editor.currentDocument()
+        XCTAssertEqual(doc.body.blocks.count, 1, "got \(doc.body.blocks.map(\.type))")
         XCTAssertEqual(doc.body.blocks[0].type, "speakerSection")
         XCTAssertEqual(doc.body.blocks[0].blocks?.count, 1)
     }
@@ -138,6 +137,7 @@ final class NativeNoteEditorSpeakerPathTests: XCTestCase {
         editor.testing_insertText("\n")
         editor.testing_insertText("mensagem")
         let first = editor.currentDocument()
+        XCTAssertEqual(first.body.blocks[0].type, "speakerSection")
         editor.pushNote(first, speakers: speakers)
         let second = editor.currentDocument()
         XCTAssertEqual(second.body.blocks.count, 1)

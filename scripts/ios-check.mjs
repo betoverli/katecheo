@@ -235,7 +235,7 @@ if (!project.includes("SpeakerSectionEditing.swift in Sources") || !project.incl
 if (!editor.includes("paragraphBlockType") || !editor.includes("normalizeSpeakerBodyParagraphAttributes") || !editor.includes("isNewlineReplacement")) {
   errors.push("Enter do orador tem de usar o tipo do início do parágrafo + normalizar o corpo (não só helpers puros).");
 }
-if (!editor.includes("testing_insertText") || !project.includes("NativeNoteEditorSpeakerPathTests.swift in Sources")) {
+if (!editor.includes("testing_insertText") || !editor.includes("testing_prepare") || !project.includes("NativeNoteEditorSpeakerPathTests.swift in Sources")) {
   errors.push("AppTests têm de exercer o caminho real NativeNoteEditorView/UITextView (NativeNoteEditorSpeakerPathTests).");
 }
 if (!editor.includes("from: textView.textStorage")) {

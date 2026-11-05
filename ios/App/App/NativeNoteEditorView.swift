@@ -100,7 +100,8 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         )
         // Force background redraw so rails grow/shrink with typed text.
         let length = textView.textStorage.length
-        if length > 0 {
+        let containerWidth = textView.textContainer.size.width
+        if length > 0, containerWidth > 1 {
             railLayoutManager.invalidateLayout(
                 forCharacterRange: NSRange(location: 0, length: length),
                 actualCharacterRange: nil
@@ -1277,34 +1278,17 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
     // MARK: - AppTests seams (real UITextView path)
 
-    /// Host the editor in a key window so `insertText` / Return hit `shouldChangeTextIn`.
-    @discardableResult
-    func testing_attachToKeyWindow(size: CGSize = CGSize(width: 390, height: 844)) -> UIWindow {
-        let window = UIWindow(frame: CGRect(origin: .zero, size: size))
-        let host = UIViewController()
-        translatesAutoresizingMaskIntoConstraints = false
-        host.view.addSubview(self)
-        NSLayoutConstraint.activate([
-            topAnchor.constraint(equalTo: host.view.topAnchor),
-            leadingAnchor.constraint(equalTo: host.view.leadingAnchor),
-            trailingAnchor.constraint(equalTo: host.view.trailingAnchor),
-            bottomAnchor.constraint(equalTo: host.view.bottomAnchor),
-        ])
-        window.rootViewController = host
-        window.makeKeyAndVisible()
-        host.view.layoutIfNeeded()
+    /// Prepare a frameless editor for AppTests. Avoid creating a second key `UIWindow` —
+    /// AppTests run inside the app host and fighting SceneDelegate's window flakes/hangs CI.
+    func testing_prepare(size: CGSize = CGSize(width: 390, height: 844)) {
+        frame = CGRect(origin: .zero, size: size)
+        textView.frame = bounds
+        textView.textContainer.size = CGSize(width: size.width - 32, height: size.height)
         layoutIfNeeded()
-        return window
-    }
-
-    @discardableResult
-    func testing_becomeFirstResponder() -> Bool {
-        textView.becomeFirstResponder()
     }
 
     /// Simulate a keyboard insertion the way UIKit does: ask `shouldChangeTextIn`, then
     /// either let our handler mutate storage (Return → false) or apply typingAttributes (true).
-    /// Prefer this over `insertText` in AppTests — headless XCTest often skips the delegate.
     func testing_insertText(_ string: String) {
         let range = textView.selectedRange
         let allowed = textView(textView, shouldChangeTextIn: range, replacementText: string)
