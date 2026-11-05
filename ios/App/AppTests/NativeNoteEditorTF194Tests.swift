@@ -104,7 +104,7 @@ final class NativeNoteEditorTF194Tests: XCTestCase {
     func testListEnter_continuesThenEmptyExits() {
         editor.testing_insertText("item")
         // Promote current paragraph to bullet via accessory path helper.
-        editor.testing_applyBlockType("bullet")
+        applyBlockTypeForTest("bullet")
         XCTAssertEqual(editor.testing_paragraphBlockType(), "bullet")
         editor.testing_insertText("\n")
         XCTAssertEqual(editor.testing_paragraphBlockType(), "bullet", "Enter continues bullet list")
@@ -188,7 +188,7 @@ final class NativeNoteEditorTF194Tests: XCTestCase {
         XCTAssertFalse(editor.currentDocument().body.blocks.contains { $0.type == "speakerSection" })
     }
 
-    private func testing_applyBlockType(_ type: String) {
+    private func applyBlockTypeForTest(_ type: String) {
         editor.testing_applyBlockTypeHook(type)
     }
 }
