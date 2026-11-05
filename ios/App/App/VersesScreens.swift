@@ -208,13 +208,12 @@ final class VerseNumberViewController: UIViewController, UICollectionViewDelegat
     }
 
     private func formatLabel(_ passage: NativeAPIClient.PassageDTO) -> String {
-        if let verseStart = passage.verseStart {
-            if let verseEnd = passage.verseEnd, verseEnd != verseStart {
-                return String(localized: "\(book.name) \(chapter):\(verseStart)–\(verseEnd)")
-            }
-            return "\(book.name) \(chapter):\(verseStart)"
-        }
-        return "\(book.name) \(chapter)"
+        BibleBookCatalog.formatPassage(
+            bookId: passage.bookId,
+            chapter: passage.chapter,
+            verseStart: passage.verseStart,
+            verseEnd: passage.verseEnd
+        )
     }
 }
 
@@ -251,7 +250,7 @@ final class VerseActionsViewController: UITableViewController {
         title = label
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "action")
         statusLabel.numberOfLines = 0
-        statusLabel.font = .preferredFont(forTextStyle: .footnote)
+        statusLabel.font = V2NDesign.caption()
         statusLabel.textColor = .secondaryLabel
         statusLabel.textAlignment = .center
         let header = UIView(frame: CGRect(x: 0, y: 0, width: 320, height: 72))
@@ -298,25 +297,28 @@ final class VerseActionsViewController: UITableViewController {
         let cell = tableView.dequeueReusableCell(withIdentifier: "action", for: indexPath)
         var config = cell.defaultContentConfiguration()
         guard let row = Row(rawValue: indexPath.row) else { return cell }
+        let symbol: String
         switch row {
         case .openBible:
             config.text = String(localized: "Abrir na Bíblia")
             config.secondaryText = ProfileBibleCatalog.name(for: prefs?.appId ?? "youversion")
-            config.image = UIImage(systemName: "book.fill")
+            symbol = "book.fill"
         case .share:
             config.text = String(localized: "Compartilhar")
-            config.image = UIImage(systemName: "square.and.arrow.up")
+            symbol = "square.and.arrow.up"
         case .copy:
             config.text = String(localized: "Copiar referência")
-            config.image = UIImage(systemName: "doc.on.doc")
+            symbol = "doc.on.doc"
         case .addToNote:
             config.text = String(localized: "Adicionar à nota de hoje")
-            config.image = UIImage(systemName: "note.text.badge.plus")
+            symbol = "note.text.badge.plus"
         case .saveToList:
             config.text = String(localized: "Salvar na minha lista")
-            config.image = UIImage(systemName: "bookmark")
+            symbol = "bookmark"
         }
+        config.v2nApplyBrandListStyle(symbol: symbol)
         cell.contentConfiguration = config
+        cell.v2nApplyBrandChrome()
         cell.accessoryType = .disclosureIndicator
         return cell
     }
@@ -419,6 +421,7 @@ final class VerseActionsViewController: UITableViewController {
                     return
                 }
                 let sheet = UIAlertController(title: String(localized: "Salvar na lista"), message: nil, preferredStyle: .actionSheet)
+                sheet.view.tintColor = V2NDesign.accent
                 for collection in collections {
                     sheet.addAction(UIAlertAction(title: collection.title, style: .default) { [weak self] _ in
                         self?.save(to: collection.id)
@@ -513,6 +516,7 @@ final class ThemesHomeViewController: UITableViewController, UISearchResultsUpda
     private var kind = "index"
     private let search = UISearchController(searchResultsController: nil)
     private let embeddedSearch = UISearchBar()
+    private let emptyState = V2NEmptyStateView()
 
     init(prefs: NativeAPIClient.PrefsDTO?, embedded: Bool = false) {
         self.prefs = prefs
@@ -535,8 +539,10 @@ final class ThemesHomeViewController: UITableViewController, UISearchResultsUpda
                 action: #selector(createTheme)
             )
             navigationItem.rightBarButtonItem?.accessibilityLabel = String(localized: "Novo tema")
+            navigationItem.rightBarButtonItem?.tintColor = V2NDesign.accent
         }
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "theme")
+        tableView.backgroundView = emptyState
         search.searchResultsUpdater = self
         search.obscuresBackgroundDuringPresentation = false
         search.searchBar.placeholder = String(localized: "Buscar temas")
@@ -554,6 +560,7 @@ final class ThemesHomeViewController: UITableViewController, UISearchResultsUpda
             navigationItem.hidesSearchBarWhenScrolling = true
         }
         refreshControl = UIRefreshControl()
+        refreshControl?.tintColor = V2NDesign.accent
         refreshControl?.addTarget(self, action: #selector(reload), for: .valueChanged)
         _ = V2NGlassMaterial.sdkHasLiquidGlass()
         if !embedded {
@@ -633,11 +640,25 @@ final class ThemesHomeViewController: UITableViewController, UISearchResultsUpda
                 categories = result.categories
                 themes = result.themes
                 tableView.reloadData()
+                refreshEmptyState()
             } catch {
                 let alert = UIAlertController(title: String(localized: "Temas"), message: error.localizedDescription, preferredStyle: .alert)
+                alert.view.tintColor = V2NDesign.accent
                 alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
                 present(alert, animated: true)
             }
+        }
+    }
+
+    private func refreshEmptyState() {
+        if categories.isEmpty && themes.isEmpty {
+            emptyState.show(
+                symbol: "bookmark.fill",
+                title: String(localized: "Nenhum tema encontrado."),
+                message: String(localized: "Tente outra busca ou crie um tema pessoal.")
+            )
+        } else {
+            emptyState.hide()
         }
     }
 
@@ -655,7 +676,8 @@ final class ThemesHomeViewController: UITableViewController, UISearchResultsUpda
     }
 
     override func numberOfSections(in tableView: UITableView) -> Int {
-        themes.isEmpty ? 1 : 2
+        if categories.isEmpty && themes.isEmpty { return 0 }
+        return themes.isEmpty ? 1 : 2
     }
 
     override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
@@ -664,7 +686,7 @@ final class ThemesHomeViewController: UITableViewController, UISearchResultsUpda
     }
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        if section == 0 { return max(categories.count, themes.isEmpty && categories.isEmpty ? 1 : categories.count) }
+        if section == 0 { return categories.count }
         return themes.count
     }
 
@@ -672,24 +694,24 @@ final class ThemesHomeViewController: UITableViewController, UISearchResultsUpda
         let cell = tableView.dequeueReusableCell(withIdentifier: "theme", for: indexPath)
         var config = cell.defaultContentConfiguration()
         if indexPath.section == 0 {
-            if categories.isEmpty {
-                config.text = themes.isEmpty ? String(localized: "Nenhum tema encontrado.") : "—"
-                cell.selectionStyle = .none
-            } else {
-                let category = categories[indexPath.row]
-                config.text = category.name
-                if let count = category.count {
-                    config.secondaryText = String(localized: "\(count) temas")
-                }
-                cell.accessoryType = .disclosureIndicator
+            let category = categories[indexPath.row]
+            config.text = category.name
+            if let count = category.count {
+                config.secondaryText = String(localized: "\(count) temas")
             }
+            config.v2nApplyBrandListStyle(symbol: "folder.fill")
+            cell.accessoryType = .disclosureIndicator
+            cell.selectionStyle = .default
         } else {
             let theme = themes[indexPath.row]
             config.text = theme.name
             config.secondaryText = theme.snippet
+            config.v2nApplyBrandListStyle(symbol: "bookmark.fill")
             cell.accessoryType = .disclosureIndicator
+            cell.selectionStyle = .default
         }
         cell.contentConfiguration = config
+        cell.v2nApplyBrandChrome()
         return cell
     }
 
@@ -744,6 +766,7 @@ final class ThemeCategoryViewController: UITableViewController {
         } catch {
             await MainActor.run {
                 let alert = UIAlertController(title: String(localized: "Categoria"), message: error.localizedDescription, preferredStyle: .alert)
+                alert.view.tintColor = V2NDesign.accent
                 alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
                 present(alert, animated: true)
             }
@@ -760,7 +783,9 @@ final class ThemeCategoryViewController: UITableViewController {
         var config = cell.defaultContentConfiguration()
         config.text = theme.name
         config.secondaryText = theme.snippet
+        config.v2nApplyBrandListStyle(symbol: "bookmark.fill")
         cell.contentConfiguration = config
+        cell.v2nApplyBrandChrome()
         cell.accessoryType = .disclosureIndicator
         return cell
     }
@@ -809,6 +834,7 @@ final class ThemeDetailViewController: UITableViewController {
         } catch {
             await MainActor.run {
                 let alert = UIAlertController(title: String(localized: "Tema"), message: error.localizedDescription, preferredStyle: .alert)
+                alert.view.tintColor = V2NDesign.accent
                 alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
                 present(alert, animated: true)
             }
@@ -823,9 +849,17 @@ final class ThemeDetailViewController: UITableViewController {
         let cell = tableView.dequeueReusableCell(withIdentifier: "passage", for: indexPath)
         let passage = passages[indexPath.row]
         var config = cell.defaultContentConfiguration()
-        config.text = passage.label ?? passage.asPassage.labelHint
+        let localized = BibleBookCatalog.formatPassage(
+            bookId: passage.bookId,
+            chapter: passage.chapter,
+            verseStart: passage.verseStart,
+            verseEnd: passage.verseEnd
+        )
+        config.text = passage.label ?? localized
         config.secondaryText = passage.snippet
+        config.v2nApplyBrandListStyle(symbol: "text.book.closed.fill")
         cell.contentConfiguration = config
+        cell.v2nApplyBrandChrome()
         cell.accessoryType = .disclosureIndicator
         return cell
     }
@@ -833,9 +867,15 @@ final class ThemeDetailViewController: UITableViewController {
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
         let passage = passages[indexPath.row]
+        let localized = BibleBookCatalog.formatPassage(
+            bookId: passage.bookId,
+            chapter: passage.chapter,
+            verseStart: passage.verseStart,
+            verseEnd: passage.verseEnd
+        )
         let actions = VerseActionsViewController(
             passage: passage.asPassage,
-            label: passage.label ?? passage.asPassage.labelHint,
+            label: passage.label ?? localized,
             prefs: prefs
         )
         navigationController?.pushViewController(actions, animated: true)
@@ -848,6 +888,7 @@ final class MyCollectionsViewController: UITableViewController {
     private let embedded: Bool
     private var collections: [NativeAPIClient.UserCollectionDTO] = []
     private var didPromptSignIn = false
+    private let emptyState = V2NEmptyStateView()
 
     init(embedded: Bool = false) {
         self.embedded = embedded
@@ -869,9 +910,12 @@ final class MyCollectionsViewController: UITableViewController {
                 action: #selector(createList)
             )
             navigationItem.rightBarButtonItem?.accessibilityLabel = String(localized: "Nova lista")
+            navigationItem.rightBarButtonItem?.tintColor = V2NDesign.accent
         }
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "list")
+        tableView.backgroundView = emptyState
         refreshControl = UIRefreshControl()
+        refreshControl?.tintColor = V2NDesign.accent
         refreshControl?.addTarget(self, action: #selector(reload), for: .valueChanged)
     }
 
@@ -896,6 +940,7 @@ final class MyCollectionsViewController: UITableViewController {
             guard NativeAPIClient.hasBearer else {
                 collections = []
                 tableView.reloadData()
+                refreshEmptyState(signedOut: true)
                 // Embedded under Versículos chips: show empty row, don't steal focus with alerts every switch.
                 if !embedded || !didPromptSignIn {
                     didPromptSignIn = true
@@ -904,6 +949,7 @@ final class MyCollectionsViewController: UITableViewController {
                         message: String(localized: "Inicie sessão para ver suas listas de versículos."),
                         preferredStyle: .alert
                     )
+                    alert.view.tintColor = V2NDesign.accent
                     alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
                     present(alert, animated: true)
                 }
@@ -912,11 +958,35 @@ final class MyCollectionsViewController: UITableViewController {
             do {
                 collections = try await NativeAPIClient.listMyCollections()
                 tableView.reloadData()
+                refreshEmptyState(signedOut: false)
             } catch {
                 let alert = UIAlertController(title: String(localized: "Listas"), message: error.localizedDescription, preferredStyle: .alert)
+                alert.view.tintColor = V2NDesign.accent
                 alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
                 present(alert, animated: true)
             }
+        }
+    }
+
+    private func refreshEmptyState(signedOut: Bool) {
+        if collections.isEmpty {
+            if signedOut {
+                emptyState.show(
+                    symbol: "person.crop.circle.badge.questionmark",
+                    title: String(localized: "Entrar"),
+                    message: String(localized: "Inicie sessão para ver suas listas de versículos.")
+                )
+            } else {
+                emptyState.show(
+                    symbol: "list.bullet.rectangle",
+                    title: String(localized: "Nenhuma lista ainda."),
+                    message: String(localized: "Salve um versículo em «Salvar na minha lista»."),
+                    actionTitle: String(localized: "Nova lista"),
+                    action: { [weak self] in self?.createList() }
+                )
+            }
+        } else {
+            emptyState.hide()
         }
     }
 
@@ -970,25 +1040,20 @@ final class MyCollectionsViewController: UITableViewController {
     }
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        max(collections.count, 1)
+        collections.count
     }
 
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "list", for: indexPath)
         var config = cell.defaultContentConfiguration()
-        if collections.isEmpty {
-            config.text = String(localized: "Nenhuma lista ainda.")
-            config.secondaryText = String(localized: "Salve um versículo em «Salvar na minha lista».")
-            cell.selectionStyle = .none
-            cell.accessoryType = .none
-        } else {
-            let item = collections[indexPath.row]
-            config.text = item.title
-            config.secondaryText = String(localized: "\(item.passages?.count ?? 0) versículos")
-            cell.accessoryType = .disclosureIndicator
-            cell.selectionStyle = .default
-        }
+        let item = collections[indexPath.row]
+        config.text = item.title
+        config.secondaryText = String(localized: "\(item.passages?.count ?? 0) versículos")
+        config.v2nApplyBrandListStyle(symbol: "list.bullet.rectangle.fill")
+        cell.accessoryType = .disclosureIndicator
+        cell.selectionStyle = .default
         cell.contentConfiguration = config
+        cell.v2nApplyBrandChrome()
         return cell
     }
 
@@ -1002,6 +1067,7 @@ final class MyCollectionsViewController: UITableViewController {
 
 final class MyCollectionDetailViewController: UITableViewController {
     private var collection: NativeAPIClient.UserCollectionDTO
+    private let emptyState = V2NEmptyStateView()
 
     init(collection: NativeAPIClient.UserCollectionDTO) {
         self.collection = collection
@@ -1016,6 +1082,20 @@ final class MyCollectionDetailViewController: UITableViewController {
         v2nApplyGroupedChrome()
         title = collection.title
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "passage")
+        tableView.backgroundView = emptyState
+        refreshEmptyState()
+    }
+
+    private func refreshEmptyState() {
+        if (collection.passages?.isEmpty ?? true) {
+            emptyState.show(
+                symbol: "text.book.closed",
+                title: String(localized: "Lista vazia"),
+                message: String(localized: "Salve um versículo em «Salvar na minha lista».")
+            )
+        } else {
+            emptyState.hide()
+        }
     }
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -1026,8 +1106,16 @@ final class MyCollectionDetailViewController: UITableViewController {
         let cell = tableView.dequeueReusableCell(withIdentifier: "passage", for: indexPath)
         let passage = collection.passages![indexPath.row]
         var config = cell.defaultContentConfiguration()
-        config.text = passage.labelHint
+        let localized = BibleBookCatalog.formatPassage(
+            bookId: passage.bookId,
+            chapter: passage.chapter,
+            verseStart: passage.verseStart,
+            verseEnd: passage.verseEnd
+        )
+        config.text = localized
+        config.v2nApplyBrandListStyle(symbol: "text.book.closed.fill")
         cell.contentConfiguration = config
+        cell.v2nApplyBrandChrome()
         cell.accessoryType = .disclosureIndicator
         return cell
     }
@@ -1035,7 +1123,13 @@ final class MyCollectionDetailViewController: UITableViewController {
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
         guard let passage = collection.passages?[indexPath.row] else { return }
-        let actions = VerseActionsViewController(passage: passage, label: passage.labelHint, prefs: nil)
+        let localized = BibleBookCatalog.formatPassage(
+            bookId: passage.bookId,
+            chapter: passage.chapter,
+            verseStart: passage.verseStart,
+            verseEnd: passage.verseEnd
+        )
+        let actions = VerseActionsViewController(passage: passage, label: localized, prefs: nil)
         navigationController?.pushViewController(actions, animated: true)
     }
 }

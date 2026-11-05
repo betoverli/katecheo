@@ -675,6 +675,7 @@ enum NativeAPIClient {
         guard let decoded = try? JSONDecoder().decode(PrefsResponse.self, from: data),
               let prefs = decoded.prefs
         else { throw APIError.decoding }
+        ReferencePrefs.sync(from: prefs)
         return prefs
     }
 
@@ -689,6 +690,7 @@ enum NativeAPIClient {
         guard let decoded = try? JSONDecoder().decode(PrefsResponse.self, from: data),
               let prefs = decoded.prefs
         else { throw APIError.decoding }
+        ReferencePrefs.sync(from: prefs)
         return prefs
     }
 
@@ -783,13 +785,12 @@ enum NativeAPIClient {
         var verseEnd: Int?
 
         var labelHint: String {
-            if let verseStart {
-                if let verseEnd, verseEnd != verseStart {
-                    return "\(bookId) \(chapter):\(verseStart)–\(verseEnd)"
-                }
-                return "\(bookId) \(chapter):\(verseStart)"
-            }
-            return "\(bookId) \(chapter)"
+            BibleBookCatalog.formatPassage(
+                bookId: bookId,
+                chapter: chapter,
+                verseStart: verseStart,
+                verseEnd: verseEnd
+            )
         }
     }
 

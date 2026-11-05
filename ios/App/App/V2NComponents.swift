@@ -386,6 +386,32 @@ extension UITableViewController {
     func v2nApplyGroupedChrome() {
         V2NChrome.styleCanvas(view)
         V2NChrome.styleGroupedTable(tableView)
+        tableView.tintColor = V2NDesign.accent
+        view.tintColor = V2NDesign.accent
+    }
+}
+
+extension UIListContentConfiguration {
+    /// Brand fonts + accent-tinted SF Symbol (avoids default system blue).
+    mutating func v2nApplyBrandListStyle(symbol: String? = nil) {
+        textProperties.font = V2NDesign.preferred(.body, weight: .regular)
+        textProperties.color = .label
+        secondaryTextProperties.font = V2NDesign.caption()
+        secondaryTextProperties.color = .secondaryLabel
+        if let symbol {
+            image = UIImage(systemName: symbol)
+            imageProperties.tintColor = V2NDesign.accent
+            imageProperties.preferredSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: 17, weight: .semibold)
+        } else if image != nil {
+            imageProperties.tintColor = V2NDesign.accent
+        }
+    }
+}
+
+extension UITableViewCell {
+    func v2nApplyBrandChrome() {
+        tintColor = V2NDesign.accent
+        backgroundColor = V2NDesign.surface
     }
 }
 
@@ -487,8 +513,8 @@ final class V2NFilterChipsView: UIView {
         button.accessibilityLabel = chip.title
         button.addTarget(self, action: #selector(tap(_:)), for: .touchUpInside)
         button.heightAnchor.constraint(equalToConstant: 34).isActive = true
-        // Floor width so icon-only pills stay capsule-shaped (wider than tall).
-        button.widthAnchor.constraint(greaterThanOrEqualToConstant: 48).isActive = true
+        // Floor width so icon-only pills stay clearly capsule-shaped (~2× icon width).
+        button.widthAnchor.constraint(greaterThanOrEqualToConstant: 72).isActive = true
         applyStyle(to: button, chip: chip, selected: selected)
         return button
     }
@@ -505,8 +531,8 @@ final class V2NFilterChipsView: UIView {
         }
         config.cornerStyle = .capsule
         // Unselected icon-only pills need generous horizontal inset so they read as
-        // capsules (wider than tall), not near-circles.
-        let horizontal: CGFloat = selected ? 14 : 16
+        // capsules (wider than tall — roughly 2× the icon), not near-circles.
+        let horizontal: CGFloat = selected ? 16 : 24
         config.contentInsets = NSDirectionalEdgeInsets(top: 7, leading: horizontal, bottom: 7, trailing: horizontal)
         config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
             var out = incoming

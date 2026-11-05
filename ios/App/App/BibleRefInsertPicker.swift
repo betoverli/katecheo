@@ -82,7 +82,7 @@ final class BibleRefInsertPicker: UIViewController, UICollectionViewDelegate, UI
 
     private func loadBooks() async {
         do {
-            books = try await NativeAPIClient.fetchBibleBooks(locale: AppLocale.apiCode)
+            books = try await NativeAPIClient.fetchBibleBooks(locale: BibleBookCatalog.referenceLocale())
             applyFilter()
             statusLabel.text = String(localized: "Toque no livro")
             statusLabel.textColor = V2NDesign.accent
@@ -345,16 +345,12 @@ private final class BibleRefVersePicker: UIViewController, UICollectionViewDeleg
     }
 
     private func finish(verseStart: Int?, verseEnd: Int?) {
-        let label: String
-        if let verseStart {
-            if let verseEnd, verseEnd != verseStart {
-                label = String(localized: "\(book.name) \(chapter):\(verseStart)–\(verseEnd)")
-            } else {
-                label = String(localized: "\(book.name) \(chapter):\(verseStart)")
-            }
-        } else {
-            label = String(localized: "\(book.name) \(chapter)")
-        }
+        let label = BibleBookCatalog.formatPassage(
+            bookId: book.id,
+            chapter: chapter,
+            verseStart: verseStart,
+            verseEnd: verseEnd
+        )
         onPick(NoteDocumentCodec.BibleRefPayload(
             bookId: book.id,
             chapter: chapter,
