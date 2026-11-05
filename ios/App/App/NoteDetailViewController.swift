@@ -305,6 +305,27 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         openSpeakerPicker(forSection: true)
     }
 
+    func nativeNoteEditorRequestRenameSpeaker(
+        _ editor: NativeNoteEditorView,
+        sectionId: String,
+        currentSpeakerId: String?
+    ) {
+        let picker = SpeakerPickerViewController(mode: .pick(selectedId: currentSpeakerId), onPicked: { [weak self] speakerId in
+            guard let self else { return }
+            guard let speakerId,
+                  let speaker = self.speakers.first(where: { $0.id == speakerId })
+                    ?? LocalNoteCache.loadSpeakers().first(where: { $0.id == speakerId })
+            else { return }
+            self.editor.renameSpeakerSection(sectionId: sectionId, speakerId: speaker.id, name: speaker.name)
+        })
+        let nav = UINavigationController(rootViewController: picker)
+        if let sheet = nav.sheetPresentationController {
+            sheet.detents = [.medium(), .large()]
+            sheet.prefersGrabberVisible = true
+        }
+        present(nav, animated: true)
+    }
+
     private func presentBriefAlert(_ message: String) {
         let alert = UIAlertController(title: nil, message: message, preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))

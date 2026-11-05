@@ -87,25 +87,54 @@ enum NoteDocumentCodec {
                 return String(localized: "Speaker")
             }()
             let collapsed = block.collapsed == true
+            let children = block.blocks ?? []
+            let preview: String = {
+                for child in children {
+                    let text = (child.spans ?? [])
+                        .compactMap(\.text)
+                        .joined()
+                        .replacingOccurrences(of: "\u{200B}", with: "")
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !text.isEmpty { return text }
+                }
+                return ""
+            }()
             let header = speakerSectionHeader(
                 name: speakerName,
                 speakerId: block.speakerId,
                 colorHex: block.speakerId.flatMap { speakers[$0]?.color },
                 blockId: block.id,
-                collapsed: collapsed
+                collapsed: collapsed,
+                preview: preview
             )
             if result.length > 0 {
-                // Attribute the separator with the following paragraph style so live
-                // editing and reload share the same attributed runs.
-                let sepAttrs = header.length > 0
-                    ? header.attributes(at: 0, effectiveRange: nil)
-                    : baseAttributes(type: "speakerSection", id: block.id, checked: nil, speakerId: block.speakerId, speakers: speakers)
+                // Separator must NOT carry speakerSection type — that created phantom
+                // blank "Speaker" paragraphs when users tapped the gap above a section.
+                let sepAttrs = baseAttributes(
+                    type: "paragraph",
+                    id: newId(),
+                    checked: nil,
+                    speakerId: nil,
+                    speakers: speakers
+                )
                 result.append(NSAttributedString(string: "\n", attributes: sepAttrs))
             }
             result.append(header)
             if collapsed { return }
             var childNumbered = 0
-            for child in block.blocks ?? [] {
+            let bodyChildren = children.isEmpty
+                ? [NativeAPIClient.LineBlock(
+                    id: newId(),
+                    type: "paragraph",
+                    spans: [],
+                    speakerId: nil,
+                    title: nil,
+                    collapsed: nil,
+                    checked: nil,
+                    blocks: nil
+                )]
+                : children
+            for child in bodyChildren {
                 appendBlock(
                     child,
                     to: result,
@@ -330,15 +359,25 @@ enum NoteDocumentCodec {
         return attrs
     }
 
-    /// Speaker name as a plain header line (not a chip/card). Rail color comes from `speakerId`.
+    /// Non-editable speaker chrome (web `.note-speaker-head`) as an attachment character.
     static func speakerSectionHeader(
         name: String,
         speakerId: String?,
         colorHex: String?,
         blockId: String,
-        collapsed: Bool = false
+        collapsed: Bool = false,
+        preview: String = ""
     ) -> NSAttributedString {
-        _ = colorHex // Color is used for the vertical rail, not the title text.
+        let raw = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let baseName = stripSpeakerChevron(raw).isEmpty ? String(localized: "Speaker") : stripSpeakerChevron(raw)
+        let attachment = SpeakerHeaderAttachment(
+            blockId: blockId,
+            speakerId: speakerId,
+            speakerName: baseName,
+            colorHex: colorHex,
+            collapsed: collapsed,
+            preview: preview
+        )
         var attrs = baseAttributes(
             type: "speakerSection",
             id: blockId,
@@ -348,10 +387,20 @@ enum NoteDocumentCodec {
         )
         attrs = applyingSpeakerSectionInset(attrs)
         attrs[collapsedKey] = collapsed
-        let raw = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let baseName = stripSpeakerChevron(raw).isEmpty ? String(localized: "Speaker") : stripSpeakerChevron(raw)
-        let chevron = collapsed ? speakerCollapsedChevron : speakerExpandedChevron
-        return NSAttributedString(string: chevron + baseName, attributes: attrs)
+        // Keep a clear run so layout treats the header as its own paragraph chrome.
+        let style = ((attrs[.paragraphStyle] as? NSParagraphStyle)?.mutableCopy() as? NSMutableParagraphStyle)
+            ?? NSMutableParagraphStyle()
+        style.paragraphSpacingBefore = 14
+        style.paragraphSpacing = 4
+        attrs[.paragraphStyle] = style
+        let result = NSMutableAttributedString(attachment: attachment)
+        result.addAttributes(attrs, range: NSRange(location: 0, length: result.length))
+        return result
+    }
+
+    /// True when this run is the non-editable speaker header attachment.
+    static func speakerHeaderAttachment(in attrs: [NSAttributedString.Key: Any]) -> SpeakerHeaderAttachment? {
+        attrs[.attachment] as? SpeakerHeaderAttachment
     }
 
     static func stripSpeakerChevron(_ name: String) -> String {
@@ -495,7 +544,22 @@ enum NoteDocumentCodec {
         }
         var currentSpeaker: NativeAPIClient.LineBlock?
         func flushSpeaker() {
-            if let speaker = currentSpeaker {
+            if var speaker = currentSpeaker {
+                // Web htmlToBlocks: empty speaker shells keep one empty child line.
+                if (speaker.blocks ?? []).isEmpty {
+                    speaker.blocks = [
+                        NativeAPIClient.LineBlock(
+                            id: newId(),
+                            type: "paragraph",
+                            spans: [],
+                            speakerId: nil,
+                            title: nil,
+                            collapsed: nil,
+                            checked: nil,
+                            blocks: nil
+                        ),
+                    ]
+                }
                 bodyBlocks.append(speaker)
                 currentSpeaker = nil
             }
@@ -507,9 +571,18 @@ enum NoteDocumentCodec {
             let id = (line.attributes[blockIdKey] as? String) ?? newId()
             if type == "speakerSection" {
                 flushSpeaker()
-                let raw = String(line.string).trimmingCharacters(in: .whitespacesAndNewlines)
-                let speakerName = stripSpeakerChevron(raw)
-                let collapsed = (line.attributes[collapsedKey] as? Bool) ?? false
+                let attachment = speakerHeaderAttachment(in: line.attributes)
+                let collapsed = (line.attributes[collapsedKey] as? Bool)
+                    ?? attachment?.collapsed
+                    ?? false
+                let speakerId = (line.attributes[speakerIdKey] as? String) ?? attachment?.speakerId
+                let titleFromAttachment = attachment?.speakerName.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                let raw = String(line.string)
+                    .replacingOccurrences(of: "\u{FFFC}", with: "")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                let speakerName = titleFromAttachment.isEmpty
+                    ? stripSpeakerChevron(raw)
+                    : titleFromAttachment
                 let preservedChildren = collapsed
                     ? (base.body.blocks.first(where: { $0.id == id && $0.type == "speakerSection" })?.blocks ?? [])
                     : []
@@ -517,11 +590,11 @@ enum NoteDocumentCodec {
                     id: id,
                     type: "speakerSection",
                     spans: nil,
-                    speakerId: line.attributes[speakerIdKey] as? String,
+                    speakerId: speakerId,
                     title: speakerName.isEmpty ? String(localized: "Speaker") : speakerName,
                     collapsed: collapsed ? true : nil,
                     checked: nil,
-                    blocks: preservedChildren
+                    blocks: preservedChildren.isEmpty ? [] : preservedChildren
                 )
                 // Collapsed sections keep children from `base` — flush so later paragraphs
                 // are not absorbed as body of this speaker.

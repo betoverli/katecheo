@@ -1,8 +1,8 @@
 import XCTest
 @testable import App
 
-/// Drives `NativeNoteEditorView`'s real `shouldChangeTextIn` path (what PR #60 never tested).
-/// Does **not** create a key window — AppTests host inside the app and a second UIWindow hangs CI.
+/// Drives real `NativeNoteEditorView` against web-parity speaker behavior
+/// (`docs/editor-behavior-spec.md`). Covers Beto's build-189 bugs.
 @MainActor
 final class NativeNoteEditorSpeakerPathTests: XCTestCase {
     private var editor: NativeNoteEditorView!
@@ -13,29 +13,35 @@ final class NativeNoteEditorSpeakerPathTests: XCTestCase {
             color: "#C4A574",
             updatedAt: "2026-01-01T00:00:00Z"
         ),
+        NativeAPIClient.SpeakerDTO(
+            id: "sp2",
+            name: "Ana",
+            color: "#8B7355",
+            updatedAt: "2026-01-01T00:00:00Z"
+        ),
     ]
 
     override func setUp() async throws {
         try await super.setUp()
         editor = NativeNoteEditorView(frame: .zero)
         editor.testing_prepare()
-        // Title-only body so the inserted speaker is the sole body block (matches a fresh note
-        // where the user replaced the first empty paragraph / typed at the end after clearing).
-        var note = NativeAPIClient.emptyNote(id: "note-speaker-path")
+        var note = NativeAPIClient.emptyNote(id: "note-parity")
         note.title = "Reunião"
-        note.body.blocks = []
+        note.body.blocks = [
+            NativeAPIClient.LineBlock(
+                id: "p1",
+                type: "paragraph",
+                spans: [],
+                speakerId: nil,
+                title: nil,
+                collapsed: nil,
+                checked: nil,
+                blocks: nil
+            ),
+        ]
         editor.pushNote(note, speakers: speakers)
-
         let storage = editor.testing_textStorage()
         editor.testing_setSelectedRange(NSRange(location: storage.length, length: 0))
-
-        // Accessory toolbar, `/` → Speaker, and `@` menu all call this.
-        editor.insertSpeakerSection(speakerId: "sp1", name: "Beto")
-        XCTAssertEqual(
-            editor.testing_paragraphBlockType(),
-            "speakerSection",
-            "caret should sit on speaker name after insert"
-        )
     }
 
     override func tearDown() async throws {
@@ -47,139 +53,146 @@ final class NativeNoteEditorSpeakerPathTests: XCTestCase {
         doc.body.blocks.first(where: { $0.type == "speakerSection" })
     }
 
-    private func joinedSpans(_ block: NativeAPIClient.LineBlock?) -> String {
-        (block?.spans ?? []).map { $0.text ?? "" }.joined()
-            .replacingOccurrences(of: "\u{200B}", with: "")
-    }
-
-    private func dumpBlocks(_ doc: NativeAPIClient.NoteDocument) -> String {
-        doc.body.blocks.map { block in
-            let kids = (block.blocks ?? []).map { "[\($0.type):\(joinedSpans($0))]" }.joined(separator: ",")
-            return "\(block.type):\(joinedSpans(block)){\(kids)}"
-        }.joined(separator: " | ")
-    }
-
-    func testToolbarSlashAtAllCallSameInsertSpeakerSection() {
+    private func headerAttachmentCount() -> Int {
         let storage = editor.testing_textStorage()
-        var found = false
-        storage.enumerateAttribute(
-            NoteDocumentCodec.blockTypeKey,
-            in: NSRange(location: 0, length: storage.length)
-        ) { value, _, stop in
-            if (value as? String) == "speakerSection" {
-                found = true
-                stop.pointee = true
-            }
+        var count = 0
+        storage.enumerateAttribute(.attachment, in: NSRange(location: 0, length: storage.length)) { value, _, _ in
+            if value is SpeakerHeaderAttachment { count += 1 }
         }
-        XCTAssertTrue(found)
-        XCTAssertNotNil(speakerBlock(in: editor.currentDocument()))
+        return count
     }
 
-    func testRealReturnOnNameThenType_landsInSectionBodyAndRail() {
-        // Edit the name (previously demoted typingAttributes to paragraph mid-header).
-        editor.testing_insertText(" X")
-        XCTAssertEqual(editor.testing_paragraphBlockType(), "speakerSection")
+    // Bug 1: header is a non-editable block (attachment), not typed text.
+    func testSpeakerHeaderIsNonEditableAttachment() {
+        editor.insertSpeakerSection(speakerId: "sp1", name: "Beto")
+        XCTAssertEqual(headerAttachmentCount(), 1)
+        XCTAssertEqual(editor.testing_paragraphBlockType(), "paragraph", "caret must land in body, not header")
+        XCTAssertTrue(NoteDocumentCodec.isSpeakerBody(
+            editor.testing_textStorage().attributes(
+                at: min(editor.testing_selectedRange().location, max(0, editor.testing_textStorage().length - 1)),
+                effectiveRange: nil
+            )
+        ))
 
-        editor.testing_insertText("\n")
-        let caret = editor.testing_selectedRange().location
-        XCTAssertGreaterThan(caret, 0)
-        let bodyAttrs = editor.testing_textStorage().attributes(
-            at: caret - 1,
-            effectiveRange: nil
-        )
-        XCTAssertTrue(
-            NoteDocumentCodec.isSpeakerBody(bodyAttrs),
-            "After Return on the name line, caret must be in a speaker-body run"
-        )
-
-        editor.testing_insertText("corpo dentro")
+        // Typing near/on the header must not change the speaker name in the model.
+        if let headerLoc = SpeakerSectionEditing.findSpeakerHeaderRange(in: editor.testing_textStorage())?.location {
+            editor.testing_setSelectedRange(NSRange(location: headerLoc, length: 0))
+            editor.testing_insertText("HACK")
+        }
         let doc = editor.currentDocument()
-        guard let speaker = speakerBlock(in: doc) else {
-            return XCTFail("missing speakerSection in \(doc.body.blocks.map(\.type))")
-        }
-        XCTAssertEqual(speaker.blocks?.count, 1, "body must be a child of the speaker section")
-        let bodyText = speaker.blocks?.first?.spans?.map { $0.text ?? "" }.joined() ?? ""
-        XCTAssertTrue(bodyText.contains("corpo dentro"), "got \(bodyText)")
-
-        // Sibling paragraphs after the section must not steal the typed body.
-        let escaped = doc.body.blocks.contains { block in
-            block.type != "speakerSection"
-                && (block.spans ?? []).contains { ($0.text ?? "").contains("corpo dentro") }
-        }
-        XCTAssertFalse(escaped, "typed body escaped the speaker container: \(doc.body.blocks.map(\.type))")
-
-        let rails = editor.testing_railCharacterRanges()
-        XCTAssertFalse(rails.isEmpty, "rail must be drawn")
-        let bodyLoc = max(0, editor.testing_selectedRange().location - 1)
-        let covered = rails.contains {
-            NSLocationInRange(bodyLoc, $0)
-                || NSIntersectionRange($0, NSRange(location: bodyLoc, length: 1)).length > 0
-        }
-        XCTAssertTrue(covered, "rail must cover the body characters, not only the name line; rails=\(rails)")
+        XCTAssertEqual(speakerBlock(in: doc)?.title, "Beto")
+        XCTAssertEqual(speakerBlock(in: doc)?.speakerId, "sp1")
+        let storage = editor.testing_textStorage()
+        let plain = storage.string.replacingOccurrences(of: "\u{FFFC}", with: "")
+        XCTAssertFalse(plain.contains("HACK"), "typed text must not land in the header name")
     }
 
-    func testRealReturnInsideBody_staysInside() {
-        editor.testing_insertText("\n")
-        editor.testing_insertText("um")
-        editor.testing_insertText("\n")
-        editor.testing_insertText("dois")
-
+    // Bug 2: insert after a normal line must not create a blank speaker section.
+    func testInsertAfterNormalLine_noPhantomBlankSpeaker() {
+        editor.testing_insertText("linha normal")
+        editor.insertSpeakerSection(speakerId: "sp1", name: "Beto")
         let doc = editor.currentDocument()
-        guard let speaker = speakerBlock(in: doc) else {
-            return XCTFail("missing speakerSection in \(dumpBlocks(doc))")
-        }
-        let texts = (speaker.blocks ?? []).map { joinedSpans($0) }.filter { !$0.isEmpty }
-        XCTAssertEqual(texts, ["um", "dois"], dumpBlocks(doc))
+        let speakers = doc.body.blocks.filter { $0.type == "speakerSection" }
+        XCTAssertEqual(speakers.count, 1, "exactly one speaker section; got \(doc.body.blocks.map(\.type))")
+        XCTAssertEqual(headerAttachmentCount(), 1)
+        // No empty speakerSection siblings.
+        XCTAssertFalse(speakers.contains { ($0.blocks ?? []).isEmpty && ($0.title == "Speaker" || $0.title?.isEmpty == true) })
     }
 
-    func testRealDoubleReturnExitsSection() {
+    // Bug 3: one Enter = one new body paragraph.
+    func testEnterInsideSection_createsExactlyOneParagraph() {
+        editor.insertSpeakerSection(speakerId: "sp1", name: "Beto")
+        editor.testing_insertText("primeiro")
+        let before = paragraphCount(editor.testing_textStorage())
         editor.testing_insertText("\n")
+        let after = paragraphCount(editor.testing_textStorage())
+        XCTAssertEqual(after, before + 1, "Enter must create exactly one paragraph")
+        editor.testing_insertText("segundo")
+        let doc = editor.currentDocument()
+        let texts = (speakerBlock(in: doc)?.blocks ?? []).map { block in
+            (block.spans ?? []).compactMap(\.text).joined()
+        }.filter { !$0.isEmpty }
+        XCTAssertEqual(texts, ["primeiro", "segundo"])
+    }
+
+    // Bug 4: collapse toggle persists and hides body.
+    func testCollapseToggle_hidesBodyAndPersists() {
+        editor.insertSpeakerSection(speakerId: "sp1", name: "Beto")
+        editor.testing_insertText("corpo")
+        let doc = editor.currentDocument()
+        guard let id = speakerBlock(in: doc)?.id else { return XCTFail("missing section") }
+
+        editor.testing_toggleCollapse(sectionId: id)
+        let collapsedDoc = editor.currentDocument()
+        XCTAssertEqual(speakerBlock(in: collapsedDoc)?.collapsed, true)
+        let storage = editor.testing_textStorage()
+        XCTAssertFalse(storage.string.contains("corpo"), "collapsed body must be hidden in the text view")
+        XCTAssertEqual(speakerBlock(in: collapsedDoc)?.blocks?.first?.spans?.first?.text, "corpo")
+
+        editor.testing_toggleCollapse(sectionId: id)
+        let expanded = editor.currentDocument()
+        XCTAssertNil(speakerBlock(in: expanded)?.collapsed)
+        XCTAssertTrue(editor.testing_textStorage().string.contains("corpo"))
+    }
+
+    func testRemoveSection_discardsBody() {
+        editor.insertSpeakerSection(speakerId: "sp1", name: "Beto")
+        editor.testing_insertText("descartar")
+        let doc = editor.currentDocument()
+        guard let id = speakerBlock(in: doc)?.id else { return XCTFail("missing section") }
+        editor.testing_removeSection(sectionId: id)
+        let after = editor.currentDocument()
+        XCTAssertNil(speakerBlock(in: after))
+        XCTAssertFalse(after.body.blocks.contains { ($0.spans ?? []).contains { $0.text == "descartar" } })
+        XCTAssertEqual(headerAttachmentCount(), 0)
+    }
+
+    func testEmptyLastBodyEnter_exitsSection() {
+        editor.insertSpeakerSection(speakerId: "sp1", name: "Beto")
         editor.testing_insertText("dentro")
-        editor.testing_insertText("\n") // new empty body line
-        editor.testing_insertText("\n") // exit
-        editor.testing_insertText("fora")
-
-        let doc = editor.currentDocument()
-        guard let speaker = speakerBlock(in: doc) else {
-            return XCTFail("missing speakerSection in \(dumpBlocks(doc))")
-        }
-        XCTAssertEqual(joinedSpans(speaker.blocks?.first), "dentro", dumpBlocks(doc))
-        let outside = doc.body.blocks.first {
-            $0.type != "speakerSection" && joinedSpans($0).contains("fora")
-        }
-        XCTAssertNotNil(outside, "exit must place a normal paragraph after the section; \(dumpBlocks(doc))")
-        XCTAssertFalse(
-            (speaker.blocks ?? []).contains { joinedSpans($0).contains("fora") },
-            "fora must not remain inside the speaker; \(dumpBlocks(doc))"
-        )
-    }
-
-    func testHardwareCarriageReturnAlsoInsertsBody() {
-        editor.testing_insertText("\r")
-        let loc = max(0, editor.testing_selectedRange().location - 1)
-        let attrs = editor.testing_textStorage().attributes(at: loc, effectiveRange: nil)
-        XCTAssertTrue(NoteDocumentCodec.isSpeakerBody(attrs), "\\r must take the same Enter path as \\n")
-        editor.testing_insertText("via CR")
-        let doc = editor.currentDocument()
-        guard let speaker = speakerBlock(in: doc) else {
-            return XCTFail("missing speakerSection in \(dumpBlocks(doc))")
-        }
-        XCTAssertTrue(joinedSpans(speaker.blocks?.first).contains("via CR"), dumpBlocks(doc))
-    }
-
-    func testRoundTripNoteDocumentV1AfterRealTyping() {
         editor.testing_insertText("\n")
+        editor.testing_insertText("\n")
+        editor.testing_insertText("fora")
+        let doc = editor.currentDocument()
+        XCTAssertEqual(speakerBlock(in: doc)?.blocks?.first?.spans?.first?.text, "dentro")
+        XCTAssertTrue(doc.body.blocks.contains {
+            $0.type == "paragraph" && ($0.spans ?? []).contains { ($0.text ?? "").contains("fora") }
+        }, "got \(doc.body.blocks.map(\.type))")
+    }
+
+    func testRoundTripNoteDocumentV1_preservesAttachmentHeader() {
+        editor.insertSpeakerSection(speakerId: "sp1", name: "Beto")
         editor.testing_insertText("mensagem")
         let first = editor.currentDocument()
-        guard let speaker = speakerBlock(in: first) else {
-            return XCTFail("missing speakerSection in \(dumpBlocks(first))")
-        }
-        XCTAssertEqual(joinedSpans(speaker.blocks?.first), "mensagem", dumpBlocks(first))
         editor.pushNote(first, speakers: speakers)
         let second = editor.currentDocument()
-        guard let again = speakerBlock(in: second) else {
-            return XCTFail("speaker lost on reload; \(dumpBlocks(second))")
+        XCTAssertEqual(speakerBlock(in: second)?.title, "Beto")
+        XCTAssertEqual(speakerBlock(in: second)?.blocks?.first?.spans?.first?.text, "mensagem")
+        XCTAssertEqual(headerAttachmentCount(), 1)
+    }
+
+    func testRenameViaAPI_updatesHeaderNotBodyText() {
+        editor.insertSpeakerSection(speakerId: "sp1", name: "Beto")
+        editor.testing_insertText("corpo")
+        guard let id = speakerBlock(in: editor.currentDocument())?.id else { return XCTFail("missing") }
+        editor.renameSpeakerSection(sectionId: id, speakerId: "sp2", name: "Ana")
+        let doc = editor.currentDocument()
+        XCTAssertEqual(speakerBlock(in: doc)?.speakerId, "sp2")
+        XCTAssertEqual(speakerBlock(in: doc)?.title, "Ana")
+        XCTAssertEqual(speakerBlock(in: doc)?.blocks?.first?.spans?.first?.text, "corpo")
+    }
+
+    private func paragraphCount(_ storage: NSAttributedString) -> Int {
+        let ns = storage.string as NSString
+        var count = 0
+        var cursor = 0
+        while cursor < ns.length {
+            let para = ns.paragraphRange(for: NSRange(location: cursor, length: 0))
+            count += 1
+            let next = NSMaxRange(para)
+            if next <= cursor { break }
+            cursor = next
         }
-        XCTAssertEqual(joinedSpans(again.blocks?.first), "mensagem", dumpBlocks(second))
+        return max(count, storage.length == 0 ? 0 : 1)
     }
 }

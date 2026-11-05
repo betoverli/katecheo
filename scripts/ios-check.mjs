@@ -215,7 +215,7 @@ if (!codec.includes("paragraphSpacing = 10") || !editor.includes("baseAttributes
 if (!editor.includes("exitSpeakerSection") || !editor.includes("isLastBodyParagraphOfSpeakerSection") || !codec.includes("speakerBodyKey")) {
   errors.push("Enter duplo num parágrafo vazio tem de sair da secção de speaker (speakerBodyKey + exitSpeakerSection).");
 }
-if (!editor.includes("enum SpeakerEnterDecision") || !editor.includes("insertSpeakerBodyParagraph") || !editor.includes("ensureTypingAttributes")) {
+if (!editor.includes("enum SpeakerEnterDecision") || !editor.includes("ensureTypingAttributes")) {
   errors.push("Editor tem de estabilizar typingAttributes e Enter do speaker (SpeakerEnterDecision).");
 }
 if (!editor.includes("continueInSection") || !editor.includes("insertContinuingSpeakerBodyParagraph")) {
@@ -223,14 +223,31 @@ if (!editor.includes("continueInSection") || !editor.includes("insertContinuingS
 }
 try {
   const speakerEdit = read("ios/App/App/SpeakerSectionEditing.swift");
-  if (!speakerEdit.includes("insertBodyAfterHeader") || !speakerEdit.includes("\\u{200B}") || !speakerEdit.includes("speakerBodyKey")) {
+  if (!speakerEdit.includes("insertContinuingBodyParagraph") || !speakerEdit.includes("\\u{200B}") || !speakerEdit.includes("speakerBodyKey")) {
     errors.push("SpeakerSectionEditing tem de inserir corpo com ZWSP + speakerBodyKey.");
+  }
+  if (!speakerEdit.includes("insertSpeakerBlock")) {
+    errors.push("SpeakerSectionEditing tem de inserir secções via modelo (insertSpeakerBlock), sem linhas fantasma.");
   }
 } catch {
   errors.push("Falta SpeakerSectionEditing.swift");
 }
 if (!project.includes("SpeakerSectionEditing.swift in Sources") || !project.includes("SpeakerSectionEditingTests.swift in Sources")) {
   errors.push("SpeakerSectionEditing (+ tests) têm de estar no target Xcode.");
+}
+try {
+  const header = read("ios/App/App/SpeakerHeaderAttachment.swift");
+  if (!header.includes("NSTextAttachment") || !header.includes("Hit") || !header.includes("remove")) {
+    errors.push("SpeakerHeaderAttachment tem de ser NSTextAttachment não editável (chevron / nome / ×).");
+  }
+} catch {
+  errors.push("Falta SpeakerHeaderAttachment.swift");
+}
+if (!project.includes("SpeakerHeaderAttachment.swift in Sources")) {
+  errors.push("SpeakerHeaderAttachment tem de estar no target Xcode.");
+}
+if (!editor.includes("removeSpeakerSection") || !editor.includes("renameSpeakerSection") || !editor.includes("rangeIntersectsSpeakerHeader")) {
+  errors.push("Cabeçalho do orador tem de ser não editável (bloquear teclado, × remove, rename via picker).");
 }
 if (!editor.includes("paragraphBlockType") || !editor.includes("normalizeSpeakerBodyParagraphAttributes") || !editor.includes("isNewlineReplacement")) {
   errors.push("Enter do orador tem de usar o tipo do início do parágrafo + normalizar o corpo (não só helpers puros).");
@@ -240,6 +257,14 @@ if (!editor.includes("testing_insertText") || !editor.includes("testing_prepare"
 }
 if (!editor.includes("from: textView.textStorage")) {
   errors.push("currentDocument tem de ler textStorage (attributedText pode perder speakerBodyKey).");
+}
+try {
+  const spec = read("docs/editor-behavior-spec.md");
+  if (!spec.includes("contenteditable=\"false\"") || !spec.includes("note-speaker-remove")) {
+    errors.push("docs/editor-behavior-spec.md tem de documentar o cabeçalho não editável da web.");
+  }
+} catch {
+  errors.push("Falta docs/editor-behavior-spec.md (parity com o editor web).");
 }
 if (!editor.includes("typingAttributesForCaret") || !codec.includes("\\u{200B}")) {
   errors.push("Nota vazia / load path tem de criar runs atribuídos (ZWSP) e definir typingAttributes no pushNote.");

@@ -1,10 +1,9 @@
 import UIKit
 
-/// Pure attributed-string mutations for speaker sections (shared by the editor + AppTests).
+/// Pure attributed-string / document helpers for speaker sections (editor + AppTests).
 ///
-/// UITextView paragraph breaks need a real attribute run *after* the `\n`. Inserting only
-/// `"\n"` leaves the new paragraph without `speakerBodyKey`, so typed text falls outside
-/// the section in both rendering and NoteDocumentV1 encoding.
+/// Web parity (`docs/editor-behavior-spec.md`): the header is non-editable chrome;
+/// body lines carry `speakerBodyKey`; Enter on empty last body exits after the section.
 enum SpeakerSectionEditing {
     struct Result {
         var caret: Int
@@ -37,88 +36,80 @@ enum SpeakerSectionEditing {
         return attrs
     }
 
-    /// Enter on the speaker name line → first (or next) body paragraph inside the section.
-    @discardableResult
-    static func insertBodyAfterHeader(
-        in storage: NSMutableAttributedString,
-        headerRange: NSRange
-    ) -> Result {
-        let insertLoc = NSMaxRange(headerRange)
+    /// Empty body paragraph run (ZWSP) belonging to the section — web seeds one child.
+    static func emptyBodyParagraph() -> NSAttributedString {
         let attrs = bodyTypingAttributes()
-        let piece = NSMutableAttributedString(string: "\n", attributes: attrs)
-        // ZWSP anchors speakerBodyKey + inset on the new paragraph run.
-        piece.append(NSAttributedString(string: "\u{200B}", attributes: attrs))
-        storage.replaceCharacters(in: NSRange(location: insertLoc, length: 0), with: piece)
-        let caret = insertLoc + piece.length
-        return Result(caret: caret, typingAttributes: attrs)
+        return NSAttributedString(string: "\u{200B}", attributes: attrs)
     }
 
-    /// Enter inside a non-exiting body line → another body paragraph in the same section.
+    /// Enter inside a body line → exactly one new body paragraph in the same section.
     @discardableResult
     static func insertContinuingBodyParagraph(
         in storage: NSMutableAttributedString,
-        paragraphRange: NSRange
+        at caretLocation: Int
     ) -> Result {
-        let insertLoc = NSMaxRange(paragraphRange)
         let attrs = bodyTypingAttributes()
+        let para = paragraphRange(in: storage, at: caretLocation)
+        let afterRange = NSRange(location: caretLocation, length: NSMaxRange(para) - caretLocation)
+        let moved: NSMutableAttributedString
+        if afterRange.length > 0 {
+            moved = NSMutableAttributedString(attributedString: storage.attributedSubstring(from: afterRange))
+            storage.replaceCharacters(in: afterRange, with: "")
+            if (moved.string as NSString).hasPrefix("\n") {
+                moved.replaceCharacters(in: NSRange(location: 0, length: 1), with: "")
+            }
+        } else {
+            moved = NSMutableAttributedString()
+        }
         let piece = NSMutableAttributedString(string: "\n", attributes: attrs)
-        piece.append(NSAttributedString(string: "\u{200B}", attributes: attrs))
-        storage.replaceCharacters(in: NSRange(location: insertLoc, length: 0), with: piece)
-        let caret = insertLoc + piece.length
-        return Result(caret: caret, typingAttributes: attrs)
+        if moved.length == 0 {
+            piece.append(NSAttributedString(string: "\u{200B}", attributes: attrs))
+        } else {
+            moved.addAttribute(
+                NoteDocumentCodec.speakerBodyKey,
+                value: true,
+                range: NSRange(location: 0, length: moved.length)
+            )
+            piece.append(moved)
+        }
+        storage.replaceCharacters(in: NSRange(location: caretLocation, length: 0), with: piece)
+        // Land at the start of the new paragraph (after `\n`, on ZWSP or moved text).
+        let caret = caretLocation + 1 + (moved.length == 0 ? 1 : 0)
+        return Result(caret: min(caret, storage.length), typingAttributes: attrs)
     }
 
-    /// Double-Enter on an empty last body line → remove it and place a normal paragraph after.
+    /// Double-Enter on an empty last body line → remove it (if not sole child) and place a normal paragraph after.
     @discardableResult
     static func exitSection(
         in storage: NSMutableAttributedString,
-        emptyBodyRange: NSRange
+        emptyBodyRange: NSRange,
+        removeEmptyBody: Bool
     ) -> Result {
         var deleteLocation = emptyBodyRange.location
         var deleteLength = emptyBodyRange.length
         let ns = storage.string as NSString
-        if emptyBodyRange.location > 0 {
+        if removeEmptyBody, emptyBodyRange.location > 0 {
             let prev = ns.substring(with: NSRange(location: emptyBodyRange.location - 1, length: 1))
             if prev == "\n" {
                 deleteLocation = emptyBodyRange.location - 1
                 deleteLength = emptyBodyRange.length + 1
             }
+            storage.replaceCharacters(in: NSRange(location: deleteLocation, length: deleteLength), with: "")
         }
-        storage.replaceCharacters(in: NSRange(location: deleteLocation, length: deleteLength), with: "")
 
         let attrs = outsideTypingAttributes()
-        let piece = NSMutableAttributedString(string: "\n", attributes: attrs)
-        piece.append(NSAttributedString(string: "\u{200B}", attributes: attrs))
         let insertAt = min(deleteLocation, storage.length)
+        // Ensure we start a new paragraph after the section.
+        let needsLeadingNewline = insertAt > 0 && (insertAt >= storage.length
+            || (storage.string as NSString).substring(with: NSRange(location: insertAt - 1, length: 1)) != "\n")
+        let piece = NSMutableAttributedString()
+        if needsLeadingNewline || insertAt == storage.length {
+            piece.append(NSAttributedString(string: "\n", attributes: attrs))
+        }
+        piece.append(NSAttributedString(string: "\u{200B}", attributes: attrs))
         storage.replaceCharacters(in: NSRange(location: insertAt, length: 0), with: piece)
         let caret = insertAt + piece.length
         return Result(caret: caret, typingAttributes: attrs)
-    }
-
-    /// Replace the ZWSP placeholder at `caret-1` (if present) with typed content helper for tests.
-    @discardableResult
-    static func typeText(
-        _ text: String,
-        in storage: NSMutableAttributedString,
-        at caret: Int,
-        attributes: [NSAttributedString.Key: Any]
-    ) -> Int {
-        var loc = caret
-        if loc > 0, loc <= storage.length {
-            let prev = (storage.string as NSString).substring(with: NSRange(location: loc - 1, length: 1))
-            if prev == "\u{200B}" {
-                storage.replaceCharacters(
-                    in: NSRange(location: loc - 1, length: 1),
-                    with: NSAttributedString(string: text, attributes: attributes)
-                )
-                return loc - 1 + text.count
-            }
-        }
-        storage.replaceCharacters(
-            in: NSRange(location: loc, length: 0),
-            with: NSAttributedString(string: text, attributes: attributes)
-        )
-        return loc + text.count
     }
 
     static func paragraphRange(in storage: NSAttributedString, at location: Int) -> NSRange {
@@ -145,13 +136,102 @@ enum SpeakerSectionEditing {
         while cursor < ns.length {
             let para = ns.paragraphRange(for: NSRange(location: cursor, length: 0))
             if para.length > 0 {
-                let type = storage.attributes(at: para.location, effectiveRange: nil)[NoteDocumentCodec.blockTypeKey] as? String
-                if type == "speakerSection" { return para }
+                let attrs = storage.attributes(at: para.location, effectiveRange: nil)
+                if (attrs[NoteDocumentCodec.blockTypeKey] as? String) == "speakerSection" {
+                    return para
+                }
             }
             let next = NSMaxRange(para)
             if next <= cursor { break }
             cursor = next
         }
         return nil
+    }
+
+    /// Web `insertAfterAnchor` / bare-note rules applied to NoteDocumentV1.
+    static func insertSpeakerBlock(
+        into document: NativeAPIClient.NoteDocument,
+        speakerId: String,
+        speakerName: String,
+        afterBlockId: String?
+    ) -> (document: NativeAPIClient.NoteDocument, focusBodyId: String, sectionId: String) {
+        let sectionId = NoteDocumentCodec.newId()
+        let childId = NoteDocumentCodec.newId()
+        let section = NativeAPIClient.LineBlock(
+            id: sectionId,
+            type: "speakerSection",
+            spans: nil,
+            speakerId: speakerId,
+            title: speakerName,
+            collapsed: nil,
+            checked: nil,
+            blocks: [
+                NativeAPIClient.LineBlock(
+                    id: childId,
+                    type: "paragraph",
+                    spans: [],
+                    speakerId: nil,
+                    title: nil,
+                    collapsed: nil,
+                    checked: nil,
+                    blocks: nil
+                ),
+            ]
+        )
+        let trailing = NativeAPIClient.LineBlock(
+            id: NoteDocumentCodec.newId(),
+            type: "paragraph",
+            spans: [],
+            speakerId: nil,
+            title: nil,
+            collapsed: nil,
+            checked: nil,
+            blocks: nil
+        )
+
+        var blocks = document.body.blocks
+        let bare = blocks.allSatisfy { block in
+            if block.type == "speakerSection" { return false }
+            let text = (block.spans ?? []).compactMap(\.text).joined()
+                .replacingOccurrences(of: "\u{200B}", with: "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            return text.isEmpty
+        }
+
+        if bare {
+            blocks = [section, trailing]
+        } else if let afterBlockId,
+                  let idx = indexOfTopLevel(blockId: afterBlockId, in: blocks)
+        {
+            blocks.insert(section, at: idx + 1)
+            if idx + 1 == blocks.count - 1 {
+                blocks.append(trailing)
+            }
+        } else if let afterBlockId,
+                  let parentIdx = indexOfSpeakerContaining(lineId: afterBlockId, in: blocks)
+        {
+            // Focus inside a speaker → insert new section after that whole speaker.
+            blocks.insert(section, at: parentIdx + 1)
+            if parentIdx + 1 == blocks.count - 1 {
+                blocks.append(trailing)
+            }
+        } else {
+            blocks.append(section)
+            blocks.append(trailing)
+        }
+
+        var next = document
+        next.body.blocks = blocks
+        return (next, childId, sectionId)
+    }
+
+    private static func indexOfTopLevel(blockId: String, in blocks: [NativeAPIClient.LineBlock]) -> Int? {
+        blocks.firstIndex(where: { $0.id == blockId })
+    }
+
+    private static func indexOfSpeakerContaining(lineId: String, in blocks: [NativeAPIClient.LineBlock]) -> Int? {
+        blocks.firstIndex { block in
+            block.type == "speakerSection" && (block.blocks ?? []).contains(where: { $0.id == lineId })
+        }
     }
 }

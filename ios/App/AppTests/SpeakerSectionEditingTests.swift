@@ -3,7 +3,64 @@ import XCTest
 
 @MainActor
 final class SpeakerSectionEditingTests: XCTestCase {
-    private func makeStorageWithSpeaker(named name: String = "Beto") -> NSMutableAttributedString {
+    func testInsertSpeakerBlock_bareNote_noBlankBeforeHeader() {
+        var note = NativeAPIClient.emptyNote()
+        note.title = "Nota"
+        note.body.blocks = [
+            NativeAPIClient.LineBlock(
+                id: "p0",
+                type: "paragraph",
+                spans: [],
+                speakerId: nil,
+                title: nil,
+                collapsed: nil,
+                checked: nil,
+                blocks: nil
+            ),
+        ]
+        let result = SpeakerSectionEditing.insertSpeakerBlock(
+            into: note,
+            speakerId: "sp1",
+            speakerName: "Beto",
+            afterBlockId: "p0"
+        )
+        XCTAssertEqual(result.document.body.blocks.first?.type, "speakerSection")
+        XCTAssertEqual(result.document.body.blocks.first?.blocks?.count, 1)
+        XCTAssertEqual(result.document.body.blocks.count, 2, "section + trailing empty line")
+        XCTAssertEqual(result.document.body.blocks[1].type, "paragraph")
+    }
+
+    func testInsertSpeakerBlock_afterNormalLine_keepsThatLine() {
+        var note = NativeAPIClient.emptyNote()
+        note.title = "Nota"
+        note.body.blocks = [
+            NativeAPIClient.LineBlock(
+                id: "p1",
+                type: "paragraph",
+                spans: [.init(type: "text", text: "linha", marks: nil, bookId: nil, chapter: nil, verseStart: nil, verseEnd: nil, href: nil)],
+                speakerId: nil,
+                title: nil,
+                collapsed: nil,
+                checked: nil,
+                blocks: nil
+            ),
+        ]
+        let result = SpeakerSectionEditing.insertSpeakerBlock(
+            into: note,
+            speakerId: "sp1",
+            speakerName: "Ana",
+            afterBlockId: "p1"
+        )
+        XCTAssertEqual(result.document.body.blocks[0].type, "paragraph")
+        XCTAssertEqual(result.document.body.blocks[0].spans?.first?.text, "linha")
+        XCTAssertEqual(result.document.body.blocks[1].type, "speakerSection")
+        XCTAssertFalse(
+            result.document.body.blocks.contains { $0.type == "speakerSection" && $0.title == "Speaker" && ($0.blocks ?? []).isEmpty },
+            "must not invent phantom blank speaker sections"
+        )
+    }
+
+    func testContinueEnter_createsExactlyOneBodyParagraph() {
         var note = NativeAPIClient.emptyNote()
         note.title = "Nota"
         note.body.blocks = [
@@ -12,141 +69,109 @@ final class SpeakerSectionEditingTests: XCTestCase {
                 type: "speakerSection",
                 spans: nil,
                 speakerId: "sp1",
-                title: name,
+                title: "Beto",
                 collapsed: nil,
                 checked: nil,
-                blocks: []
+                blocks: [
+                    NativeAPIClient.LineBlock(
+                        id: "c1",
+                        type: "paragraph",
+                        spans: [.init(type: "text", text: "um", marks: nil, bookId: nil, chapter: nil, verseStart: nil, verseEnd: nil, href: nil)],
+                        speakerId: nil,
+                        title: nil,
+                        collapsed: nil,
+                        checked: nil,
+                        blocks: nil
+                    ),
+                ]
             ),
         ]
-        return NSMutableAttributedString(attributedString: NoteDocumentCodec.attributedString(from: note))
-    }
-
-    func testNameEnterThenTypeLandsInSpeakerBody() {
-        let storage = makeStorageWithSpeaker()
+        let storage = NSMutableAttributedString(attributedString: NoteDocumentCodec.attributedString(from: note))
+        // Caret at end of "um"
         guard let header = SpeakerSectionEditing.findSpeakerHeaderRange(in: storage) else {
-            return XCTFail("missing speaker header")
+            return XCTFail("missing header")
         }
-        XCTAssertEqual(SpeakerSectionEditing.blockType(in: storage, at: header.location), "speakerSection")
-
-        // Enter on the name line → body inside the section.
-        let afterEnter = SpeakerSectionEditing.insertBodyAfterHeader(in: storage, headerRange: header)
-        XCTAssertTrue(NoteDocumentCodec.isSpeakerBody(afterEnter.typingAttributes))
-        XCTAssertEqual(afterEnter.typingAttributes[NoteDocumentCodec.blockTypeKey] as? String, "paragraph")
-
-        // Type body text.
-        let caret = SpeakerSectionEditing.typeText(
-            "corpo da seção",
-            in: storage,
-            at: afterEnter.caret,
-            attributes: afterEnter.typingAttributes
-        )
-        XCTAssertTrue(SpeakerSectionEditing.isSpeakerBody(in: storage, at: caret - 1))
-
-        let doc = NoteDocumentCodec.document(
-            from: storage,
-            base: NativeAPIClient.emptyNote()
-        )
-        XCTAssertEqual(doc.body.blocks.count, 1)
-        XCTAssertEqual(doc.body.blocks[0].type, "speakerSection")
-        XCTAssertEqual(doc.body.blocks[0].title, "Beto")
-        XCTAssertEqual(doc.body.blocks[0].blocks?.count, 1)
-        XCTAssertEqual(doc.body.blocks[0].blocks?.first?.spans?.first?.text, "corpo da seção")
+        let bodyStart = NSMaxRange(header)
+        let bodyPara = SpeakerSectionEditing.paragraphRange(in: storage, at: bodyStart)
+        let caret = NSMaxRange(bodyPara) - ((storage.string as NSString).substring(with: bodyPara).hasSuffix("\n") ? 1 : 0)
+        let beforeParas = paragraphCount(storage)
+        _ = SpeakerSectionEditing.insertContinuingBodyParagraph(in: storage, at: max(bodyStart, caret - 1))
+        let afterParas = paragraphCount(storage)
+        XCTAssertEqual(afterParas, beforeParas + 1, "one Enter must add exactly one paragraph")
     }
 
-    func testBodyEnterThenTypeStaysInside() {
-        let storage = makeStorageWithSpeaker()
-        let header = SpeakerSectionEditing.findSpeakerHeaderRange(in: storage)!
-        var state = SpeakerSectionEditing.insertBodyAfterHeader(in: storage, headerRange: header)
-        state.caret = SpeakerSectionEditing.typeText(
-            "primeira",
-            in: storage,
-            at: state.caret,
-            attributes: state.typingAttributes
-        )
-
-        // Enter inside non-empty body → another body paragraph still in the section.
-        let para = SpeakerSectionEditing.paragraphRange(in: storage, at: state.caret)
-        let continued = SpeakerSectionEditing.insertContinuingBodyParagraph(in: storage, paragraphRange: para)
-        XCTAssertTrue(NoteDocumentCodec.isSpeakerBody(continued.typingAttributes))
-
-        _ = SpeakerSectionEditing.typeText(
-            "segunda",
-            in: storage,
-            at: continued.caret,
-            attributes: continued.typingAttributes
-        )
-
-        let doc = NoteDocumentCodec.document(from: storage, base: NativeAPIClient.emptyNote())
-        XCTAssertEqual(doc.body.blocks.count, 1)
-        XCTAssertEqual(doc.body.blocks[0].type, "speakerSection")
-        XCTAssertEqual(doc.body.blocks[0].blocks?.count, 2)
-        XCTAssertEqual(doc.body.blocks[0].blocks?[0].spans?.first?.text, "primeira")
-        XCTAssertEqual(doc.body.blocks[0].blocks?[1].spans?.first?.text, "segunda")
+    func testExitOnEmptyLastBody() {
+        var note = NativeAPIClient.emptyNote()
+        note.title = "Nota"
+        note.body.blocks = [
+            NativeAPIClient.LineBlock(
+                id: "s1",
+                type: "speakerSection",
+                spans: nil,
+                speakerId: "sp1",
+                title: "Beto",
+                collapsed: nil,
+                checked: nil,
+                blocks: [
+                    NativeAPIClient.LineBlock(
+                        id: "c1",
+                        type: "paragraph",
+                        spans: [.init(type: "text", text: "dentro", marks: nil, bookId: nil, chapter: nil, verseStart: nil, verseEnd: nil, href: nil)],
+                        speakerId: nil,
+                        title: nil,
+                        collapsed: nil,
+                        checked: nil,
+                        blocks: nil
+                    ),
+                    NativeAPIClient.LineBlock(
+                        id: "c2",
+                        type: "paragraph",
+                        spans: [],
+                        speakerId: nil,
+                        title: nil,
+                        collapsed: nil,
+                        checked: nil,
+                        blocks: nil
+                    ),
+                ]
+            ),
+        ]
+        let storage = NSMutableAttributedString(attributedString: NoteDocumentCodec.attributedString(from: note))
+        // Find last body paragraph
+        let ns = storage.string as NSString
+        var lastBody: NSRange?
+        var cursor = 0
+        while cursor < ns.length {
+            let para = ns.paragraphRange(for: NSRange(location: cursor, length: 0))
+            let attrs = storage.attributes(at: para.location, effectiveRange: nil)
+            if NoteDocumentCodec.isSpeakerBody(attrs),
+               (attrs[NoteDocumentCodec.blockTypeKey] as? String) != "speakerSection"
+            {
+                lastBody = para
+            }
+            let next = NSMaxRange(para)
+            if next <= cursor { break }
+            cursor = next
+        }
+        guard let empty = lastBody else { return XCTFail("no body") }
+        _ = SpeakerSectionEditing.exitSection(in: storage, emptyBodyRange: empty, removeEmptyBody: true)
+        let doc = NoteDocumentCodec.document(from: storage, base: note)
+        XCTAssertEqual(doc.body.blocks.first?.type, "speakerSection")
+        XCTAssertEqual(doc.body.blocks.first?.blocks?.first?.spans?.first?.text, "dentro")
+        XCTAssertTrue(doc.body.blocks.contains { $0.type == "paragraph" })
     }
 
-    func testEnterOnEmptyLastBodyExitsSection() {
-        let storage = makeStorageWithSpeaker()
-        let header = SpeakerSectionEditing.findSpeakerHeaderRange(in: storage)!
-        var state = SpeakerSectionEditing.insertBodyAfterHeader(in: storage, headerRange: header)
-        state.caret = SpeakerSectionEditing.typeText(
-            "dentro",
-            in: storage,
-            at: state.caret,
-            attributes: state.typingAttributes
-        )
-        let afterContent = SpeakerSectionEditing.paragraphRange(in: storage, at: state.caret)
-        let emptyBody = SpeakerSectionEditing.insertContinuingBodyParagraph(
-            in: storage,
-            paragraphRange: afterContent
-        )
-
-        // Empty last body + Enter → exit.
-        let decision = SpeakerEnterDecision.decide(
-            blockType: "paragraph",
-            insideSpeaker: true,
-            paragraphEmpty: true,
-            isLastBodyOfSection: true
-        )
-        XCTAssertEqual(decision, .exitSection)
-
-        let emptyPara = SpeakerSectionEditing.paragraphRange(in: storage, at: emptyBody.caret)
-        let exited = SpeakerSectionEditing.exitSection(in: storage, emptyBodyRange: emptyPara)
-        XCTAssertFalse(NoteDocumentCodec.isSpeakerBody(exited.typingAttributes))
-
-        _ = SpeakerSectionEditing.typeText(
-            "fora",
-            in: storage,
-            at: exited.caret,
-            attributes: exited.typingAttributes
-        )
-
-        let doc = NoteDocumentCodec.document(from: storage, base: NativeAPIClient.emptyNote())
-        XCTAssertEqual(doc.body.blocks.count, 2)
-        XCTAssertEqual(doc.body.blocks[0].type, "speakerSection")
-        XCTAssertEqual(doc.body.blocks[0].blocks?.first?.spans?.first?.text, "dentro")
-        XCTAssertEqual(doc.body.blocks[1].type, "paragraph")
-        XCTAssertEqual(doc.body.blocks[1].spans?.first?.text, "fora")
-    }
-
-    func testRoundTripSpeakerBodyThroughNoteDocumentV1() {
-        let storage = makeStorageWithSpeaker(named: "Ana")
-        let header = SpeakerSectionEditing.findSpeakerHeaderRange(in: storage)!
-        var state = SpeakerSectionEditing.insertBodyAfterHeader(in: storage, headerRange: header)
-        state.caret = SpeakerSectionEditing.typeText(
-            "mensagem",
-            in: storage,
-            at: state.caret,
-            attributes: state.typingAttributes
-        )
-
-        let first = NoteDocumentCodec.document(from: storage, base: NativeAPIClient.emptyNote())
-        let reloaded = NoteDocumentCodec.attributedString(from: first)
-        let second = NoteDocumentCodec.document(from: reloaded, base: first)
-
-        XCTAssertEqual(second.body.blocks.count, 1)
-        XCTAssertEqual(second.body.blocks[0].type, "speakerSection")
-        XCTAssertEqual(second.body.blocks[0].title, "Ana")
-        XCTAssertEqual(second.body.blocks[0].blocks?.count, 1)
-        XCTAssertEqual(second.body.blocks[0].blocks?.first?.spans?.first?.text, "mensagem")
+    private func paragraphCount(_ storage: NSAttributedString) -> Int {
+        let ns = storage.string as NSString
+        var count = 0
+        var cursor = 0
+        while cursor < ns.length {
+            let para = ns.paragraphRange(for: NSRange(location: cursor, length: 0))
+            count += 1
+            let next = NSMaxRange(para)
+            if next <= cursor { break }
+            cursor = next
+        }
+        return count
     }
 }

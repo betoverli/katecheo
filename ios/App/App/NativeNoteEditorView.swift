@@ -6,6 +6,8 @@ protocol NativeNoteEditorViewDelegate: AnyObject {
     func nativeNoteEditor(_ editor: NativeNoteEditorView, openBibleRef ref: NoteDocumentCodec.BibleRefPayload)
     func nativeNoteEditorRequestInsertBibleRef(_ editor: NativeNoteEditorView)
     func nativeNoteEditorRequestSpeaker(_ editor: NativeNoteEditorView)
+    /// Change which catalog speaker owns an existing section (web: head is not typed).
+    func nativeNoteEditorRequestRenameSpeaker(_ editor: NativeNoteEditorView, sectionId: String, currentSpeakerId: String?)
 }
 
 /// Fully native note body editor (Phase 7). UITextView only.
@@ -229,41 +231,46 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     func insertSpeakerSection(speakerId: String, name: String) {
         precondition(Thread.isMainThread)
         dismissTriggerMenu()
-        let id = NoteDocumentCodec.newId()
-        let colorHex = speakers.first(where: { $0.id == speakerId })?.color
-        let header = NoteDocumentCodec.speakerSectionHeader(
-            name: name,
+        // Model-first (web `insertSpeakerSection`): never invent blank speakerSection
+        // paragraphs from separator newlines, always seed one empty body child, ensure
+        // a tap target after the section when it is last.
+        var doc = currentDocument()
+        let anchorId = currentBlockId()
+        let result = SpeakerSectionEditing.insertSpeakerBlock(
+            into: doc,
             speakerId: speakerId,
-            colorHex: colorHex,
-            blockId: id
+            speakerName: name,
+            afterBlockId: anchorId
         )
-        // Header only — do NOT seed an empty body line. Seeding made the first Enter
-        // look like “Enter on empty last body” and exit the section immediately.
-        let chunk = NSMutableAttributedString()
-        if textView.selectedRange.location > 0, textView.textStorage.length > 0 {
-            let sepAttrs = header.length > 0
-                ? header.attributes(at: 0, effectiveRange: nil)
-                : NoteDocumentCodec.baseAttributesPublic(
-                    type: "speakerSection",
-                    id: id,
-                    checked: nil,
-                    speakerId: speakerId,
-                    speakers: [:]
-                )
-            chunk.append(NSAttributedString(string: "\n", attributes: sepAttrs))
+        doc = result.document
+        documentBase = doc
+        applyingRemote = true
+        let attributed = NoteDocumentCodec.attributedString(from: doc, speakers: speakers)
+        textView.textStorage.setAttributedString(attributed)
+        if let bodyLoc = findBlockLocation(blockId: result.focusBodyId) {
+            textView.selectedRange = NSRange(location: bodyLoc, length: 0)
+        } else if let headerLoc = findSpeakerHeaderLocation(blockId: result.sectionId) {
+            // Prefer first body after the header attachment.
+            let after = headerLoc + 1
+            textView.selectedRange = NSRange(location: min(after, textView.textStorage.length), length: 0)
         }
-        chunk.append(header)
-        let insertAt = textView.selectedRange.location
-        textView.textStorage.replaceCharacters(in: textView.selectedRange, with: chunk)
-        // Caret at end of header; first Enter creates the first body line inside.
-        let caret = insertAt + chunk.length
-        textView.selectedRange = NSRange(location: caret, length: 0)
-        textView.typingAttributes = header.length > 0
-            ? header.attributes(at: header.length - 1, effectiveRange: nil)
-            : typingAttributesForCaret()
+        textView.typingAttributes = SpeakerSectionEditing.bodyTypingAttributes(blockId: result.focusBodyId)
+        applyingRemote = false
         emitChange()
         refreshSpeakerRails()
         scrollCaretVisible(animated: true)
+        _ = textView.becomeFirstResponder()
+    }
+
+    /// Reassign the catalog speaker for an existing section (header is not typed text).
+    func renameSpeakerSection(sectionId: String, speakerId: String, name: String) {
+        precondition(Thread.isMainThread)
+        var doc = currentDocument()
+        guard let idx = doc.body.blocks.firstIndex(where: { $0.id == sectionId && $0.type == "speakerSection" })
+        else { return }
+        doc.body.blocks[idx].speakerId = speakerId
+        doc.body.blocks[idx].title = name
+        applyDocument(doc, preferBlockId: sectionId)
     }
 
     // MARK: - UITextViewDelegate
@@ -284,12 +291,9 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             reseedEmptyDocument()
             return
         }
-        // CRITICAL: never demote header typingAttributes to paragraph while the caret is still
-        // on the speaker name line. PR #60's pure helpers passed, but this rewrite made the next
-        // typed name characters (and then Enter) look like a body/outside paragraph to UIKit.
+        // Header is an attachment — never treat it as typed text. Body keeps speakerBodyKey.
         if paragraphBlockType() == "speakerSection" {
-            normalizeSpeakerHeaderParagraphAttributes()
-            textView.typingAttributes = typingAttributesForCaret()
+            moveCaretOffSpeakerHeaderIfNeeded()
         } else if caretIsInsideSpeakerSection() {
             normalizeSpeakerBodyParagraphAttributes()
             textView.typingAttributes = SpeakerSectionEditing.bodyTypingAttributes(
@@ -298,7 +302,6 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         } else {
             ensureTypingAttributes()
         }
-        // Never reassign attributedText here — preserve selection, undo stack, and IME marked text.
         emitChange()
         refreshSpeakerRails()
         scrollCaretVisible(animated: false)
@@ -306,6 +309,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
     func textViewDidChangeSelection(_ textView: UITextView) {
         if !applyingRemote {
+            moveCaretOffSpeakerHeaderIfNeeded()
             ensureTypingAttributes()
         }
         if triggerMenu != nil {
@@ -314,11 +318,12 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     }
 
     func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
-        // Keep attrs in sync before deciding — but resolve block type from the *paragraph start*
-        // (see paragraphBlockType), not the caret character UIKit just typed with demoted attrs.
-        if paragraphBlockType() == "speakerSection" {
-            textView.typingAttributes = typingAttributesForCaret()
-        } else if caretIsInsideSpeakerSection() {
+        // Never let the keyboard mutate the non-editable speaker header attachment.
+        if rangeIntersectsSpeakerHeader(range) {
+            return false
+        }
+
+        if caretIsInsideSpeakerSection(), paragraphBlockType() != "speakerSection" {
             textView.typingAttributes = SpeakerSectionEditing.bodyTypingAttributes(
                 blockId: currentBlockId()
             )
@@ -328,22 +333,26 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
         if Self.isNewlineReplacement(text) {
             dismissTriggerMenu()
-            // Use paragraph-start type so Enter on a name line whose trailing runs were
-            // corrupted to "paragraph" still inserts a body *inside* the section.
             let type = paragraphBlockType()
-            let inside = caretIsInsideSpeakerSection() || type == "speakerSection"
+            // Caret on header attachment: jump into first body (or exit if collapsed-only).
+            if type == "speakerSection" {
+                if moveCaretIntoSpeakerBodyAfterHeader() {
+                    return false
+                }
+            }
+            let inside = caretIsInsideSpeakerSection()
             let decision = SpeakerEnterDecision.decide(
-                blockType: type,
+                blockType: paragraphBlockType(),
                 insideSpeaker: inside,
                 paragraphEmpty: isCurrentParagraphVisuallyEmpty(),
                 isLastBodyOfSection: isLastBodyParagraphOfSpeakerSection()
             )
             switch decision {
             case .insertBodyFromHeader:
-                insertSpeakerBodyParagraph()
+                // Header is non-editable; treat like continue/seeded body.
+                insertContinuingSpeakerBodyParagraph()
                 return false
             case .continueInSection:
-                // Never let UIKit insert a bare newline — new paragraph must carry speakerBodyKey.
                 insertContinuingSpeakerBodyParagraph()
                 return false
             case .demoteListToParagraph:
@@ -358,7 +367,6 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
                 }
                 return true
             case .defaultNewline:
-                // Belt-and-suspenders: never allow a bare UIKit newline inside a speaker section.
                 if inside {
                     insertContinuingSpeakerBodyParagraph()
                     return false
@@ -367,9 +375,6 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             }
         }
 
-        // Typing inside an existing speaker body must keep speakerBodyKey + inset.
-        // Returning true alone is not enough — UIKit may ignore typingAttributes mutated here —
-        // so textViewDidChange also re-stamps the paragraph (normalizeSpeakerBodyParagraphAttributes).
         if caretIsInsideSpeakerSection(), paragraphBlockType() != "speakerSection" {
             textView.typingAttributes = SpeakerSectionEditing.bodyTypingAttributes(
                 blockId: currentBlockId()
@@ -379,7 +384,6 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         if text == "@" || text == "/" {
             let beforeOK = isTriggerPrefixAllowed(before: range)
             if beforeOK {
-                // Insert the character first? Original strips it. Consume without inserting and open menu.
                 DispatchQueue.main.async { [weak self] in
                     guard let self else { return }
                     if text == "@" {
@@ -393,7 +397,6 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         }
 
         if triggerMenu != nil, text.isEmpty, range.length > 0 {
-            // Backspace while menu open — dismiss.
             dismissTriggerMenu()
         }
 
@@ -448,16 +451,8 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             )
         }
         if rawType == "speakerSection" {
-            // Typing on the header edits the speaker name — keep header attrs.
-            var header = NoteDocumentCodec.baseAttributesPublic(
-                type: "speakerSection",
-                id: currentBlockId(),
-                checked: nil,
-                speakerId: nil,
-                speakers: [:]
-            )
-            header = NoteDocumentCodec.applyingSpeakerSectionInset(header)
-            return header
+            // Header is non-editable chrome — typing attrs are body-inside-section.
+            return SpeakerSectionEditing.bodyTypingAttributes()
         }
         var attrs = NoteDocumentCodec.baseAttributesPublic(
             type: rawType,
@@ -512,23 +507,10 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         refreshSpeakerRails()
     }
 
-    private func insertSpeakerBodyParagraph() {
-        let header = paragraphRange()
-        let result = SpeakerSectionEditing.insertBodyAfterHeader(
-            in: textView.textStorage,
-            headerRange: header
-        )
-        textView.selectedRange = NSRange(location: result.caret, length: 0)
-        textView.typingAttributes = result.typingAttributes
-        emitChange()
-        refreshSpeakerRails()
-        scrollCaretVisible(animated: true)
-    }
-
     private func insertContinuingSpeakerBodyParagraph() {
         let result = SpeakerSectionEditing.insertContinuingBodyParagraph(
             in: textView.textStorage,
-            paragraphRange: paragraphRange()
+            at: textView.selectedRange.location
         )
         textView.selectedRange = NSRange(location: result.caret, length: 0)
         textView.typingAttributes = result.typingAttributes
@@ -564,42 +546,6 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         return NoteDocumentCodec.isSpeakerBody(attrs)
     }
 
-    /// Re-stamp speakerSection metadata on the whole name line so mid-line typing cannot split it.
-    private func normalizeSpeakerHeaderParagraphAttributes() {
-        let storage = textView.textStorage
-        let para = paragraphRange()
-        guard para.length > 0, storage.length >= NSMaxRange(para) else { return }
-        let startAttrs = paragraphStartAttributes()
-        guard (startAttrs[NoteDocumentCodec.blockTypeKey] as? String) == "speakerSection" else { return }
-        let id = (startAttrs[NoteDocumentCodec.blockIdKey] as? String) ?? NoteDocumentCodec.newId()
-        let speakerId = startAttrs[NoteDocumentCodec.speakerIdKey] as? String
-        var stamped = NoteDocumentCodec.baseAttributesPublic(
-            type: "speakerSection",
-            id: id,
-            checked: nil,
-            speakerId: speakerId,
-            speakers: [:]
-        )
-        stamped = NoteDocumentCodec.applyingSpeakerSectionInset(stamped)
-        if let collapsed = startAttrs[NoteDocumentCodec.collapsedKey] {
-            stamped[NoteDocumentCodec.collapsedKey] = collapsed
-        }
-        // Preserve per-run font/color (user formatting) but force block metadata + inset style.
-        storage.enumerateAttributes(in: para, options: []) { attrs, sub, _ in
-            var next = attrs
-            next[NoteDocumentCodec.blockTypeKey] = "speakerSection"
-            next[NoteDocumentCodec.blockIdKey] = id
-            if let speakerId {
-                next[NoteDocumentCodec.speakerIdKey] = speakerId
-            }
-            if let style = stamped[.paragraphStyle] {
-                next[.paragraphStyle] = style
-            }
-            next[NoteDocumentCodec.speakerBodyKey] = true
-            storage.setAttributes(next, range: sub)
-        }
-    }
-
     /// Re-stamp speakerBodyKey + inset on the body paragraph UIKit may have inserted bare.
     private func normalizeSpeakerBodyParagraphAttributes() {
         let storage = textView.textStorage
@@ -621,10 +567,14 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     }
 
     private func enclosingSpeakerSectionStart() -> Int? {
-        guard caretIsInsideSpeakerSection() else { return nil }
         let storage = textView.textStorage
         guard storage.length > 0 else { return nil }
         let loc = min(textView.selectedRange.location, max(0, storage.length - 1))
+        let attrsAtCaret = storage.attributes(at: loc, effectiveRange: nil)
+        let onHeader = (attrsAtCaret[NoteDocumentCodec.blockTypeKey] as? String) == "speakerSection"
+        let inBody = NoteDocumentCodec.isSpeakerBody(attrsAtCaret)
+            && (attrsAtCaret[NoteDocumentCodec.blockTypeKey] as? String) != "speakerSection"
+        guard onHeader || inBody else { return nil }
         let ns = storage.string as NSString
         var cursor = loc
         while cursor >= 0 {
@@ -683,17 +633,124 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         return true
     }
 
-    /// Remove the empty trailing body line and place a normal paragraph after the speaker section.
+    /// Remove the empty trailing body line (web: only if >1 children) and place a line after the section.
     private func exitSpeakerSection() {
+        let bodyCount = countSpeakerBodyParagraphs(containingCaret: true)
         let result = SpeakerSectionEditing.exitSection(
             in: textView.textStorage,
-            emptyBodyRange: paragraphRange()
+            emptyBodyRange: paragraphRange(),
+            removeEmptyBody: bodyCount > 1
         )
         textView.selectedRange = NSRange(location: result.caret, length: 0)
         textView.typingAttributes = result.typingAttributes
         emitChange()
         refreshSpeakerRails()
         scrollCaretVisible(animated: true)
+    }
+
+    private func countSpeakerBodyParagraphs(containingCaret: Bool) -> Int {
+        _ = containingCaret
+        guard let start = enclosingSpeakerSectionStart() else { return 0 }
+        let storage = textView.textStorage
+        let ns = storage.string as NSString
+        var count = 0
+        var cursor = start
+        while cursor < ns.length {
+            let para = ns.paragraphRange(for: NSRange(location: cursor, length: 0))
+            let attrs = storage.attributes(at: min(para.location, storage.length - 1), effectiveRange: nil)
+            if para.location > start, (attrs[NoteDocumentCodec.blockTypeKey] as? String) == "speakerSection" {
+                break
+            }
+            if NoteDocumentCodec.isSpeakerBody(attrs),
+               (attrs[NoteDocumentCodec.blockTypeKey] as? String) != "speakerSection"
+            {
+                count += 1
+            }
+            let next = NSMaxRange(para)
+            if next <= cursor { break }
+            cursor = next
+        }
+        return count
+    }
+
+    private func rangeIntersectsSpeakerHeader(_ range: NSRange) -> Bool {
+        let storage = textView.textStorage
+        guard storage.length > 0 else { return false }
+        let start = max(0, range.location)
+        let end = min(storage.length, NSMaxRange(range))
+        if start >= end {
+            // Insertion point — reject if caret sits on the attachment character.
+            let loc = min(start, storage.length - 1)
+            return NoteDocumentCodec.speakerHeaderAttachment(
+                in: storage.attributes(at: loc, effectiveRange: nil)
+            ) != nil
+        }
+        var hits = false
+        storage.enumerateAttribute(.attachment, in: NSRange(location: start, length: end - start)) { value, _, stop in
+            if value is SpeakerHeaderAttachment {
+                hits = true
+                stop.pointee = true
+            }
+        }
+        return hits
+    }
+
+    private func moveCaretOffSpeakerHeaderIfNeeded() {
+        let storage = textView.textStorage
+        guard storage.length > 0 else { return }
+        let loc = min(textView.selectedRange.location, storage.length - 1)
+        let attrs = storage.attributes(at: loc, effectiveRange: nil)
+        guard NoteDocumentCodec.speakerHeaderAttachment(in: attrs) != nil else { return }
+        _ = moveCaretIntoSpeakerBodyAfterHeader()
+    }
+
+    @discardableResult
+    private func moveCaretIntoSpeakerBodyAfterHeader() -> Bool {
+        let storage = textView.textStorage
+        let header = paragraphRange()
+        let after = NSMaxRange(header)
+        if after < storage.length {
+            let next = (storage.string as NSString).paragraphRange(for: NSRange(location: after, length: 0))
+            let attrs = storage.attributes(at: min(next.location, storage.length - 1), effectiveRange: nil)
+            if NoteDocumentCodec.isSpeakerBody(attrs) {
+                textView.selectedRange = NSRange(location: next.location, length: 0)
+                textView.typingAttributes = SpeakerSectionEditing.bodyTypingAttributes(
+                    blockId: (attrs[NoteDocumentCodec.blockIdKey] as? String) ?? NoteDocumentCodec.newId()
+                )
+                return true
+            }
+        }
+        // No body (collapsed): place caret after the section.
+        textView.selectedRange = NSRange(location: min(after, storage.length), length: 0)
+        textView.typingAttributes = SpeakerSectionEditing.outsideTypingAttributes()
+        return true
+    }
+
+    private func applyDocument(_ doc: NativeAPIClient.NoteDocument, preferBlockId: String?) {
+        documentBase = doc
+        applyingRemote = true
+        let attributed = NoteDocumentCodec.attributedString(from: doc, speakers: speakers)
+        textView.textStorage.setAttributedString(attributed)
+        if let preferBlockId, let loc = findBlockLocation(blockId: preferBlockId) {
+            textView.selectedRange = NSRange(location: loc, length: 0)
+        } else {
+            textView.selectedRange = NSRange(location: min(textView.selectedRange.location, textView.textStorage.length), length: 0)
+        }
+        textView.typingAttributes = typingAttributesForCaret()
+        applyingRemote = false
+        refreshSpeakerRails()
+        emitChange()
+    }
+
+    private func findBlockLocation(blockId: String) -> Int? {
+        let storage = textView.textStorage
+        var found: Int?
+        storage.enumerateAttribute(NoteDocumentCodec.blockIdKey, in: NSRange(location: 0, length: storage.length)) { value, range, stop in
+            guard (value as? String) == blockId else { return }
+            found = range.location
+            stop.pointee = true
+        }
+        return found
     }
 
     private func currentBlockType() -> String {
@@ -713,9 +770,9 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
     /// Apply a line block type to the current paragraph(s), including empty lines.
     private func applyBlockType(_ type: String, preserveChecked: Bool) {
-        // Never restyle the speaker name header itself into a list/heading.
+        // Never restyle the non-editable speaker header — jump into its body instead.
         if currentBlockType() == "speakerSection", type != "speakerSection" {
-            insertSpeakerBodyParagraph()
+            _ = moveCaretIntoSpeakerBodyAfterHeader()
             return
         }
 
@@ -992,8 +1049,21 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
            index < textView.textStorage.length
         {
             let attrs = textView.textStorage.attributes(at: index, effectiveRange: nil)
-            if (attrs[NoteDocumentCodec.blockTypeKey] as? String) == "speakerSection" {
-                toggleSpeakerCollapsed(at: index)
+            if let header = NoteDocumentCodec.speakerHeaderAttachment(in: attrs) {
+                textView.selectedRange = savedSelection
+                let hit = speakerHeaderHit(attachment: header, characterIndex: index, point: point)
+                switch hit {
+                case .remove:
+                    removeSpeakerSection(blockId: header.blockId)
+                case .toggleCollapse:
+                    toggleSpeakerCollapsed(blockId: header.blockId)
+                case .rename:
+                    delegate?.nativeNoteEditorRequestRenameSpeaker(
+                        self,
+                        sectionId: header.blockId,
+                        currentSpeakerId: header.speakerId
+                    )
+                }
                 return
             }
             // Checklist toggle when tapping the line (not a pill).
@@ -1006,47 +1076,82 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         }
     }
 
+    private func speakerHeaderHit(
+        attachment: SpeakerHeaderAttachment,
+        characterIndex index: Int,
+        point: CGPoint
+    ) -> SpeakerHeaderAttachment.Hit {
+        let glyphIndex = textView.layoutManager.glyphIndexForCharacter(at: index)
+        var rect = textView.layoutManager.boundingRect(
+            forGlyphRange: NSRange(location: glyphIndex, length: 1),
+            in: textView.textContainer
+        )
+        rect.origin.x += textView.textContainerInset.left
+        rect.origin.y += textView.textContainerInset.top
+        let local = CGPoint(x: point.x - rect.minX, y: point.y - rect.minY)
+        return attachment.hit(at: local)
+    }
+
     private func isSpecialTapTarget(at point: CGPoint) -> Bool {
         if bibleRef(at: point) != nil { return true }
         guard let index = characterIndex(at: point, requireHitBounds: false),
               index < textView.textStorage.length
         else { return false }
-        let type = textView.textStorage.attributes(at: index, effectiveRange: nil)[NoteDocumentCodec.blockTypeKey] as? String
+        let attrs = textView.textStorage.attributes(at: index, effectiveRange: nil)
+        if NoteDocumentCodec.speakerHeaderAttachment(in: attrs) != nil { return true }
+        let type = attrs[NoteDocumentCodec.blockTypeKey] as? String
         return type == "speakerSection" || type == "check"
     }
 
-    private func toggleSpeakerCollapsed(at index: Int) {
-        // Capture full document (incl. expanded children) before flipping the flag.
+    private func toggleSpeakerCollapsed(blockId: String) {
         var doc = currentDocument()
-        let ns = textView.textStorage.string as NSString
-        let para = ns.paragraphRange(for: NSRange(location: index, length: 0))
-        let attrs = textView.textStorage.attributes(at: para.location, effectiveRange: nil)
-        let blockId = attrs[NoteDocumentCodec.blockIdKey] as? String
-        guard let blockId,
-              let matchIdx = doc.body.blocks.firstIndex(where: { $0.id == blockId && $0.type == "speakerSection" })
+        guard let matchIdx = doc.body.blocks.firstIndex(where: { $0.id == blockId && $0.type == "speakerSection" })
         else { return }
         var block = doc.body.blocks[matchIdx]
         let nextCollapsed = !(block.collapsed == true)
         block.collapsed = nextCollapsed ? true : nil
         doc.body.blocks[matchIdx] = block
-        documentBase = doc
-        applyingRemote = true
-        let selected = textView.selectedRange
-        let attributed = NoteDocumentCodec.attributedString(from: doc, speakers: speakers)
-        textView.textStorage.setAttributedString(attributed)
-        if let headerLoc = findSpeakerHeaderLocation(blockId: block.id) {
-            textView.selectedRange = NSRange(location: headerLoc, length: 0)
-        } else {
-            textView.selectedRange = NSRange(location: min(selected.location, textView.textStorage.length), length: 0)
+        applyDocument(doc, preferBlockId: blockId)
+        // Prefer caret in first body when expanding; stay off the attachment when collapsed.
+        if nextCollapsed == false, let bodyId = block.blocks?.first?.id, let loc = findBlockLocation(blockId: bodyId) {
+            textView.selectedRange = NSRange(location: loc, length: 0)
+            textView.typingAttributes = SpeakerSectionEditing.bodyTypingAttributes(blockId: bodyId)
+        } else if let headerLoc = findSpeakerHeaderLocation(blockId: blockId) {
+            textView.selectedRange = NSRange(location: min(headerLoc + 1, textView.textStorage.length), length: 0)
         }
-        textView.typingAttributes = typingAttributesForCaret()
-        applyingRemote = false
-        refreshSpeakerRails()
-        emitChange()
         V2NHaptics.selection()
         UIView.animate(withDuration: 0.22) {
             self.textView.layoutIfNeeded()
         }
+    }
+
+    private func removeSpeakerSection(blockId: String) {
+        // Web `removeSpeaker`: discard the section and all body children.
+        var doc = currentDocument()
+        guard let idx = doc.body.blocks.firstIndex(where: { $0.id == blockId && $0.type == "speakerSection" })
+        else { return }
+        let focusId: String? = {
+            if idx > 0 { return doc.body.blocks[idx - 1].id }
+            if idx + 1 < doc.body.blocks.count { return doc.body.blocks[idx + 1].id }
+            return nil
+        }()
+        doc.body.blocks.remove(at: idx)
+        if doc.body.blocks.isEmpty {
+            doc.body.blocks = [
+                NativeAPIClient.LineBlock(
+                    id: NoteDocumentCodec.newId(),
+                    type: "paragraph",
+                    spans: [],
+                    speakerId: nil,
+                    title: nil,
+                    collapsed: nil,
+                    checked: nil,
+                    blocks: nil
+                ),
+            ]
+        }
+        applyDocument(doc, preferBlockId: focusId ?? doc.body.blocks.first?.id)
+        V2NHaptics.selection()
     }
 
     private func findSpeakerHeaderLocation(blockId: String) -> Int? {
@@ -1334,6 +1439,22 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
     func testing_paragraphBlockType() -> String {
         paragraphBlockType()
+    }
+
+    func testing_toggleCollapse(sectionId: String) {
+        toggleSpeakerCollapsed(blockId: sectionId)
+    }
+
+    func testing_removeSection(sectionId: String) {
+        removeSpeakerSection(blockId: sectionId)
+    }
+
+    func testing_headerAttachment(at location: Int) -> SpeakerHeaderAttachment? {
+        guard textView.textStorage.length > 0 else { return nil }
+        let loc = min(max(0, location), textView.textStorage.length - 1)
+        return NoteDocumentCodec.speakerHeaderAttachment(
+            in: textView.textStorage.attributes(at: loc, effectiveRange: nil)
+        )
     }
 }
 
