@@ -87,18 +87,22 @@ enum NoteDocumentCodec {
                 return String(localized: "Speaker")
             }()
             let collapsed = block.collapsed == true
-            if result.length > 0 {
-                result.append(NSAttributedString(string: "\n"))
-            }
-            result.append(
-                speakerSectionHeader(
-                    name: speakerName,
-                    speakerId: block.speakerId,
-                    colorHex: block.speakerId.flatMap { speakers[$0]?.color },
-                    blockId: block.id,
-                    collapsed: collapsed
-                )
+            let header = speakerSectionHeader(
+                name: speakerName,
+                speakerId: block.speakerId,
+                colorHex: block.speakerId.flatMap { speakers[$0]?.color },
+                blockId: block.id,
+                collapsed: collapsed
             )
+            if result.length > 0 {
+                // Attribute the separator with the following paragraph style so live
+                // editing and reload share the same attributed runs.
+                let sepAttrs = header.length > 0
+                    ? header.attributes(at: 0, effectiveRange: nil)
+                    : baseAttributes(type: "speakerSection", id: block.id, checked: nil, speakerId: block.speakerId, speakers: speakers)
+                result.append(NSAttributedString(string: "\n", attributes: sepAttrs))
+            }
+            result.append(header)
             if collapsed { return }
             var childNumbered = 0
             for child in block.blocks ?? [] {
@@ -170,12 +174,14 @@ enum NoteDocumentCodec {
         listNumber: Int = 1,
         inSpeakerSection: Bool = false
     ) {
-        if result.length > 0 {
-            result.append(NSAttributedString(string: "\n"))
-        }
         var base = baseAttributes(type: type, id: id, checked: checked, speakerId: speakerId, speakers: speakers)
         if inSpeakerSection || type == "speakerSection" {
             base = applyingSpeakerSectionInset(base)
+        }
+        if result.length > 0 {
+            // Keep paragraph separators attributed — bare "\n" leaves UITextView without
+            // typingAttributes for the next run (new notes looked like plain SMS).
+            result.append(NSAttributedString(string: "\n", attributes: base))
         }
         if let marker = listMarkerString(type: type, checked: checked, number: listNumber) {
             var markerAttrs = base
@@ -184,11 +190,20 @@ enum NoteDocumentCodec {
             result.append(NSAttributedString(string: marker, attributes: markerAttrs))
         }
         if spans.isEmpty {
-            result.append(NSAttributedString(string: "", attributes: base))
+            // ZWSP keeps a real attribute run so empty paragraphs / titles stay styled.
+            result.append(NSAttributedString(string: "\u{200B}", attributes: base))
             return
         }
+        var appended = false
         for span in spans {
-            result.append(spanAttributed(span, base: base))
+            let piece = spanAttributed(span, base: base)
+            if piece.length > 0 {
+                result.append(piece)
+                appended = true
+            }
+        }
+        if !appended {
+            result.append(NSAttributedString(string: "\u{200B}", attributes: base))
         }
     }
 
@@ -261,7 +276,8 @@ enum NoteDocumentCodec {
         return NSAttributedString(string: text, attributes: attrs)
     }
 
-    private static func baseAttributes(
+    /// Shared paragraph / typing attributes (load path + live typing must match).
+    static func baseAttributes(
         type: String,
         id: String,
         checked: Bool?,
@@ -472,7 +488,9 @@ enum NoteDocumentCodec {
         var bodyBlocks: [NativeAPIClient.LineBlock] = []
         var index = 0
         if let first = lines.first {
-            title = String(first.string).trimmingCharacters(in: .whitespacesAndNewlines)
+            title = String(first.string)
+                .replacingOccurrences(of: "\u{200B}", with: "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
             index = 1
         }
         var currentSpeaker: NativeAPIClient.LineBlock?

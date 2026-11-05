@@ -43,6 +43,37 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             DEVELOPMENT_TEAM="" \
             build
+      - name: Testes do editor (AppTests)
+        run: |
+          set -euo pipefail
+          DEST="$(node -e '
+            const {execSync}=require("child_process");
+            const data=JSON.parse(execSync("xcrun simctl list devices available -j",{encoding:"utf8"}));
+            const preferred=["iPhone 16","iPhone 16 Pro","iPhone 15","iPhone 15 Pro","iPhone SE"];
+            const found=[];
+            for (const [runtime, devices] of Object.entries(data.devices||{})) {
+              if (!/iOS|iPhone/i.test(runtime)) continue;
+              for (const d of devices) {
+                if (d.isAvailable && String(d.name||"").startsWith("iPhone")) found.push(d.name);
+              }
+            }
+            const pick = preferred.find((n)=>found.includes(n)) || found[0];
+            if (!pick) { console.error("Nenhum iPhone Simulator disponível"); process.exit(1); }
+            process.stdout.write("platform=iOS Simulator,name="+pick);
+          ')"
+          echo "Destino dos testes: $DEST"
+          xcodebuild \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination "$DEST" \
+            -derivedDataPath "${RUNNER_TEMP}/verse2note-ios" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            test
 
   testflight:
     name: Assinar e enviar ao TestFlight

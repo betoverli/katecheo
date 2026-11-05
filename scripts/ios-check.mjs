@@ -209,14 +209,23 @@ if (!editor.includes("isSpecialTapTarget") || !editor.includes("gestureRecognize
 if (!editor.includes("override func gestureRecognizerShouldBegin")) {
   errors.push("gestureRecognizerShouldBegin tem de usar override (UIView já define o método).");
 }
-if (!codec.includes("paragraphSpacing = 10") || !editor.includes("paragraphSpacing = 10")) {
-  errors.push("Corpo da nota tem de ter espaçamento entre parágrafos (paragraphSpacing).");
+if (!codec.includes("paragraphSpacing = 10") || !editor.includes("baseAttributesPublic")) {
+  errors.push("Corpo da nota tem de ter espaçamento entre parágrafos (paragraphSpacing via baseAttributes).");
 }
 if (!editor.includes("exitSpeakerSection") || !editor.includes("isLastBodyParagraphOfSpeakerSection") || !codec.includes("speakerBodyKey")) {
   errors.push("Enter duplo num parágrafo vazio tem de sair da secção de speaker (speakerBodyKey + exitSpeakerSection).");
 }
+if (!editor.includes("enum SpeakerEnterDecision") || !editor.includes("insertSpeakerBodyParagraph") || !editor.includes("ensureTypingAttributes")) {
+  errors.push("Editor tem de estabilizar typingAttributes e Enter do speaker (SpeakerEnterDecision).");
+}
+if (!editor.includes("typingAttributesForCaret") || !codec.includes("\\u{200B}")) {
+  errors.push("Nota vazia / load path tem de criar runs atribuídos (ZWSP) e definir typingAttributes no pushNote.");
+}
 if (!editor.includes("class NoteEditorTextView") || !editor.includes("override func caretRect(for")) {
   errors.push("Caret do editor tem de limitar a altura à lineHeight da fonte (NoteEditorTextView.caretRect).");
+}
+if (!project.includes("AppTests") || !project.includes("NoteDocumentCodecTests.swift in Sources")) {
+  errors.push("Target AppTests com round-trip do codec tem de existir no Xcode project.");
 }
 if (!codec.includes("BibleBookCatalog.formatPassage") || !project.includes("BibleBookCatalog.swift in Sources")) {
   errors.push("Referências nas notas têm de formatar nomes via BibleBookCatalog (idioma de referências).");

@@ -193,8 +193,11 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         applyingRemote = true
         dismissTriggerMenu()
         let attributed = NoteDocumentCodec.attributedString(from: note, speakers: speakers)
-        textView.attributedText = attributed
+        // Prefer textStorage mutation over attributedText reassign when possible so we
+        // don't thrash selection — but a full load must replace content once.
+        textView.textStorage.setAttributedString(attributed)
         textView.selectedRange = NSRange(location: 0, length: 0)
+        textView.typingAttributes = typingAttributesForCaret()
         textView.isEditable = !readOnly
         applyingRemote = false
         isReady = true
@@ -232,25 +235,30 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             colorHex: colorHex,
             blockId: id
         )
-        var bodyAttrs = NoteDocumentCodec.baseAttributesPublic(
-            type: "paragraph",
-            id: NoteDocumentCodec.newId(),
-            checked: nil,
-            speakerId: nil,
-            speakers: [:]
-        )
-        bodyAttrs = NoteDocumentCodec.applyingSpeakerSectionInset(bodyAttrs)
-        let body = NSAttributedString(string: "\n", attributes: bodyAttrs)
+        // Header only — do NOT seed an empty body line. Seeding made the first Enter
+        // look like “Enter on empty last body” and exit the section immediately.
         let chunk = NSMutableAttributedString()
         if textView.selectedRange.location > 0, textView.textStorage.length > 0 {
-            chunk.append(NSAttributedString(string: "\n"))
+            let sepAttrs = header.length > 0
+                ? header.attributes(at: 0, effectiveRange: nil)
+                : NoteDocumentCodec.baseAttributesPublic(
+                    type: "speakerSection",
+                    id: id,
+                    checked: nil,
+                    speakerId: speakerId,
+                    speakers: [:]
+                )
+            chunk.append(NSAttributedString(string: "\n", attributes: sepAttrs))
         }
         chunk.append(header)
-        chunk.append(body)
+        let insertAt = textView.selectedRange.location
         textView.textStorage.replaceCharacters(in: textView.selectedRange, with: chunk)
-        let end = textView.selectedRange.location + chunk.length
-        textView.selectedRange = NSRange(location: end, length: 0)
-        textView.typingAttributes = NoteDocumentCodec.applyingSpeakerSectionInset(baseTypingAttributes())
+        // Caret at end of header; first Enter creates the first body line inside.
+        let caret = insertAt + chunk.length
+        textView.selectedRange = NSRange(location: caret, length: 0)
+        textView.typingAttributes = header.length > 0
+            ? header.attributes(at: header.length - 1, effectiveRange: nil)
+            : typingAttributesForCaret()
         emitChange()
         refreshSpeakerRails()
         scrollCaretVisible(animated: true)
@@ -260,6 +268,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
     func textViewDidBeginEditing(_ textView: UITextView) {
         setEditingChrome(true)
+        ensureTypingAttributes()
     }
 
     func textViewDidEndEditing(_ textView: UITextView) {
@@ -269,6 +278,11 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
     func textViewDidChange(_ textView: UITextView) {
         guard !applyingRemote else { return }
+        if textView.textStorage.length == 0 {
+            reseedEmptyDocument()
+            return
+        }
+        ensureTypingAttributes()
         // Keep body lines inside a speaker section indented so the rail stays aligned.
         if caretIsInsideSpeakerSection() {
             var typing = textView.typingAttributes
@@ -279,46 +293,51 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             }
             textView.typingAttributes = typing
         }
+        // Never reassign attributedText here — preserve selection, undo stack, and IME marked text.
         emitChange()
         refreshSpeakerRails()
         scrollCaretVisible(animated: false)
     }
 
     func textViewDidChangeSelection(_ textView: UITextView) {
+        if !applyingRemote {
+            ensureTypingAttributes()
+        }
         if triggerMenu != nil {
             repositionTriggerMenuIfNeeded()
         }
     }
 
     func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
+        ensureTypingAttributes()
         if text == "\n" {
             dismissTriggerMenu()
             let type = currentBlockType()
-            if type == "speakerSection" {
+            let decision = SpeakerEnterDecision.decide(
+                blockType: type,
+                insideSpeaker: caretIsInsideSpeakerSection(),
+                paragraphEmpty: isCurrentParagraphVisuallyEmpty(),
+                isLastBodyOfSection: isLastBodyParagraphOfSpeakerSection()
+            )
+            switch decision {
+            case .insertBodyFromHeader:
+                // Consume the system newline — applyBlockType inserts the body line once.
+                insertSpeakerBodyParagraph()
+                return false
+            case .demoteListToParagraph:
+                applyBlockType("paragraph", preserveChecked: false)
+                return false
+            case .exitSection:
+                exitSpeakerSection()
+                return false
+            case .continueList(let listType):
                 DispatchQueue.main.async { [weak self] in
-                    self?.applyBlockType("paragraph", preserveChecked: false)
+                    self?.applyBlockType(listType, preserveChecked: true)
                 }
                 return true
+            case .defaultNewline:
+                return true
             }
-            // Double-Enter on an empty line at the end of a speaker section → leave the section.
-            if caretIsInsideSpeakerSection(), isCurrentParagraphVisuallyEmpty() {
-                if type == "bullet" || type == "numbered" || type == "check" || type == "quote" {
-                    // First empty Enter demotes list/quote to a normal body paragraph (still inside).
-                    applyBlockType("paragraph", preserveChecked: false)
-                    return false
-                }
-                if isLastBodyParagraphOfSpeakerSection() {
-                    exitSpeakerSection()
-                    return false
-                }
-            }
-            if type == "bullet" || type == "numbered" || type == "check" || type == "quote" {
-                // Continue the same list / block on the next paragraph.
-                DispatchQueue.main.async { [weak self] in
-                    self?.applyBlockType(type, preserveChecked: true)
-                }
-            }
-            return true
         }
 
         if text == "@" || text == "/" {
@@ -382,11 +401,32 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     // MARK: - Formatting
 
     private func baseTypingAttributes() -> [NSAttributedString.Key: Any] {
-        let type = currentBlockType() == "speakerSection" ? "paragraph" : currentBlockType()
+        let rawType = currentBlockType()
+        if rawType == "heading" {
+            return NoteDocumentCodec.baseAttributesPublic(
+                type: "heading",
+                id: currentBlockId(),
+                checked: nil,
+                speakerId: nil,
+                speakers: [:]
+            )
+        }
+        if rawType == "speakerSection" {
+            // Typing on the header edits the speaker name — keep header attrs.
+            var header = NoteDocumentCodec.baseAttributesPublic(
+                type: "speakerSection",
+                id: currentBlockId(),
+                checked: nil,
+                speakerId: nil,
+                speakers: [:]
+            )
+            header = NoteDocumentCodec.applyingSpeakerSectionInset(header)
+            return header
+        }
         var attrs = NoteDocumentCodec.baseAttributesPublic(
-            type: type,
+            type: rawType,
             id: currentBlockId(),
-            checked: type == "check" ? false : nil,
+            checked: rawType == "check" ? false : nil,
             speakerId: nil,
             speakers: [:]
         )
@@ -394,6 +434,51 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             attrs = NoteDocumentCodec.applyingSpeakerSectionInset(attrs)
         }
         return attrs
+    }
+
+    private func typingAttributesForCaret() -> [NSAttributedString.Key: Any] {
+        if textView.textStorage.length == 0 {
+            return NoteDocumentCodec.baseAttributesPublic(
+                type: "heading",
+                id: "title",
+                checked: nil,
+                speakerId: nil,
+                speakers: [:]
+            )
+        }
+        return baseTypingAttributes()
+    }
+
+    /// Guarantee font / paragraphStyle / block metadata match the load path.
+    private func ensureTypingAttributes() {
+        let typing = textView.typingAttributes
+        let missingBlock = typing[NoteDocumentCodec.blockTypeKey] == nil
+        let missingFont = typing[.font] == nil
+        let missingPara = typing[.paragraphStyle] == nil
+        guard missingBlock || missingFont || missingPara else { return }
+        textView.typingAttributes = typingAttributesForCaret()
+    }
+
+    private func reseedEmptyDocument() {
+        applyingRemote = true
+        var empty = NativeAPIClient.emptyNote(id: documentBase.id)
+        empty.happenedAt = documentBase.happenedAt
+        empty.tags = documentBase.tags
+        empty.noteSpeakerId = documentBase.noteSpeakerId
+        empty.visibility = documentBase.visibility
+        let attributed = NoteDocumentCodec.attributedString(from: empty, speakers: speakers)
+        textView.textStorage.setAttributedString(attributed)
+        textView.selectedRange = NSRange(location: 0, length: 0)
+        textView.typingAttributes = typingAttributesForCaret()
+        applyingRemote = false
+        documentBase = empty
+        emitChange()
+        refreshSpeakerRails()
+    }
+
+    private func insertSpeakerBodyParagraph() {
+        // Sync insert — never also let UITextView insert a second newline.
+        applyBlockType("paragraph", preserveChecked: false)
     }
 
     /// True when the caret sits in a speaker header or any body paragraph of that section.
@@ -861,12 +946,14 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         documentBase = doc
         applyingRemote = true
         let selected = textView.selectedRange
-        textView.attributedText = NoteDocumentCodec.attributedString(from: doc, speakers: speakers)
+        let attributed = NoteDocumentCodec.attributedString(from: doc, speakers: speakers)
+        textView.textStorage.setAttributedString(attributed)
         if let headerLoc = findSpeakerHeaderLocation(blockId: block.id) {
             textView.selectedRange = NSRange(location: headerLoc, length: 0)
         } else {
             textView.selectedRange = NSRange(location: min(selected.location, textView.textStorage.length), length: 0)
         }
+        textView.typingAttributes = typingAttributesForCaret()
         applyingRemote = false
         refreshSpeakerRails()
         emitChange()
@@ -1128,7 +1215,7 @@ extension NativeNoteEditorView: UIGestureRecognizerDelegate {
 // MARK: - Codec helpers exposed for typing attributes
 
 extension NoteDocumentCodec {
-    /// Public wrapper so the editor can build paragraph styles (incl. NSTextList) consistently.
+    /// Alias kept for call sites — always the same dictionary as the load path.
     static func baseAttributesPublic(
         type: String,
         id: String,
@@ -1136,46 +1223,41 @@ extension NoteDocumentCodec {
         speakerId: String?,
         speakers: [String: NativeAPIClient.SpeakerDTO]
     ) -> [NSAttributedString.Key: Any] {
-        // Mirror private baseAttributes by round-tripping a tiny attributed string.
-        let style = NSMutableParagraphStyle()
-        style.lineSpacing = 3
-        style.paragraphSpacing = 10
-        var font = UIFont.preferredFont(forTextStyle: .body)
-        let foreground: UIColor = .label
-        switch type {
-        case "heading":
-            font = UIFont.preferredFont(forTextStyle: id == "title" ? .title1 : .title2)
-            style.paragraphSpacingBefore = id == "title" ? 0 : 10
-            style.paragraphSpacing = id == "title" ? 8 : 10
-        case "bullet", "numbered", "check":
-            style.headIndent = 22
-            style.firstLineHeadIndent = 0
-            style.paragraphSpacing = 8
-        case "quote":
-            style.headIndent = 16
-            style.firstLineHeadIndent = 16
-            style.paragraphSpacing = 10
-            if let descriptor = font.fontDescriptor.withSymbolicTraits(font.fontDescriptor.symbolicTraits.union(.traitItalic)) {
-                font = UIFont(descriptor: descriptor, size: font.pointSize)
+        baseAttributes(type: type, id: id, checked: checked, speakerId: speakerId, speakers: speakers)
+    }
+}
+
+// MARK: - Speaker Enter decision (unit-tested)
+
+/// Pure decision for Enter inside/near speaker sections — keeps UIKit out of XCTest.
+enum SpeakerEnterDecision: Equatable {
+    case insertBodyFromHeader
+    case demoteListToParagraph
+    case exitSection
+    case continueList(String)
+    case defaultNewline
+
+    static func decide(
+        blockType: String,
+        insideSpeaker: Bool,
+        paragraphEmpty: Bool,
+        isLastBodyOfSection: Bool
+    ) -> SpeakerEnterDecision {
+        if blockType == "speakerSection" {
+            return .insertBodyFromHeader
+        }
+        if insideSpeaker, paragraphEmpty {
+            if blockType == "bullet" || blockType == "numbered" || blockType == "check" || blockType == "quote" {
+                return .demoteListToParagraph
             }
-        default:
-            break
+            if isLastBodyOfSection {
+                return .exitSection
+            }
         }
-        var attrs: [NSAttributedString.Key: Any] = [
-            .font: font,
-            .foregroundColor: foreground,
-            .paragraphStyle: style,
-            blockTypeKey: type,
-            blockIdKey: id,
-        ]
-        if type == "check" {
-            attrs[checkedKey] = checked ?? false
+        if blockType == "bullet" || blockType == "numbered" || blockType == "check" || blockType == "quote" {
+            return .continueList(blockType)
         }
-        if let speakerId {
-            attrs[speakerIdKey] = speakerId
-        }
-        _ = speakers
-        return attrs
+        return .defaultNewline
     }
 }
 
