@@ -61,4 +61,22 @@ final class SpeakerEnterDecisionTests: XCTestCase {
         )
         XCTAssertEqual(decision, .continueList("numbered"))
     }
+
+    func testNewlineReplacementAcceptsCRAndCRLF() {
+        XCTAssertTrue(NativeNoteEditorView.isNewlineReplacement("\n"))
+        XCTAssertTrue(NativeNoteEditorView.isNewlineReplacement("\r"))
+        XCTAssertTrue(NativeNoteEditorView.isNewlineReplacement("\r\n"))
+        XCTAssertFalse(NativeNoteEditorView.isNewlineReplacement("a"))
+    }
+
+    func testDemotedTrailingRunStillInsertsBodyWhenParagraphStartIsHeader() {
+        // Mirrors the live bug: caret character looks like paragraph, paragraph start is speakerSection.
+        let decision = SpeakerEnterDecision.decide(
+            blockType: "speakerSection",
+            insideSpeaker: true,
+            paragraphEmpty: false,
+            isLastBodyOfSection: true
+        )
+        XCTAssertEqual(decision, .insertBodyFromHeader)
+    }
 }

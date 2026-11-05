@@ -206,7 +206,8 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
     func currentDocument() -> NativeAPIClient.NoteDocument {
         precondition(Thread.isMainThread)
-        return NoteDocumentCodec.document(from: textView.attributedText ?? NSAttributedString(), base: documentBase)
+        // Prefer textStorage — UITextView.attributedText can drop custom keys (speakerBodyKey / blockType).
+        return NoteDocumentCodec.document(from: textView.textStorage, base: documentBase)
     }
 
     func insertBibleRef(_ ref: NoteDocumentCodec.BibleRefPayload) {
@@ -282,16 +283,19 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             reseedEmptyDocument()
             return
         }
-        ensureTypingAttributes()
-        // Keep body lines inside a speaker section indented so the rail stays aligned.
-        if caretIsInsideSpeakerSection() {
-            var typing = textView.typingAttributes
-            typing = NoteDocumentCodec.applyingSpeakerSectionInset(typing)
-            if (typing[NoteDocumentCodec.blockTypeKey] as? String) == "speakerSection" {
-                typing[NoteDocumentCodec.blockTypeKey] = "paragraph"
-                typing[NoteDocumentCodec.blockIdKey] = NoteDocumentCodec.newId()
-            }
-            textView.typingAttributes = typing
+        // CRITICAL: never demote header typingAttributes to paragraph while the caret is still
+        // on the speaker name line. PR #60's pure helpers passed, but this rewrite made the next
+        // typed name characters (and then Enter) look like a body/outside paragraph to UIKit.
+        if paragraphBlockType() == "speakerSection" {
+            normalizeSpeakerHeaderParagraphAttributes()
+            textView.typingAttributes = typingAttributesForCaret()
+        } else if caretIsInsideSpeakerSection() {
+            normalizeSpeakerBodyParagraphAttributes()
+            textView.typingAttributes = SpeakerSectionEditing.bodyTypingAttributes(
+                blockId: currentBlockId()
+            )
+        } else {
+            ensureTypingAttributes()
         }
         // Never reassign attributedText here — preserve selection, undo stack, and IME marked text.
         emitChange()
@@ -309,13 +313,27 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     }
 
     func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
-        ensureTypingAttributes()
-        if text == "\n" {
+        // Keep attrs in sync before deciding — but resolve block type from the *paragraph start*
+        // (see paragraphBlockType), not the caret character UIKit just typed with demoted attrs.
+        if paragraphBlockType() == "speakerSection" {
+            textView.typingAttributes = typingAttributesForCaret()
+        } else if caretIsInsideSpeakerSection() {
+            textView.typingAttributes = SpeakerSectionEditing.bodyTypingAttributes(
+                blockId: currentBlockId()
+            )
+        } else {
+            ensureTypingAttributes()
+        }
+
+        if Self.isNewlineReplacement(text) {
             dismissTriggerMenu()
-            let type = currentBlockType()
+            // Use paragraph-start type so Enter on a name line whose trailing runs were
+            // corrupted to "paragraph" still inserts a body *inside* the section.
+            let type = paragraphBlockType()
+            let inside = caretIsInsideSpeakerSection() || type == "speakerSection"
             let decision = SpeakerEnterDecision.decide(
                 blockType: type,
-                insideSpeaker: caretIsInsideSpeakerSection(),
+                insideSpeaker: inside,
                 paragraphEmpty: isCurrentParagraphVisuallyEmpty(),
                 isLastBodyOfSection: isLastBodyParagraphOfSpeakerSection()
             )
@@ -324,7 +342,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
                 insertSpeakerBodyParagraph()
                 return false
             case .continueInSection:
-                // Never let UIKit insert a bare "\n" — new paragraph must carry speakerBodyKey.
+                // Never let UIKit insert a bare newline — new paragraph must carry speakerBodyKey.
                 insertContinuingSpeakerBodyParagraph()
                 return false
             case .demoteListToParagraph:
@@ -339,12 +357,19 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
                 }
                 return true
             case .defaultNewline:
+                // Belt-and-suspenders: never allow a bare UIKit newline inside a speaker section.
+                if inside {
+                    insertContinuingSpeakerBodyParagraph()
+                    return false
+                }
                 return true
             }
         }
 
         // Typing inside an existing speaker body must keep speakerBodyKey + inset.
-        if caretIsInsideSpeakerSection(), currentBlockType() != "speakerSection" {
+        // Returning true alone is not enough — UIKit may ignore typingAttributes mutated here —
+        // so textViewDidChange also re-stamps the paragraph (normalizeSpeakerBodyParagraphAttributes).
+        if caretIsInsideSpeakerSection(), paragraphBlockType() != "speakerSection" {
             textView.typingAttributes = SpeakerSectionEditing.bodyTypingAttributes(
                 blockId: currentBlockId()
             )
@@ -511,15 +536,87 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         scrollCaretVisible(animated: true)
     }
 
+    /// Hardware keyboards sometimes send `\r` / `\r\n` instead of `\n`.
+    static func isNewlineReplacement(_ text: String) -> Bool {
+        text == "\n" || text == "\r" || text == "\r\n"
+    }
+
+    /// Attributes at the start of the caret's paragraph (source of truth for block type).
+    private func paragraphStartAttributes() -> [NSAttributedString.Key: Any] {
+        let storage = textView.textStorage
+        guard storage.length > 0 else { return [:] }
+        let para = paragraphRange()
+        let loc = min(max(para.location, 0), storage.length - 1)
+        return storage.attributes(at: loc, effectiveRange: nil)
+    }
+
+    /// Block type from the paragraph start — not the caret character (which can be demoted mid-name).
+    private func paragraphBlockType() -> String {
+        (paragraphStartAttributes()[NoteDocumentCodec.blockTypeKey] as? String) ?? "paragraph"
+    }
+
     /// True when the caret sits in a speaker header or any body paragraph of that section.
     private func caretIsInsideSpeakerSection() -> Bool {
-        if currentBlockType() == "speakerSection" { return true }
-        let storage = textView.textStorage
-        guard storage.length > 0 else { return false }
-        let loc = min(textView.selectedRange.location, max(0, storage.length - 1))
-        let attrs = storage.attributes(at: loc, effectiveRange: nil)
+        let attrs = paragraphStartAttributes()
+        if (attrs[NoteDocumentCodec.blockTypeKey] as? String) == "speakerSection" { return true }
         // After double-Enter exit, body paragraphs lose `speakerBodyKey`.
         return NoteDocumentCodec.isSpeakerBody(attrs)
+    }
+
+    /// Re-stamp speakerSection metadata on the whole name line so mid-line typing cannot split it.
+    private func normalizeSpeakerHeaderParagraphAttributes() {
+        let storage = textView.textStorage
+        let para = paragraphRange()
+        guard para.length > 0, storage.length >= NSMaxRange(para) else { return }
+        let startAttrs = paragraphStartAttributes()
+        guard (startAttrs[NoteDocumentCodec.blockTypeKey] as? String) == "speakerSection" else { return }
+        let id = (startAttrs[NoteDocumentCodec.blockIdKey] as? String) ?? NoteDocumentCodec.newId()
+        let speakerId = startAttrs[NoteDocumentCodec.speakerIdKey] as? String
+        var stamped = NoteDocumentCodec.baseAttributesPublic(
+            type: "speakerSection",
+            id: id,
+            checked: nil,
+            speakerId: speakerId,
+            speakers: [:]
+        )
+        stamped = NoteDocumentCodec.applyingSpeakerSectionInset(stamped)
+        if let collapsed = startAttrs[NoteDocumentCodec.collapsedKey] {
+            stamped[NoteDocumentCodec.collapsedKey] = collapsed
+        }
+        // Preserve per-run font/color (user formatting) but force block metadata + inset style.
+        storage.enumerateAttributes(in: para, options: []) { attrs, sub, _ in
+            var next = attrs
+            next[NoteDocumentCodec.blockTypeKey] = "speakerSection"
+            next[NoteDocumentCodec.blockIdKey] = id
+            if let speakerId {
+                next[NoteDocumentCodec.speakerIdKey] = speakerId
+            }
+            if let style = stamped[.paragraphStyle] {
+                next[.paragraphStyle] = style
+            }
+            next[NoteDocumentCodec.speakerBodyKey] = true
+            storage.setAttributes(next, range: sub)
+        }
+    }
+
+    /// Re-stamp speakerBodyKey + inset on the body paragraph UIKit may have inserted bare.
+    private func normalizeSpeakerBodyParagraphAttributes() {
+        let storage = textView.textStorage
+        let para = paragraphRange()
+        guard para.length > 0, storage.length >= NSMaxRange(para) else { return }
+        let id = currentBlockId()
+        let body = SpeakerSectionEditing.bodyTypingAttributes(blockId: id)
+        storage.enumerateAttributes(in: para, options: []) { attrs, sub, _ in
+            if (attrs[NoteDocumentCodec.blockTypeKey] as? String) == "speakerSection" { return }
+            var next = attrs
+            next[NoteDocumentCodec.blockTypeKey] = "paragraph"
+            next[NoteDocumentCodec.blockIdKey] = id
+            next[NoteDocumentCodec.speakerBodyKey] = true
+            if let style = body[.paragraphStyle] {
+                next[.paragraphStyle] = style
+            }
+            storage.setAttributes(next, range: sub)
+        }
     }
 
     private func enclosingSpeakerSectionStart() -> Int? {
@@ -599,16 +696,11 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     }
 
     private func currentBlockType() -> String {
-        guard textView.attributedText.length > 0 else { return "paragraph" }
-        let loc = min(textView.selectedRange.location, max(0, textView.attributedText.length - 1))
-        let attrs = textView.attributedText.attributes(at: loc, effectiveRange: nil)
-        return (attrs[NoteDocumentCodec.blockTypeKey] as? String) ?? "paragraph"
+        paragraphBlockType()
     }
 
     private func currentBlockId() -> String {
-        guard textView.attributedText.length > 0 else { return NoteDocumentCodec.newId() }
-        let loc = min(textView.selectedRange.location, max(0, textView.attributedText.length - 1))
-        let attrs = textView.attributedText.attributes(at: loc, effectiveRange: nil)
+        let attrs = paragraphStartAttributes()
         return (attrs[NoteDocumentCodec.blockIdKey] as? String) ?? NoteDocumentCodec.newId()
     }
 
@@ -1181,6 +1273,62 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         triggerMenu = nil
         triggerMenuTopConstraint = nil
         triggerMenuLeadingConstraint = nil
+    }
+
+    // MARK: - AppTests seams (real UITextView path)
+
+    /// Host the editor in a key window so `insertText` / Return hit `shouldChangeTextIn`.
+    @discardableResult
+    func testing_attachToKeyWindow(size: CGSize = CGSize(width: 390, height: 844)) -> UIWindow {
+        let window = UIWindow(frame: CGRect(origin: .zero, size: size))
+        let host = UIViewController()
+        translatesAutoresizingMaskIntoConstraints = false
+        host.view.addSubview(self)
+        NSLayoutConstraint.activate([
+            topAnchor.constraint(equalTo: host.view.topAnchor),
+            leadingAnchor.constraint(equalTo: host.view.leadingAnchor),
+            trailingAnchor.constraint(equalTo: host.view.trailingAnchor),
+            bottomAnchor.constraint(equalTo: host.view.bottomAnchor),
+        ])
+        window.rootViewController = host
+        window.makeKeyAndVisible()
+        host.view.layoutIfNeeded()
+        layoutIfNeeded()
+        return window
+    }
+
+    @discardableResult
+    func testing_becomeFirstResponder() -> Bool {
+        textView.becomeFirstResponder()
+    }
+
+    /// Same path software/hardware keyboards use (`insertText` → `shouldChangeTextIn`).
+    func testing_insertText(_ string: String) {
+        textView.insertText(string)
+    }
+
+    func testing_selectedRange() -> NSRange {
+        textView.selectedRange
+    }
+
+    func testing_setSelectedRange(_ range: NSRange) {
+        let length = textView.textStorage.length
+        let loc = min(max(0, range.location), length)
+        let len = min(max(0, range.length), max(0, length - loc))
+        textView.selectedRange = NSRange(location: loc, length: len)
+        ensureTypingAttributes()
+    }
+
+    func testing_textStorage() -> NSTextStorage {
+        textView.textStorage
+    }
+
+    func testing_railCharacterRanges() -> [NSRange] {
+        railLayoutManager.rails.map(\.range)
+    }
+
+    func testing_paragraphBlockType() -> String {
+        paragraphBlockType()
     }
 }
 
