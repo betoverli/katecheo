@@ -1302,9 +1302,18 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         textView.becomeFirstResponder()
     }
 
-    /// Same path software/hardware keyboards use (`insertText` → `shouldChangeTextIn`).
+    /// Simulate a keyboard insertion the way UIKit does: ask `shouldChangeTextIn`, then
+    /// either let our handler mutate storage (Return → false) or apply typingAttributes (true).
+    /// Prefer this over `insertText` in AppTests — headless XCTest often skips the delegate.
     func testing_insertText(_ string: String) {
-        textView.insertText(string)
+        let range = textView.selectedRange
+        let allowed = textView(textView, shouldChangeTextIn: range, replacementText: string)
+        guard allowed else { return }
+        let attrs = textView.typingAttributes
+        let piece = NSAttributedString(string: string, attributes: attrs)
+        textView.textStorage.replaceCharacters(in: range, with: piece)
+        textView.selectedRange = NSRange(location: range.location + piece.length, length: 0)
+        textViewDidChange(textView)
     }
 
     func testing_selectedRange() -> NSRange {
