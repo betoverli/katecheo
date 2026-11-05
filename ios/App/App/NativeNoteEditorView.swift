@@ -537,7 +537,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     }
 
     /// Hardware keyboards sometimes send `\r` / `\r\n` instead of `\n`.
-    static func isNewlineReplacement(_ text: String) -> Bool {
+    nonisolated static func isNewlineReplacement(_ text: String) -> Bool {
         text == "\n" || text == "\r" || text == "\r\n"
     }
 
