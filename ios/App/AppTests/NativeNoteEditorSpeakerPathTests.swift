@@ -66,13 +66,20 @@ final class NativeNoteEditorSpeakerPathTests: XCTestCase {
     func testSpeakerHeaderIsNonEditableAttachment() {
         editor.insertSpeakerSection(speakerId: "sp1", name: "Beto")
         XCTAssertEqual(headerAttachmentCount(), 1)
-        XCTAssertEqual(editor.testing_paragraphBlockType(), "paragraph", "caret must land in body, not header")
-        XCTAssertTrue(NoteDocumentCodec.isSpeakerBody(
-            editor.testing_textStorage().attributes(
-                at: min(editor.testing_selectedRange().location, max(0, editor.testing_textStorage().length - 1)),
-                effectiveRange: nil
-            )
-        ))
+        XCTAssertEqual(
+            editor.testing_paragraphBlockType(),
+            "paragraph",
+            "caret must land in body, not header; selected=\(editor.testing_selectedRange()) plain=\(editor.testing_textStorage().string.debugDescription)"
+        )
+        let caretLoc = min(
+            editor.testing_selectedRange().location,
+            max(0, editor.testing_textStorage().length - 1)
+        )
+        let caretAttrs = editor.testing_textStorage().attributes(at: caretLoc, effectiveRange: nil)
+        XCTAssertTrue(
+            NoteDocumentCodec.isSpeakerBody(caretAttrs),
+            "caret attrs missing speakerBodyKey; type=\(caretAttrs[NoteDocumentCodec.blockTypeKey] ?? "?")"
+        )
 
         // Typing near/on the header must not change the speaker name in the model.
         if let headerLoc = SpeakerSectionEditing.findSpeakerHeaderRange(in: editor.testing_textStorage())?.location {
@@ -82,9 +89,16 @@ final class NativeNoteEditorSpeakerPathTests: XCTestCase {
         let doc = editor.currentDocument()
         XCTAssertEqual(speakerBlock(in: doc)?.title, "Beto")
         XCTAssertEqual(speakerBlock(in: doc)?.speakerId, "sp1")
+        // HACK may land in the body after the bounce — that is fine. It must not become the title.
+        XCTAssertNotEqual(speakerBlock(in: doc)?.title, "HACK")
         let storage = editor.testing_textStorage()
-        let plain = storage.string.replacingOccurrences(of: "\u{FFFC}", with: "")
-        XCTAssertFalse(plain.contains("HACK"), "typed text must not land in the header name")
+        var headerPlain = ""
+        if let headerRange = SpeakerSectionEditing.findSpeakerHeaderRange(in: storage) {
+            headerPlain = (storage.string as NSString)
+                .substring(with: headerRange)
+                .replacingOccurrences(of: "\u{FFFC}", with: "")
+        }
+        XCTAssertFalse(headerPlain.contains("HACK"), "typed text must not land in the header run")
     }
 
     // Bug 2: insert after a normal line must not create a blank speaker section.

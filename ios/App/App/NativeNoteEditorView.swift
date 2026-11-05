@@ -247,14 +247,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         applyingRemote = true
         let attributed = NoteDocumentCodec.attributedString(from: doc, speakers: speakers)
         textView.textStorage.setAttributedString(attributed)
-        if let bodyLoc = findBlockLocation(blockId: result.focusBodyId) {
-            textView.selectedRange = NSRange(location: bodyLoc, length: 0)
-        } else if let headerLoc = findSpeakerHeaderLocation(blockId: result.sectionId) {
-            // Prefer first body after the header attachment.
-            let after = headerLoc + 1
-            textView.selectedRange = NSRange(location: min(after, textView.textStorage.length), length: 0)
-        }
-        textView.typingAttributes = SpeakerSectionEditing.bodyTypingAttributes(blockId: result.focusBodyId)
+        placeCaretInSpeakerBody(bodyId: result.focusBodyId, sectionId: result.sectionId)
         applyingRemote = false
         emitChange()
         refreshSpeakerRails()
@@ -270,7 +263,13 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         else { return }
         doc.body.blocks[idx].speakerId = speakerId
         doc.body.blocks[idx].title = name
-        applyDocument(doc, preferBlockId: sectionId)
+        let bodyId = doc.body.blocks[idx].blocks?.first?.id
+        applyDocument(doc, preferBlockId: bodyId ?? sectionId)
+        if let bodyId {
+            placeCaretInSpeakerBody(bodyId: bodyId, sectionId: sectionId)
+        } else {
+            moveCaretOffSpeakerHeaderIfNeeded()
+        }
     }
 
     // MARK: - UITextViewDelegate
@@ -318,8 +317,11 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     }
 
     func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
-        // Never let the keyboard mutate the non-editable speaker header attachment.
-        if rangeIntersectsSpeakerHeader(range) {
+        // Never let the keyboard mutate the non-editable speaker header (attachment or
+        // its trailing "\n"). Bounce into the body; do not also run exit/continue — web
+        // Enter-on-header only moves into the seeded body.
+        if rangeIntersectsSpeakerHeader(range) || paragraphBlockType() == "speakerSection" {
+            _ = moveCaretIntoSpeakerBodyAfterHeader()
             return false
         }
 
@@ -679,11 +681,18 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         let start = max(0, range.location)
         let end = min(storage.length, NSMaxRange(range))
         if start >= end {
-            // Insertion point — reject if caret sits on the attachment character.
+            // Insertion point — reject if caret sits on the attachment character
+            // or anywhere in the header paragraph (incl. its trailing "\n").
             let loc = min(start, storage.length - 1)
-            return NoteDocumentCodec.speakerHeaderAttachment(
+            if NoteDocumentCodec.speakerHeaderAttachment(
                 in: storage.attributes(at: loc, effectiveRange: nil)
-            ) != nil
+            ) != nil {
+                return true
+            }
+            let para = (storage.string as NSString).paragraphRange(for: NSRange(location: loc, length: 0))
+            let startAttrs = storage.attributes(at: min(para.location, storage.length - 1), effectiveRange: nil)
+            return NoteDocumentCodec.speakerHeaderAttachment(in: startAttrs) != nil
+                || (startAttrs[NoteDocumentCodec.blockTypeKey] as? String) == "speakerSection"
         }
         var hits = false
         storage.enumerateAttribute(.attachment, in: NSRange(location: start, length: end - start)) { value, _, stop in
@@ -696,8 +705,14 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     }
 
     private func moveCaretOffSpeakerHeaderIfNeeded() {
+        guard textView.textStorage.length > 0 else { return }
+        // Entire header paragraph is chrome — including the trailing "\n" that
+        // `appendLine` stamps with the body's blockId (still part of this paragraph).
+        if paragraphBlockType() == "speakerSection" {
+            _ = moveCaretIntoSpeakerBodyAfterHeader()
+            return
+        }
         let storage = textView.textStorage
-        guard storage.length > 0 else { return }
         let loc = min(textView.selectedRange.location, storage.length - 1)
         let attrs = storage.attributes(at: loc, effectiveRange: nil)
         guard NoteDocumentCodec.speakerHeaderAttachment(in: attrs) != nil else { return }
@@ -708,11 +723,15 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     private func moveCaretIntoSpeakerBodyAfterHeader() -> Bool {
         let storage = textView.textStorage
         let header = paragraphRange()
-        let after = NSMaxRange(header)
+        // If caret is already past the header paragraph, don't bounce backwards.
+        let caret = textView.selectedRange.location
+        let after = caret > NSMaxRange(header) ? caret : NSMaxRange(header)
         if after < storage.length {
             let next = (storage.string as NSString).paragraphRange(for: NSRange(location: after, length: 0))
             let attrs = storage.attributes(at: min(next.location, storage.length - 1), effectiveRange: nil)
-            if NoteDocumentCodec.isSpeakerBody(attrs) {
+            if NoteDocumentCodec.isSpeakerBody(attrs),
+               (attrs[NoteDocumentCodec.blockTypeKey] as? String) != "speakerSection"
+            {
                 textView.selectedRange = NSRange(location: next.location, length: 0)
                 textView.typingAttributes = SpeakerSectionEditing.bodyTypingAttributes(
                     blockId: (attrs[NoteDocumentCodec.blockIdKey] as? String) ?? NoteDocumentCodec.newId()
@@ -721,9 +740,27 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             }
         }
         // No body (collapsed): place caret after the section.
-        textView.selectedRange = NSRange(location: min(after, storage.length), length: 0)
+        textView.selectedRange = NSRange(location: min(NSMaxRange(header), storage.length), length: 0)
         textView.typingAttributes = SpeakerSectionEditing.outsideTypingAttributes()
         return true
+    }
+
+    /// Land inside a speaker body paragraph — never on the body's leading "\n", which
+    /// still belongs to the previous (header) paragraph in NSString paragraph ranges.
+    private func placeCaretInSpeakerBody(bodyId: String, sectionId: String) {
+        if let loc = contentLocation(forBlockId: bodyId) {
+            textView.selectedRange = NSRange(location: loc, length: 0)
+            textView.typingAttributes = SpeakerSectionEditing.bodyTypingAttributes(blockId: bodyId)
+            return
+        }
+        if let headerLoc = findSpeakerHeaderLocation(blockId: sectionId) {
+            let after = headerLoc + 1
+            textView.selectedRange = NSRange(location: min(after, textView.textStorage.length), length: 0)
+            moveCaretOffSpeakerHeaderIfNeeded()
+            textView.typingAttributes = SpeakerSectionEditing.bodyTypingAttributes(blockId: bodyId)
+            return
+        }
+        textView.typingAttributes = SpeakerSectionEditing.bodyTypingAttributes(blockId: bodyId)
     }
 
     private func applyDocument(_ doc: NativeAPIClient.NoteDocument, preferBlockId: String?) {
@@ -743,11 +780,38 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     }
 
     private func findBlockLocation(blockId: String) -> Int? {
+        contentLocation(forBlockId: blockId)
+    }
+
+    /// First character of `blockId` that is not a paragraph-separating newline.
+    /// `appendLine` stamps the leading `\n` of a block with that block's attrs, but
+    /// NSString treats that `\n` as the end of the *previous* paragraph — landing the
+    /// caret there puts typing into the speaker header.
+    private func contentLocation(forBlockId blockId: String) -> Int? {
         let storage = textView.textStorage
+        guard storage.length > 0 else { return nil }
+        let ns = storage.string as NSString
         var found: Int?
-        storage.enumerateAttribute(NoteDocumentCodec.blockIdKey, in: NSRange(location: 0, length: storage.length)) { value, range, stop in
+        storage.enumerateAttribute(
+            NoteDocumentCodec.blockIdKey,
+            in: NSRange(location: 0, length: storage.length)
+        ) { value, range, stop in
             guard (value as? String) == blockId else { return }
-            found = range.location
+            var loc = range.location
+            while loc < ns.length,
+                  ns.substring(with: NSRange(location: loc, length: 1)) == "\n",
+                  loc + 1 < storage.length
+            {
+                let nextId = storage.attributes(at: loc + 1, effectiveRange: nil)[NoteDocumentCodec.blockIdKey] as? String
+                if nextId == blockId {
+                    loc += 1
+                } else {
+                    // Advance once into the paragraph this newline terminates into.
+                    loc += 1
+                    break
+                }
+            }
+            found = min(loc, storage.length)
             stop.pointee = true
         }
         return found
@@ -1113,11 +1177,11 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         doc.body.blocks[matchIdx] = block
         applyDocument(doc, preferBlockId: blockId)
         // Prefer caret in first body when expanding; stay off the attachment when collapsed.
-        if nextCollapsed == false, let bodyId = block.blocks?.first?.id, let loc = findBlockLocation(blockId: bodyId) {
-            textView.selectedRange = NSRange(location: loc, length: 0)
-            textView.typingAttributes = SpeakerSectionEditing.bodyTypingAttributes(blockId: bodyId)
+        if nextCollapsed == false, let bodyId = block.blocks?.first?.id {
+            placeCaretInSpeakerBody(bodyId: bodyId, sectionId: blockId)
         } else if let headerLoc = findSpeakerHeaderLocation(blockId: blockId) {
             textView.selectedRange = NSRange(location: min(headerLoc + 1, textView.textStorage.length), length: 0)
+            moveCaretOffSpeakerHeaderIfNeeded()
         }
         V2NHaptics.selection()
         UIView.animate(withDuration: 0.22) {
@@ -1396,25 +1460,54 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     /// either let our handler mutate storage (Return → false) or apply typingAttributes (true).
     /// Replaces a trailing ZWSP placeholder (empty-body anchor) the way typing usually does.
     func testing_insertText(_ string: String) {
+        // Leave non-editable header chrome before any ordinary character.
+        if paragraphBlockType() == "speakerSection", !Self.isNewlineReplacement(string) {
+            _ = moveCaretIntoSpeakerBodyAfterHeader()
+        }
+
+        func applyOrdinaryInsertion(at range: inout NSRange) {
+            if range.length == 0,
+               !Self.isNewlineReplacement(string),
+               range.location <= textView.textStorage.length
+            {
+                let ns = textView.textStorage.string as NSString
+                if range.location < ns.length,
+                   ns.substring(with: NSRange(location: range.location, length: 1)) == "\u{200B}"
+                {
+                    range = NSRange(location: range.location, length: 1)
+                } else if range.location > 0,
+                          ns.substring(with: NSRange(location: range.location - 1, length: 1)) == "\u{200B}"
+                {
+                    range = NSRange(location: range.location - 1, length: 1)
+                }
+            }
+            let attrs = textView.typingAttributes
+            let piece = NSAttributedString(string: string, attributes: attrs)
+            textView.textStorage.replaceCharacters(in: range, with: piece)
+            textView.selectedRange = NSRange(location: range.location + piece.length, length: 0)
+            textViewDidChange(textView)
+        }
+
         var range = textView.selectedRange
         let allowed = textView(textView, shouldChangeTextIn: range, replacementText: string)
-        guard allowed else { return }
-        if range.length == 0,
-           range.location > 0,
-           range.location <= textView.textStorage.length,
-           !Self.isNewlineReplacement(string)
-        {
-            let prev = (textView.textStorage.string as NSString)
-                .substring(with: NSRange(location: range.location - 1, length: 1))
-            if prev == "\u{200B}" {
-                range = NSRange(location: range.location - 1, length: 1)
-            }
+        if allowed {
+            applyOrdinaryInsertion(at: &range)
+            return
         }
-        let attrs = textView.typingAttributes
-        let piece = NSAttributedString(string: string, attributes: attrs)
-        textView.textStorage.replaceCharacters(in: range, with: piece)
-        textView.selectedRange = NSRange(location: range.location + piece.length, length: 0)
-        textViewDidChange(textView)
+
+        // `shouldChangeTextIn` returned false:
+        // - Enter inside speaker → already inserted/exited in the delegate
+        // - Enter/typing on header → caret was bounced into body; retry once
+        if Self.isNewlineReplacement(string) {
+            if paragraphBlockType() == "speakerSection" { return }
+            // Delegate already handled continue/exit when inside a speaker body.
+            return
+        }
+        if paragraphBlockType() == "speakerSection" { return }
+        range = textView.selectedRange
+        let retry = textView(textView, shouldChangeTextIn: range, replacementText: string)
+        guard retry else { return }
+        applyOrdinaryInsertion(at: &range)
     }
 
     func testing_selectedRange() -> NSRange {
