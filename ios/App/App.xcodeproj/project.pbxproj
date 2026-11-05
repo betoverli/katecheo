@@ -10,6 +10,7 @@
 		T1A2B0102FED7965001685T1 /* NoteDocumentCodecTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T1A2B0112FED7965001685T1 /* NoteDocumentCodecTests.swift */; };
 		T1A2B0122FED7965001685T1 /* SpeakerEnterDecisionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T1A2B0132FED7965001685T1 /* SpeakerEnterDecisionTests.swift */; };
 		T2SPEAK22FED7965001685T2 /* SpeakerSectionEditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T2SPEAK21FED7965001685T2 /* SpeakerSectionEditingTests.swift */; };
+		T3PATH22FED7965001685T3 /* NativeNoteEditorSpeakerPathTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T3PATH21FED7965001685T3 /* NativeNoteEditorSpeakerPathTests.swift */; };
 		504EC3081FED79650016851F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504EC3071FED79650016851F /* AppDelegate.swift */; };
 		504EC30D1FED79650016851F /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30B1FED79650016851F /* Main.storyboard */; };
 		504EC30F1FED79650016851F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30E1FED79650016851F /* Assets.xcassets */; };
@@ -107,6 +108,7 @@
 		T1A2B0112FED7965001685T1 /* NoteDocumentCodecTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteDocumentCodecTests.swift; sourceTree = "<group>"; };
 		T1A2B0132FED7965001685T1 /* SpeakerEnterDecisionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerEnterDecisionTests.swift; sourceTree = "<group>"; };
 		T2SPEAK21FED7965001685T2 /* SpeakerSectionEditingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerSectionEditingTests.swift; sourceTree = "<group>"; };
+		T3PATH21FED7965001685T3 /* NativeNoteEditorSpeakerPathTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeNoteEditorSpeakerPathTests.swift; sourceTree = "<group>"; };
 		T1A2B0142FED7965001685T1 /* AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -206,6 +208,7 @@
 				T1A2B0112FED7965001685T1 /* NoteDocumentCodecTests.swift */,
 				T1A2B0132FED7965001685T1 /* SpeakerEnterDecisionTests.swift */,
 				T2SPEAK21FED7965001685T2 /* SpeakerSectionEditingTests.swift */,
+				T3PATH21FED7965001685T3 /* NativeNoteEditorSpeakerPathTests.swift */,
 			);
 			path = AppTests;
 			sourceTree = "<group>";
@@ -387,6 +390,7 @@
 				T1A2B0102FED7965001685T1 /* NoteDocumentCodecTests.swift in Sources */,
 				T1A2B0122FED7965001685T1 /* SpeakerEnterDecisionTests.swift in Sources */,
 				T2SPEAK22FED7965001685T2 /* SpeakerSectionEditingTests.swift in Sources */,
+				T3PATH22FED7965001685T3 /* NativeNoteEditorSpeakerPathTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

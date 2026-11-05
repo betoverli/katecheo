@@ -232,6 +232,15 @@ try {
 if (!project.includes("SpeakerSectionEditing.swift in Sources") || !project.includes("SpeakerSectionEditingTests.swift in Sources")) {
   errors.push("SpeakerSectionEditing (+ tests) têm de estar no target Xcode.");
 }
+if (!editor.includes("paragraphBlockType") || !editor.includes("normalizeSpeakerBodyParagraphAttributes") || !editor.includes("isNewlineReplacement")) {
+  errors.push("Enter do orador tem de usar o tipo do início do parágrafo + normalizar o corpo (não só helpers puros).");
+}
+if (!editor.includes("testing_insertText") || !editor.includes("testing_prepare") || !project.includes("NativeNoteEditorSpeakerPathTests.swift in Sources")) {
+  errors.push("AppTests têm de exercer o caminho real NativeNoteEditorView/UITextView (NativeNoteEditorSpeakerPathTests).");
+}
+if (!editor.includes("from: textView.textStorage")) {
+  errors.push("currentDocument tem de ler textStorage (attributedText pode perder speakerBodyKey).");
+}
 if (!editor.includes("typingAttributesForCaret") || !codec.includes("\\u{200B}")) {
   errors.push("Nota vazia / load path tem de criar runs atribuídos (ZWSP) e definir typingAttributes no pushNote.");
 }
