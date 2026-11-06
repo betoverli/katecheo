@@ -123,39 +123,44 @@ final class NativeNoteEditorTF200Tests: XCTestCase {
         editor.testing_applyBlockTypeHook(listType)
         let afterPromoteType = editor.testing_paragraphBlockType()
         let afterPromoteChildren = speakerChildTypes()
-        NSLog("TF200 \(listType) after promote type=%@ children=%@", afterPromoteType, afterPromoteChildren.description)
-        XCTAssertEqual(afterPromoteType, listType, "promote \(listType); children=\(afterPromoteChildren)")
-        XCTAssertTrue(afterPromoteChildren.contains(listType), "children after promote: \(afterPromoteChildren)")
+        let promoteMsg = "promote \(listType); type=\(afterPromoteType) children=\(afterPromoteChildren) plain=\(editor.testing_textStorage().string.debugDescription)"
+        fputs("TF200 \(promoteMsg)\n", stderr)
+        guard afterPromoteType == listType else {
+            return XCTFail(promoteMsg)
+        }
+        guard afterPromoteChildren.contains(listType) else {
+            return XCTFail("children after promote: \(afterPromoteChildren) plain=\(editor.testing_textStorage().string.debugDescription)")
+        }
 
         parkCaretAtEndOfCurrentParagraph()
         editor.testing_insertText("\n")
         let afterContinueType = editor.testing_paragraphBlockType()
         let afterContinueChildren = speakerChildTypes()
-        NSLog("TF200 \(listType) after continue type=%@ children=%@", afterContinueType, afterContinueChildren.description)
-        XCTAssertEqual(afterContinueType, listType, "Enter continues \(listType); children=\(afterContinueChildren)")
-        XCTAssertGreaterThanOrEqual(
-            afterContinueChildren.filter { $0 == listType }.count,
-            2,
-            "two \(listType) children; children=\(afterContinueChildren)"
-        )
+        let continueMsg = "continue \(listType); type=\(afterContinueType) children=\(afterContinueChildren) plain=\(editor.testing_textStorage().string.debugDescription)"
+        fputs("TF200 \(continueMsg)\n", stderr)
+        guard afterContinueType == listType else {
+            return XCTFail(continueMsg)
+        }
+        guard afterContinueChildren.filter({ $0 == listType }).count >= 2 else {
+            return XCTFail("two \(listType) children; children=\(afterContinueChildren)")
+        }
 
         editor.testing_insertText("\n")
         let afterDemoteType = editor.testing_paragraphBlockType()
         let afterDemoteChildren = speakerChildTypes()
         let loc = min(editor.testing_selectedRange().location, max(0, editor.testing_textStorage().length - 1))
         let attrs = editor.testing_textStorage().attributes(at: loc, effectiveRange: nil)
-        NSLog(
-            "TF200 \(listType) after demote type=%@ bodyKey=%@ children=%@",
-            afterDemoteType,
-            String(describing: attrs[NoteDocumentCodec.speakerBodyKey]),
-            afterDemoteChildren.description
-        )
-        XCTAssertEqual(afterDemoteType, "paragraph", "empty demotes; children=\(afterDemoteChildren)")
-        XCTAssertEqual(afterDemoteChildren.last, "paragraph", "demoted last child; children=\(afterDemoteChildren)")
-        XCTAssertTrue(
-            NoteDocumentCodec.isSpeakerBody(attrs),
-            "must stay inside section; children=\(afterDemoteChildren)"
-        )
+        let demoteMsg = "demote \(listType); type=\(afterDemoteType) bodyKey=\(String(describing: attrs[NoteDocumentCodec.speakerBodyKey])) children=\(afterDemoteChildren) plain=\(editor.testing_textStorage().string.debugDescription)"
+        fputs("TF200 \(demoteMsg)\n", stderr)
+        guard afterDemoteType == "paragraph" else {
+            return XCTFail(demoteMsg)
+        }
+        guard afterDemoteChildren.last == "paragraph" else {
+            return XCTFail("demoted last child; \(demoteMsg)")
+        }
+        guard NoteDocumentCodec.isSpeakerBody(attrs) else {
+            return XCTFail("must stay inside; \(demoteMsg)")
+        }
     }
 
     // Bug 1: lists inside a speaker section continue / empty-exit like outside.

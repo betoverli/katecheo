@@ -288,6 +288,51 @@ final class SpeakerSectionEditingTests: XCTestCase {
         XCTAssertTrue(doc.body.blocks.contains { $0.type == "paragraph" })
     }
 
+    func testInsertContinuingList_insideSpeaker_keepsSpeakerBodyKey() {
+        var note = NativeAPIClient.emptyNote()
+        note.title = "Nota"
+        note.body.blocks = [
+            NativeAPIClient.LineBlock(
+                id: "s1",
+                type: "speakerSection",
+                spans: nil,
+                speakerId: "sp1",
+                title: "Beto",
+                collapsed: nil,
+                checked: nil,
+                blocks: [
+                    NativeAPIClient.LineBlock(
+                        id: "c1",
+                        type: "bullet",
+                        spans: [.init(type: "text", text: "item", marks: nil, bookId: nil, chapter: nil, verseStart: nil, verseEnd: nil, href: nil)],
+                        speakerId: nil,
+                        title: nil,
+                        collapsed: nil,
+                        checked: nil,
+                        blocks: nil
+                    ),
+                ]
+            ),
+        ]
+        let storage = NSMutableAttributedString(attributedString: NoteDocumentCodec.attributedString(from: note))
+        let range = (storage.string as NSString).range(of: "item")
+        XCTAssertNotEqual(range.location, NSNotFound)
+        let caret = NSMaxRange(range)
+        let result = SpeakerSectionEditing.insertContinuingListParagraph(
+            in: storage,
+            at: caret,
+            listType: "bullet",
+            marker: "•\u{00A0}",
+            inSpeakerSection: true
+        )
+        let attrs = storage.attributes(at: min(result.caret, storage.length - 1), effectiveRange: nil)
+        XCTAssertEqual(attrs[NoteDocumentCodec.blockTypeKey] as? String, "bullet")
+        XCTAssertTrue(NoteDocumentCodec.isSpeakerBody(attrs))
+        let doc = NoteDocumentCodec.document(from: storage, base: note)
+        let children = doc.body.blocks.first(where: { $0.type == "speakerSection" })?.blocks ?? []
+        XCTAssertGreaterThanOrEqual(children.filter { $0.type == "bullet" }.count, 2, "children=\(children.map(\.type))")
+    }
+
     private func paragraphCount(_ storage: NSAttributedString) -> Int {
         let ns = storage.string as NSString
         var count = 0
