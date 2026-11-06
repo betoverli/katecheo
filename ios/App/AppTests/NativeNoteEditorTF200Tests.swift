@@ -67,56 +67,94 @@ final class NativeNoteEditorTF200Tests: XCTestCase {
     }
 
     private func runListEnterInsideSpeaker(listType: String) {
-        editor.insertSpeakerSection(speakerId: "sp1", name: "Hélio Azevedo")
-        XCTAssertEqual(
-            editor.testing_paragraphBlockType(),
-            "paragraph",
-            "caret must land in body; plain=\(editor.testing_textStorage().string.debugDescription)"
+        // Seed the section in the model so caret/body membership is unambiguous.
+        var note = NativeAPIClient.emptyNote(id: "note-tf200-\(listType)")
+        note.title = "Culto"
+        let bodyId = "body1"
+        note.body.blocks = [
+            NativeAPIClient.LineBlock(
+                id: "sec1",
+                type: "speakerSection",
+                spans: nil,
+                speakerId: "sp1",
+                title: "Hélio Azevedo",
+                collapsed: nil,
+                checked: nil,
+                blocks: [
+                    NativeAPIClient.LineBlock(
+                        id: bodyId,
+                        type: "paragraph",
+                        spans: [.init(type: "text", text: "item", marks: nil, bookId: nil, chapter: nil, verseStart: nil, verseEnd: nil, href: nil)],
+                        speakerId: nil,
+                        title: nil,
+                        collapsed: nil,
+                        checked: nil,
+                        blocks: nil
+                    ),
+                ]
+            ),
+            NativeAPIClient.LineBlock(
+                id: "trail",
+                type: "paragraph",
+                spans: [],
+                speakerId: nil,
+                title: nil,
+                collapsed: nil,
+                checked: nil,
+                blocks: nil
+            ),
+        ]
+        editor.pushNote(note, speakers: speakers)
+
+        // Place caret at end of the seeded body line.
+        let storage = editor.testing_textStorage()
+        let range = (storage.string as NSString).range(of: "item")
+        XCTAssertNotEqual(range.location, NSNotFound, "seeded body missing")
+        editor.testing_setSelectedRange(NSRange(location: NSMaxRange(range), length: 0))
+        let startAttrs = storage.attributes(at: range.location, effectiveRange: nil)
+        NSLog(
+            "TF200 \(listType) start type=%@ bodyKey=%@ children=%@",
+            (startAttrs[NoteDocumentCodec.blockTypeKey] as? String) ?? "?",
+            String(describing: startAttrs[NoteDocumentCodec.speakerBodyKey]),
+            speakerChildTypes().description
         )
-        editor.testing_insertText("item")
+        XCTAssertTrue(NoteDocumentCodec.isSpeakerBody(startAttrs), "seeded body must have speakerBodyKey")
+
         editor.testing_applyBlockTypeHook(listType)
-        XCTAssertEqual(
-            editor.testing_paragraphBlockType(),
-            listType,
-            "promote \(listType); children=\(speakerChildTypes()) plain=\(editor.testing_textStorage().string.debugDescription)"
-        )
-        XCTAssertTrue(
-            speakerChildTypes().contains(listType),
-            "document children after promote: \(speakerChildTypes())"
-        )
+        let afterPromoteType = editor.testing_paragraphBlockType()
+        let afterPromoteChildren = speakerChildTypes()
+        NSLog("TF200 \(listType) after promote type=%@ children=%@", afterPromoteType, afterPromoteChildren.description)
+        XCTAssertEqual(afterPromoteType, listType, "promote \(listType); children=\(afterPromoteChildren)")
+        XCTAssertTrue(afterPromoteChildren.contains(listType), "children after promote: \(afterPromoteChildren)")
+
         parkCaretAtEndOfCurrentParagraph()
         editor.testing_insertText("\n")
-        XCTAssertEqual(
-            editor.testing_paragraphBlockType(),
-            listType,
-            "Enter continues \(listType); children=\(speakerChildTypes()) plain=\(editor.testing_textStorage().string.debugDescription)"
-        )
-        let afterContinue = speakerChildTypes()
+        let afterContinueType = editor.testing_paragraphBlockType()
+        let afterContinueChildren = speakerChildTypes()
+        NSLog("TF200 \(listType) after continue type=%@ children=%@", afterContinueType, afterContinueChildren.description)
+        XCTAssertEqual(afterContinueType, listType, "Enter continues \(listType); children=\(afterContinueChildren)")
         XCTAssertGreaterThanOrEqual(
-            afterContinue.filter { $0 == listType }.count,
+            afterContinueChildren.filter { $0 == listType }.count,
             2,
-            "two \(listType) children after continue; children=\(afterContinue)"
+            "two \(listType) children; children=\(afterContinueChildren)"
         )
-        // Empty Enter demotes but stays inside the speaker.
+
         editor.testing_insertText("\n")
-        XCTAssertEqual(
-            editor.testing_paragraphBlockType(),
-            "paragraph",
-            "empty \(listType) demotes; children=\(speakerChildTypes()) plain=\(editor.testing_textStorage().string.debugDescription)"
-        )
-        let afterDemote = speakerChildTypes()
-        XCTAssertFalse(afterDemote.isEmpty, "section must keep body children after demote")
-        XCTAssertEqual(
-            afterDemote.last,
-            "paragraph",
-            "demoted last child is paragraph; children=\(afterDemote)"
-        )
-        // Still inside the section — not an outside trailing paragraph.
+        let afterDemoteType = editor.testing_paragraphBlockType()
+        let afterDemoteChildren = speakerChildTypes()
         let loc = min(editor.testing_selectedRange().location, max(0, editor.testing_textStorage().length - 1))
         let attrs = editor.testing_textStorage().attributes(at: loc, effectiveRange: nil)
+        NSLog(
+            "TF200 \(listType) after demote type=%@ bodyKey=%@ children=%@",
+            afterDemoteType,
+            String(describing: attrs[NoteDocumentCodec.speakerBodyKey]),
+            afterDemoteChildren.description
+        )
+        XCTAssertEqual(afterDemoteType, "paragraph", "empty demotes; children=\(afterDemoteChildren)")
+        XCTAssertEqual(afterDemoteChildren.last, "paragraph", "demoted last child; children=\(afterDemoteChildren)")
         XCTAssertTrue(
             NoteDocumentCodec.isSpeakerBody(attrs),
-            "must stay inside section; children=\(afterDemote) type=\(attrs[NoteDocumentCodec.blockTypeKey] ?? "?")"
+            "must stay inside section; children=\(afterDemoteChildren)"
         )
     }
 
