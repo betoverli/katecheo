@@ -49,6 +49,27 @@ enum LocalNoteCache {
         try? data.write(to: speakersURL, options: .atomic)
     }
 
+    /// Merge into the on-device catalog without wiping unrelated speakers.
+    /// `getNote` returns only speakers used by that note — replacing the cache
+    /// with that subset emptied the picker (TF200 #3).
+    @discardableResult
+    static func mergeSpeakers(_ speakers: [NativeAPIClient.SpeakerDTO]) -> [NativeAPIClient.SpeakerDTO] {
+        var byId: [String: NativeAPIClient.SpeakerDTO] = [:]
+        for speaker in loadSpeakers() { byId[speaker.id] = speaker }
+        for speaker in speakers { byId[speaker.id] = speaker }
+        let merged = byId.values.sorted {
+            $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+        }
+        saveSpeakers(merged)
+        return merged
+    }
+
+    static func removeSpeaker(id: String) {
+        var speakers = loadSpeakers()
+        speakers.removeAll { $0.id == id }
+        saveSpeakers(speakers)
+    }
+
     static func loadSpeakers() -> [NativeAPIClient.SpeakerDTO] {
         guard let data = try? Data(contentsOf: speakersURL),
               let speakers = try? JSONDecoder().decode([NativeAPIClient.SpeakerDTO].self, from: data)

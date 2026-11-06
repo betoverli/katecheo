@@ -378,7 +378,11 @@ enum NativeAPIClient {
               let note = decoded.note
         else { throw APIError.decoding }
         LocalNoteCache.upsertNote(note)
-        return (note, decoded.speakers ?? [])
+        // Note payload only includes speakers used by this note — merge, never replace
+        // the full catalog cache (TF200 #3 empty picker).
+        let noteSpeakers = decoded.speakers ?? []
+        _ = LocalNoteCache.mergeSpeakers(noteSpeakers)
+        return (note, noteSpeakers)
     }
 
     static func upsertNote(_ note: NoteDocument) async throws -> NoteDocument {
@@ -432,13 +436,7 @@ enum NativeAPIClient {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
         // Keep the picker catalog complete even before the next listSpeakers (TF194 #8).
-        var cached = LocalNoteCache.loadSpeakers()
-        if let idx = cached.firstIndex(where: { $0.id == speaker.id }) {
-            cached[idx] = speaker
-        } else {
-            cached.append(speaker)
-        }
-        LocalNoteCache.saveSpeakers(cached)
+        _ = LocalNoteCache.mergeSpeakers([speaker])
     }
 
     static func deleteSpeaker(id: String) async throws {
@@ -448,6 +446,7 @@ enum NativeAPIClient {
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
+        LocalNoteCache.removeSpeaker(id: id)
     }
 
     static func emptyNote(id: String = UUID().uuidString.replacingOccurrences(of: "-", with: "")) -> NoteDocument {

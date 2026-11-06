@@ -117,6 +117,8 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
             editor.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
 
+        // Start from the full on-device catalog — never an empty note-scoped list.
+        speakers = LocalNoteCache.loadSpeakers()
         editor.pushNote(note, speakers: speakers)
         refreshSpeakerChip()
         NotificationCenter.default.addObserver(
@@ -189,12 +191,19 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
 
     private func refreshFromAPI() async {
         do {
-            let packed = try await NativeAPIClient.getNote(id: noteId)
+            async let notePack = NativeAPIClient.getNote(id: noteId)
+            async let catalog = NativeAPIClient.listSpeakers()
+            let packed = try await notePack
+            let fullCatalog = (try? await catalog) ?? LocalNoteCache.loadSpeakers()
             await MainActor.run {
-                self.speakers = packed.speakers
-                LocalNoteCache.saveSpeakers(packed.speakers)
+                // Always keep the full registered catalog for the picker (TF200 #3).
+                // `getNote.speakers` is note-scoped; merge already ran inside getNote.
+                self.speakers = fullCatalog.isEmpty
+                    ? LocalNoteCache.mergeSpeakers(packed.speakers)
+                    : fullCatalog
                 if self.hasLocalEdits {
                     // Keep the live editor buffer — only refresh speaker chrome / metadata.
+                    self.editor.updateSpeakers(self.speakers)
                     self.refreshSpeakerChip()
                     return
                 }
@@ -207,9 +216,12 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
             }
         } catch {
             await MainActor.run {
+                self.speakers = LocalNoteCache.loadSpeakers()
                 self.applySyncState(.pendingLocal)
                 if !self.hasLocalEdits {
                     self.editor.pushNote(self.note, speakers: self.speakers)
+                } else {
+                    self.editor.updateSpeakers(self.speakers)
                 }
                 self.refreshSpeakerChip()
             }
@@ -306,9 +318,12 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         sectionId: String,
         currentSpeakerId: String?
     ) {
+        let seed = LocalNoteCache.mergeSpeakers(speakers)
+        speakers = seed
+        editor.updateSpeakers(seed)
         let picker = SpeakerPickerViewController(
             mode: .pick(selectedId: currentSpeakerId),
-            seed: speakers,
+            seed: seed,
             onPicked: { [weak self] speakerId in
                 guard let self else { return }
                 guard let speakerId,
@@ -316,6 +331,11 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
                         ?? LocalNoteCache.loadSpeakers().first(where: { $0.id == speakerId })
                 else { return }
                 self.editor.renameSpeakerSection(sectionId: sectionId, speakerId: speaker.id, name: speaker.name)
+            },
+            onManaged: { [weak self] in
+                guard let self else { return }
+                self.speakers = LocalNoteCache.loadSpeakers()
+                self.editor.updateSpeakers(self.speakers)
             }
         )
         V2NSheetPresenter.present(picker, from: self)
@@ -450,9 +470,13 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
     }
 
     private func openSpeakerPicker(forSection: Bool) {
+        // Seed with the full catalog (cache ∪ in-memory), never the note-scoped subset.
+        let seed = LocalNoteCache.mergeSpeakers(speakers)
+        speakers = seed
+        editor.updateSpeakers(seed)
         let picker = SpeakerPickerViewController(
-            mode: .pick(selectedId: note.noteSpeakerId),
-            seed: speakers,
+            mode: .pick(selectedId: forSection ? nil : note.noteSpeakerId),
+            seed: seed,
             onPicked: { [weak self] speakerId in
                 guard let self else { return }
                 guard let speakerId,
@@ -475,6 +499,11 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
                     LocalNoteCache.upsertNote(self.note)
                     self.scheduleSave()
                 }
+            },
+            onManaged: { [weak self] in
+                guard let self else { return }
+                self.speakers = LocalNoteCache.loadSpeakers()
+                self.editor.updateSpeakers(self.speakers)
             }
         )
         V2NSheetPresenter.present(picker, from: self)
