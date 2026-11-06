@@ -187,7 +187,6 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             self.textView.contentInset.bottom = bottom
             self.textView.verticalScrollIndicatorInsets.bottom = bottom
             self.textView.textContainerInset.bottom = self.baseBottomInset + (overlap > 0 ? V2NDesign.Space.sm : 0)
-            self.repositionTriggerMenuIfNeeded()
         } completion: { _ in
             self.scrollCaretVisible(animated: true)
         }
