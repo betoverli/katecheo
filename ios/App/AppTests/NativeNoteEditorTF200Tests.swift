@@ -58,60 +58,75 @@ final class NativeNoteEditorTF200Tests: XCTestCase {
         editor.testing_setSelectedRange(NSRange(location: end - (lastIsNL ? 1 : 0), length: 0))
     }
 
-    private func assertInsideSpeaker( _ message: String) {
+    private func speakerChildTypes() -> [String] {
+        let doc = editor.currentDocument()
+        guard let section = doc.body.blocks.first(where: { $0.type == "speakerSection" }) else {
+            return []
+        }
+        return (section.blocks ?? []).map(\.type)
+    }
+
+    private func runListEnterInsideSpeaker(listType: String) {
+        editor.insertSpeakerSection(speakerId: "sp1", name: "Hélio Azevedo")
+        XCTAssertEqual(
+            editor.testing_paragraphBlockType(),
+            "paragraph",
+            "caret must land in body; plain=\(editor.testing_textStorage().string.debugDescription)"
+        )
+        editor.testing_insertText("item")
+        editor.testing_applyBlockTypeHook(listType)
+        XCTAssertEqual(
+            editor.testing_paragraphBlockType(),
+            listType,
+            "promote \(listType); children=\(speakerChildTypes()) plain=\(editor.testing_textStorage().string.debugDescription)"
+        )
+        XCTAssertTrue(
+            speakerChildTypes().contains(listType),
+            "document children after promote: \(speakerChildTypes())"
+        )
+        parkCaretAtEndOfCurrentParagraph()
+        editor.testing_insertText("\n")
+        XCTAssertEqual(
+            editor.testing_paragraphBlockType(),
+            listType,
+            "Enter continues \(listType); children=\(speakerChildTypes()) plain=\(editor.testing_textStorage().string.debugDescription)"
+        )
+        let afterContinue = speakerChildTypes()
+        XCTAssertGreaterThanOrEqual(
+            afterContinue.filter { $0 == listType }.count,
+            2,
+            "two \(listType) children after continue; children=\(afterContinue)"
+        )
+        // Empty Enter demotes but stays inside the speaker.
+        editor.testing_insertText("\n")
+        XCTAssertEqual(
+            editor.testing_paragraphBlockType(),
+            "paragraph",
+            "empty \(listType) demotes; children=\(speakerChildTypes()) plain=\(editor.testing_textStorage().string.debugDescription)"
+        )
+        let afterDemote = speakerChildTypes()
+        XCTAssertFalse(afterDemote.isEmpty, "section must keep body children after demote")
+        XCTAssertEqual(
+            afterDemote.last,
+            "paragraph",
+            "demoted last child is paragraph; children=\(afterDemote)"
+        )
+        // Still inside the section — not an outside trailing paragraph.
         let loc = min(editor.testing_selectedRange().location, max(0, editor.testing_textStorage().length - 1))
         let attrs = editor.testing_textStorage().attributes(at: loc, effectiveRange: nil)
         XCTAssertTrue(
-            NoteDocumentCodec.isSpeakerBody(attrs)
-                || (attrs[NoteDocumentCodec.blockTypeKey] as? String) == "speakerSection",
-            "\(message); type=\(attrs[NoteDocumentCodec.blockTypeKey] ?? "?") plain=\(editor.testing_textStorage().string.debugDescription)"
+            NoteDocumentCodec.isSpeakerBody(attrs),
+            "must stay inside section; children=\(afterDemote) type=\(attrs[NoteDocumentCodec.blockTypeKey] ?? "?")"
         )
     }
 
     // Bug 1: lists inside a speaker section continue / empty-exit like outside.
     func testListEnter_insideSpeaker_continuesThenEmptyStaysInside() {
-        editor.insertSpeakerSection(speakerId: "sp1", name: "Hélio Azevedo")
-        assertInsideSpeaker("after insert section")
-        editor.testing_insertText("item")
-        assertInsideSpeaker("after typing item")
-        editor.testing_applyBlockTypeHook("bullet")
-        XCTAssertEqual(
-            editor.testing_paragraphBlockType(),
-            "bullet",
-            "promote inside section; plain=\(editor.testing_textStorage().string.debugDescription)"
-        )
-        assertInsideSpeaker("after promote to bullet")
-        parkCaretAtEndOfCurrentParagraph()
-        editor.testing_insertText("\n")
-        XCTAssertEqual(
-            editor.testing_paragraphBlockType(),
-            "bullet",
-            "Enter continues bullet inside section; plain=\(editor.testing_textStorage().string.debugDescription)"
-        )
-        assertInsideSpeaker("after continue bullet")
-        // Empty Enter demotes but stays inside the speaker (speakerBodyKey).
-        editor.testing_insertText("\n")
-        XCTAssertEqual(
-            editor.testing_paragraphBlockType(),
-            "paragraph",
-            "empty bullet demotes; plain=\(editor.testing_textStorage().string.debugDescription)"
-        )
-        assertInsideSpeaker("empty list exit must stay inside the section")
+        runListEnterInsideSpeaker(listType: "bullet")
     }
 
     func testNumberedListEnter_insideSpeaker_continuesThenEmptyStaysInside() {
-        editor.insertSpeakerSection(speakerId: "sp1", name: "Hélio Azevedo")
-        editor.testing_insertText("um")
-        editor.testing_applyBlockTypeHook("numbered")
-        XCTAssertEqual(editor.testing_paragraphBlockType(), "numbered")
-        assertInsideSpeaker("after promote to numbered")
-        parkCaretAtEndOfCurrentParagraph()
-        editor.testing_insertText("\n")
-        XCTAssertEqual(editor.testing_paragraphBlockType(), "numbered")
-        assertInsideSpeaker("after continue numbered")
-        editor.testing_insertText("\n")
-        XCTAssertEqual(editor.testing_paragraphBlockType(), "paragraph")
-        assertInsideSpeaker("empty numbered exit stays inside")
+        runListEnterInsideSpeaker(listType: "numbered")
     }
 
     // Bug 2: @ and / must not insert the trigger character (full screens open via delegate).

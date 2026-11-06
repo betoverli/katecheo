@@ -937,8 +937,9 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
         var range = paragraphRange()
         let storage = textView.textStorage
-        let inSection = caretIsInsideSpeakerSection()
-            || NoteDocumentCodec.isSpeakerBody(paragraphStartAttributes())
+        // Snapshot before strip/insert — marker runs must not lose section membership.
+        let wasSpeakerBody = NoteDocumentCodec.isSpeakerBody(paragraphStartAttributes())
+        let inSection = caretIsInsideSpeakerSection() || wasSpeakerBody
 
         // Empty paragraph at EOF: ensure there is a character run we can attribute.
         if range.length == 0 {
@@ -1053,6 +1054,13 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         }
         storage.addAttribute(NoteDocumentCodec.blockTypeKey, value: type, range: range)
         storage.addAttribute(NoteDocumentCodec.blockIdKey, value: id, range: range)
+        // Never strip an existing speakerBodyKey on promote/demote — losing it ejects the
+        // line from the section in document() (TF200 lists-inside).
+        let keepBody = inSection || wasSpeakerBody
+            || (styled[NoteDocumentCodec.speakerBodyKey] as? Bool) == true
+        if keepBody {
+            storage.addAttribute(NoteDocumentCodec.speakerBodyKey, value: true, range: range)
+        }
         if let checked {
             storage.addAttribute(NoteDocumentCodec.checkedKey, value: checked, range: range)
         } else {
@@ -1063,6 +1071,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         var typing = styled
         typing[NoteDocumentCodec.blockTypeKey] = type
         typing[NoteDocumentCodec.blockIdKey] = id
+        if keepBody { typing[NoteDocumentCodec.speakerBodyKey] = true }
         if let checked { typing[NoteDocumentCodec.checkedKey] = checked }
         textView.typingAttributes = typing
         emitChange()
