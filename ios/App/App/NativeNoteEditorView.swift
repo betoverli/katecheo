@@ -364,16 +364,17 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
                 exitSpeakerSection()
                 return false
             case .continueList(let listType):
-                DispatchQueue.main.async { [weak self] in
-                    self?.applyBlockType(listType, preserveChecked: true)
-                }
-                return true
+                insertContinuingListItem(listType: listType)
+                return false
             case .defaultNewline:
                 if inside {
                     insertContinuingSpeakerBodyParagraph()
                     return false
                 }
-                return true
+                // Manual insert so the new outside paragraph never inherits
+                // speaker/list hanging indent from UIKit's attribute copy (TF194 #1).
+                insertContinuingOutsideParagraph()
+                return false
             }
         }
 
@@ -488,7 +489,13 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         let missingBlock = typing[NoteDocumentCodec.blockTypeKey] == nil
         let missingFont = typing[.font] == nil
         let missingPara = typing[.paragraphStyle] == nil
-        guard missingBlock || missingFont || missingPara else { return }
+        let typingType = typing[NoteDocumentCodec.blockTypeKey] as? String
+        let caretType = paragraphBlockType()
+        // Title → body (and list promote) must not keep stale heading typing attrs —
+        // direct textStorage inserts use typingAttributes as-is (TF194 list Enter).
+        let typeMismatch = typingType != nil && typingType != caretType
+            && caretType != "speakerSection"
+        guard missingBlock || missingFont || missingPara || typeMismatch else { return }
         textView.typingAttributes = typingAttributesForCaret()
     }
 
@@ -513,6 +520,43 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         let result = SpeakerSectionEditing.insertContinuingBodyParagraph(
             in: textView.textStorage,
             at: textView.selectedRange.location
+        )
+        textView.selectedRange = NSRange(location: result.caret, length: 0)
+        textView.typingAttributes = result.typingAttributes
+        emitChange()
+        refreshSpeakerRails()
+        scrollCaretVisible(animated: true)
+    }
+
+    private func insertContinuingOutsideParagraph() {
+        let result = SpeakerSectionEditing.insertContinuingOutsideParagraph(
+            in: textView.textStorage,
+            at: textView.selectedRange.location
+        )
+        textView.selectedRange = NSRange(location: result.caret, length: 0)
+        textView.typingAttributes = result.typingAttributes
+        emitChange()
+        refreshSpeakerRails()
+        scrollCaretVisible(animated: true)
+    }
+
+    private func insertContinuingListItem(listType: String) {
+        let range = paragraphRange()
+        let number = numberedIndex(
+            forParagraphStartingAt: range.location,
+            promotingToNumbered: listType == "numbered"
+        ) + (listType == "numbered" ? 1 : 0)
+        let marker = NoteDocumentCodec.listMarkerString(
+            type: listType,
+            checked: listType == "check" ? false : nil,
+            number: max(number, 1)
+        ) ?? "•\u{00A0}"
+        let result = SpeakerSectionEditing.insertContinuingListParagraph(
+            in: textView.textStorage,
+            at: textView.selectedRange.location,
+            listType: listType,
+            marker: marker,
+            inSpeakerSection: caretIsInsideSpeakerSection()
         )
         textView.selectedRange = NSRange(location: result.caret, length: 0)
         textView.typingAttributes = result.typingAttributes
@@ -602,6 +646,21 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         let storage = textView.textStorage
         let para = paragraphRange()
         guard para.length > 0 else { return true }
+        // Paragraphs that are only a list marker (+ ZWSP) count as empty (web empty ul/ol).
+        var onlyMarker = true
+        storage.enumerateAttributes(in: para, options: []) { attrs, sub, stop in
+            let chunk = (storage.string as NSString).substring(with: sub)
+                .replacingOccurrences(of: "\u{200B}", with: "")
+                .replacingOccurrences(of: "\u{00A0}", with: "")
+                .replacingOccurrences(of: "\n", with: "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if chunk.isEmpty { return }
+            if attrs[NoteDocumentCodec.listMarkerKey] as? Bool == true { return }
+            onlyMarker = false
+            stop.pointee = true
+        }
+        if onlyMarker { return true }
+
         var text = (storage.string as NSString).substring(with: para)
         text = text
             .replacingOccurrences(of: "\u{200B}", with: "")
@@ -881,18 +940,35 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         // Strip any existing display-only list marker at the start of the paragraph.
         range = stripListMarker(in: range)
 
+        // Demoting a marker-only row can leave length 0 — reseed so attrs stick.
+        if range.length == 0 {
+            let placeholder = NSAttributedString(string: "\u{200B}", attributes: styled)
+            storage.replaceCharacters(in: range, with: placeholder)
+            range = NSRange(location: range.location, length: 1)
+            textView.selectedRange = NSRange(location: range.location + 1, length: 0)
+        }
+
         let listNumber = numberedIndex(forParagraphStartingAt: range.location, promotingToNumbered: type == "numbered")
         if let marker = NoteDocumentCodec.listMarkerString(type: type, checked: checked, number: listNumber) {
             var markerAttrs = styled
             markerAttrs[NoteDocumentCodec.listMarkerKey] = true
             markerAttrs[.foregroundColor] = UIColor.secondaryLabel
             let markerAttr = NSAttributedString(string: marker, attributes: markerAttrs)
-            storage.insert(markerAttr, at: range.location)
-            range = NSRange(location: range.location, length: range.length + markerAttr.length)
-            // Keep caret after the marker when the line was empty / caret at start.
-            if textView.selectedRange.length == 0, textView.selectedRange.location <= range.location + markerAttr.length {
-                textView.selectedRange = NSRange(location: range.location + markerAttr.length, length: 0)
+            let insertAt = range.location
+            let markerLen = markerAttr.length
+            // Snapshot selection before the insert — mutating textStorage directly does
+            // not shift UITextView.selectedRange (unlike replaceCharacters via the view).
+            var sel = textView.selectedRange
+            storage.insert(markerAttr, at: insertAt)
+            if sel.location >= insertAt {
+                sel.location += markerLen
             }
+            range = NSRange(location: range.location, length: range.length + markerLen)
+            // Empty / caret-in-marker → park after the marker; otherwise keep shifted end.
+            if sel.length == 0, sel.location < insertAt + markerLen {
+                sel = NSRange(location: insertAt + markerLen, length: 0)
+            }
+            textView.selectedRange = sel
         }
 
         storage.enumerateAttributes(in: range, options: []) { attrs, sub, _ in
@@ -1118,7 +1194,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
                 let hit = speakerHeaderHit(attachment: header, characterIndex: index, point: point)
                 switch hit {
                 case .remove:
-                    removeSpeakerSection(blockId: header.blockId)
+                    confirmRemoveSpeakerSection(blockId: header.blockId)
                 case .toggleCollapse:
                     toggleSpeakerCollapsed(blockId: header.blockId)
                 case .rename:
@@ -1187,6 +1263,33 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         UIView.animate(withDuration: 0.22) {
             self.textView.layoutIfNeeded()
         }
+    }
+
+    /// TF194: ask before × delete (product override vs web's immediate remove).
+    private func confirmRemoveSpeakerSection(blockId: String) {
+        let alert = UIAlertController(
+            title: String(localized: "Remover seção do speaker?"),
+            message: String(localized: "O texto dentro da seção também será apagado."),
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
+        alert.addAction(UIAlertAction(title: String(localized: "Remover seção"), style: .destructive) { [weak self] _ in
+            self?.removeSpeakerSection(blockId: blockId)
+        })
+        guard let host = nearestViewController() else {
+            removeSpeakerSection(blockId: blockId)
+            return
+        }
+        host.present(alert, animated: true)
+    }
+
+    private func nearestViewController() -> UIViewController? {
+        var responder: UIResponder? = self
+        while let current = responder {
+            if let vc = current as? UIViewController { return vc }
+            responder = current.next
+        }
+        return nil
     }
 
     private func removeSpeakerSection(blockId: String) {
@@ -1519,7 +1622,9 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         let loc = min(max(0, range.location), length)
         let len = min(max(0, range.length), max(0, length - loc))
         textView.selectedRange = NSRange(location: loc, length: len)
-        ensureTypingAttributes()
+        // Always re-seed from the caret paragraph — title typing attrs must not
+        // leak into the body after a selection move (TF194 list promote/Enter).
+        textView.typingAttributes = typingAttributesForCaret()
     }
 
     func testing_textStorage() -> NSTextStorage {
@@ -1540,6 +1645,10 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
     func testing_removeSection(sectionId: String) {
         removeSpeakerSection(blockId: sectionId)
+    }
+
+    func testing_applyBlockTypeHook(_ type: String) {
+        applyBlockType(type, preserveChecked: false)
     }
 
     func testing_headerAttachment(at location: Int) -> SpeakerHeaderAttachment? {
@@ -1608,20 +1717,19 @@ enum SpeakerEnterDecision: Equatable {
         if blockType == "speakerSection" {
             return .insertBodyFromHeader
         }
-        if insideSpeaker {
+        if blockType == "bullet" || blockType == "numbered" || blockType == "check" || blockType == "quote" {
+            // Web onEnter: empty ul/ol/quote → demote; else continue kind (inside or outside).
             if paragraphEmpty {
-                if blockType == "bullet" || blockType == "numbered" || blockType == "check" || blockType == "quote" {
-                    return .demoteListToParagraph
-                }
-                if isLastBodyOfSection {
-                    return .exitSection
-                }
+                return .demoteListToParagraph
+            }
+            return .continueList(blockType)
+        }
+        if insideSpeaker {
+            if paragraphEmpty, isLastBodyOfSection {
+                return .exitSection
             }
             // Non-empty body Enter, or empty non-last body → stay inside with a real body run.
             return .continueInSection
-        }
-        if blockType == "bullet" || blockType == "numbered" || blockType == "check" || blockType == "quote" {
-            return .continueList(blockType)
         }
         return .defaultNewline
     }

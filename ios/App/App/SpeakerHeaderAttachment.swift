@@ -69,7 +69,8 @@ final class SpeakerHeaderAttachment: NSTextAttachment {
 
     func refreshImage(width: CGFloat) {
         let w = max(width, 120)
-        let height: CGFloat = 40
+        // ≥44pt tall so the × hit box meets HIG without enlarging the glyph.
+        let height: CGFloat = 44
         let nameFont = V2NDesign.preferred(.title3, weight: .semibold)
         let previewFont = V2NDesign.preferred(.caption1, weight: .regular)
         let nameColor = UIColor.label
@@ -79,13 +80,15 @@ final class SpeakerHeaderAttachment: NSTextAttachment {
             : speakerName
 
         let chevronSize: CGFloat = 10
-        let removeSize: CGFloat = 44
-        let padL: CGFloat = NoteDocumentCodec.speakerSectionContentInset
-        let padR: CGFloat = 4
+        // Visual × column stays ~36pt; hit zone is ≥44pt (web `.note-speaker-remove` 2.75rem).
+        let removeVisualSize: CGFloat = 36
+        let removeHitSize: CGFloat = 44
+        // Nudge chevron + name further left (TF194 #5) — web chevron margin ~0.2rem.
+        let padL: CGFloat = 4
         let gap: CGFloat = 8
 
         chevronEndX = (padL + chevronSize + gap) / w
-        removeStartX = (w - removeSize) / w
+        removeStartX = (w - removeHitSize) / w
 
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: w, height: height))
         image = renderer.image { _ in
@@ -109,7 +112,7 @@ final class SpeakerHeaderAttachment: NSTextAttachment {
             path.stroke()
 
             let nameX = padL + chevronSize + gap
-            let removeX = w - removeSize
+            let removeX = w - removeVisualSize
             let maxNameW = max(40, removeX - nameX - gap - (collapsed && !preview.isEmpty ? w * 0.35 : 0))
 
             let nameAttr = NSAttributedString(string: name, attributes: [
@@ -159,20 +162,21 @@ final class SpeakerHeaderAttachment: NSTextAttachment {
                 }
             }
 
-            // × remove control (web `.note-speaker-remove`).
+            // × remove control (web `.note-speaker-remove`) — glyph centered in the
+            // visual column; hit testing uses the wider `removeHitSize` band.
             let xAttr = NSAttributedString(string: "×", attributes: [
                 .font: V2NDesign.preferred(.title2, weight: .regular),
                 .foregroundColor: muted,
             ])
             let xSize = xAttr.size()
             let xRect = CGRect(
-                x: removeX + (removeSize - xSize.width) / 2,
+                x: removeX + (removeVisualSize - xSize.width) / 2,
                 y: (height - xSize.height) / 2,
                 width: xSize.width,
                 height: xSize.height
             )
             xAttr.draw(in: xRect)
         }
-        bounds = CGRect(x: 0, y: -6, width: w, height: height)
+        bounds = CGRect(x: 0, y: -8, width: w, height: height)
     }
 }

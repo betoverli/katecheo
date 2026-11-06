@@ -9,12 +9,19 @@ final class SpeakerPickerViewController: UIViewController, UITableViewDelegate, 
 
     private let mode: Mode
     private var speakers: [NativeAPIClient.SpeakerDTO] = []
+    private let seed: [NativeAPIClient.SpeakerDTO]
     private let table = UITableView(frame: .zero, style: .insetGrouped)
     private let onPicked: ((String?) -> Void)?
     private let onManaged: (() -> Void)?
 
-    init(mode: Mode, onPicked: ((String?) -> Void)? = nil, onManaged: (() -> Void)? = nil) {
+    init(
+        mode: Mode,
+        seed: [NativeAPIClient.SpeakerDTO] = [],
+        onPicked: ((String?) -> Void)? = nil,
+        onManaged: (() -> Void)? = nil
+    ) {
         self.mode = mode
+        self.seed = seed
         self.onPicked = onPicked
         self.onManaged = onManaged
         super.init(nibName: nil, bundle: nil)
@@ -42,18 +49,35 @@ final class SpeakerPickerViewController: UIViewController, UITableViewDelegate, 
             table.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             table.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
+        applyMerged(seed.isEmpty ? LocalNoteCache.loadSpeakers() : seed)
         reload()
     }
 
-    private func reload() {
-        speakers = LocalNoteCache.loadSpeakers()
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        // Always refresh so the full catalog shows (TF194 #8 — stale/empty first paint).
+        reload()
+    }
+
+    private func applyMerged(_ list: [NativeAPIClient.SpeakerDTO]) {
+        var byId: [String: NativeAPIClient.SpeakerDTO] = [:]
+        for speaker in LocalNoteCache.loadSpeakers() { byId[speaker.id] = speaker }
+        for speaker in seed { byId[speaker.id] = speaker }
+        for speaker in list { byId[speaker.id] = speaker }
+        speakers = byId.values.sorted {
+            $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+        }
         table.reloadData()
+    }
+
+    private func reload() {
+        applyMerged(LocalNoteCache.loadSpeakers())
         Task { @MainActor in
             do {
-                speakers = try await NativeAPIClient.listSpeakers()
-                table.reloadData()
+                let remote = try await NativeAPIClient.listSpeakers()
+                applyMerged(remote)
             } catch {
-                /* keep cache */
+                /* keep merged seed + cache */
             }
         }
     }

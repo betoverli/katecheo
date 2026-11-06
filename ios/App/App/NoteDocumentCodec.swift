@@ -237,15 +237,31 @@ enum NoteDocumentCodec {
     }
 
     /// Indent used so the left rail can sit beside section content (web `.note-speaker` padding).
+    /// Both first-line and head indent use the **same** value so wrapped lines align
+    /// (web has no hanging indent on body — only section `padding-left`).
     static func applyingSpeakerSectionInset(_ attrs: [NSAttributedString.Key: Any]) -> [NSAttributedString.Key: Any] {
         var next = attrs
         let style = ((attrs[.paragraphStyle] as? NSParagraphStyle)?.mutableCopy() as? NSMutableParagraphStyle)
             ?? NSMutableParagraphStyle()
         let inset = speakerSectionContentInset
-        style.firstLineHeadIndent = max(style.firstLineHeadIndent, inset)
-        style.headIndent = max(style.headIndent, inset)
+        // Force equality — `max` with a prior list hanging indent (first=0, head=22)
+        // produced TF194 bug #2 (first line further left than wraps).
+        style.firstLineHeadIndent = inset
+        style.headIndent = inset
         next[.paragraphStyle] = style
         next[speakerBodyKey] = true
+        return next
+    }
+
+    /// Flush outside paragraph — web `.note-line` has no text-indent.
+    static func clearingParagraphIndent(_ attrs: [NSAttributedString.Key: Any]) -> [NSAttributedString.Key: Any] {
+        var next = attrs
+        let style = ((attrs[.paragraphStyle] as? NSParagraphStyle)?.mutableCopy() as? NSMutableParagraphStyle)
+            ?? NSMutableParagraphStyle()
+        style.firstLineHeadIndent = 0
+        style.headIndent = 0
+        next[.paragraphStyle] = style
+        next.removeValue(forKey: speakerBodyKey)
         return next
     }
 
@@ -332,6 +348,7 @@ enum NoteDocumentCodec {
             foreground = .label
             _ = speakers
         case "bullet", "numbered", "check":
+            // Marker sits on the first line; wraps align under the text after the marker.
             style.headIndent = 22
             style.firstLineHeadIndent = 0
             style.paragraphSpacing = 8
@@ -341,7 +358,9 @@ enum NoteDocumentCodec {
             font = UIFont.preferredFont(forTextStyle: .body).italic()
             style.paragraphSpacing = 10
         default:
-            break
+            // Normal paragraphs: aligned wraps (web `.note-line` — no hanging indent).
+            style.firstLineHeadIndent = 0
+            style.headIndent = 0
         }
         var attrs: [NSAttributedString.Key: Any] = [
             .font: font,

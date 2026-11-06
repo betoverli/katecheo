@@ -377,13 +377,17 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             let title = card.note.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? String(localized: "Reunião") : card.note.title
             let preview = card.document?.preview ?? card.author.displayName
             let day = AppLocale.displayDay(card.note.happenedAt)
-            cell.configure(title: title, subtitle: "\(day) · \(preview)", tags: card.document?.tags ?? [])
+            let speakerName = mainSpeakerName(for: card.document)
+            let subtitle = [speakerName, day, preview].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
+            cell.configure(title: title, subtitle: subtitle, tags: card.document?.tags ?? [])
             return cell
         }
         let note = filtered[indexPath.row]
         let title = note.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? String(localized: "Reunião") : note.title
         let day = AppLocale.displayDay(note.happenedAt)
-        cell.configure(title: title, subtitle: "\(day) · \(note.preview)", tags: note.tags)
+        let speakerName = mainSpeakerName(for: note)
+        let subtitle = [speakerName, day, note.preview].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
+        cell.configure(title: title, subtitle: subtitle, tags: note.tags)
         return cell
     }
 
@@ -713,6 +717,15 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
         }
         if note.noteSpeakerId != nil { return true }
         return note.body.blocks.contains { $0.type == "speakerSection" }
+    }
+
+    /// Orador principal (`noteSpeakerId`) for the Caderno row subtitle (TF194 #7).
+    private func mainSpeakerName(for note: NativeAPIClient.NoteDocument?) -> String? {
+        guard let note, let id = note.noteSpeakerId, !id.isEmpty else { return nil }
+        if let name = speakers.first(where: { $0.id == id })?.name, !name.isEmpty {
+            return name
+        }
+        return LocalNoteCache.loadSpeakers().first(where: { $0.id == id })?.name
     }
 
     private func presentTagPicker() {

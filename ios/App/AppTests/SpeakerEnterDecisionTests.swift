@@ -62,6 +62,26 @@ final class SpeakerEnterDecisionTests: XCTestCase {
         XCTAssertEqual(decision, .continueList("numbered"))
     }
 
+    func testListContinueInsideSpeaker() {
+        let decision = SpeakerEnterDecision.decide(
+            blockType: "bullet",
+            insideSpeaker: true,
+            paragraphEmpty: false,
+            isLastBodyOfSection: true
+        )
+        XCTAssertEqual(decision, .continueList("bullet"))
+    }
+
+    func testEmptyListOutsideSpeakerDemotes() {
+        let decision = SpeakerEnterDecision.decide(
+            blockType: "bullet",
+            insideSpeaker: false,
+            paragraphEmpty: true,
+            isLastBodyOfSection: false
+        )
+        XCTAssertEqual(decision, .demoteListToParagraph)
+    }
+
     func testNewlineReplacementAcceptsCRAndCRLF() {
         XCTAssertTrue(NativeNoteEditorView.isNewlineReplacement("\n"))
         XCTAssertTrue(NativeNoteEditorView.isNewlineReplacement("\r"))

@@ -624,3 +624,102 @@ backspace path — relevant if native code copies one or the other.
 descendants are the typed body; Enter on empty last child exits after the
 section; × deletes the section **and** its body; collapse hides lines but
 keeps them in the model.
+
+---
+
+## 16. TestFlight 194 follow-ups (build after #62)
+
+Research baseline remains `d28d1cb` (parent of `b0ec5ab` / PR #44). Each item
+below cites the web behavior and the native parity target.
+
+### 16.1 Paragraph indentation after exiting a speaker (§ bugs 1–2)
+
+**Web:** `.note-line` has no `text-indent` / hanging indent (`styles.css:354-365`).
+Speaker inset is **section** padding (`.note-speaker { padding-left: 0.75rem }`,
+`styles.css:408-412`), not a first-line/head indent mismatch on body lines.
+Outside the section, lines are flush with the note column. Wrapped lines of a
+normal paragraph align with the first line.
+
+**Native target:**
+- Outside paragraphs: `firstLineHeadIndent == headIndent == 0`.
+- Speaker body paragraphs: `firstLineHeadIndent == headIndent == inset` (same
+  value — never leave list-style hanging `firstLine=0, head=22` on a body run).
+- Exit / Enter after exit must not copy speaker or list indent onto the next
+  outside paragraph.
+
+### 16.2 Delete × confirmation (§ bug 3)
+
+**Web:** immediate removal — no ActionSheet (`notebook-editor.tsx:376-378`,
+comment notes native confirm was abandoned in PR #29 because × looked dead).
+
+**Product now:** ask before delete. Localized confirm dialog with a destructive
+action; Cancel keeps the section. Spec override vs web.
+
+### 16.3 Lists continue on Enter (§ bug 4)
+
+**Web `onEnter`** (`notebook-doc.tsx:507-535`):
+- Empty `ul`/`ol` → demote `data-kind` to `p` (end list).
+- Otherwise `splitLineAtCaret(line, kind)` — new line keeps the same kind
+  (bullet/number continues).
+
+**Native target:** same. Enter on non-empty list item inserts another item of
+the same type with the next marker; Enter on empty item demotes to paragraph
+(second Enter after emptying ends the list).
+
+### 16.4 Header chrome layout (§ bugs 5–6)
+
+**Web:** `.note-speaker-chevron` has small left margin (`0.2rem`,
+`styles.css:424-432`). `.note-speaker-remove` is **2.75rem × 2.75rem** hit
+target (`styles.css:475-493`) while the × glyph stays visually centered.
+
+**Native target:** nudge chevron + name further left; keep × appearance, expand
+hit zone to ≥ 44×44 pt.
+
+### 16.5 Notes list shows main speaker (§ bug 7)
+
+**Web list row** (`notebook-home.tsx:207-213`): uses `note.speakerId` (or first
+section speaker) for a color spine; preview text is separate.
+
+**Native target:** when `noteSpeakerId` (orador principal) is set, show that
+speaker’s name on the Caderno list row (subtitle), without changing
+NoteDocumentV1.
+
+### 16.6 Speaker picker always shows the full list (§ bug 8)
+
+**Web:** `NotebookSpeakerSheet` reads `useAppStore((s) => s.speakers)` — the
+in-memory full catalog (`notebook-speaker-sheet.tsx`).
+
+**Native failure mode:** picker paints `LocalNoteCache` first; cache can be
+empty/stale while `listSpeakers` is in flight or fails; `upsertSpeaker` did not
+merge into cache. Seed from the presenter, reload on appear, merge API into
+cache on every successful fetch/upsert.
+
+### 16.7 Backdrop dismiss for editor modals (§ bug 9)
+
+**Web:** `ViewportSheet` / `SheetFrame` paints
+`ios-sheet-backdrop … onClick={onClose}` (`viewport-sheet.tsx:71`).
+
+**Native target:** speaker picker and Bible-ref (and note settings) sheets must
+dismiss on backdrop / outside tap — configure dismissible page sheets with a
+dimmed medium detent (not large-only covering the whole phone).
+
+### 16.8 Mid-paragraph Enter must not merge the next paragraph (§ bug 10)
+
+**Web `splitLineAtCaret`** (`notebook-doc.tsx:482-505`): extracts only the
+fragment after the caret **inside the current line**, inserts a new `.note-line`
+via `line.after(next)`. The following sibling line is untouched.
+
+**Native bug:** moving `afterRange` including the paragraph terminator `\n`
+deleted the separator before the next block, gluing the moved tail onto the
+next paragraph. Fix: move only content before the terminator; leave `\n` in
+place (same rule as end-of-line Enter in § insertContinuing).
+
+### 16.9 Back-to-back speaker sections (§ bug 11)
+
+**Web `insertAfterAnchor`** (`notebook-editor.tsx:32-52`): when focus is inside
+a speaker, the new section is placed **immediately after that speaker block**.
+Trailing `emptyLine()` is added only when the new section is last
+(`notebook-editor.tsx:319-322`). Focusing an empty trailing line and inserting
+can leave a blank between — native should treat an **empty** top-level anchor
+paragraph as a slot to **replace**, not a spacer to keep, so two consecutive
+inserts never leave an empty paragraph between sections.

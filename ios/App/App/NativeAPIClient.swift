@@ -431,6 +431,14 @@ enum NativeAPIClient {
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
+        // Keep the picker catalog complete even before the next listSpeakers (TF194 #8).
+        var cached = LocalNoteCache.loadSpeakers()
+        if let idx = cached.firstIndex(where: { $0.id == speaker.id }) {
+            cached[idx] = speaker
+        } else {
+            cached.append(speaker)
+        }
+        LocalNoteCache.saveSpeakers(cached)
     }
 
     static func deleteSpeaker(id: String) async throws {

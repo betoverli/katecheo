@@ -11,6 +11,7 @@
 		T1A2B0122FED7965001685T1 /* SpeakerEnterDecisionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T1A2B0132FED7965001685T1 /* SpeakerEnterDecisionTests.swift */; };
 		T2SPEAK22FED7965001685T2 /* SpeakerSectionEditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T2SPEAK21FED7965001685T2 /* SpeakerSectionEditingTests.swift */; };
 		T3PATH22FED7965001685T3 /* NativeNoteEditorSpeakerPathTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T3PATH21FED7965001685T3 /* NativeNoteEditorSpeakerPathTests.swift */; };
+		T6TF19422FED7965001685T6 /* NativeNoteEditorTF194Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T6TF19421FED7965001685T6 /* NativeNoteEditorTF194Tests.swift */; };
 		504EC3081FED79650016851F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504EC3071FED79650016851F /* AppDelegate.swift */; };
 		504EC30D1FED79650016851F /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30B1FED79650016851F /* Main.storyboard */; };
 		504EC30F1FED79650016851F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30E1FED79650016851F /* Assets.xcassets */; };
@@ -21,6 +22,7 @@
 		B8L10N072FED7965001685D0 /* BibleBookCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8L10N062FED7965001685D0 /* BibleBookCatalog.swift */; };
 		T2SPEAK12FED7965001685T2 /* SpeakerSectionEditing.swift in Sources */ = {isa = PBXBuildFile; fileRef = T2SPEAK11FED7965001685T2 /* SpeakerSectionEditing.swift */; };
 		T4HEAD12FED7965001685T4 /* SpeakerHeaderAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = T4HEAD11FED7965001685T4 /* SpeakerHeaderAttachment.swift */; };
+		T5SHEET12FED7965001685T5 /* V2NSheetPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = T5SHEET11FED7965001685T5 /* V2NSheetPresenter.swift */; };
 		9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9582B6822FE993A50072D4E8 /* SceneDelegate.swift */; };
 		A1C0DE042FED796500168520 /* LiquidGlassMaterial.m in Sources */ = {isa = PBXBuildFile; fileRef = A1C0DE032FED796500168520 /* LiquidGlassMaterial.m */; };
 		D3E0F0012FED796500168540 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E0F0002FED796500168540 /* KeychainStore.swift */; };
@@ -68,6 +70,7 @@
 		B8L10N062FED7965001685D0 /* BibleBookCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleBookCatalog.swift; sourceTree = "<group>"; };
 		T2SPEAK11FED7965001685T2 /* SpeakerSectionEditing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerSectionEditing.swift; sourceTree = "<group>"; };
 		T4HEAD11FED7965001685T4 /* SpeakerHeaderAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerHeaderAttachment.swift; sourceTree = "<group>"; };
+		T5SHEET11FED7965001685T5 /* V2NSheetPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2NSheetPresenter.swift; sourceTree = "<group>"; };
 		504EC3111FED79650016851F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		504EC3131FED79650016851F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		9582B6822FE993A50072D4E8 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
@@ -111,6 +114,7 @@
 		T1A2B0132FED7965001685T1 /* SpeakerEnterDecisionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerEnterDecisionTests.swift; sourceTree = "<group>"; };
 		T2SPEAK21FED7965001685T2 /* SpeakerSectionEditingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerSectionEditingTests.swift; sourceTree = "<group>"; };
 		T3PATH21FED7965001685T3 /* NativeNoteEditorSpeakerPathTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeNoteEditorSpeakerPathTests.swift; sourceTree = "<group>"; };
+		T6TF19421FED7965001685T6 /* NativeNoteEditorTF194Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeNoteEditorTF194Tests.swift; sourceTree = "<group>"; };
 		T1A2B0142FED7965001685T1 /* AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -164,6 +168,7 @@
 				F7A7E0112FED7965001685C0 /* NativeNoteEditorView.swift */,
 				T2SPEAK11FED7965001685T2 /* SpeakerSectionEditing.swift */,
 				T4HEAD11FED7965001685T4 /* SpeakerHeaderAttachment.swift */,
+				T5SHEET11FED7965001685T5 /* V2NSheetPresenter.swift */,
 				F7A7E0132FED7965001685C0 /* NoteDocumentCodec.swift */,
 				F7A7E0152FED7965001685C0 /* BibleRefInsertPicker.swift */,
 				F5A5E0132FED7965001685A0 /* NativeDeepLinkRouter.swift */,
@@ -212,6 +217,7 @@
 				T1A2B0132FED7965001685T1 /* SpeakerEnterDecisionTests.swift */,
 				T2SPEAK21FED7965001685T2 /* SpeakerSectionEditingTests.swift */,
 				T3PATH21FED7965001685T3 /* NativeNoteEditorSpeakerPathTests.swift */,
+				T6TF19421FED7965001685T6 /* NativeNoteEditorTF194Tests.swift */,
 			);
 			path = AppTests;
 			sourceTree = "<group>";
@@ -354,6 +360,7 @@
 				F7A7E0102FED7965001685C0 /* NativeNoteEditorView.swift in Sources */,
 				T2SPEAK12FED7965001685T2 /* SpeakerSectionEditing.swift in Sources */,
 				T4HEAD12FED7965001685T4 /* SpeakerHeaderAttachment.swift in Sources */,
+				T5SHEET12FED7965001685T5 /* V2NSheetPresenter.swift in Sources */,
 				F7A7E0122FED7965001685C0 /* NoteDocumentCodec.swift in Sources */,
 				F7A7E0142FED7965001685C0 /* BibleRefInsertPicker.swift in Sources */,
 				F5A5E0122FED7965001685A0 /* NativeDeepLinkRouter.swift in Sources */,
@@ -395,6 +402,7 @@
 				T1A2B0122FED7965001685T1 /* SpeakerEnterDecisionTests.swift in Sources */,
 				T2SPEAK22FED7965001685T2 /* SpeakerSectionEditingTests.swift in Sources */,
 				T3PATH22FED7965001685T3 /* NativeNoteEditorSpeakerPathTests.swift in Sources */,
+				T6TF19422FED7965001685T6 /* NativeNoteEditorTF194Tests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

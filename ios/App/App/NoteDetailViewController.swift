@@ -192,6 +192,7 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
             let packed = try await NativeAPIClient.getNote(id: noteId)
             await MainActor.run {
                 self.speakers = packed.speakers
+                LocalNoteCache.saveSpeakers(packed.speakers)
                 if self.hasLocalEdits {
                     // Keep the live editor buffer — only refresh speaker chrome / metadata.
                     self.refreshSpeakerChip()
@@ -293,12 +294,7 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         let picker = BibleRefInsertPicker { [weak self] ref in
             self?.editor.insertBibleRef(ref)
         }
-        let nav = UINavigationController(rootViewController: picker)
-        if let sheet = nav.sheetPresentationController {
-            sheet.detents = [.large()]
-            sheet.prefersGrabberVisible = true
-        }
-        present(nav, animated: true)
+        V2NSheetPresenter.present(picker, from: self)
     }
 
     func nativeNoteEditorRequestSpeaker(_ editor: NativeNoteEditorView) {
@@ -310,20 +306,19 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         sectionId: String,
         currentSpeakerId: String?
     ) {
-        let picker = SpeakerPickerViewController(mode: .pick(selectedId: currentSpeakerId), onPicked: { [weak self] speakerId in
-            guard let self else { return }
-            guard let speakerId,
-                  let speaker = self.speakers.first(where: { $0.id == speakerId })
-                    ?? LocalNoteCache.loadSpeakers().first(where: { $0.id == speakerId })
-            else { return }
-            self.editor.renameSpeakerSection(sectionId: sectionId, speakerId: speaker.id, name: speaker.name)
-        })
-        let nav = UINavigationController(rootViewController: picker)
-        if let sheet = nav.sheetPresentationController {
-            sheet.detents = [.medium(), .large()]
-            sheet.prefersGrabberVisible = true
-        }
-        present(nav, animated: true)
+        let picker = SpeakerPickerViewController(
+            mode: .pick(selectedId: currentSpeakerId),
+            seed: speakers,
+            onPicked: { [weak self] speakerId in
+                guard let self else { return }
+                guard let speakerId,
+                      let speaker = self.speakers.first(where: { $0.id == speakerId })
+                        ?? LocalNoteCache.loadSpeakers().first(where: { $0.id == speakerId })
+                else { return }
+                self.editor.renameSpeakerSection(sectionId: sectionId, speakerId: speaker.id, name: speaker.name)
+            }
+        )
+        V2NSheetPresenter.present(picker, from: self)
     }
 
     private func presentBriefAlert(_ message: String) {
@@ -451,44 +446,38 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
             self.editor.pushNote(self.note, speakers: self.speakers)
             self.hasLocalEdits = false
         }
-        let nav = UINavigationController(rootViewController: settings)
-        if let sheet = nav.sheetPresentationController {
-            sheet.detents = [.medium(), .large()]
-            sheet.prefersGrabberVisible = true
-        }
-        present(nav, animated: true)
+        V2NSheetPresenter.present(settings, from: self)
     }
 
     private func openSpeakerPicker(forSection: Bool) {
-        let picker = SpeakerPickerViewController(mode: .pick(selectedId: note.noteSpeakerId), onPicked: { [weak self] speakerId in
-            guard let self else { return }
-            guard let speakerId,
-                  let speaker = self.speakers.first(where: { $0.id == speakerId })
-                    ?? LocalNoteCache.loadSpeakers().first(where: { $0.id == speakerId })
-            else {
-                if !forSection {
-                    self.note.noteSpeakerId = nil
+        let picker = SpeakerPickerViewController(
+            mode: .pick(selectedId: note.noteSpeakerId),
+            seed: speakers,
+            onPicked: { [weak self] speakerId in
+                guard let self else { return }
+                guard let speakerId,
+                      let speaker = self.speakers.first(where: { $0.id == speakerId })
+                        ?? LocalNoteCache.loadSpeakers().first(where: { $0.id == speakerId })
+                else {
+                    if !forSection {
+                        self.note.noteSpeakerId = nil
+                        self.refreshSpeakerChip()
+                        LocalNoteCache.upsertNote(self.note)
+                        self.scheduleSave()
+                    }
+                    return
+                }
+                if forSection {
+                    self.editor.insertSpeakerSection(speakerId: speaker.id, name: speaker.name)
+                } else {
+                    self.note.noteSpeakerId = speakerId
                     self.refreshSpeakerChip()
                     LocalNoteCache.upsertNote(self.note)
                     self.scheduleSave()
                 }
-                return
             }
-            if forSection {
-                self.editor.insertSpeakerSection(speakerId: speaker.id, name: speaker.name)
-            } else {
-                self.note.noteSpeakerId = speakerId
-                self.refreshSpeakerChip()
-                LocalNoteCache.upsertNote(self.note)
-                self.scheduleSave()
-            }
-        })
-        let nav = UINavigationController(rootViewController: picker)
-        if let sheet = nav.sheetPresentationController {
-            sheet.detents = [.medium(), .large()]
-            sheet.prefersGrabberVisible = true
-        }
-        present(nav, animated: true)
+        )
+        V2NSheetPresenter.present(picker, from: self)
     }
 
     private func shareNote() {
