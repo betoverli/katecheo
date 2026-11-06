@@ -1091,7 +1091,16 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             }
         }
         if markerLen > 0 {
+            // Direct textStorage deletes do not shift UITextView.selectedRange — without
+            // this adjust, demoting an empty list item leaves the caret in the *next*
+            // paragraph (often the trailing outside line), ejecting the user from the
+            // speaker section (TF200 #1).
+            var sel = textView.selectedRange
             storage.deleteCharacters(in: NSRange(location: range.location, length: markerLen))
+            if sel.location > range.location {
+                sel.location = max(range.location, sel.location - markerLen)
+            }
+            textView.selectedRange = sel
             return NSRange(location: range.location, length: max(0, range.length - markerLen))
         }
         return range

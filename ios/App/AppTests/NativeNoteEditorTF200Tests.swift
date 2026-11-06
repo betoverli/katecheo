@@ -150,7 +150,7 @@ final class NativeNoteEditorTF200Tests: XCTestCase {
         let afterDemoteChildren = speakerChildTypes()
         let loc = min(editor.testing_selectedRange().location, max(0, editor.testing_textStorage().length - 1))
         let attrs = editor.testing_textStorage().attributes(at: loc, effectiveRange: nil)
-        let demoteMsg = "demote \(listType); type=\(afterDemoteType) bodyKey=\(String(describing: attrs[NoteDocumentCodec.speakerBodyKey])) children=\(afterDemoteChildren) plain=\(editor.testing_textStorage().string.debugDescription)"
+        let demoteMsg = "demote \(listType); type=\(afterDemoteType) bodyKey=\(String(describing: attrs[NoteDocumentCodec.speakerBodyKey])) sel=\(editor.testing_selectedRange()) children=\(afterDemoteChildren) plain=\(editor.testing_textStorage().string.debugDescription)"
         fputs("TF200 \(demoteMsg)\n", stderr)
         guard afterDemoteType == "paragraph" else {
             return XCTFail(demoteMsg)
@@ -160,6 +160,24 @@ final class NativeNoteEditorTF200Tests: XCTestCase {
         }
         guard NoteDocumentCodec.isSpeakerBody(attrs) else {
             return XCTFail("must stay inside; \(demoteMsg)")
+        }
+        // Typing after empty-list exit must still land in the section body.
+        editor.testing_insertText("ainda")
+        let afterType = editor.testing_paragraphBlockType()
+        let stillInside = speakerChildTypes().contains { child in
+            child == "paragraph" || child == listType
+        }
+        let typed = (editor.currentDocument().body.blocks
+            .first(where: { $0.type == "speakerSection" })?.blocks ?? [])
+            .compactMap { block -> String? in
+                let t = (block.spans ?? []).compactMap(\.text).joined()
+                    .replacingOccurrences(of: "\u{200B}", with: "")
+                return t.contains("ainda") ? t : nil
+            }
+        guard afterType == "paragraph", stillInside, !typed.isEmpty else {
+            return XCTFail(
+                "typed outside after demote; type=\(afterType) typed=\(typed) children=\(speakerChildTypes())"
+            )
         }
     }
 
