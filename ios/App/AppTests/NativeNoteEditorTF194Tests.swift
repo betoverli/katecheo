@@ -114,6 +114,16 @@ final class NativeNoteEditorTF194Tests: XCTestCase {
             "bullet",
             "after promote; plain=\(editor.testing_textStorage().string.debugDescription)"
         )
+        // Park caret at end of the bullet line so Enter continues (empty next item),
+        // not mid-line split — textStorage inserts do not auto-shift selection on CI.
+        let afterPromote = editor.testing_textStorage()
+        let bulletPara = (afterPromote.string as NSString).paragraphRange(
+            for: NSRange(location: min(editor.testing_selectedRange().location, max(0, afterPromote.length - 1)), length: 0)
+        )
+        let endOfBullet = NSMaxRange(bulletPara)
+        let lastCharIsNewline = endOfBullet > bulletPara.location
+            && (afterPromote.string as NSString).substring(with: NSRange(location: endOfBullet - 1, length: 1)) == "\n"
+        editor.testing_setSelectedRange(NSRange(location: endOfBullet - (lastCharIsNewline ? 1 : 0), length: 0))
         editor.testing_insertText("\n")
         XCTAssertEqual(
             editor.testing_paragraphBlockType(),
@@ -131,19 +141,29 @@ final class NativeNoteEditorTF194Tests: XCTestCase {
 
     // Bug 5–6: header hit metrics.
     func testSpeakerHeader_chevronLeftAndRemoveHitAtLeast44() {
-        editor.insertSpeakerSection(speakerId: "sp1", name: "Beto")
-        guard let header = SpeakerSectionEditing.findSpeakerHeaderRange(in: editor.testing_textStorage()),
-              let attachment = editor.testing_headerAttachment(at: header.location)
-        else {
-            return XCTFail("missing header attachment")
-        }
-        // Force layout metrics without relying on UITextView layout (avoids CI flakes).
-        attachment.refreshImage(width: 320)
-        let hitWidth = (1 - attachment.removeStartX) * 320
-        XCTAssertGreaterThanOrEqual(hitWidth, 44, "× hit band must be ≥44pt; removeStartX=\(attachment.removeStartX)")
+        // Metrics are pure geometry — assert on a fresh attachment (avoids layout re-entry).
+        let attachment = SpeakerHeaderAttachment(
+            blockId: "hdr",
+            speakerId: "sp1",
+            speakerName: "Beto",
+            colorHex: "#C4A574",
+            collapsed: false
+        )
+        let width: CGFloat = 320
+        attachment.refreshImage(width: width)
+        let w = max(attachment.bounds.width, width)
+        // IEEE: (1 - (w-44)/w) * w can be 43.999… — compare with accuracy.
+        XCTAssertEqual((1 - attachment.removeStartX) * w, 44, accuracy: 0.5, "× hit band ≥44pt")
         XCTAssertGreaterThanOrEqual(attachment.bounds.height, 44)
         // padL=4 + chevron 10 + gap 8 = 22pt from the left.
-        XCTAssertLessThanOrEqual(attachment.chevronEndX * 320, 24, "chevron+name nudged left")
+        XCTAssertEqual(attachment.chevronEndX * w, 22, accuracy: 1.0, "chevron+name nudged left")
+
+        editor.insertSpeakerSection(speakerId: "sp1", name: "Beto")
+        guard let header = SpeakerSectionEditing.findSpeakerHeaderRange(in: editor.testing_textStorage()),
+              editor.testing_headerAttachment(at: header.location) != nil
+        else {
+            return XCTFail("missing header attachment in editor")
+        }
     }
 
     // Bug 10: mid-paragraph split must not merge the following paragraph.

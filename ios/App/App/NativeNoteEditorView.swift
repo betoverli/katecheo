@@ -489,7 +489,13 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         let missingBlock = typing[NoteDocumentCodec.blockTypeKey] == nil
         let missingFont = typing[.font] == nil
         let missingPara = typing[.paragraphStyle] == nil
-        guard missingBlock || missingFont || missingPara else { return }
+        let typingType = typing[NoteDocumentCodec.blockTypeKey] as? String
+        let caretType = paragraphBlockType()
+        // Title → body (and list promote) must not keep stale heading typing attrs —
+        // direct textStorage inserts use typingAttributes as-is (TF194 list Enter).
+        let typeMismatch = typingType != nil && typingType != caretType
+            && caretType != "speakerSection"
+        guard missingBlock || missingFont || missingPara || typeMismatch else { return }
         textView.typingAttributes = typingAttributesForCaret()
     }
 
@@ -934,18 +940,35 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         // Strip any existing display-only list marker at the start of the paragraph.
         range = stripListMarker(in: range)
 
+        // Demoting a marker-only row can leave length 0 — reseed so attrs stick.
+        if range.length == 0 {
+            let placeholder = NSAttributedString(string: "\u{200B}", attributes: styled)
+            storage.replaceCharacters(in: range, with: placeholder)
+            range = NSRange(location: range.location, length: 1)
+            textView.selectedRange = NSRange(location: range.location + 1, length: 0)
+        }
+
         let listNumber = numberedIndex(forParagraphStartingAt: range.location, promotingToNumbered: type == "numbered")
         if let marker = NoteDocumentCodec.listMarkerString(type: type, checked: checked, number: listNumber) {
             var markerAttrs = styled
             markerAttrs[NoteDocumentCodec.listMarkerKey] = true
             markerAttrs[.foregroundColor] = UIColor.secondaryLabel
             let markerAttr = NSAttributedString(string: marker, attributes: markerAttrs)
-            storage.insert(markerAttr, at: range.location)
-            range = NSRange(location: range.location, length: range.length + markerAttr.length)
-            // Keep caret after the marker when the line was empty / caret at start.
-            if textView.selectedRange.length == 0, textView.selectedRange.location <= range.location + markerAttr.length {
-                textView.selectedRange = NSRange(location: range.location + markerAttr.length, length: 0)
+            let insertAt = range.location
+            let markerLen = markerAttr.length
+            // Snapshot selection before the insert — mutating textStorage directly does
+            // not shift UITextView.selectedRange (unlike replaceCharacters via the view).
+            var sel = textView.selectedRange
+            storage.insert(markerAttr, at: insertAt)
+            if sel.location >= insertAt {
+                sel.location += markerLen
             }
+            range = NSRange(location: range.location, length: range.length + markerLen)
+            // Empty / caret-in-marker → park after the marker; otherwise keep shifted end.
+            if sel.length == 0, sel.location < insertAt + markerLen {
+                sel = NSRange(location: insertAt + markerLen, length: 0)
+            }
+            textView.selectedRange = sel
         }
 
         storage.enumerateAttributes(in: range, options: []) { attrs, sub, _ in
@@ -1599,7 +1622,9 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         let loc = min(max(0, range.location), length)
         let len = min(max(0, range.length), max(0, length - loc))
         textView.selectedRange = NSRange(location: loc, length: len)
-        ensureTypingAttributes()
+        // Always re-seed from the caret paragraph — title typing attrs must not
+        // leak into the body after a selection move (TF194 list promote/Enter).
+        textView.typingAttributes = typingAttributesForCaret()
     }
 
     func testing_textStorage() -> NSTextStorage {
@@ -1692,24 +1717,19 @@ enum SpeakerEnterDecision: Equatable {
         if blockType == "speakerSection" {
             return .insertBodyFromHeader
         }
-        if insideSpeaker {
-            if paragraphEmpty {
-                if blockType == "bullet" || blockType == "numbered" || blockType == "check" || blockType == "quote" {
-                    return .demoteListToParagraph
-                }
-                if isLastBodyOfSection {
-                    return .exitSection
-                }
-            }
-            // Non-empty body Enter, or empty non-last body → stay inside with a real body run.
-            return .continueInSection
-        }
         if blockType == "bullet" || blockType == "numbered" || blockType == "check" || blockType == "quote" {
-            // Web onEnter: empty ul/ol → demote to paragraph; else continue kind.
+            // Web onEnter: empty ul/ol/quote → demote; else continue kind (inside or outside).
             if paragraphEmpty {
                 return .demoteListToParagraph
             }
             return .continueList(blockType)
+        }
+        if insideSpeaker {
+            if paragraphEmpty, isLastBodyOfSection {
+                return .exitSection
+            }
+            // Non-empty body Enter, or empty non-last body → stay inside with a real body run.
+            return .continueInSection
         }
         return .defaultNewline
     }
