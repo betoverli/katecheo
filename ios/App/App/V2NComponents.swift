@@ -219,9 +219,11 @@ final class V2NNoteRowCell: UITableViewCell {
 
     private let spine = UIView()
     private let titleLabel = UILabel()
+    private let speakerPill = UILabel()
     private let subtitleLabel = UILabel()
     private let tagsLabel = UILabel()
     private let stack = UIStackView()
+    private let metaRow = UIStackView()
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -240,6 +242,18 @@ final class V2NNoteRowCell: UITableViewCell {
         titleLabel.numberOfLines = 1
         titleLabel.adjustsFontForContentSizeCategory = true
 
+        speakerPill.font = V2NDesign.preferred(.caption2, weight: .semibold)
+        speakerPill.textColor = V2NDesign.accent
+        speakerPill.backgroundColor = V2NDesign.accentSoft
+        speakerPill.textAlignment = .center
+        speakerPill.layer.cornerRadius = V2NDesign.Radius.pill
+        speakerPill.layer.cornerCurve = .continuous
+        speakerPill.clipsToBounds = true
+        speakerPill.setContentHuggingPriority(.required, for: .horizontal)
+        speakerPill.setContentCompressionResistancePriority(.required, for: .horizontal)
+        speakerPill.adjustsFontForContentSizeCategory = true
+        speakerPill.isHidden = true
+
         subtitleLabel.font = V2NDesign.rowSubtitle()
         subtitleLabel.textColor = .secondaryLabel
         subtitleLabel.numberOfLines = 2
@@ -250,11 +264,17 @@ final class V2NNoteRowCell: UITableViewCell {
         tagsLabel.numberOfLines = 1
         tagsLabel.adjustsFontForContentSizeCategory = true
 
+        metaRow.axis = .horizontal
+        metaRow.alignment = .center
+        metaRow.spacing = 8
+        metaRow.addArrangedSubview(speakerPill)
+        metaRow.addArrangedSubview(subtitleLabel)
+
         stack.axis = .vertical
         stack.spacing = 3
         stack.translatesAutoresizingMaskIntoConstraints = false
         stack.addArrangedSubview(titleLabel)
-        stack.addArrangedSubview(subtitleLabel)
+        stack.addArrangedSubview(metaRow)
         stack.addArrangedSubview(tagsLabel)
         contentView.addSubview(stack)
 
@@ -274,9 +294,18 @@ final class V2NNoteRowCell: UITableViewCell {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    func configure(title: String, subtitle: String, tags: [String]) {
+    func configure(title: String, subtitle: String, tags: [String], speakerName: String? = nil) {
         titleLabel.text = title
         subtitleLabel.text = subtitle
+        subtitleLabel.isHidden = subtitle.isEmpty
+        if let speakerName, !speakerName.isEmpty {
+            speakerPill.isHidden = false
+            speakerPill.text = "  \(speakerName)  "
+        } else {
+            speakerPill.isHidden = true
+            speakerPill.text = nil
+        }
+        metaRow.isHidden = speakerPill.isHidden && subtitleLabel.isHidden
         if tags.isEmpty {
             tagsLabel.isHidden = true
             tagsLabel.text = nil
@@ -284,15 +313,19 @@ final class V2NNoteRowCell: UITableViewCell {
             tagsLabel.isHidden = false
             tagsLabel.text = tags.map { "#\($0)" }.joined(separator: "  ")
         }
-        accessibilityLabel = [title, subtitle, tagsLabel.text].compactMap { $0 }.joined(separator: ". ")
+        accessibilityLabel = [title, speakerName, subtitle, tagsLabel.text].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ". ")
     }
 
     override func prepareForReuse() {
         super.prepareForReuse()
         titleLabel.text = nil
         subtitleLabel.text = nil
+        subtitleLabel.isHidden = false
+        speakerPill.text = nil
+        speakerPill.isHidden = true
         tagsLabel.text = nil
         tagsLabel.isHidden = true
+        metaRow.isHidden = false
     }
 }
 

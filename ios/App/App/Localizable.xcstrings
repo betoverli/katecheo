@@ -13088,6 +13088,29 @@
         }
       }
     },
+    "Comece a escrever…": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comece a escrever…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start writing…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Empieza a escribir…"
+          }
+        }
+      }
+    },
     "Título": {
       "extractionState": "manual",
       "localizations": {

@@ -378,16 +378,16 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             let preview = card.document?.preview ?? card.author.displayName
             let day = AppLocale.displayDay(card.note.happenedAt)
             let speakerName = mainSpeakerName(for: card.document)
-            let subtitle = [speakerName, day, preview].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
-            cell.configure(title: title, subtitle: subtitle, tags: card.document?.tags ?? [])
+            let subtitle = [day, preview].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
+            cell.configure(title: title, subtitle: subtitle, tags: card.document?.tags ?? [], speakerName: speakerName)
             return cell
         }
         let note = filtered[indexPath.row]
         let title = note.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? String(localized: "Reunião") : note.title
         let day = AppLocale.displayDay(note.happenedAt)
         let speakerName = mainSpeakerName(for: note)
-        let subtitle = [speakerName, day, note.preview].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
-        cell.configure(title: title, subtitle: subtitle, tags: note.tags)
+        let subtitle = [day, note.preview].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
+        cell.configure(title: title, subtitle: subtitle, tags: note.tags, speakerName: speakerName)
         return cell
     }
 

@@ -49,29 +49,24 @@ final class SpeakerPickerViewController: UIViewController, UITableViewDelegate, 
             table.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             table.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
-        applyMerged(seed.isEmpty ? LocalNoteCache.loadSpeakers() : seed)
+        applyMerged(seed)
         reload()
     }
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        // Always refresh so the full catalog shows (TF194 #8 — stale/empty first paint).
+        // Always refresh so the full catalog shows (TF194 #8 / TF200 #3).
         reload()
     }
 
     private func applyMerged(_ list: [NativeAPIClient.SpeakerDTO]) {
-        var byId: [String: NativeAPIClient.SpeakerDTO] = [:]
-        for speaker in LocalNoteCache.loadSpeakers() { byId[speaker.id] = speaker }
-        for speaker in seed { byId[speaker.id] = speaker }
-        for speaker in list { byId[speaker.id] = speaker }
-        speakers = byId.values.sorted {
-            $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
-        }
+        // Cache is the source of truth for the registered catalog; seed/list only enrich.
+        speakers = LocalNoteCache.mergeSpeakers(seed + list)
         table.reloadData()
     }
 
     private func reload() {
-        applyMerged(LocalNoteCache.loadSpeakers())
+        applyMerged([])
         Task { @MainActor in
             do {
                 let remote = try await NativeAPIClient.listSpeakers()

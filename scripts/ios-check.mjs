@@ -180,8 +180,28 @@ if (!editor.includes("inputAccessoryView") || !editor.includes("Referência bíb
 if (!editor.includes("setEditingChrome") || !editor.includes("textViewDidBeginEditing")) {
   errors.push("Toolbar de formatação só depois de entrar em modo edição.");
 }
-if (!editor.includes("repositionTriggerMenuIfNeeded") || !editor.includes("keyboardOverlap")) {
-  errors.push("Popup @/ tem de ficar acima do teclado (keyboard-aware).");
+// TF200: inline @/ popovers removed — triggers open the same full screens as the toolbar.
+if (
+  editor.includes("NoteEditorTriggerMenuView") ||
+  editor.includes("repositionTriggerMenuIfNeeded") ||
+  editor.includes("showAtMenu") ||
+  editor.includes("presentTriggerMenu")
+) {
+  errors.push("Remova o popup inline @/ (NoteEditorTriggerMenuView) — @ e / abrem ecrãs completos.");
+}
+if (
+  !editor.includes('text == "@"') ||
+  !editor.includes('text == "/"') ||
+  !editor.includes("presentSpeakerPicker()") ||
+  !editor.includes("presentBibleRefPicker()")
+) {
+  errors.push("@ e / têm de abrir o ecrã completo de speaker / referência (sem inserir o caractere).");
+}
+if (!editor.includes("keyboardOverlap")) {
+  errors.push("NativeNoteEditorView tem de acompanhar o teclado (keyboardOverlap).");
+}
+if (!editor.includes("titlePlaceholderLabel") || !editor.includes("bodyPlaceholderLabel") || !editor.includes("Comece a escrever")) {
+  errors.push("Editor tem de ter placeholders de título e corpo (TF200).");
 }
 if (!editor.includes("@MainActor") && !editor.includes("Thread.isMainThread")) {
   errors.push("NativeNoteEditorView tem de exigir main thread / @MainActor.");
@@ -257,6 +277,17 @@ if (!editor.includes("testing_insertText") || !editor.includes("testing_prepare"
 }
 if (!project.includes("NativeNoteEditorTF194Tests.swift in Sources")) {
   errors.push("AppTests TF194 (NativeNoteEditorTF194Tests) têm de estar no target.");
+}
+if (!project.includes("NativeNoteEditorTF200Tests.swift in Sources")) {
+  errors.push("AppTests TF200 (NativeNoteEditorTF200Tests) têm de estar no target.");
+}
+try {
+  const cache = read("ios/App/App/LocalNoteCache.swift");
+  if (!cache.includes("mergeSpeakers") || !cache.includes("removeSpeaker")) {
+    errors.push("LocalNoteCache tem de mergeSpeakers (não apagar o catálogo com speakers note-scoped).");
+  }
+} catch {
+  errors.push("Ficheiro em falta: ios/App/App/LocalNoteCache.swift");
 }
 if (!editor.includes("confirmRemoveSpeakerSection") || !editor.includes("Remover seção do speaker?")) {
   errors.push("× do speaker tem de pedir confirmação localizada antes de apagar.");
