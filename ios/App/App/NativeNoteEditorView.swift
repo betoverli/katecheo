@@ -325,9 +325,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             moveCaretOffSpeakerHeaderIfNeeded()
         } else if caretIsInsideSpeakerSection() {
             normalizeSpeakerBodyParagraphAttributes()
-            textView.typingAttributes = SpeakerSectionEditing.bodyTypingAttributes(
-                blockId: currentBlockId()
-            )
+            textView.typingAttributes = typingAttributesForSpeakerBody()
         } else {
             ensureTypingAttributes()
         }
@@ -354,9 +352,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         }
 
         if caretIsInsideSpeakerSection(), paragraphBlockType() != "speakerSection" {
-            textView.typingAttributes = SpeakerSectionEditing.bodyTypingAttributes(
-                blockId: currentBlockId()
-            )
+            textView.typingAttributes = typingAttributesForSpeakerBody()
         } else {
             ensureTypingAttributes()
         }
@@ -406,9 +402,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         }
 
         if caretIsInsideSpeakerSection(), paragraphBlockType() != "speakerSection" {
-            textView.typingAttributes = SpeakerSectionEditing.bodyTypingAttributes(
-                blockId: currentBlockId()
-            )
+            textView.typingAttributes = typingAttributesForSpeakerBody()
         }
 
         // TF200 #2: @ / open the same full screens as the toolbar — never inline popovers.
@@ -468,17 +462,30 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             // Header is non-editable chrome — typing attrs are body-inside-section.
             return SpeakerSectionEditing.bodyTypingAttributes()
         }
-        var attrs = NoteDocumentCodec.baseAttributesPublic(
+        if caretIsInsideSpeakerSection() {
+            return typingAttributesForSpeakerBody(blockType: rawType)
+        }
+        return NoteDocumentCodec.baseAttributesPublic(
             type: rawType,
             id: currentBlockId(),
             checked: rawType == "check" ? false : nil,
             speakerId: nil,
             speakers: [:]
         )
-        if caretIsInsideSpeakerSection() {
-            attrs = NoteDocumentCodec.applyingSpeakerSectionInset(attrs)
+    }
+
+    /// Typing attrs inside a speaker body — keep list/quote kinds (TF200 #1).
+    private func typingAttributesForSpeakerBody(blockType: String? = nil) -> [NSAttributedString.Key: Any] {
+        let type = blockType ?? paragraphBlockType()
+        let id = currentBlockId()
+        if type == "bullet" || type == "numbered" || type == "check" || type == "quote" {
+            return SpeakerSectionEditing.listTypingAttributes(
+                type: type,
+                blockId: id,
+                inSpeakerSection: true
+            )
         }
-        return attrs
+        return SpeakerSectionEditing.bodyTypingAttributes(blockId: id)
     }
 
     private func typingAttributesForCaret() -> [NSAttributedString.Key: Any] {
@@ -563,12 +570,14 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             checked: listType == "check" ? false : nil,
             number: max(number, 1)
         ) ?? "•\u{00A0}"
+        let inSection = caretIsInsideSpeakerSection()
+            || NoteDocumentCodec.isSpeakerBody(paragraphStartAttributes())
         let result = SpeakerSectionEditing.insertContinuingListParagraph(
             in: textView.textStorage,
             at: textView.selectedRange.location,
             listType: listType,
             marker: marker,
-            inSpeakerSection: caretIsInsideSpeakerSection()
+            inSpeakerSection: inSection
         )
         textView.selectedRange = NSRange(location: result.caret, length: 0)
         textView.typingAttributes = result.typingAttributes
@@ -604,20 +613,35 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         return NoteDocumentCodec.isSpeakerBody(attrs)
     }
 
-    /// Re-stamp speakerBodyKey + inset on the body paragraph UIKit may have inserted bare.
+    /// Re-stamp speakerBodyKey (+ inset for plain body) on the body paragraph UIKit may have
+    /// inserted bare. Must not demote bullet/numbered/check/quote back to paragraph (TF200 #1).
     private func normalizeSpeakerBodyParagraphAttributes() {
         let storage = textView.textStorage
         let para = paragraphRange()
         guard para.length > 0, storage.length >= NSMaxRange(para) else { return }
         let id = currentBlockId()
-        let body = SpeakerSectionEditing.bodyTypingAttributes(blockId: id)
+        let currentType = paragraphBlockType()
+        let isListLike = currentType == "bullet" || currentType == "numbered"
+            || currentType == "check" || currentType == "quote"
+        let body = isListLike
+            ? SpeakerSectionEditing.listTypingAttributes(
+                type: currentType,
+                blockId: id,
+                inSpeakerSection: true
+            )
+            : SpeakerSectionEditing.bodyTypingAttributes(blockId: id)
         storage.enumerateAttributes(in: para, options: []) { attrs, sub, _ in
             if (attrs[NoteDocumentCodec.blockTypeKey] as? String) == "speakerSection" { return }
             var next = attrs
-            next[NoteDocumentCodec.blockTypeKey] = "paragraph"
+            let runType = (attrs[NoteDocumentCodec.blockTypeKey] as? String) ?? currentType
+            let preserve = runType == "bullet" || runType == "numbered"
+                || runType == "check" || runType == "quote"
+            next[NoteDocumentCodec.blockTypeKey] = preserve ? runType : "paragraph"
             next[NoteDocumentCodec.blockIdKey] = id
             next[NoteDocumentCodec.speakerBodyKey] = true
-            if let style = body[.paragraphStyle] {
+            if attrs[NoteDocumentCodec.listMarkerKey] as? Bool == true {
+                // Keep marker glyph styling; only stamp membership keys above.
+            } else if let style = body[.paragraphStyle] {
                 next[.paragraphStyle] = style
             }
             storage.setAttributes(next, range: sub)
@@ -914,6 +938,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         var range = paragraphRange()
         let storage = textView.textStorage
         let inSection = caretIsInsideSpeakerSection()
+            || NoteDocumentCodec.isSpeakerBody(paragraphStartAttributes())
 
         // Empty paragraph at EOF: ensure there is a character run we can attribute.
         if range.length == 0 {
