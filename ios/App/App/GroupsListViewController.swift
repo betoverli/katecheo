@@ -12,10 +12,13 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        V2NChrome.styleCanvas(view)
+        V2NChrome.styleScreen(view)
         title = String(localized: "Grupos")
         navigationController?.navigationBar.prefersLargeTitles = true
         navigationItem.largeTitleDisplayMode = .always
+        if let nav = navigationController {
+            V2NChrome.style(navigationController: nav)
+        }
 
         navigationItem.rightBarButtonItem = UIBarButtonItem(
             title: String(localized: "Novo grupo"),

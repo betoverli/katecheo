@@ -787,6 +787,34 @@ if (!project.includes("V2NScrollChromeTests.swift in Sources")) {
 if (!project.includes("V2NSwipeActionTests.swift in Sources")) {
   errors.push("AppTests V2NSwipeActionTests têm de estar no target.");
 }
+if (!project.includes("TabBackgroundConsistencyTests.swift in Sources")) {
+  errors.push("AppTests TabBackgroundConsistencyTests têm de estar no target.");
+}
+try {
+  const design = read("ios/App/App/V2NDesign.swift");
+  if (!design.includes("screenBackground") || !design.includes("styleScreen") || !design.includes("makeNavigationBarAppearance")) {
+    errors.push("V2NChrome tem de unificar screenBackground no nav + tabs (Profile-matched).");
+  }
+  if (design.includes("surface.withAlphaComponent(0.94)")) {
+    errors.push("Nav bar não pode usar surface semi-opaco (banda mais clara que o conteúdo).");
+  }
+  const notebook = read("ios/App/App/NotebookListViewController.swift");
+  const groups = read("ios/App/App/GroupsListViewController.swift");
+  const tools = read("ios/App/App/VersesHomeViewController.swift");
+  const profile = read("ios/App/App/ProfileViewController.swift");
+  for (const [name, src] of [
+    ["Notebook", notebook],
+    ["Groups", groups],
+    ["Tools", tools],
+    ["Profile", profile],
+  ]) {
+    if (!src.includes("styleScreen")) {
+      errors.push(`${name} tem de usar V2NChrome.styleScreen (fundo único como Perfil).`);
+    }
+  }
+} catch {
+  errors.push("Falha ao validar chrome de fundo das tabs.");
+}
 if (!project.includes("NativeNoteEditorTF214Tests.swift in Sources")) {
   errors.push("AppTests TF214 (NativeNoteEditorTF214Tests) têm de estar no target.");
 }

@@ -22,7 +22,7 @@ final class GroupMembersViewController: UIViewController, UITableViewDelegate, U
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        V2NChrome.styleCanvas(view)
+        V2NChrome.styleScreen(view)
         title = String(localized: "Membros")
         navigationItem.largeTitleDisplayMode = .never
         navigationItem.rightBarButtonItem = UIBarButtonItem(

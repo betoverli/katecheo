@@ -383,7 +383,7 @@ final class ProfileBibleViewController: UIViewController, UICollectionViewDelega
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        V2NChrome.styleCanvas(view)
+        V2NChrome.styleScreen(view)
         title = String(localized: "App de Bíblia")
 
         tableView.translatesAutoresizingMaskIntoConstraints = false

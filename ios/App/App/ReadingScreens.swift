@@ -32,13 +32,13 @@ final class ReadingHomeViewController: UIViewController, UICollectionViewDelegat
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        V2NChrome.styleCanvas(view)
+        V2NChrome.styleScreen(view)
         if !embedded {
             title = String(localized: "Leitura")
             navigationController?.navigationBar.prefersLargeTitles = true
             navigationItem.largeTitleDisplayMode = .always
         } else {
-            // Parent Versículos owns the large title + chips.
+            // Parent Ferramentas owns the large title + chips.
             navigationItem.largeTitleDisplayMode = .never
         }
 

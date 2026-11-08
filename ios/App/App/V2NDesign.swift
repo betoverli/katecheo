@@ -37,7 +37,7 @@ enum V2NDesign {
         return UIColor(red: 0.188, green: 0.565, blue: 0.910, alpha: 1) // #3090E8
     }
 
-    /// Warm paper canvas (not flat system white).
+    /// Warm paper for the note editor body (not tab chrome).
     static let canvas = UIColor { traits in
         if traits.userInterfaceStyle == .dark {
             return UIColor(red: 0.11, green: 0.10, blue: 0.09, alpha: 1) // #1C1A17
@@ -53,13 +53,17 @@ enum V2NDesign {
         return UIColor(red: 0.996, green: 0.988, blue: 0.973, alpha: 1) // #FEFCF8
     }
 
-    /// Grouped table background (slightly cooler than canvas edges).
-    static let groupedBackground = UIColor { traits in
+    /// Single fill for every root tab (Caderno / Grupos / Ferramentas / Perfil).
+    /// Matches the Profile list page — nav, view, and scroll content must all use this.
+    static let screenBackground = UIColor { traits in
         if traits.userInterfaceStyle == .dark {
             return UIColor(red: 0.09, green: 0.08, blue: 0.07, alpha: 1)
         }
         return UIColor(red: 0.945, green: 0.910, blue: 0.855, alpha: 1) // #F1E8DA
     }
+
+    /// Grouped lists / settings — same token as `screenBackground` (no lighter header band).
+    static var groupedBackground: UIColor { screenBackground }
 
     static let separator = UIColor { traits in
         if traits.userInterfaceStyle == .dark {
@@ -163,22 +167,9 @@ enum V2NChrome {
         let accent = V2NDesign.accent
         UIView.appearance().tintColor = accent
 
-        let nav = UINavigationBarAppearance()
-        nav.configureWithDefaultBackground()
-        if !V2NGlassMaterial.sdkHasLiquidGlass() {
-            nav.configureWithOpaqueBackground()
-            nav.backgroundColor = V2NDesign.surface.withAlphaComponent(0.94)
-        }
-        nav.titleTextAttributes = [
-            .foregroundColor: UIColor.label,
-            .font: V2NDesign.preferred(.headline, weight: .semibold),
-        ]
-        nav.largeTitleTextAttributes = [
-            .foregroundColor: UIColor.label,
-            .font: V2NDesign.preferred(.largeTitle, weight: .bold),
-        ]
-        nav.shadowColor = .clear
-
+        // Opaque + identical in every state so the large-title band never flashes a
+        // lighter surface than the list (Profile-matched screenBackground).
+        let nav = makeNavigationBarAppearance()
         let navProxy = UINavigationBar.appearance()
         navProxy.tintColor = accent
         navProxy.standardAppearance = nav
@@ -189,11 +180,8 @@ enum V2NChrome {
         }
 
         let tab = UITabBarAppearance()
-        tab.configureWithDefaultBackground()
-        if !V2NGlassMaterial.sdkHasLiquidGlass() {
-            tab.configureWithOpaqueBackground()
-            tab.backgroundColor = V2NDesign.surface.withAlphaComponent(0.96)
-        }
+        tab.configureWithOpaqueBackground()
+        tab.backgroundColor = V2NDesign.screenBackground
         tab.shadowColor = .clear
         let tabItem = UITabBarItemAppearance()
         tabItem.normal.iconColor = .secondaryLabel
@@ -226,16 +214,67 @@ enum V2NChrome {
     static func style(navigationController: UINavigationController) {
         navigationController.navigationBar.prefersLargeTitles = true
         navigationController.navigationBar.tintColor = V2NDesign.accent
+        applyNavigationBarAppearance(to: navigationController.navigationBar)
+        navigationController.view.backgroundColor = V2NDesign.screenBackground
     }
 
+    /// Shared nav appearance: opaque Profile-matched fill in every scroll state.
+    static func makeNavigationBarAppearance() -> UINavigationBarAppearance {
+        let nav = UINavigationBarAppearance()
+        nav.configureWithOpaqueBackground()
+        nav.backgroundColor = V2NDesign.screenBackground
+        nav.backgroundEffect = nil
+        nav.titleTextAttributes = [
+            .foregroundColor: UIColor.label,
+            .font: V2NDesign.preferred(.headline, weight: .semibold),
+        ]
+        nav.largeTitleTextAttributes = [
+            .foregroundColor: UIColor.label,
+            .font: V2NDesign.preferred(.largeTitle, weight: .bold),
+        ]
+        nav.shadowColor = .clear
+        return nav
+    }
+
+    static func applyNavigationBarAppearance(to bar: UINavigationBar) {
+        let appearance = makeNavigationBarAppearance()
+        bar.standardAppearance = appearance
+        bar.compactAppearance = appearance
+        bar.scrollEdgeAppearance = appearance
+        if #available(iOS 15.0, *) {
+            bar.compactScrollEdgeAppearance = appearance
+        }
+        bar.isTranslucent = false
+        bar.barTintColor = V2NDesign.screenBackground
+        bar.backgroundColor = V2NDesign.screenBackground
+    }
+
+    /// Note-editor paper (warm canvas) — not tab chrome.
     static func styleCanvas(_ view: UIView) {
         view.backgroundColor = V2NDesign.canvas
     }
 
+    /// Root tab / settings page fill (same token as Profile).
+    static func styleScreen(_ view: UIView) {
+        view.backgroundColor = V2NDesign.screenBackground
+    }
+
     static func styleGroupedTable(_ table: UITableView) {
-        table.backgroundColor = V2NDesign.groupedBackground
+        table.backgroundColor = V2NDesign.screenBackground
+        table.backgroundView = UIView()
+        table.backgroundView?.backgroundColor = V2NDesign.screenBackground
         table.separatorColor = V2NDesign.separator
         table.sectionHeaderTopPadding = V2NDesign.Space.sm
+    }
+
+    static func styleScrollSurface(_ scrollView: UIScrollView) {
+        scrollView.backgroundColor = V2NDesign.screenBackground
+        if let table = scrollView as? UITableView {
+            styleGroupedTable(table)
+        }
+        if let collection = scrollView as? UICollectionView {
+            collection.backgroundColor = V2NDesign.screenBackground
+        }
     }
 }
 

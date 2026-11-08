@@ -39,10 +39,13 @@ final class VersesHomeViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        V2NChrome.styleCanvas(view)
+        V2NChrome.styleScreen(view)
         title = String(localized: "Ferramentas")
         navigationController?.navigationBar.prefersLargeTitles = true
         navigationItem.largeTitleDisplayMode = .always
+        if let nav = navigationController {
+            V2NChrome.style(navigationController: nav)
+        }
 
         let initial = restoredTool()
         selectedTool = initial
@@ -58,7 +61,7 @@ final class VersesHomeViewController: UIViewController {
         }
 
         contentHost.translatesAutoresizingMaskIntoConstraints = false
-        contentHost.backgroundColor = .clear
+        contentHost.backgroundColor = V2NDesign.screenBackground
 
         view.addSubview(chips)
         view.addSubview(contentHost)
@@ -204,7 +207,7 @@ final class BooksHomeViewController: UIViewController, UICollectionViewDelegate,
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        V2NChrome.styleCanvas(view)
+        V2NChrome.styleScreen(view)
         if embedded {
             title = nil
             navigationItem.largeTitleDisplayMode = .never

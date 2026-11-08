@@ -29,10 +29,13 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        V2NChrome.styleCanvas(view)
+        V2NChrome.styleScreen(view)
         title = group?.name ?? String(localized: "Caderno")
         navigationController?.navigationBar.prefersLargeTitles = true
         navigationItem.largeTitleDisplayMode = .always
+        if let nav = navigationController {
+            V2NChrome.style(navigationController: nav)
+        }
 
         var trailing: [UIBarButtonItem] = [
             UIBarButtonItem(image: UIImage(systemName: "ellipsis.circle"), style: .plain, target: self, action: #selector(moreMenu)),
