@@ -14191,6 +14191,54 @@
           }
         }
       }
+    },
+    "Aguardando API nativa": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aguardando API nativa"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aguardando API nativa"
+          }
+        }
+      }
+    },
+    "No web já funciona; no app iOS ainda não há endpoints Bearer.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No web já funciona; no app iOS ainda não há endpoints Bearer."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No web já funciona; no app iOS ainda não há endpoints Bearer."
+          }
+        }
+      }
+    },
+    "Listar, aceitar e recusar pedidos exige wrapping nativo das rotas web de amigos (listLinks / acceptLink / declineLink). Sem isso, o iOS não mostra bolinha em Perfil — evita beco sem saída.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listar, aceitar e recusar pedidos exige wrapping nativo das rotas web de amigos (listLinks / acceptLink / declineLink). Sem isso, o iOS não mostra bolinha em Perfil — evita beco sem saída."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listar, aceitar e recusar pedidos exige wrapping nativo das rotas web de amigos (listLinks / acceptLink / declineLink). Sem isso, o iOS não mostra bolinha em Perfil — evita beco sem saída."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

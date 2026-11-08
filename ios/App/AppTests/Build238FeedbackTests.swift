@@ -119,8 +119,8 @@ final class Build238FeedbackTests: XCTestCase {
 
     // MARK: - 6) Activity dots
 
-    func testActivityStore_sharedBaselineDoesNotFloodThenTracksNew() {
-        // Seed account via LocalSessionCache
+    func testActivityStore_sharedHeuristicDoesNotInventGrantsDots() {
+        // Native notes list never emits real grants; visibility filter must not light Shared.
         let me = NativeAPIClient.MeDTO(
             id: "acct-b238",
             email: "a@b.c",
@@ -138,19 +138,18 @@ final class Build238FeedbackTests: XCTestCase {
         var n1 = NativeAPIClient.emptyNote(id: "shared-1")
         n1.visibility = "shared"
         V2NActivityStore.reconcileSharedNotes([n1])
-        XCTAssertFalse(V2NActivityStore.sharedChipDot, "baseline must not mark existing shared as unread")
+        XCTAssertFalse(V2NActivityStore.sharedChipDot)
+        XCTAssertFalse(V2NActivityStore.notebookDot)
+        XCTAssertFalse(V2NActivityStore.targetIds(kind: .sharedNote).contains("shared-1"))
 
         var n2 = NativeAPIClient.emptyNote(id: "shared-2")
         n2.visibility = "shared"
         V2NActivityStore.reconcileSharedNotes([n1, n2])
-        XCTAssertTrue(V2NActivityStore.targetIds(kind: .sharedNote).contains("shared-2"))
-        XCTAssertTrue(V2NActivityStore.notebookDot)
-
-        V2NActivityStore.markSharedNoteOpened("shared-2")
-        XCTAssertFalse(V2NActivityStore.targetIds(kind: .sharedNote).contains("shared-2"))
+        XCTAssertFalse(V2NActivityStore.notebookDot)
+        XCTAssertFalse(V2NActivityStore.sharedChipDot)
     }
 
-    func testActivityStore_readingDueClearsOnDismissAndParentDoesNotClear() {
+    func testActivityStore_readingHeuristicDoesNotInventDigestDue() {
         let me = NativeAPIClient.MeDTO(
             id: "acct-b238-r",
             email: "a@b.c",
@@ -166,14 +165,18 @@ final class Build238FeedbackTests: XCTestCase {
         LocalSessionCache.saveMe(me)
         let plan = NativeAPIClient.PlanCardDTO(id: "plan-1", name: "Evangelhos", days: 7, chapters: nil, description: nil, categoryIds: nil)
         V2NActivityStore.reconcileReadingDue(prefs: me.prefs, plans: [plan])
+        // Unmarked days ≠ digest-due; Tools chip only from push ingest until inbox API.
+        XCTAssertFalse(V2NActivityStore.toolsDot)
+        XCTAssertFalse(V2NActivityStore.readingChipDot)
+        XCTAssertFalse(V2NActivityStore.targetIds(kind: .readingDue).contains("plan-1"))
+
+        V2NActivityStore.ingestPush(href: "/reading/plan-1", title: "Leitura")
         XCTAssertTrue(V2NActivityStore.toolsDot)
-        XCTAssertTrue(V2NActivityStore.readingChipDot)
-        // Opening Tools alone must not clear — dismiss does.
         V2NActivityStore.dismissReadingDue(planId: "plan-1")
         XCTAssertFalse(V2NActivityStore.targetIds(kind: .readingDue).contains("plan-1"))
     }
 
-    func testActivityStore_pushHrefIngestAndFriendsAcceptedClearOnScreen() {
+    func testActivityStore_pushHrefIngestFriendsGatedNoDeadEndDot() {
         let me = NativeAPIClient.MeDTO(
             id: "acct-b238-f",
             email: "a@b.c",
@@ -191,15 +194,15 @@ final class Build238FeedbackTests: XCTestCase {
         V2NActivityStore.ingestPush(href: "/profile/friends", title: "Pedido")
         V2NActivityStore.ingestPush(href: "/reading/plan-x", title: "Leitura")
         XCTAssertTrue(V2NActivityStore.groupsDot)
-        XCTAssertTrue(V2NActivityStore.profileDot)
+        XCTAssertFalse(V2NActivityStore.profileDot, "friends dots gated — no dead-end Profile badge")
+        XCTAssertFalse(V2NActivityStore.friendsDotsEnabled)
         XCTAssertTrue(V2NActivityStore.toolsDot)
+        XCTAssertFalse(V2NActivityStore.hasAny(kinds: .friendPending))
 
         let friends = FriendsActivityViewController()
         friends.loadViewIfNeeded()
-        friends.viewWillAppear(false)
+        XCTAssertFalse(V2NActivityStore.hasAny(kinds: .friendPending))
         XCTAssertFalse(V2NActivityStore.hasAny(kinds: .friendAccepted))
-        // Pending remains until accept/reject API exists.
-        XCTAssertTrue(V2NActivityStore.hasAny(kinds: .friendPending))
     }
 
     func testActivityStore_signOutClearsAccountScopedItems() {

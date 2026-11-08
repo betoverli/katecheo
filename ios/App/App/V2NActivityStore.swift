@@ -4,10 +4,14 @@ import UIKit
 /// Per-account unread activity for tab/chip dots (build-238).
 /// No notification center — only reachable destinations.
 ///
-/// Sync reality:
-/// - Shared notes / reading due / group pending: derived from native APIs already on device.
-/// - Push-ingested items (group activity, friend signals): device-local until a native inbox API exists.
-/// - No cross-device sync of read state without `/api/native/v1/notifications`.
+/// Honest scope (audit 2026-11-08):
+/// - Supported now: `groupPending` (native members + decide); push-ingested
+///   group/reading/note opens (device-local until native inbox).
+/// - Gated / incomplete: Shared grants, friends pending/accept, digest-due reading,
+///   stable group activity unread, account-level cross-device seen — web has the data
+///   (`listGrantedNotes`, `listLinks`/`acceptLink`/`declineLink`, `listNotifications`/
+///   `markNotificationsRead` + `read_at`); native `/api/native/v1` does not wrap them yet.
+/// Do not merge heuristic badge kinds as “complete.”
 enum V2NActivityStore {
     enum Kind: String, Codable, CaseIterable {
         case sharedNote
@@ -104,37 +108,15 @@ enum V2NActivityStore {
 
     // MARK: - Shared notes (Caderno → Compartilhadas)
 
-    /// First paint after sign-in baselines existing shared notes so they are not all "new".
+    /// Incomplete without native `listGrantedNotes`.
+    /// Do **not** invent unread from `visibility == shared|link` — the native notes list
+    /// only returns owned notes coerced to `private|unlisted`, so that filter never equals
+    /// real grants (web uses `note_grants` via `listGrantedNotes`).
+    /// Push `/n/{id}` may still upsert a reachable note open; Shared chip/tab stay off
+    /// (`notebookDot` / `sharedChipDot`) until grants exist.
     static func reconcileSharedNotes(_ notes: [NativeAPIClient.NoteDocument]) {
-        guard let accountId = accountId() else { return }
-        let shared = notes.filter { $0.visibility == "shared" || $0.visibility == "link" }
-        let sharedIds = Set(shared.map(\.id))
-        let baselineDone = UserDefaults.standard.bool(forKey: baselineKey(for: accountId))
-        if !baselineDone {
-            for id in sharedIds {
-                // Seed as already seen — only notes arriving after baseline get dots.
-                clear(kind: .sharedNote, targetId: id)
-            }
-            UserDefaults.standard.set(true, forKey: baselineKey(for: accountId))
-            return
-        }
-        var items = loadItems().filter { $0.kind != .sharedNote || sharedIds.contains($0.targetId) }
-        let existing = Set(items.filter { $0.kind == .sharedNote }.map(\.targetId))
-        for note in shared where !existing.contains(note.id) {
-            // Only add if never opened on this account/device.
-            let openedKey = openedNoteKey(accountId: accountId, noteId: note.id)
-            if UserDefaults.standard.bool(forKey: openedKey) { continue }
-            items.append(
-                Item(
-                    id: "\(Kind.sharedNote.rawValue):\(note.id)",
-                    kind: .sharedNote,
-                    targetId: note.id,
-                    title: note.title,
-                    createdAt: Date()
-                )
-            )
-        }
-        saveItems(items)
+        _ = notes
+        _ = baselineKey
     }
 
     static func markSharedNoteOpened(_ noteId: String) {
@@ -149,29 +131,14 @@ enum V2NActivityStore {
 
     // MARK: - Reading due
 
+    /// Incomplete without digest/inbox semantics.
+    /// Server due = `maybeSendDigests` (one `kind=reading` row/day when there is a next unmarked
+    /// day). Treating “any unmarked day on any active plan” as due is a heuristic — disabled.
+    /// Push `/reading/{planId}` ingest remains (reachable destination).
     static func reconcileReadingDue(prefs: NativeAPIClient.PrefsDTO?, plans: [NativeAPIClient.PlanCardDTO]) {
-        let active = prefs?.activePlans ?? []
-        let progress = prefs?.planProgress ?? [:]
-        var items = loadItems().filter { $0.kind != .readingDue }
-        for planId in active {
-            let plan = plans.first { $0.id == planId }
-            let days = max(plan?.days ?? 0, 0)
-            guard days > 0 else { continue }
-            let marked = Set(progress[planId] ?? [])
-            let next = (1...days).first { !marked.contains($0) }
-            if next != nil {
-                items.append(
-                    Item(
-                        id: "\(Kind.readingDue.rawValue):\(planId)",
-                        kind: .readingDue,
-                        targetId: planId,
-                        title: plan?.name,
-                        createdAt: Date()
-                    )
-                )
-            }
-        }
-        saveItems(items)
+        _ = prefs
+        _ = plans
+        // No-op: keep only push-ingested readingDue items already in the store.
     }
 
     static func dismissReadingDue(planId: String) {
@@ -196,13 +163,19 @@ enum V2NActivityStore {
         }
     }
 
-    // MARK: - Friends (push-sourced; no native friends API)
+    // MARK: - Friends (blocked until native wrap of links.ts)
+
+    /// Web already has `listLinks` / `acceptLink` / `declineLink`. Native has none.
+    /// Do not create Profile dots that open a dead-end Amigos screen.
+    static let friendsDotsEnabled = false
 
     static func ingestFriendPending(targetId: String = "inbox", title: String? = nil) {
+        guard friendsDotsEnabled else { return }
         upsert(kind: .friendPending, targetId: targetId, title: title)
     }
 
     static func ingestFriendAccepted(targetId: String, title: String? = nil) {
+        guard friendsDotsEnabled else { return }
         upsert(kind: .friendAccepted, targetId: targetId, title: title)
     }
 
@@ -218,19 +191,20 @@ enum V2NActivityStore {
         case .group(let id):
             ingestGroupActivity(groupId: id, title: title)
         case .note(let id):
-            // Shared / group note deep link — treat as shared until opened.
+            // Reachable note open — not claimed as grant/Shared until listGrantedNotes exists.
             upsert(kind: .sharedNote, targetId: id, title: title)
         case .readingPlan(let id):
             upsert(kind: .readingDue, targetId: id, title: title)
         case .reading:
-            // Generic reading digest — attach to a placeholder cleared when any plan is marked.
             upsert(kind: .readingDue, targetId: "digest", title: title)
         case .profile:
-            // /profile/friends and /inbox land on profile — friend signal without kind field.
-            if href.contains("friends") {
-                ingestFriendPending(title: title)
-            } else {
-                ingestFriendAccepted(targetId: "seen", title: title)
+            // Friends dots gated — push still opens Profile via deep link, without a lying badge.
+            if friendsDotsEnabled {
+                if href.contains("friends") {
+                    ingestFriendPending(title: title)
+                } else {
+                    ingestFriendAccepted(targetId: "seen", title: title)
+                }
             }
         default:
             break
@@ -239,11 +213,21 @@ enum V2NActivityStore {
 
     // MARK: - Aggregates for chrome
 
-    static var notebookDot: Bool { hasAny(kinds: .sharedNote) }
+    /// Only kinds with a real native destination + clear path today.
+    /// Shared grants / friends / digest-due / cross-device seen need Beto-approved native wraps.
+    static var notebookDot: Bool { false } // blocked: needs listGrantedNotes
     static var groupsDot: Bool { hasAny(kinds: .groupActivity, .groupPending) }
-    static var toolsDot: Bool { hasAny(kinds: .readingDue) }
-    static var profileDot: Bool { hasAny(kinds: .friendPending, .friendAccepted) }
-    static var sharedChipDot: Bool { notebookDot }
+    static var toolsDot: Bool { hasAny(kinds: .readingDue) } // push-ingested digest/plan only
+    static var profileDot: Bool { friendsDotsEnabled && hasAny(kinds: .friendPending, .friendAccepted) }
+    static var sharedChipDot: Bool { false }
     static var readingChipDot: Bool { toolsDot }
     static var friendsEntryDot: Bool { profileDot }
+
+    /// What is actually supported without new server routes (for docs/PR).
+    static var supportedWithoutNewBackend: [String] {
+        [
+            "groupPending (GET members + POST decide)",
+            "groupActivity / readingDue / note open from APNs href (device-local until inbox API)",
+        ]
+    }
 }
