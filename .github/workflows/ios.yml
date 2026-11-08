@@ -76,10 +76,15 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             DEVELOPMENT_TEAM="" \
             test
-          # Collect TF222 speaker appearance PNGs written by AppTests.
-          find "${RUNNER_TEMP}/verse2note-ios" /tmp "${GITHUB_WORKSPACE}" -name 'tf222-*.png' 2>/dev/null \
+          # AppTests write PNGs inside the Simulator app sandbox — harvest them.
+          find \
+            "${HOME}/Library/Developer/CoreSimulator" \
+            "${RUNNER_TEMP}/verse2note-ios" \
+            /tmp \
+            "${GITHUB_WORKSPACE}" \
+            -name 'tf222-*.png' 2>/dev/null \
             | head -40 \
-            | while read -r f; do cp -n "$f" artifacts/ 2>/dev/null || true; done
+            | while read -r f; do cp -f "$f" artifacts/ 2>/dev/null || true; done
           ls -la artifacts || true
       - name: Upload speaker appearance screenshots
         if: always()
@@ -87,7 +92,7 @@ jobs:
         with:
           name: tf222-speaker-appearance
           path: artifacts/tf222-*.png
-          if-no-files-found: warn
+          if-no-files-found: error
 
   testflight:
     name: Assinar e enviar ao TestFlight

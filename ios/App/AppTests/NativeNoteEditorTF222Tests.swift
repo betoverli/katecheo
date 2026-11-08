@@ -174,11 +174,11 @@ final class NativeNoteEditorTF222Tests: XCTestCase {
         }
         XCTAssertLessThan(luma2, 0.45, "reopen must keep dark name (luma=\(luma2))")
 
-        // Snapshot PNG for CI artifacts.
+        // Snapshot PNG for CI artifacts (+ XCTAttachment for the xcresult).
         let snapshot = try XCTUnwrap(Self.renderSnapshot(of: host.view, size: CGSize(width: 390, height: 844)))
-        Self.writeArtifact(snapshot, name: "tf222-systemDark-appLight-encontro.png")
+        Self.writeArtifact(snapshot, name: "tf222-systemDark-appLight-encontro.png", into: self)
         let attachmentShot = try XCTUnwrap(header.image)
-        Self.writeArtifact(attachmentShot, name: "tf222-speaker-header-light.png")
+        Self.writeArtifact(attachmentShot, name: "tf222-speaker-header-light.png", into: self)
 
         // Pixel assert on the full editor snapshot near the speaker row (below title).
         let snapLuma = Self.sampleLuma(in: snapshot, normalizedX: 0.22, normalizedY: 0.16)
@@ -216,7 +216,7 @@ final class NativeNoteEditorTF222Tests: XCTestCase {
         }
         XCTAssertLessThan(luma, 0.45, "system Light + app Light name must be dark (luma=\(luma))")
         if let snap = Self.renderSnapshot(of: host.view, size: CGSize(width: 390, height: 844)) {
-            Self.writeArtifact(snap, name: "tf222-systemLight-appLight-encontro.png")
+            Self.writeArtifact(snap, name: "tf222-systemLight-appLight-encontro.png", into: self)
         }
         window.isHidden = true
     }
@@ -235,32 +235,19 @@ final class NativeNoteEditorTF222Tests: XCTestCase {
         }
     }
 
-    private static func writeArtifact(_ image: UIImage, name: String) {
+    private static func writeArtifact(_ image: UIImage, name: String, into test: XCTestCase) {
         guard let data = image.pngData() else { return }
-        let roots: [URL] = {
-            var urls: [URL] = []
-            if let ws = ProcessInfo.processInfo.environment["GITHUB_WORKSPACE"], !ws.isEmpty {
-                urls.append(URL(fileURLWithPath: ws).appendingPathComponent("artifacts", isDirectory: true))
-            }
-            urls.append(URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("artifacts", isDirectory: true))
-            urls.append(FileManager.default.temporaryDirectory.appendingPathComponent("verse2note-tf222", isDirectory: true))
-            return urls
-        }()
-        for dir in roots {
-            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            let url = dir.appendingPathComponent(name)
-            do {
-                try data.write(to: url, options: .atomic)
-                let attachment = XCTAttachment(contentsOfFile: url)
-                attachment.name = name
-                attachment.lifetime = .keepAlways
-                // Attach to the running test via Thread dictionary is awkward; write path is enough for CI upload.
-                NSLog("TF222 artifact written: %@", url.path)
-                break
-            } catch {
-                continue
-            }
-        }
+        let xct = XCTAttachment(data: data, uniformityTypeIdentifier: "public.png")
+        xct.name = name
+        xct.lifetime = .keepAlways
+        test.add(xct)
+
+        // Also dump under the Simulator app tmp so the workflow can harvest with `find`.
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("verse2note-tf222", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let url = dir.appendingPathComponent(name)
+        try? data.write(to: url, options: .atomic)
+        NSLog("TF222 artifact written: %@", url.path)
     }
 
     private static func sampleLuma(in image: UIImage, normalizedX: CGFloat, normalizedY: CGFloat) -> CGFloat? {
