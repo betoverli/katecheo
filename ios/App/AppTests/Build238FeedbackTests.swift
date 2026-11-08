@@ -330,7 +330,7 @@ final class Build238FeedbackTests: XCTestCase {
             tabs.overrideUserInterfaceStyle = style
             tabs.loadViewIfNeeded()
             V2NActivityStore.ingestGroupActivity(groupId: "g-snap")
-            V2NActivityStore.upsert(kind: .readingDue, targetId: "plan-snap")
+            V2NActivityStore.upsert(kind: .readingDue, targetId: "plan-snap", source: .local)
             V2NActivityStore.ingestFriendPending()
             tabs.view.layoutIfNeeded()
             if let snap = Self.render(tabs.view, size: CGSize(width: 390, height: 844)) {
