@@ -154,7 +154,11 @@ final class SpeakerPickerViewController: UIViewController, UITableViewDelegate, 
     ) -> UISwipeActionsConfiguration? {
         guard case .manage = mode else { return nil }
         let speaker = speakers[indexPath.row]
-        let delete = UIContextualAction(style: .destructive, title: String(localized: "Excluir")) { [weak self] _, _, done in
+        let delete = UIContextualAction.v2nIconOnly(
+            style: .destructive,
+            systemName: "trash",
+            accessibilityLabel: String(localized: "Excluir")
+        ) { [weak self] _, _, done in
             Task { @MainActor in
                 do {
                     try await NativeAPIClient.deleteSpeaker(id: speaker.id)

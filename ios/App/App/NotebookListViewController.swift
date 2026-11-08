@@ -1,6 +1,6 @@
 import UIKit
 
-/// Phase 1 native notebook list: search, swipe share/delete, compose.
+/// Phase 1 native notebook list: search, icon-only swipe share/delete, compose.
 /// Phase 2 also reuses this screen for a group's notes (`group` scope).
 final class NotebookListViewController: UIViewController, UITableViewDelegate, UITableViewDataSource, UISearchResultsUpdating {
     private let tableView = UITableView(frame: .zero, style: .insetGrouped)
@@ -422,17 +422,23 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
         if isGroupMode {
             let card = filteredCards[indexPath.row]
             guard card.owned || group?.isAdmin == true else { return nil }
-            let remove = UIContextualAction(style: .destructive, title: String(localized: "Retirar")) { [weak self] _, _, done in
+            let remove = UIContextualAction.v2nIconOnly(
+                style: .destructive,
+                systemName: "folder.badge.minus",
+                accessibilityLabel: String(localized: "Retirar")
+            ) { [weak self] _, _, done in
                 self?.confirmUnpublish(card) { done($0) }
             }
-            remove.image = UIImage(systemName: "folder.badge.minus")
             return UISwipeActionsConfiguration(actions: [remove])
         }
         let note = filtered[indexPath.row]
-        let delete = UIContextualAction(style: .destructive, title: String(localized: "Excluir")) { [weak self] _, _, done in
+        let delete = UIContextualAction.v2nIconOnly(
+            style: .destructive,
+            systemName: "trash",
+            accessibilityLabel: String(localized: "Excluir")
+        ) { [weak self] _, _, done in
             self?.confirmDelete(note) { done($0) }
         }
-        delete.image = UIImage(systemName: "trash")
         return UISwipeActionsConfiguration(actions: [delete])
     }
 
@@ -442,21 +448,27 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     ) -> UISwipeActionsConfiguration? {
         if isGroupMode {
             guard let doc = filteredCards[indexPath.row].document else { return nil }
-            let share = UIContextualAction(style: .normal, title: String(localized: "Compartilhar")) { [weak self] _, view, done in
+            let share = UIContextualAction.v2nIconOnly(
+                style: .normal,
+                systemName: "square.and.arrow.up",
+                accessibilityLabel: String(localized: "Compartilhar"),
+                backgroundColor: V2NDesign.bookmark
+            ) { [weak self] _, view, done in
                 self?.share(doc, from: view)
                 done(true)
             }
-            share.image = UIImage(systemName: "square.and.arrow.up")
-            share.backgroundColor = V2NDesign.bookmark
             return UISwipeActionsConfiguration(actions: [share])
         }
         let note = filtered[indexPath.row]
-        let share = UIContextualAction(style: .normal, title: String(localized: "Compartilhar")) { [weak self] _, view, done in
+        let share = UIContextualAction.v2nIconOnly(
+            style: .normal,
+            systemName: "square.and.arrow.up",
+            accessibilityLabel: String(localized: "Compartilhar"),
+            backgroundColor: V2NDesign.bookmark
+        ) { [weak self] _, view, done in
             self?.share(note, from: view)
             done(true)
         }
-        share.image = UIImage(systemName: "square.and.arrow.up")
-        share.backgroundColor = V2NDesign.bookmark
         return UISwipeActionsConfiguration(actions: [share])
     }
 

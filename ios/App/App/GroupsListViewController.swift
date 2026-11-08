@@ -201,12 +201,20 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
     ) -> UISwipeActionsConfiguration? {
         let group = filtered[indexPath.row]
         guard group.isAdmin else { return nil }
-        let rename = UIContextualAction(style: .normal, title: String(localized: "Renomear")) { [weak self] _, _, done in
+        let rename = UIContextualAction.v2nIconOnly(
+            style: .normal,
+            systemName: "pencil",
+            accessibilityLabel: String(localized: "Renomear"),
+            backgroundColor: V2NDesign.accent
+        ) { [weak self] _, _, done in
             self?.promptRename(group)
             done(true)
         }
-        rename.backgroundColor = V2NDesign.accent
-        let delete = UIContextualAction(style: .destructive, title: String(localized: "Excluir")) { [weak self] _, _, done in
+        let delete = UIContextualAction.v2nIconOnly(
+            style: .destructive,
+            systemName: "trash",
+            accessibilityLabel: String(localized: "Excluir")
+        ) { [weak self] _, _, done in
             self?.confirmDelete(group) { done($0) }
         }
         return UISwipeActionsConfiguration(actions: [delete, rename])

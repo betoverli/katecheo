@@ -12,6 +12,7 @@
 		TATF22222FED7965001685TA /* NativeNoteEditorTF222Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TATF22221FED7965001685TA /* NativeNoteEditorTF222Tests.swift */; };
 		T9APPAPP2FED7965001685T9 /* AppAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = T9APPAPP1FED7965001685T9 /* AppAppearance.swift */; };
 		T8SCROLL2FED7965001685T8 /* V2NScrollChromeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T8SCROLL1FED7965001685T8 /* V2NScrollChromeTests.swift */; };
+		TBSWIPE2FED7965001685TB /* V2NSwipeActionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TBSWIPE1FED7965001685TB /* V2NSwipeActionTests.swift */; };
 		T7TF21022FED7965001685T7 /* NativeNoteEditorTF210Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T7TF21021FED7965001685T7 /* NativeNoteEditorTF210Tests.swift */; };
 		T7TAGS12FED7965001685T7 /* NoteEditorTagsStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = T7TAGS11FED7965001685T7 /* NoteEditorTagsStrip.swift */; };
 		T1A2B0102FED7965001685T1 /* NoteDocumentCodecTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T1A2B0112FED7965001685T1 /* NoteDocumentCodecTests.swift */; };
@@ -130,6 +131,7 @@
 		T7TF21021FED7965001685T7 /* NativeNoteEditorTF210Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeNoteEditorTF210Tests.swift; sourceTree = "<group>"; };
 		T8TF21421FED7965001685T8 /* NativeNoteEditorTF214Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeNoteEditorTF214Tests.swift; sourceTree = "<group>"; };
 		T8SCROLL1FED7965001685T8 /* V2NScrollChromeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2NScrollChromeTests.swift; sourceTree = "<group>"; };
+		TBSWIPE1FED7965001685TB /* V2NSwipeActionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2NSwipeActionTests.swift; sourceTree = "<group>"; };
 		T7TAGS11FED7965001685T7 /* NoteEditorTagsStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteEditorTagsStrip.swift; sourceTree = "<group>"; };
 		T1A2B0142FED7965001685T1 /* AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -242,6 +244,7 @@
 				T9TF21921FED7965001685T9 /* NativeNoteEditorTF219Tests.swift */,
 				TATF22221FED7965001685TA /* NativeNoteEditorTF222Tests.swift */,
 				T8SCROLL1FED7965001685T8 /* V2NScrollChromeTests.swift */,
+				TBSWIPE1FED7965001685TB /* V2NSwipeActionTests.swift */,
 			);
 			path = AppTests;
 			sourceTree = "<group>";
@@ -435,6 +438,7 @@
 				T9TF21922FED7965001685T9 /* NativeNoteEditorTF219Tests.swift in Sources */,
 				TATF22222FED7965001685TA /* NativeNoteEditorTF222Tests.swift in Sources */,
 				T8SCROLL2FED7965001685T8 /* V2NScrollChromeTests.swift in Sources */,
+				TBSWIPE2FED7965001685TB /* V2NSwipeActionTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
