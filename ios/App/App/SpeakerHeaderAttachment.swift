@@ -7,8 +7,10 @@ import UIKit
 /// - × → delete section
 /// - name / remaining header → rename via speaker picker
 ///
-/// Colors are flattened to concrete RGB under an explicit trait collection and baked
-/// into `alwaysOriginal` images. Re-call `refreshImage` when appearance changes (TF214/TF219).
+/// Colors are **hard RGB** for the requested interface style (never dynamic label colors),
+/// baked into `.alwaysOriginal` images. `attachmentBounds` must **not** re-bake from
+/// ambient process traits — TextKit layout can run under system Dark while the window
+/// override is Light, which previously stamped white names onto beige (TF222).
 final class SpeakerHeaderAttachment: NSTextAttachment {
     enum Hit: Equatable {
         case toggleCollapse
@@ -27,7 +29,7 @@ final class SpeakerHeaderAttachment: NSTextAttachment {
     private(set) var chevronEndX: CGFloat = 0.12
     private(set) var removeStartX: CGFloat = 0.88
 
-    /// Last traits / width used to bake `image` — drives dirty checks.
+    /// Last style / width used to bake `image` — drives dirty checks.
     private(set) var renderedInterfaceStyle: UIUserInterfaceStyle = .unspecified
     private(set) var renderedWidth: CGFloat = 0
 
@@ -46,12 +48,9 @@ final class SpeakerHeaderAttachment: NSTextAttachment {
         self.collapsed = collapsed
         self.preview = preview
         super.init(data: nil, ofType: nil)
-        // Prefer light as a safe default when no window traits exist yet (decode / tests).
-        let seed = UITraitCollection(traitsFrom: [
-            UITraitCollection.current,
-            UITraitCollection(userInterfaceStyle: .light),
-        ])
-        refreshImage(width: 320, traits: seed)
+        // Seed from Appearance (falls back to light) — decode often runs before the window exists.
+        let seed = Self.resolvedBakeStyle(preferred: .unspecified)
+        refreshImage(width: 320, traits: Self.bakeTraits(style: seed))
     }
 
     @available(*, unavailable)
@@ -64,13 +63,12 @@ final class SpeakerHeaderAttachment: NSTextAttachment {
         characterIndex charIndex: Int
     ) -> CGRect {
         let width = max(lineFrag.width, textContainer?.size.width ?? 300, 120)
-        // Prefer ambient traits here; NativeNoteEditorView also refreshes with textView.traitCollection.
-        let traits = UITraitCollection.current
-        let style = traits.userInterfaceStyle
         let widthDirty = abs(renderedWidth - width) > 1
-        let styleDirty = renderedInterfaceStyle != style && style != .unspecified
-        if widthDirty || styleDirty || image == nil {
-            refreshImage(width: width, traits: traits)
+        if widthDirty || image == nil {
+            // Resize only — keep the last explicit style. Never consult ambient process traits
+            // (system Dark + app Light made names white on device; TF214/TF219 tests missed it).
+            let style = Self.resolvedBakeStyle(preferred: renderedInterfaceStyle)
+            refreshImage(width: width, traits: Self.bakeTraits(style: style))
         }
         let height = image?.size.height ?? 36
         return CGRect(x: 0, y: -6, width: width, height: height)
@@ -84,26 +82,21 @@ final class SpeakerHeaderAttachment: NSTextAttachment {
         return .rename
     }
 
-    /// Rebuild the chrome image with colors resolved for `traits`.
+    /// Rebuild the chrome image with hard RGB for `traits.userInterfaceStyle`.
     func refreshImage(width: CGFloat, traits: UITraitCollection = .current) {
         let w = max(width, 120)
-        // ≥44pt tall so the × hit box meets HIG without enlarging the glyph.
+        let style = Self.resolvedBakeStyle(preferred: traits.userInterfaceStyle)
         let height: CGFloat = 44
         let nameFont = V2NDesign.preferred(.title3, weight: .semibold)
         let previewFont = V2NDesign.preferred(.caption1, weight: .regular)
-        // Flatten dynamic colors under the requested traits so UIGraphicsImageRenderer
-        // cannot re-resolve against ambient (often dark) traits during draw (TF219).
-        let nameColor = Self.concreteColor(UIColor.label, traits: traits)
-        let muted = Self.concreteColor(UIColor.secondaryLabel, traits: traits)
+        let (nameColor, muted) = Self.palette(for: style)
         let name = speakerName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             ? String(localized: "Speaker")
             : speakerName
 
         let chevronSize: CGFloat = 10
-        // Visual × column stays ~36pt; hit zone is ≥44pt (web `.note-speaker-remove` 2.75rem).
         let removeVisualSize: CGFloat = 36
         let removeHitSize: CGFloat = 44
-        // Nudge chevron + name further left (TF194 #5) — web chevron margin ~0.2rem.
         let padL: CGFloat = 4
         let gap: CGFloat = 8
 
@@ -113,12 +106,14 @@ final class SpeakerHeaderAttachment: NSTextAttachment {
         let format = UIGraphicsImageRendererFormat()
         format.opaque = false
         format.scale = traits.displayScale > 0 ? traits.displayScale : UIScreen.main.scale
+        // Prefer the requested style even if the process-wide current traits are Dark.
+        format.preferredRange = .standard
 
+        let bakeTraits = Self.bakeTraits(style: style, scale: format.scale)
         var baked: UIImage!
-        traits.performAsCurrent {
+        bakeTraits.performAsCurrent {
             let renderer = UIGraphicsImageRenderer(size: CGSize(width: w, height: height), format: format)
             baked = renderer.image { _ in
-                // Chevron (CSS-like rotated square borders).
                 let chevronCenter = CGPoint(x: padL + chevronSize / 2, y: height / 2)
                 let path = UIBezierPath()
                 let arm: CGFloat = 4.5
@@ -204,48 +199,76 @@ final class SpeakerHeaderAttachment: NSTextAttachment {
         image = baked.withRenderingMode(.alwaysOriginal)
         bounds = CGRect(x: 0, y: -8, width: w, height: height)
         renderedWidth = w
-        renderedInterfaceStyle = traits.userInterfaceStyle
+        renderedInterfaceStyle = style
     }
 
-    /// Snapshot a dynamic color to concrete RGB under `traits` (survives later draw contexts).
-    static func concreteColor(_ color: UIColor, traits: UITraitCollection) -> UIColor {
-        let resolved = color.resolvedColor(with: traits)
-        var r: CGFloat = 0
-        var g: CGFloat = 0
-        var b: CGFloat = 0
-        var a: CGFloat = 0
-        if resolved.getRed(&r, green: &g, blue: &b, alpha: &a) {
-            return UIColor(red: r, green: g, blue: b, alpha: a)
+    /// Hard RGB — never dynamic label/secondary colors (those re-resolve under ambient traits).
+    static func palette(for style: UIUserInterfaceStyle) -> (name: UIColor, muted: UIColor) {
+        switch style {
+        case .dark:
+            return (
+                UIColor(red: 0.96, green: 0.95, blue: 0.93, alpha: 1),
+                UIColor(red: 0.72, green: 0.70, blue: 0.66, alpha: 1)
+            )
+        default:
+            // Near-black on beige canvas (#F5EDE0) — matches body/title contrast.
+            return (
+                UIColor(red: 0.14, green: 0.12, blue: 0.10, alpha: 1),
+                UIColor(red: 0.45, green: 0.40, blue: 0.35, alpha: 1)
+            )
         }
-        // Fallback for grayscale / pattern colors.
-        var white: CGFloat = 0
-        if resolved.getWhite(&white, alpha: &a) {
-            return UIColor(white: white, alpha: a)
-        }
-        return resolved
+    }
+
+    static func bakeTraits(style: UIUserInterfaceStyle, scale: CGFloat = UIScreen.main.scale) -> UITraitCollection {
+        UITraitCollection(traitsFrom: [
+            UITraitCollection(userInterfaceStyle: style),
+            UITraitCollection(displayScale: scale > 0 ? scale : 2),
+        ])
+    }
+
+    static func resolvedBakeStyle(preferred: UIUserInterfaceStyle) -> UIUserInterfaceStyle {
+        if preferred == .light || preferred == .dark { return preferred }
+        let fromApp = AppAppearance.style(forTheme: AppAppearance.storedTheme)
+        if fromApp == .light || fromApp == .dark { return fromApp }
+        return .light
     }
 
     /// Luminance of an opaque name-area pixel (0…1). Used by AppTests.
+    /// Reads via a known RGBA bitmap so channel order cannot lie about white-vs-black.
     func testing_namePixelLuminance() -> CGFloat? {
-        guard let image, let cg = image.cgImage else { return nil }
-        let w = cg.width
-        let h = cg.height
-        guard w > 8, h > 8 else { return nil }
-        guard let data = cg.dataProvider?.data,
-              let ptr = CFDataGetBytePtr(data)
-        else { return nil }
-        let bpp = max(cg.bitsPerPixel / 8, 4)
+        guard let image else { return nil }
+        let size = CGSize(width: max(image.size.width, 1), height: max(image.size.height, 1))
+        let w = max(Int(size.width * image.scale), 8)
+        let h = max(Int(size.height * image.scale), 8)
+        var data = [UInt8](repeating: 0, count: w * h * 4)
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let bitmapInfo = CGBitmapInfo.byteOrder32Big.union(CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue))
+        guard let ctx = CGContext(
+            data: &data,
+            width: w,
+            height: h,
+            bitsPerComponent: 8,
+            bytesPerRow: w * 4,
+            space: colorSpace,
+            bitmapInfo: bitmapInfo.rawValue
+        ) else { return nil }
+        ctx.draw(image.cgImage!, in: CGRect(x: 0, y: 0, width: w, height: h))
         let y = h / 2
         let startX = Int(CGFloat(w) * 0.08)
         let endX = Int(CGFloat(w) * 0.55)
         for x in startX..<min(endX, w) {
-            let idx = (y * cg.bytesPerRow) + x * bpp
-            let a = bpp >= 4 ? Int(ptr[idx + 3]) : 255
+            let idx = (y * w + x) * 4
+            let a = Int(data[idx + 3])
             if a < 80 { continue }
-            let r = CGFloat(ptr[idx]) / 255
-            let g = CGFloat(ptr[idx + 1]) / 255
-            let b = CGFloat(ptr[idx + 2]) / 255
-            return 0.2126 * r + 0.7152 * g + 0.0722 * b
+            let r = CGFloat(data[idx]) / 255
+            let g = CGFloat(data[idx + 1]) / 255
+            let b = CGFloat(data[idx + 2]) / 255
+            // Un-premultiply roughly for luma.
+            let invA = a > 0 ? 255.0 / CGFloat(a) : 1
+            let ur = min(1, r * invA)
+            let ug = min(1, g * invA)
+            let ub = min(1, b * invA)
+            return 0.2126 * ur + 0.7152 * ug + 0.0722 * ub
         }
         return nil
     }

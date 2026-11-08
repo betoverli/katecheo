@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		T8TF21422FED7965001685T8 /* NativeNoteEditorTF214Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T8TF21421FED7965001685T8 /* NativeNoteEditorTF214Tests.swift */; };
 		T9TF21922FED7965001685T9 /* NativeNoteEditorTF219Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T9TF21921FED7965001685T9 /* NativeNoteEditorTF219Tests.swift */; };
+		TATF22222FED7965001685TA /* NativeNoteEditorTF222Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TATF22221FED7965001685TA /* NativeNoteEditorTF222Tests.swift */; };
 		T9APPAPP2FED7965001685T9 /* AppAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = T9APPAPP1FED7965001685T9 /* AppAppearance.swift */; };
 		T8SCROLL2FED7965001685T8 /* V2NScrollChromeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T8SCROLL1FED7965001685T8 /* V2NScrollChromeTests.swift */; };
 		T7TF21022FED7965001685T7 /* NativeNoteEditorTF210Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T7TF21021FED7965001685T7 /* NativeNoteEditorTF210Tests.swift */; };
@@ -79,6 +80,7 @@
 		T4HEAD11FED7965001685T4 /* SpeakerHeaderAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerHeaderAttachment.swift; sourceTree = "<group>"; };
 		T9APPAPP1FED7965001685T9 /* AppAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAppearance.swift; sourceTree = "<group>"; };
 		T9TF21921FED7965001685T9 /* NativeNoteEditorTF219Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeNoteEditorTF219Tests.swift; sourceTree = "<group>"; };
+		TATF22221FED7965001685TA /* NativeNoteEditorTF222Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeNoteEditorTF222Tests.swift; sourceTree = "<group>"; };
 		T5SHEET11FED7965001685T5 /* V2NSheetPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2NSheetPresenter.swift; sourceTree = "<group>"; };
 		504EC3111FED79650016851F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		504EC3131FED79650016851F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -238,6 +240,7 @@
 				T7TF21021FED7965001685T7 /* NativeNoteEditorTF210Tests.swift */,
 				T8TF21421FED7965001685T8 /* NativeNoteEditorTF214Tests.swift */,
 				T9TF21921FED7965001685T9 /* NativeNoteEditorTF219Tests.swift */,
+				TATF22221FED7965001685TA /* NativeNoteEditorTF222Tests.swift */,
 				T8SCROLL1FED7965001685T8 /* V2NScrollChromeTests.swift */,
 			);
 			path = AppTests;
@@ -430,6 +433,7 @@
 				T7TF21022FED7965001685T7 /* NativeNoteEditorTF210Tests.swift in Sources */,
 				T8TF21422FED7965001685T8 /* NativeNoteEditorTF214Tests.swift in Sources */,
 				T9TF21922FED7965001685T9 /* NativeNoteEditorTF219Tests.swift in Sources */,
+				TATF22222FED7965001685TA /* NativeNoteEditorTF222Tests.swift in Sources */,
 				T8SCROLL2FED7965001685T8 /* V2NScrollChromeTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
