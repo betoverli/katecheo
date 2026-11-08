@@ -584,11 +584,8 @@ export function documentPreview(doc: NoteDocumentV1, maxLen = 160): string {
 function spansToPlain(spans: NoteDocSpan[]): string {
   return spans
     .map((span) => {
-      if (span.type === "bibleRef") {
-        if (span.text?.trim()) return span.text.trim();
-        const verse = span.verseStart != null ? `:${span.verseStart}` : "";
-        return `${span.bookId} ${span.chapter}${verse}`;
-      }
+      // List/Caderno preview: plain body only — never surface bibleRef pills.
+      if (span.type === "bibleRef") return "";
       if (span.type === "link") return span.text || span.href;
       return span.text;
     })

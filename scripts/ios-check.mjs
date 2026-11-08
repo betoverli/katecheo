@@ -180,22 +180,29 @@ if (!editor.includes("inputAccessoryView") || !editor.includes("Referência bíb
 if (!editor.includes("setEditingChrome") || !editor.includes("textViewDidBeginEditing")) {
   errors.push("Toolbar de formatação só depois de entrar em modo edição.");
 }
-// TF200: inline @/ popovers removed — triggers open the same full screens as the toolbar.
+// TF200/TF210: inline @/ popovers gone; TF210 also removes typing shortcuts.
 if (
   editor.includes("NoteEditorTriggerMenuView") ||
   editor.includes("repositionTriggerMenuIfNeeded") ||
   editor.includes("showAtMenu") ||
   editor.includes("presentTriggerMenu")
 ) {
-  errors.push("Remova o popup inline @/ (NoteEditorTriggerMenuView) — @ e / abrem ecrãs completos.");
+  errors.push("Remova o popup inline @/ (NoteEditorTriggerMenuView).");
 }
-if (
-  !editor.includes('text == "@"') ||
-  !editor.includes('text == "/"') ||
-  !editor.includes("presentSpeakerPicker()") ||
-  !editor.includes("presentBibleRefPicker()")
-) {
-  errors.push("@ e / têm de abrir o ecrã completo de speaker / referência (sem inserir o caractere).");
+if (editor.includes('text == "@"') || editor.includes('text == "/"')) {
+  errors.push("TF210: @ e / não abrem sheets — só inserem o caractere (usar toolbar).");
+}
+if (!editor.includes("presentSpeakerPicker()") || !editor.includes("presentBibleRefPicker()")) {
+  errors.push("Toolbar tem de abrir speaker / referência (presentSpeakerPicker / presentBibleRefPicker).");
+}
+if (!editor.includes("NoteEditorTagsStrip") || !editor.includes("bodyHasVisibleContent") || !editor.includes("refreshEditingChrome")) {
+  errors.push("TF210: tags sob o título, placeholder por attachments, toolbar escondida no título/tags.");
+}
+if (editor.includes("case .undo") || editor.includes("arrow.uturn.backward") || editor.includes("arrow.uturn.forward")) {
+  errors.push("TF210: remova undo/redo da toolbar de formatação.");
+}
+if (!editor.includes('("person.wave.2", .speaker') || !editor.includes('("book", .bibleRef')) {
+  errors.push("TF210: speaker e referência têm de ser os primeiros botões da toolbar.");
 }
 if (!editor.includes("keyboardOverlap")) {
   errors.push("NativeNoteEditorView tem de acompanhar o teclado (keyboardOverlap).");
@@ -280,6 +287,33 @@ if (!project.includes("NativeNoteEditorTF194Tests.swift in Sources")) {
 }
 if (!project.includes("NativeNoteEditorTF200Tests.swift in Sources")) {
   errors.push("AppTests TF200 (NativeNoteEditorTF200Tests) têm de estar no target.");
+}
+if (!project.includes("NativeNoteEditorTF210Tests.swift in Sources")) {
+  errors.push("AppTests TF210 (NativeNoteEditorTF210Tests) têm de estar no target.");
+}
+if (!project.includes("NoteEditorTagsStrip.swift in Sources")) {
+  errors.push("NoteEditorTagsStrip tem de estar no target App.");
+}
+try {
+  const settings = read("ios/App/App/NoteSettingsViewController.swift");
+  if (settings.includes('String(localized: "Tags")') || settings.includes("tagField") || settings.includes("addTag")) {
+    errors.push("TF210: tags saíram das Configurações (ficam sob o título no editor).");
+  }
+} catch {
+  errors.push("Falta NoteSettingsViewController.swift");
+}
+if (!codec.includes("listMarkerWidth") || !codec.includes("titleTagsReservedSpacing")) {
+  errors.push("NoteDocumentCodec tem de medir a largura do marcador da lista e reservar espaço para tags.");
+}
+try {
+  const api = read("ios/App/App/NativeAPIClient.swift");
+  const spanIdx = api.indexOf("private func spanText");
+  const spanText = spanIdx >= 0 ? api.slice(spanIdx, spanIdx + 450) : "";
+  if (!spanText.includes('span.type == "bibleRef"') || !spanText.includes("return nil")) {
+    errors.push("NativeAPIClient.preview/spanText tem de saltar bibleRef (só texto plano).");
+  }
+} catch {
+  errors.push("Falta NativeAPIClient.swift");
 }
 try {
   const cache = read("ios/App/App/LocalNoteCache.swift");

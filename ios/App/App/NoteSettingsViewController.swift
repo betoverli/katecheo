@@ -1,6 +1,6 @@
 import UIKit
 
-/// Native note settings: title, date, tags, whole-note speaker.
+/// Native note settings: title, date, whole-note speaker (tags live under the title in the editor).
 final class NoteSettingsViewController: UIViewController, UITableViewDelegate, UITableViewDataSource {
     private var note: NativeAPIClient.NoteDocument
     private let speakers: [NativeAPIClient.SpeakerDTO]
@@ -8,7 +8,6 @@ final class NoteSettingsViewController: UIViewController, UITableViewDelegate, U
     private let table = UITableView(frame: .zero, style: .insetGrouped)
     private let titleField = UITextField()
     private let datePicker = UIDatePicker()
-    private let tagField = UITextField()
 
     init(note: NativeAPIClient.NoteDocument, speakers: [NativeAPIClient.SpeakerDTO], onSave: @escaping (NativeAPIClient.NoteDocument) -> Void) {
         self.note = note
@@ -42,12 +41,6 @@ final class NoteSettingsViewController: UIViewController, UITableViewDelegate, U
             datePicker.date = date
         }
 
-        tagField.placeholder = String(localized: "Tag")
-        tagField.borderStyle = .roundedRect
-        tagField.autocapitalizationType = .none
-        tagField.returnKeyType = .done
-        tagField.addTarget(self, action: #selector(addTag), for: .editingDidEndOnExit)
-
         table.translatesAutoresizingMaskIntoConstraints = false
         V2NChrome.styleGroupedTable(table)
         table.delegate = self
@@ -79,23 +72,12 @@ final class NoteSettingsViewController: UIViewController, UITableViewDelegate, U
         dismiss(animated: true)
     }
 
-    @objc private func addTag() {
-        let raw = (tagField.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-            .replacingOccurrences(of: "#", with: "")
-        guard !raw.isEmpty else { return }
-        let tag = String(raw.prefix(24))
-        if !note.tags.contains(tag) { note.tags.append(tag) }
-        tagField.text = ""
-        table.reloadSections(IndexSet(integer: 2), with: .automatic)
-    }
-
-    func numberOfSections(in tableView: UITableView) -> Int { 4 }
+    func numberOfSections(in tableView: UITableView) -> Int { 3 }
 
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         switch section {
         case 0, 1: return 1
-        case 2: return note.tags.count + 1 // tags + add row
-        case 3: return speakers.count + 1 // none + speakers
+        case 2: return speakers.count + 1 // none + speakers
         default: return 0
         }
     }
@@ -104,8 +86,7 @@ final class NoteSettingsViewController: UIViewController, UITableViewDelegate, U
         switch section {
         case 0: return String(localized: "Título")
         case 1: return String(localized: "Data")
-        case 2: return String(localized: "Tags")
-        case 3: return String(localized: "Speaker da nota")
+        case 2: return String(localized: "Speaker da nota")
         default: return nil
         }
     }
@@ -132,20 +113,6 @@ final class NoteSettingsViewController: UIViewController, UITableViewDelegate, U
                 cell.contentView.heightAnchor.constraint(greaterThanOrEqualToConstant: 44),
             ])
         case 2:
-            if indexPath.row < note.tags.count {
-                var config = cell.defaultContentConfiguration()
-                config.text = "#\(note.tags[indexPath.row])"
-                config.secondaryText = String(localized: "Toque para remover")
-                cell.contentConfiguration = config
-            } else {
-                cell.selectionStyle = .none
-                embed(tagField, in: cell)
-                let add = UIButton(type: .system)
-                add.setTitle("＋", for: .normal)
-                add.addTarget(self, action: #selector(addTag), for: .touchUpInside)
-                cell.accessoryView = add
-            }
-        case 3:
             if indexPath.row == 0 {
                 var config = cell.defaultContentConfiguration()
                 config.text = String(localized: "Nenhum")
@@ -177,13 +144,9 @@ final class NoteSettingsViewController: UIViewController, UITableViewDelegate, U
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
-        if indexPath.section == 2, indexPath.row < note.tags.count {
-            note.tags.remove(at: indexPath.row)
-            tableView.reloadSections(IndexSet(integer: 2), with: .automatic)
-        }
-        if indexPath.section == 3 {
+        if indexPath.section == 2 {
             note.noteSpeakerId = indexPath.row == 0 ? nil : speakers[indexPath.row - 1].id
-            tableView.reloadSections(IndexSet(integer: 3), with: .none)
+            tableView.reloadSections(IndexSet(integer: 2), with: .none)
         }
     }
 }

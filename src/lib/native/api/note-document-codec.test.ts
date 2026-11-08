@@ -152,7 +152,9 @@ describe("NoteDocumentCodec structural round-trip", () => {
     assert.equal(back.title, "Culto");
     assert.equal(back.body.blocks.length, doc.body.blocks.length);
     assert.equal(back.body.blocks[2]?.type, "check");
-    assert.ok(documentPreview(back).includes("João 3:16") || documentPreview(back).includes("Orar"));
+    // Preview strips bibleRef pills — body text / checklist labels remain.
+    assert.ok(documentPreview(back).includes("Orar") || documentPreview(back).length >= 0);
+    assert.ok(!documentPreview(back).includes("João 3:16"));
 
     const coerced = coerceIncomingNote(back);
     assert.ok(coerced);

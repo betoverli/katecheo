@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		T7TF21022FED7965001685T7 /* NativeNoteEditorTF210Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T7TF21021FED7965001685T7 /* NativeNoteEditorTF210Tests.swift */; };
+		T7TAGS12FED7965001685T7 /* NoteEditorTagsStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = T7TAGS11FED7965001685T7 /* NoteEditorTagsStrip.swift */; };
 		T1A2B0102FED7965001685T1 /* NoteDocumentCodecTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T1A2B0112FED7965001685T1 /* NoteDocumentCodecTests.swift */; };
 		T1A2B0122FED7965001685T1 /* SpeakerEnterDecisionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T1A2B0132FED7965001685T1 /* SpeakerEnterDecisionTests.swift */; };
 		T2SPEAK22FED7965001685T2 /* SpeakerSectionEditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T2SPEAK21FED7965001685T2 /* SpeakerSectionEditingTests.swift */; };

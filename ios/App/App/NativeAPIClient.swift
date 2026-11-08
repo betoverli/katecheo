@@ -101,14 +101,11 @@ enum NativeAPIClient {
         }
 
         private func spanText(_ spans: [TextSpan]?) -> String {
-            (spans ?? []).map { span in
-                if span.type == "bibleRef" {
-                    let book = span.bookId ?? "?"
-                    let ch = span.chapter.map(String.init) ?? "?"
-                    if let v = span.verseStart { return "\(book) \(ch):\(v)" }
-                    return "\(book) \(ch)"
-                }
-                return span.text ?? ""
+            // Caderno preview: plain body text only — strip reference pills (TF210).
+            (spans ?? []).compactMap { span in
+                if span.type == "bibleRef" { return nil }
+                let text = span.text ?? ""
+                return text.isEmpty ? nil : text
             }.joined()
         }
     }
