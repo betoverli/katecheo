@@ -25,28 +25,33 @@ final class Build234FeedbackTests: XCTestCase {
             AppAppearance.apply(to: window)
             window.rootViewController = nav
             window.makeKeyAndVisible()
+            nav.overrideUserInterfaceStyle = style
+            detail.overrideUserInterfaceStyle = style
             detail.loadViewIfNeeded()
             detail.viewWillAppear(false)
+            detail.view.setNeedsLayout()
             detail.view.layoutIfNeeded()
+            nav.view.layoutIfNeeded()
 
-            let expected = V2NDesign.canvas.resolvedColor(with: UITraitCollection(userInterfaceStyle: style))
+            let traits = UITraitCollection(userInterfaceStyle: style)
+            let expected = V2NDesign.canvas.resolvedColor(with: traits)
             assertColor(
-                detail.view.backgroundColor?.resolvedColor(with: detail.traitCollection),
+                detail.view.backgroundColor?.resolvedColor(with: traits),
                 equals: expected,
                 label: "note view \(theme)"
             )
             assertColor(
-                nav.navigationBar.standardAppearance.backgroundColor?.resolvedColor(with: nav.traitCollection),
+                nav.navigationBar.standardAppearance.backgroundColor?.resolvedColor(with: traits),
                 equals: expected,
                 label: "note nav standard \(theme)"
             )
             assertColor(
-                nav.navigationBar.scrollEdgeAppearance?.backgroundColor?.resolvedColor(with: nav.traitCollection),
+                nav.navigationBar.scrollEdgeAppearance?.backgroundColor?.resolvedColor(with: traits),
                 equals: expected,
                 label: "note nav scrollEdge \(theme)"
             )
             assertColor(
-                nav.navigationBar.compactAppearance?.backgroundColor?.resolvedColor(with: nav.traitCollection),
+                nav.navigationBar.compactAppearance?.backgroundColor?.resolvedColor(with: traits),
                 equals: expected,
                 label: "note nav compact \(theme)"
             )
@@ -296,24 +301,29 @@ final class Build234FeedbackTests: XCTestCase {
                 AppAppearance.apply(to: window)
                 window.rootViewController = nav
                 window.makeKeyAndVisible()
+                nav.overrideUserInterfaceStyle = style
+                root.overrideUserInterfaceStyle = style
                 root.loadViewIfNeeded()
                 if let tableVC = root as? UITableViewController {
                     tableVC.v2nApplyGroupedChrome()
-                } else if let navBar = root.navigationController?.navigationBar {
-                    if name == "bible" || name == "signin" || name == "speakers" || name == "root" {
-                        V2NChrome.applyNavigationBarAppearance(to: navBar)
-                    }
+                } else {
+                    V2NChrome.applyNavigationBarAppearance(to: nav.navigationBar)
+                    nav.view.backgroundColor = V2NDesign.screenBackground
+                    V2NChrome.styleScreen(root.view)
                 }
                 root.viewWillAppear(false)
+                root.view.setNeedsLayout()
                 root.view.layoutIfNeeded()
+                nav.view.layoutIfNeeded()
 
+                let traits = UITraitCollection(userInterfaceStyle: style)
                 assertColor(
-                    root.view.backgroundColor?.resolvedColor(with: root.traitCollection),
+                    root.view.backgroundColor?.resolvedColor(with: traits),
                     equals: expected,
                     label: "\(name) \(theme) view"
                 )
                 assertColor(
-                    nav.navigationBar.standardAppearance.backgroundColor?.resolvedColor(with: nav.traitCollection),
+                    nav.navigationBar.standardAppearance.backgroundColor?.resolvedColor(with: traits),
                     equals: expected,
                     label: "\(name) \(theme) nav"
                 )
