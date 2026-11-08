@@ -1,62 +1,36 @@
-# Build 238 — plano de conclusão das bolinhas (auditoria READ-ONLY)
+# Build 238 — plano de conclusão das bolinhas
 
-Sem merges de heurística. Sem backend até Beto aprovar o escopo.
+## Cinco fixes (preservados)
 
-## Cinco fixes (já no PR — não negociar)
-
-1. Editor Light opcional vs Dark/System do app  
-2. Tags sob o título salvam de verdade  
-3. Confirmações nativas de delete (notas/grupos)  
+1. Editor Light opcional  
+2. Tags sob o título salvam  
+3. Confirmações nativas de delete  
 4. Lists empty alinhado  
-5. Themes + Reading: search escondida até puxar  
+5. Themes + Reading search até puxar  
 
-## O que o iOS pode fazer **agora** (sem rotas novas)
+## Escopo aprovado (implementado no PR — sem merge/deploy)
 
-| Sinal | Destino | Por quê |
-| --- | --- | --- |
-| Pedidos de grupo pendentes | Grupo → membros → aceitar/recusar | Já existe `GET …/groups/{id}/members` + `POST …/members/decide` |
-| Atividade de grupo via APNs | Abre o grupo | Só device-local; limpa ao abrir |
-| Digest/plano via APNs `/reading…` | Abre leitura | Só device-local; **não** é “dia sem marca = due” |
-| Nota via APNs `/n/{id}` | Abre a nota | Reachable; **não** acende chip Compartilhadas |
-
-## O que **não** está completo (e por quê)
-
-| Pedido | Web já tem | Native `/api/native/v1` | Heurística iOS (recusada) |
+| # | Endpoint nativo Bearer | Wrap de | iOS |
 | --- | --- | --- | --- |
-| Friends pending + accept/reject + aceite | `listLinks`, `acceptLink`, `declineLink` (+ push `kind=friends`) | **Ausente** (router sem `links`/`friends`) | Bolinha em Perfil → Amigos sem ação = beco sem saída → **gate off** |
-| Grants reais em Compartilhadas | `listGrantedNotes` (`note_grants`) | **Ausente** | `visibility == shared\|link` nas notes nativas nunca bate grants → **chip off** |
-| Leitura agendada (digest) | `maybeSendDigests` → row `notifications` `kind=reading` 1×/dia | Sem inbox nativo | “Qualquer dia sem marca” ≠ digest → **reconcile off** |
-| Unread estável de atividade de grupo | Inbox `kind=groups` + `read_at` | Sem inbox nativo | Push-only some ao matar o app / outro device |
-| Seen cross-device / conta | `listNotifications` + `markNotificationsRead` (`read_at`) | **Ausente** | UserDefaults por device |
+| 1 | `GET /links`, `POST /links/accept\|decline` | `listLinks` / `acceptLink` / `declineLink` | Amigos com aceitar/recusar; pending até decisão |
+| 2 | `GET /notes/granted` (+ GET `/notes/:id` via grant) | `listGrantedNotes` / grant read | Chip **Compartilhadas** (sem secção nova) |
+| 3 | `GET /notifications`, `POST /notifications/read` | `listInbox` / `markRead` (`read_at`) | Digest leitura, groups, shares, friend accepted; seen cross-device |
 
-## Plano mínimo proposto (só wraps — lógica de negócio já existe)
+## Semântica das bolinhas
 
-Aprovar **um** pacote nativo Bearer espelhando o web (sem redesign):
+- Parent tab **não** marca tudo lido  
+- Pending friend → só accept/decline  
+- Reading due → dismiss/conclusão (+ `markRead`)  
+- Shared → abrir nota (+ `markRead`)  
+- Sync em foreground / troca de conta (`V2NActivitySync`)  
+- Sem notification-center UI  
 
-1. **`GET/POST /api/native/v1/links`** (ou `/friends`)  
-   - GET → shape de `listLinks` (`friends` / `incoming` / `outgoing`)  
-   - POST accept / decline por `handle` → `acceptLink` / `declineLink`  
-   - iOS: Amigos com ações reais + `friendsDotsEnabled = true`
+## Limitações (honestas)
 
-2. **`GET /api/native/v1/notes/granted`**  
-   - wrap de `listGrantedNotes`  
-   - iOS: Compartilhadas lista grants + bolinha só em grant novo (baseline pós-login)
+- Inbox nativo herda `limit` do web (`MAX_INBOX`) — sem cursor/pagination além disso  
+- `requestLink` (enviar pedido) **não** está neste pacote  
+- Push ainda pode pré-acender dots offline até o próximo reconcile  
 
-3. **`GET /api/native/v1/notifications` + `POST …/read`**  
-   - wrap de `listInbox` / `markRead` (+ opcional `unreadCount`)  
-   - Cobre: digest de leitura, eventos friends/shares/groups, **e** seen cross-device via `read_at`  
-   - iOS: reconciliar store a partir do inbox; limpar local ao `markRead`
+## Fora de escopo até nova aprovação
 
-Opcional depois: `requestLink` nativo (enviar pedido). Não bloqueia accept/reject.
-
-**Não** pedir schema novo: `user_links`, `note_grants`, `notifications.read_at` já existem.
-
-## Gate honesto neste PR
-
-- Bolinhas Shared / Friends / heuristic reading: **desligadas**  
-- Grupos pending + push reachable: **ligadas**  
-- Tela Amigos: mensagem explícita “aguarda API”; sem bolinha de Perfil  
-
-## Fora de escopo até aprovação
-
-Edits/deploys de backend · merge · TestFlight · fundir badges parciais como “feito”
+Merge · TestFlight · deploy produção · mutações manuais live

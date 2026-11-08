@@ -332,15 +332,21 @@ export async function deleteSpeakerForUser(userId: string, speakerId: string): P
 export async function getNoteWithSpeakersForUser(
   userId: string,
   noteId: string,
-): Promise<{ note: NoteDocumentV1; speakers: Speaker[] } | null> {
-  const { documentToNote } = await import("./note-document");
-  const document = await getNoteForUser(userId, noteId);
-  if (!document) return null;
-  const speakers = await listSpeakersForUser(userId);
-  const asLegacy = documentToNote(document);
-  const used = new Set(asLegacy ? noteSpeakerIds(asLegacy as Note) : []);
-  if (document.noteSpeakerId) used.add(document.noteSpeakerId);
-  return { note: document, speakers: speakers.filter((s) => used.has(s.id)) };
+): Promise<{ note: NoteDocumentV1; speakers: Speaker[]; via?: "owned" | "grant" } | null> {
+  // Owned notes stay on the fast path; grants reuse social helper (note_grants join).
+  const owned = await getNoteForUser(userId, noteId);
+  if (owned) {
+    const { documentToNote } = await import("./note-document");
+    const speakers = await listSpeakersForUser(userId);
+    const asLegacy = documentToNote(owned);
+    const used = new Set(asLegacy ? noteSpeakerIds(asLegacy as Note) : []);
+    if (owned.noteSpeakerId) used.add(owned.noteSpeakerId);
+    return { note: owned, speakers: speakers.filter((s) => used.has(s.id)), via: "owned" };
+  }
+  const { getAccessibleNoteForUser } = await import("./v1-social.server");
+  const accessible = await getAccessibleNoteForUser(userId, noteId);
+  if (!accessible || accessible.via !== "grant") return null;
+  return { note: accessible.note, speakers: accessible.speakers, via: "grant" };
 }
 
 export { saveApnsDevice, dropApnsDevice };
@@ -365,9 +371,15 @@ export function nativeV1Catalog() {
       { method: "GET", path: "/session", auth: true },
       { method: "GET", path: "/notes", auth: true, returns: "NoteDocumentV1[]" },
       { method: "POST", path: "/notes", auth: true, body: "NoteDocumentV1" },
-      { method: "GET", path: "/notes/:id", auth: true, returns: "{ note: NoteDocumentV1, speakers }" },
+      { method: "GET", path: "/notes/granted", auth: true, returns: "NoteDocumentV1[] via note_grants" },
+      { method: "GET", path: "/notes/:id", auth: true, returns: "{ note: NoteDocumentV1, speakers, via? }" },
       { method: "PATCH", path: "/notes/:id", auth: true, body: "NoteDocumentV1" },
       { method: "DELETE", path: "/notes/:id", auth: true },
+      { method: "GET", path: "/links", auth: true, returns: "{ friends, incoming, outgoing }" },
+      { method: "POST", path: "/links/accept", auth: true, body: "{ handle }" },
+      { method: "POST", path: "/links/decline", auth: true, body: "{ handle }" },
+      { method: "GET", path: "/notifications", auth: true, returns: "{ items, unread }" },
+      { method: "POST", path: "/notifications/read", auth: true, body: "{ id? }" },
       { method: "GET", path: "/speakers", auth: true },
       { method: "POST", path: "/speakers", auth: true, body: "Speaker" },
       { method: "DELETE", path: "/speakers/:id", auth: true },

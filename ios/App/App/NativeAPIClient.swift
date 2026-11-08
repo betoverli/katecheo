@@ -127,6 +127,49 @@ enum NativeAPIClient {
         let ok: Bool?
         let note: NoteDocument?
         let speakers: [SpeakerDTO]?
+        /// `owned` | `grant` — grants are read-only and must not enter the owned LocalNoteCache.
+        let via: String?
+        let error: String?
+    }
+
+    struct LinkPersonDTO: Codable, Equatable {
+        var userId: String
+        var handle: String
+        var firstName: String
+        var lastName: String
+        var avatarId: String
+        var avatarUrl: String
+
+        var displayName: String {
+            let name = [firstName, lastName].filter { !$0.isEmpty }.joined(separator: " ")
+            if !name.isEmpty { return name }
+            if !handle.isEmpty { return "@\(handle)" }
+            return String(localized: "Amigo")
+        }
+    }
+
+    struct LinksResponse: Decodable {
+        let ok: Bool?
+        let friends: [LinkPersonDTO]?
+        let incoming: [LinkPersonDTO]?
+        let outgoing: [LinkPersonDTO]?
+        let error: String?
+    }
+
+    struct InboxItemDTO: Codable, Equatable {
+        var id: String
+        var kind: String
+        var title: String
+        var body: String
+        var href: String
+        var read: Bool
+        var createdAt: String
+    }
+
+    struct NotificationsResponse: Decodable {
+        let ok: Bool?
+        let items: [InboxItemDTO]?
+        let unread: Int?
         let error: String?
     }
 
@@ -364,7 +407,7 @@ enum NativeAPIClient {
         return notes
     }
 
-    static func getNote(id: String) async throws -> (note: NoteDocument, speakers: [SpeakerDTO]) {
+    static func getNote(id: String) async throws -> (note: NoteDocument, speakers: [SpeakerDTO], via: String) {
         let request = try authorizedRequest(path: "api/native/v1/notes/\(id)", method: "GET")
         let (status, data) = try await perform(request)
         try throwIfUnauthorized(status)
@@ -374,12 +417,90 @@ enum NativeAPIClient {
         guard let decoded = try? JSONDecoder().decode(NoteResponse.self, from: data),
               let note = decoded.note
         else { throw APIError.decoding }
-        LocalNoteCache.upsertNote(note)
+        let via = decoded.via ?? "owned"
+        // Grants must not pollute the owned Caderno cache.
+        if via != "grant" {
+            LocalNoteCache.upsertNote(note)
+        }
         // Note payload only includes speakers used by this note — merge, never replace
         // the full catalog cache (TF200 #3 empty picker).
         let noteSpeakers = decoded.speakers ?? []
-        _ = LocalNoteCache.mergeSpeakers(noteSpeakers)
-        return (note, noteSpeakers)
+        if via != "grant" {
+            _ = LocalNoteCache.mergeSpeakers(noteSpeakers)
+        }
+        return (note, noteSpeakers, via)
+    }
+
+    static func listGrantedNotes() async throws -> [NoteDocument] {
+        let request = try authorizedRequest(path: "api/native/v1/notes/granted", method: "GET")
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(NotesResponse.self, from: data),
+              let notes = decoded.notes
+        else { throw APIError.decoding }
+        return notes
+    }
+
+    static func listLinks() async throws -> (friends: [LinkPersonDTO], incoming: [LinkPersonDTO], outgoing: [LinkPersonDTO]) {
+        let request = try authorizedRequest(path: "api/native/v1/links", method: "GET")
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(LinksResponse.self, from: data) else {
+            throw APIError.decoding
+        }
+        return (decoded.friends ?? [], decoded.incoming ?? [], decoded.outgoing ?? [])
+    }
+
+    static func acceptLink(handle: String) async throws {
+        struct Body: Encodable { let handle: String }
+        let body = try JSONEncoder().encode(Body(handle: handle))
+        let request = try authorizedRequest(path: "api/native/v1/links/accept", method: "POST", body: body)
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+    }
+
+    static func declineLink(handle: String) async throws {
+        struct Body: Encodable { let handle: String }
+        let body = try JSONEncoder().encode(Body(handle: handle))
+        let request = try authorizedRequest(path: "api/native/v1/links/decline", method: "POST", body: body)
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+    }
+
+    static func listNotifications() async throws -> (items: [InboxItemDTO], unread: Int) {
+        let request = try authorizedRequest(path: "api/native/v1/notifications", method: "GET")
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(NotificationsResponse.self, from: data) else {
+            throw APIError.decoding
+        }
+        return (decoded.items ?? [], decoded.unread ?? 0)
+    }
+
+    static func markNotificationsRead(id: String? = nil) async throws {
+        struct Body: Encodable { let id: String? }
+        let body = try JSONEncoder().encode(Body(id: id))
+        let request = try authorizedRequest(path: "api/native/v1/notifications/read", method: "POST", body: body)
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
     }
 
     static func upsertNote(_ note: NoteDocument) async throws -> NoteDocument {

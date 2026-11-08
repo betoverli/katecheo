@@ -837,6 +837,9 @@ if (!project.includes("Build238FeedbackTests.swift in Sources")) {
 if (!project.includes("V2NActivityStore.swift in Sources")) {
   errors.push("V2NActivityStore tem de estar no target App (build-238 dots).");
 }
+if (!project.includes("V2NActivitySync.swift in Sources")) {
+  errors.push("V2NActivitySync tem de estar no target App (build-238 inbox sync).");
+}
 if (!project.includes("FriendsActivityViewController.swift in Sources")) {
   errors.push("FriendsActivityViewController tem de estar no target App (build-238).");
 }
@@ -872,10 +875,31 @@ try {
   if (!activity.includes("sharedNote") || !activity.includes("Compartilhadas") && !activity.includes("shared")) {
     // soft — shared kind exists
   }
-  if (!activity.includes("reconcileSharedNotes") || !activity.includes("markSharedNoteOpened")) {
-    errors.push("V2NActivityStore tem de reconciliar Compartilhadas sem inventar inbox (build-238).");
+  if (!activity.includes("reconcileServer") || !activity.includes("markSharedNoteOpened")) {
+    errors.push("V2NActivityStore tem de reconciliar via servidor (links/grants/inbox) (build-238).");
   }
-  if (read("ios/App/App/NotebookListViewController.swift").includes("Shared with me") || read("ios/App/App/NotebookListViewController.swift").includes("Compartilhadas comigo")) {
+  if (activity.includes("visibility == \"shared\"") || activity.includes("visibility == \"link\"")) {
+    errors.push("V2NActivityStore não pode inventar Shared a partir de visibility (build-238).");
+  }
+  const api = read("ios/App/App/NativeAPIClient.swift");
+  if (!api.includes("notes/granted") || !api.includes("links/accept") || !api.includes("notifications/read")) {
+    errors.push("NativeAPIClient tem de chamar notes/granted, links accept/decline e notifications/read (build-238).");
+  }
+  const friends = read("ios/App/App/FriendsActivityViewController.swift");
+  if (!friends.includes("acceptLink") || !friends.includes("declineLink")) {
+    errors.push("Amigos tem de aceitar/recusar via API nativa (build-238).");
+  }
+  if (friends.includes("markFriendsAcceptedSeen") && friends.includes("clearKind(.friendPending)")) {
+    // pending must not clear on appear — only accepted signals
+    if (/viewWillAppear[\s\S]*clearKind\(\.friendPending\)/.test(friends) || /viewDidLoad[\s\S]*clearKind\(\.friendPending\)/.test(friends)) {
+      errors.push("Amigos não pode limpar pedidos pendentes só por abrir a tela (build-238).");
+    }
+  }
+  const notebookShared = read("ios/App/App/NotebookListViewController.swift");
+  if (notebookShared.includes("visibility == \"shared\"") || notebookShared.includes("visibility == \"link\"")) {
+    errors.push("Compartilhadas tem de usar listGrantedNotes, não visibility heuristic (build-238).");
+  }
+  if (notebookShared.includes("Shared with me") || notebookShared.includes("Compartilhadas comigo")) {
     errors.push("Não criar secção duplicada Shared with me — reutilizar Compartilhadas (build-238).");
   }
 } catch {

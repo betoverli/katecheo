@@ -190,10 +190,13 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 }
                 async let remoteNotes = NativeAPIClient.listNotes()
                 async let remoteSpeakers = NativeAPIClient.listSpeakers()
+                async let remoteGranted = NativeAPIClient.listGrantedNotes()
                 notes = try await remoteNotes
                 speakers = try await remoteSpeakers
+                grantedNotes = (try? await remoteGranted) ?? []
                 setBannerStatus(nil)
                 applyFilter()
+                Task { await V2NActivitySync.refreshFromServer() }
             } catch NativeAPIClient.APIError.unauthorized {
                 setBannerStatus(String(localized: "Sessão expirada. Entre novamente."), kind: .error)
                 if group == nil {
@@ -290,7 +293,6 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     }
 
     private func refreshSharedActivity() {
-        V2NActivityStore.reconcileSharedNotes(notes)
         var badged = Set<String>()
         if V2NActivityStore.sharedChipDot {
             badged.insert(NoteFilter.shared.rawValue)
@@ -434,8 +436,11 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             return
         }
         let note = filtered[indexPath.row]
-        V2NActivityStore.markSharedNoteOpened(note.id)
-        let detail = NoteDetailViewController(noteId: note.id, initial: note)
+        let isGranted = noteFilter == .shared || grantedNotes.contains(where: { $0.id == note.id })
+        if isGranted {
+            V2NActivityStore.markSharedNoteOpened(note.id)
+        }
+        let detail = NoteDetailViewController(noteId: note.id, initial: note, grantedReadOnly: isGranted)
         navigationController?.pushViewController(detail, animated: true)
     }
 
@@ -456,6 +461,10 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             return UISwipeActionsConfiguration(actions: [remove])
         }
         let note = filtered[indexPath.row]
+        // Granted (Compartilhadas) notes are not owned — no delete.
+        if noteFilter == .shared || grantedNotes.contains(where: { $0.id == note.id && !notes.contains(where: { $0.id == note.id }) }) {
+            return nil
+        }
         let delete = UIContextualAction.v2nIconOnly(
             style: .destructive,
             systemName: "trash",
@@ -729,9 +738,13 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
         selectedTag = nil
         selectedSpeakerId = nil
         if filter == .shared {
-            // Shared grants reuse listNotes visibility until a dedicated grants API ships.
-            grantedNotes = notes.filter { $0.visibility == "shared" || $0.visibility == "link" }
-            applyFilter()
+            // Real grants from `/notes/granted` — never invent from owned visibility.
+            Task { @MainActor in
+                if NativeAPIClient.hasBearer {
+                    self.grantedNotes = (try? await NativeAPIClient.listGrantedNotes()) ?? self.grantedNotes
+                }
+                self.applyFilter()
+            }
         } else if filter == .tags {
             presentTagPicker()
             applyFilter()

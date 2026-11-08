@@ -44,6 +44,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         ) { _ in
             Task { @MainActor in
                 await NativeOutbox.flushIfPossible()
+                await V2NActivitySync.refreshFromServer()
             }
         }
 
@@ -97,6 +98,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         AppAppearance.apply(to: window)
         Task { @MainActor in
             await NativeOutbox.flushIfPossible()
+            await V2NActivitySync.refreshFromServer()
         }
     }
 

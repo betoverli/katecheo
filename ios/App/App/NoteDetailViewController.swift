@@ -22,10 +22,13 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
     private var syncState: SyncState = .idle
     /// Local edits since the last clean `pushNote` — blocks API refresh from wiping the caret/IME.
     private var hasLocalEdits = false
+    /// Granted (Shared) notes are readable; mutations stay with the owner.
+    private var isGrantedReadOnly: Bool
 
-    init(noteId: String, initial: NativeAPIClient.NoteDocument?) {
+    init(noteId: String, initial: NativeAPIClient.NoteDocument?, grantedReadOnly: Bool = false) {
         self.noteId = noteId
         self.note = initial ?? NativeAPIClient.emptyNote(id: noteId)
+        self.isGrantedReadOnly = grantedReadOnly
         super.init(nibName: nil, bundle: nil)
         // Hide the root tab bar for the whole push/pop transition (no flicker).
         hidesBottomBarWhenPushed = true
@@ -122,8 +125,8 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         ])
 
         // Start from the full on-device catalog — never an empty note-scoped list.
-        speakers = LocalNoteCache.loadSpeakers()
-        editor.pushNote(note, speakers: speakers)
+        speakers = isGrantedReadOnly ? [] : LocalNoteCache.loadSpeakers()
+        editor.pushNote(note, speakers: speakers, readOnly: isGrantedReadOnly)
         refreshSpeakerChip()
         NotificationCenter.default.addObserver(
             self,
@@ -147,13 +150,17 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         if isMovingFromParent || isBeingDismissed {
-            // Flush editor document (incl. tags) before pop so a pending debounce
-            // can't be cancelled empty-handed in deinit.
-            note = editor.currentDocument()
-            note.id = noteId
-            LocalNoteCache.upsertNote(note)
-            saveWork?.cancel()
-            Task { await self.persist() }
+            if !isGrantedReadOnly {
+                // Flush editor document (incl. tags) before pop so a pending debounce
+                // can't be cancelled empty-handed in deinit.
+                note = editor.currentDocument()
+                note.id = noteId
+                LocalNoteCache.upsertNote(note)
+                saveWork?.cancel()
+                Task { await self.persist() }
+            } else {
+                saveWork?.cancel()
+            }
 
             clearEditorAppearanceOverride()
             navigationController?.navigationBar.prefersLargeTitles = true
@@ -247,12 +254,19 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
             let packed = try await notePack
             let fullCatalog = (try? await catalog) ?? LocalNoteCache.loadSpeakers()
             await MainActor.run {
+                if packed.via == "grant" {
+                    self.isGrantedReadOnly = true
+                }
                 // Always keep the full registered catalog for the picker (TF200 #3).
                 // `getNote.speakers` is note-scoped; merge already ran inside getNote.
-                self.speakers = fullCatalog.isEmpty
-                    ? LocalNoteCache.mergeSpeakers(packed.speakers)
-                    : fullCatalog
-                if self.hasLocalEdits {
+                if self.isGrantedReadOnly {
+                    self.speakers = packed.speakers
+                } else {
+                    self.speakers = fullCatalog.isEmpty
+                        ? LocalNoteCache.mergeSpeakers(packed.speakers)
+                        : fullCatalog
+                }
+                if self.hasLocalEdits, !self.isGrantedReadOnly {
                     // Keep the live editor buffer — only refresh speaker chrome / metadata.
                     self.editor.updateSpeakers(self.speakers)
                     self.refreshSpeakerChip()
@@ -261,16 +275,16 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
                 self.note = packed.note
                 self.updateTitle()
                 self.applySyncState(.synced)
-                self.editor.pushNote(self.note, speakers: self.speakers)
+                self.editor.pushNote(self.note, speakers: self.speakers, readOnly: self.isGrantedReadOnly)
                 self.hasLocalEdits = false
                 self.refreshSpeakerChip()
             }
         } catch {
             await MainActor.run {
-                self.speakers = LocalNoteCache.loadSpeakers()
+                self.speakers = self.isGrantedReadOnly ? self.speakers : LocalNoteCache.loadSpeakers()
                 self.applySyncState(.pendingLocal)
                 if !self.hasLocalEdits {
-                    self.editor.pushNote(self.note, speakers: self.speakers)
+                    self.editor.pushNote(self.note, speakers: self.speakers, readOnly: self.isGrantedReadOnly)
                 } else {
                     self.editor.updateSpeakers(self.speakers)
                 }
@@ -312,6 +326,7 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
     // MARK: - NativeNoteEditorViewDelegate
 
     func nativeNoteEditorDidChange(_ editor: NativeNoteEditorView, document: NativeAPIClient.NoteDocument) {
+        guard !isGrantedReadOnly else { return }
         var next = document
         next.id = noteId
         // Keep VC-owned metadata. Tags now live under the title in the editor
@@ -401,6 +416,7 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
     }
 
     private func scheduleSave() {
+        guard !isGrantedReadOnly else { return }
         saveWork?.cancel()
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
@@ -412,6 +428,7 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
     }
 
     private func persist() async {
+        guard !isGrantedReadOnly else { return }
         do {
             let saved = try await NativeAPIClient.upsertNote(note)
             await MainActor.run {

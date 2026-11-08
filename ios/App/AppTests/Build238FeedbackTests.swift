@@ -119,111 +119,126 @@ final class Build238FeedbackTests: XCTestCase {
 
     // MARK: - 6) Activity dots
 
-    func testActivityStore_sharedHeuristicDoesNotInventGrantsDots() {
-        // Native notes list never emits real grants; visibility filter must not light Shared.
-        let me = NativeAPIClient.MeDTO(
-            id: "acct-b238",
-            email: "a@b.c",
-            displayName: "Test",
-            prefs: NativeAPIClient.PrefsDTO(
-                locale: "pt", copyLocale: "pt", appId: "youversion", translationId: "nvi-pt",
-                preferNative: true, copyFormat: "default", citeBook: "abbr", citeSep: ":",
-                booksCompact: false, theme: "system", activePlans: nil, planProgress: nil,
-                avatarId: "", avatarUrl: "", handle: "t", firstName: "T", lastName: "U", profileEmail: "a@b.c"
-            ),
-            notify: NativeAPIClient.NotifyPrefsDTO(reading: true, friends: true, shares: true, groups: true, apnsDevices: 0)
-        )
+    func testActivityStore_visibilityHeuristicStillDoesNotInventGrants() {
+        let me = seedMe(id: "acct-b238")
         LocalSessionCache.saveMe(me)
-
         var n1 = NativeAPIClient.emptyNote(id: "shared-1")
         n1.visibility = "shared"
         V2NActivityStore.reconcileSharedNotes([n1])
         XCTAssertFalse(V2NActivityStore.sharedChipDot)
         XCTAssertFalse(V2NActivityStore.notebookDot)
-        XCTAssertFalse(V2NActivityStore.targetIds(kind: .sharedNote).contains("shared-1"))
+    }
 
-        var n2 = NativeAPIClient.emptyNote(id: "shared-2")
-        n2.visibility = "shared"
-        V2NActivityStore.reconcileSharedNotes([n1, n2])
-        XCTAssertFalse(V2NActivityStore.notebookDot)
+    func testActivityStore_serverReconcile_grantsInboxFriendsReadingTwoDeviceSim() {
+        let me = seedMe(id: "acct-b238-sync")
+        LocalSessionCache.saveMe(me)
+
+        var grant = NativeAPIClient.emptyNote(id: "grant-1")
+        grant.title = "Nota enviada"
+        let incoming = [
+            NativeAPIClient.LinkPersonDTO(
+                userId: "u2", handle: "amigo", firstName: "Ana", lastName: "B",
+                avatarId: "book", avatarUrl: ""
+            ),
+        ]
+        let inbox: [NativeAPIClient.InboxItemDTO] = [
+            .init(id: "n-share", kind: "shares", title: "Share", body: "", href: "/n/grant-1", read: false, createdAt: "2026-01-01"),
+            .init(id: "n-friend", kind: "friends", title: "Aceite", body: "", href: "/profile/friends", read: false, createdAt: "2026-01-01"),
+            .init(id: "n-group", kind: "groups", title: "Grupo", body: "", href: "/groups/g1", read: false, createdAt: "2026-01-01"),
+            .init(id: "n-read", kind: "reading", title: "Leitura", body: "", href: "/reading/plan-1", read: false, createdAt: "2026-01-01"),
+            .init(id: "n-old", kind: "reading", title: "Old", body: "", href: "/reading/plan-1", read: true, createdAt: "2026-01-01"),
+        ]
+        V2NActivityStore.reconcileServer(incoming: incoming, granted: [grant], inbox: inbox)
+        XCTAssertTrue(V2NActivityStore.notebookDot)
+        XCTAssertTrue(V2NActivityStore.sharedChipDot)
+        XCTAssertTrue(V2NActivityStore.groupsDot)
+        XCTAssertTrue(V2NActivityStore.toolsDot)
+        XCTAssertTrue(V2NActivityStore.profileDot)
+        XCTAssertTrue(V2NActivityStore.hasAny(kinds: .friendPending))
+        XCTAssertTrue(V2NActivityStore.hasAny(kinds: .friendAccepted))
+
+        // Parent/tab visit must not clear children.
+        XCTAssertTrue(V2NActivityStore.notebookDot)
+
+        // Opening Shared note clears only that share (+ would markRead n-share).
+        V2NActivityStore.markSharedNoteOpened("grant-1")
+        XCTAssertFalse(V2NActivityStore.targetIds(kind: .sharedNote).contains("grant-1"))
+        XCTAssertTrue(V2NActivityStore.hasAny(kinds: .friendPending), "pending survives unrelated clears")
+
+        // Friends screen clears acceptance only.
+        V2NActivityStore.markFriendsAcceptedSeen()
+        XCTAssertFalse(V2NActivityStore.hasAny(kinds: .friendAccepted))
+        XCTAssertTrue(V2NActivityStore.hasAny(kinds: .friendPending))
+
+        // Decision clears pending.
+        V2NActivityStore.clearFriendPending(targetId: "amigo")
+        XCTAssertFalse(V2NActivityStore.hasAny(kinds: .friendPending))
+
+        // Reading dismiss clears digest/plan.
+        V2NActivityStore.dismissReadingDue(planId: "plan-1")
+        XCTAssertFalse(V2NActivityStore.toolsDot)
+
+        // Simulate second device: unread cleared on server → empty inbox, pending gone.
+        V2NActivityStore.reconcileServer(incoming: [], granted: [grant], inbox: [
+            .init(id: "n-share", kind: "shares", title: "Share", body: "", href: "/n/grant-1", read: true, createdAt: "2026-01-01"),
+            .init(id: "n-group", kind: "groups", title: "Grupo", body: "", href: "/groups/g1", read: true, createdAt: "2026-01-01"),
+        ])
+        XCTAssertFalse(V2NActivityStore.profileDot)
+        XCTAssertFalse(V2NActivityStore.groupsDot)
+        // grant already opened locally — no Shared dot without unread share.
         XCTAssertFalse(V2NActivityStore.sharedChipDot)
     }
 
     func testActivityStore_readingHeuristicDoesNotInventDigestDue() {
-        let me = NativeAPIClient.MeDTO(
-            id: "acct-b238-r",
-            email: "a@b.c",
-            displayName: "Test",
-            prefs: NativeAPIClient.PrefsDTO(
-                locale: "pt", copyLocale: "pt", appId: "youversion", translationId: "nvi-pt",
-                preferNative: true, copyFormat: "default", citeBook: "abbr", citeSep: ":",
-                booksCompact: false, theme: "system", activePlans: ["plan-1"], planProgress: ["plan-1": []],
-                avatarId: "", avatarUrl: "", handle: "t", firstName: "T", lastName: "U", profileEmail: "a@b.c"
-            ),
-            notify: NativeAPIClient.NotifyPrefsDTO(reading: true, friends: true, shares: true, groups: true, apnsDevices: 0)
-        )
+        let me = seedMe(id: "acct-b238-r", activePlans: ["plan-1"], planProgress: ["plan-1": []])
         LocalSessionCache.saveMe(me)
         let plan = NativeAPIClient.PlanCardDTO(id: "plan-1", name: "Evangelhos", days: 7, chapters: nil, description: nil, categoryIds: nil)
         V2NActivityStore.reconcileReadingDue(prefs: me.prefs, plans: [plan])
-        // Unmarked days ≠ digest-due; Tools chip only from push ingest until inbox API.
         XCTAssertFalse(V2NActivityStore.toolsDot)
-        XCTAssertFalse(V2NActivityStore.readingChipDot)
-        XCTAssertFalse(V2NActivityStore.targetIds(kind: .readingDue).contains("plan-1"))
 
-        V2NActivityStore.ingestPush(href: "/reading/plan-1", title: "Leitura")
+        V2NActivityStore.reconcileServer(
+            incoming: [],
+            granted: [],
+            inbox: [
+                .init(id: "d1", kind: "reading", title: "Due", body: "", href: "/reading/plan-1", read: false, createdAt: "2026-01-02"),
+            ]
+        )
         XCTAssertTrue(V2NActivityStore.toolsDot)
         V2NActivityStore.dismissReadingDue(planId: "plan-1")
         XCTAssertFalse(V2NActivityStore.targetIds(kind: .readingDue).contains("plan-1"))
     }
 
-    func testActivityStore_pushHrefIngestFriendsGatedNoDeadEndDot() {
-        let me = NativeAPIClient.MeDTO(
-            id: "acct-b238-f",
-            email: "a@b.c",
-            displayName: "Test",
-            prefs: NativeAPIClient.PrefsDTO(
-                locale: "pt", copyLocale: "pt", appId: "youversion", translationId: "nvi-pt",
-                preferNative: true, copyFormat: "default", citeBook: "abbr", citeSep: ":",
-                booksCompact: false, theme: "system", activePlans: nil, planProgress: nil,
-                avatarId: "", avatarUrl: "", handle: "t", firstName: "T", lastName: "U", profileEmail: "a@b.c"
-            ),
-            notify: NativeAPIClient.NotifyPrefsDTO(reading: true, friends: true, shares: true, groups: true, apnsDevices: 0)
-        )
-        LocalSessionCache.saveMe(me)
-        V2NActivityStore.ingestPush(href: "/groups/g1", title: "Novo no grupo")
-        V2NActivityStore.ingestPush(href: "/profile/friends", title: "Pedido")
-        V2NActivityStore.ingestPush(href: "/reading/plan-x", title: "Leitura")
-        XCTAssertTrue(V2NActivityStore.groupsDot)
-        XCTAssertFalse(V2NActivityStore.profileDot, "friends dots gated — no dead-end Profile badge")
-        XCTAssertFalse(V2NActivityStore.friendsDotsEnabled)
-        XCTAssertTrue(V2NActivityStore.toolsDot)
-        XCTAssertFalse(V2NActivityStore.hasAny(kinds: .friendPending))
-
-        let friends = FriendsActivityViewController()
-        friends.loadViewIfNeeded()
-        XCTAssertFalse(V2NActivityStore.hasAny(kinds: .friendPending))
-        XCTAssertFalse(V2NActivityStore.hasAny(kinds: .friendAccepted))
-    }
-
-    func testActivityStore_signOutClearsAccountScopedItems() {
-        let me = NativeAPIClient.MeDTO(
-            id: "acct-b238-out",
-            email: "a@b.c",
-            displayName: "Test",
-            prefs: NativeAPIClient.PrefsDTO(
-                locale: "pt", copyLocale: "pt", appId: "youversion", translationId: "nvi-pt",
-                preferNative: true, copyFormat: "default", citeBook: "abbr", citeSep: ":",
-                booksCompact: false, theme: "system", activePlans: nil, planProgress: nil,
-                avatarId: "", avatarUrl: "", handle: "t", firstName: "T", lastName: "U", profileEmail: "a@b.c"
-            ),
-            notify: NativeAPIClient.NotifyPrefsDTO(reading: true, friends: true, shares: true, groups: true, apnsDevices: 0)
-        )
+    func testActivityStore_crossAccountNoLeakOnClear() {
+        let me = seedMe(id: "acct-b238-out")
         LocalSessionCache.saveMe(me)
         V2NActivityStore.ingestGroupActivity(groupId: "g9")
         XCTAssertTrue(V2NActivityStore.groupsDot)
-        V2NActivityStore.clearAccount()
+        V2NActivityStore.clearAccount("acct-b238-out")
         LocalSessionCache.clearMe()
         XCTAssertFalse(V2NActivityStore.groupsDot)
+
+        let other = seedMe(id: "acct-other")
+        LocalSessionCache.saveMe(other)
+        XCTAssertFalse(V2NActivityStore.groupsDot, "other account must start clean")
+    }
+
+    private func seedMe(
+        id: String,
+        activePlans: [String]? = nil,
+        planProgress: [String: [Int]]? = nil
+    ) -> NativeAPIClient.MeDTO {
+        NativeAPIClient.MeDTO(
+            id: id,
+            email: "a@b.c",
+            displayName: "Test",
+            prefs: NativeAPIClient.PrefsDTO(
+                locale: "pt", copyLocale: "pt", appId: "youversion", translationId: "nvi-pt",
+                preferNative: true, copyFormat: "default", citeBook: "abbr", citeSep: ":",
+                booksCompact: false, theme: "system", activePlans: activePlans, planProgress: planProgress,
+                avatarId: "", avatarUrl: "", handle: "t", firstName: "T", lastName: "U", profileEmail: "a@b.c"
+            ),
+            notify: NativeAPIClient.NotifyPrefsDTO(reading: true, friends: true, shares: true, groups: true, apnsDevices: 0)
+        )
     }
 
     // MARK: - Screenshots

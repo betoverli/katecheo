@@ -9,9 +9,18 @@ describe("matchNativeV1Route", () => {
     assert.deepEqual(matchNativeV1Route("session"), { kind: "session" });
   });
 
-  it("maps notes collection and item", () => {
+  it("maps notes collection, granted, and item", () => {
     assert.deepEqual(matchNativeV1Route("notes"), { kind: "notes" });
+    assert.deepEqual(matchNativeV1Route("notes/granted"), { kind: "notes-granted" });
     assert.deepEqual(matchNativeV1Route("notes/abc123"), { kind: "notes", noteId: "abc123" });
+  });
+
+  it("maps links and notifications inbox", () => {
+    assert.deepEqual(matchNativeV1Route("links"), { kind: "links" });
+    assert.deepEqual(matchNativeV1Route("links/accept"), { kind: "links-accept" });
+    assert.deepEqual(matchNativeV1Route("links/decline"), { kind: "links-decline" });
+    assert.deepEqual(matchNativeV1Route("notifications"), { kind: "notifications" });
+    assert.deepEqual(matchNativeV1Route("notifications/read"), { kind: "notifications-read" });
   });
 
   it("maps speakers and apns device", () => {
@@ -94,6 +103,8 @@ describe("matchNativeV1Route", () => {
     assert.equal(matchNativeV1Route("auth/other").kind, "not-found");
     assert.equal(matchNativeV1Route("account").kind, "not-found");
     assert.equal(matchNativeV1Route("bible").kind, "not-found");
+    assert.equal(matchNativeV1Route("links/other").kind, "not-found");
+    assert.equal(matchNativeV1Route("notifications/other").kind, "not-found");
   });
 });
 
@@ -106,6 +117,14 @@ describe("methodAllowed", () => {
     assert.equal(methodAllowed({ kind: "notes", noteId: "x" }, "PATCH"), true);
     assert.equal(methodAllowed({ kind: "notes", noteId: "x" }, "DELETE"), true);
     assert.equal(methodAllowed({ kind: "notes", noteId: "x" }, "POST"), false);
+    assert.equal(methodAllowed({ kind: "notes-granted" }, "GET"), true);
+    assert.equal(methodAllowed({ kind: "notes-granted" }, "POST"), false);
+    assert.equal(methodAllowed({ kind: "links" }, "GET"), true);
+    assert.equal(methodAllowed({ kind: "links-accept" }, "POST"), true);
+    assert.equal(methodAllowed({ kind: "links-decline" }, "POST"), true);
+    assert.equal(methodAllowed({ kind: "notifications" }, "GET"), true);
+    assert.equal(methodAllowed({ kind: "notifications-read" }, "POST"), true);
+    assert.equal(methodAllowed({ kind: "notifications-read" }, "GET"), false);
   });
 
   it("allows auth POSTs and GET providers", () => {
