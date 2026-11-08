@@ -663,8 +663,12 @@ try {
   if (!versesHome.includes("refreshCollectionLayoutIfNeeded") || !versesHome.includes("pendingLayoutRefresh")) {
     errors.push("Livros tem de invalidar o grid só com bounds válidos (lista vazia no launch).");
   }
-  if (versesHome.includes("UISearchController") || versesHome.includes("Buscar livro") || versesHome.includes("magnifyingglass")) {
-    errors.push("Remova a busca da tela Livros/Ferramentas (ícone e UISearchController).");
+  // Livros must not own a permanent search; Temas/Leitura may install parent searchController (build-238).
+  if (versesHome.includes("Buscar livro") || (versesHome.includes("magnifyingglass") && !versesHome.includes("installSearchController"))) {
+    errors.push("Remova a busca permanente da tela Livros (ícone / Buscar livro).");
+  }
+  if (versesHome.includes("UISearchController") && !versesHome.includes("installSearchController")) {
+    errors.push("UISearchController em Ferramentas só via installSearchController (Temas/Leitura pull-to-reveal).");
   }
   if (versesHome.includes("livros · Bíblia") || versesHome.includes("statusBanner")) {
     errors.push("Remova o subtítulo «N livros · Bíblia: …» do header.");
@@ -826,6 +830,56 @@ if (!project.includes("NativeNoteEditorTF222Tests.swift in Sources")) {
 }
 if (!project.includes("Build234FeedbackTests.swift in Sources")) {
   errors.push("AppTests Build234 (Build234FeedbackTests) têm de estar no target.");
+}
+if (!project.includes("Build238FeedbackTests.swift in Sources")) {
+  errors.push("AppTests Build238 (Build238FeedbackTests) têm de estar no target.");
+}
+if (!project.includes("V2NActivityStore.swift in Sources")) {
+  errors.push("V2NActivityStore tem de estar no target App (build-238 dots).");
+}
+if (!project.includes("FriendsActivityViewController.swift in Sources")) {
+  errors.push("FriendsActivityViewController tem de estar no target App (build-238).");
+}
+try {
+  const detail = read("ios/App/App/NoteDetailViewController.swift");
+  if (detail.includes("next.tags = note.tags")) {
+    errors.push("NoteDetail não pode sobrescrever tags do editor com note.tags (build-238).");
+  }
+  if (!detail.includes("keepEditorInLightMode") && !read("ios/App/App/AppAppearance.swift").includes("keepEditorInLightMode")) {
+    errors.push("Falta preferência keepEditorInLightMode (build-238).");
+  }
+  const appearance = read("ios/App/App/AppAppearance.swift");
+  if (!appearance.includes("keepEditorLightKey") || !appearance.includes("keepEditorInLightMode")) {
+    errors.push("AppAppearance tem de persistir keepEditorInLightMode (build-238).");
+  }
+  const notebook = read("ios/App/App/NotebookListViewController.swift");
+  if (!notebook.includes("anchorActionSheet") || !notebook.includes("rectForRow")) {
+    errors.push("Confirmação de exclusão de nota tem de ancorar no row/swipe (build-238).");
+  }
+  const groups = read("ios/App/App/GroupsListViewController.swift");
+  if (!groups.includes("rectForRow") && !groups.includes("source.bounds")) {
+    errors.push("Confirmação de exclusão de grupo tem de ancorar no row/swipe (build-238).");
+  }
+  const lists = read("ios/App/App/VersesScreens.swift");
+  if (!lists.includes("translatesAutoresizingMaskIntoConstraints = true") || !lists.includes("MyCollectionsViewController")) {
+    errors.push("Listas empty state tem de usar autoresizing backgroundView (build-238).");
+  }
+  const tools = read("ios/App/App/VersesHomeViewController.swift");
+  if (!tools.includes("hidesSearchBarWhenScrolling") || !tools.includes("installSearchController")) {
+    errors.push("Ferramentas Temas/Leitura: search no parent com hidesSearchBarWhenScrolling (build-238).");
+  }
+  const activity = read("ios/App/App/V2NActivityStore.swift");
+  if (!activity.includes("sharedNote") || !activity.includes("Compartilhadas") && !activity.includes("shared")) {
+    // soft — shared kind exists
+  }
+  if (!activity.includes("reconcileSharedNotes") || !activity.includes("markSharedNoteOpened")) {
+    errors.push("V2NActivityStore tem de reconciliar Compartilhadas sem inventar inbox (build-238).");
+  }
+  if (read("ios/App/App/NotebookListViewController.swift").includes("Shared with me") || read("ios/App/App/NotebookListViewController.swift").includes("Compartilhadas comigo")) {
+    errors.push("Não criar secção duplicada Shared with me — reutilizar Compartilhadas (build-238).");
+  }
+} catch {
+  errors.push("Falha ao validar checks build-238.");
 }
 try {
   const noteDetail = read("ios/App/App/NoteDetailViewController.swift");

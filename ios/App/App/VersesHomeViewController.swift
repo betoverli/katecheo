@@ -2,7 +2,7 @@ import UIKit
 
 /// Ferramentas (Tools) tab: shared pills switch embedded content in place.
 /// Opens on the last-used pill (UserDefaults) or Livros by default — no cards hub.
-final class VersesHomeViewController: UIViewController {
+final class VersesHomeViewController: UIViewController, UISearchResultsUpdating {
     private enum Tool: String, CaseIterable {
         case books, themes, lists, reading
 
@@ -43,6 +43,7 @@ final class VersesHomeViewController: UIViewController {
         title = String(localized: "Ferramentas")
         navigationController?.navigationBar.prefersLargeTitles = true
         navigationItem.largeTitleDisplayMode = .always
+        definesPresentationContext = true
         if let nav = navigationController {
             V2NChrome.style(navigationController: nav)
         }
@@ -53,12 +54,19 @@ final class VersesHomeViewController: UIViewController {
         chips.allowsDeselect = false
         chips.configure(
             chips: Tool.allCases.map { V2NFilterChip(id: $0.rawValue, title: $0.title, systemImage: $0.symbol) },
-            selectedId: initial.rawValue
+            selectedId: initial.rawValue,
+            badgedIds: V2NActivityStore.readingChipDot ? ["reading"] : []
         )
         chips.onSelect = { [weak self] id in
             guard let id, let tool = Tool(rawValue: id) else { return }
             self?.selectTool(tool, animated: true)
         }
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(refreshReadingChipDot),
+            name: V2NActivityStore.didChangeNotification,
+            object: nil
+        )
 
         contentHost.translatesAutoresizingMaskIntoConstraints = false
         contentHost.backgroundColor = V2NDesign.screenBackground
@@ -159,6 +167,7 @@ final class VersesHomeViewController: UIViewController {
                 self.readingVC.view.isHidden = false
                 self.readingVC.reloadFromParent()
             }
+            self.installSearchController(for: tool)
         }
         if animated {
             UIView.transition(with: contentHost, duration: 0.22, options: [.transitionCrossDissolve, .allowUserInteraction], animations: apply)
@@ -174,6 +183,44 @@ final class VersesHomeViewController: UIViewController {
         case .lists: listsVC.reloadFromParent()
         case .reading: readingVC.reloadFromParent()
         }
+        installSearchController(for: selectedTool)
+    }
+
+    /// Temas / Leitura: search collapses until pull-down (same as Caderno). Livros / Listas: none.
+    private func installSearchController(for tool: Tool) {
+        switch tool {
+        case .themes:
+            let sc = themesVC.parentSearchController
+            sc.searchResultsUpdater = self
+            sc.obscuresBackgroundDuringPresentation = false
+            sc.searchBar.placeholder = String(localized: "Buscar temas")
+            sc.searchBar.tintColor = V2NDesign.accent
+            navigationItem.searchController = sc
+            navigationItem.hidesSearchBarWhenScrolling = true
+        case .reading:
+            let sc = readingVC.parentSearchController
+            sc.searchResultsUpdater = self
+            sc.obscuresBackgroundDuringPresentation = false
+            sc.searchBar.placeholder = String(localized: "Buscar planos")
+            sc.searchBar.tintColor = V2NDesign.accent
+            navigationItem.searchController = sc
+            navigationItem.hidesSearchBarWhenScrolling = true
+        case .books, .lists:
+            navigationItem.searchController = nil
+        }
+    }
+
+    func updateSearchResults(for searchController: UISearchController) {
+        let q = searchController.searchBar.text ?? ""
+        switch selectedTool {
+        case .themes: themesVC.applyParentSearchQuery(q)
+        case .reading: readingVC.applyParentSearchQuery(q)
+        case .books, .lists: break
+        }
+    }
+
+    @objc private func refreshReadingChipDot() {
+        chips.setBadgedIds(V2NActivityStore.readingChipDot ? ["reading"] : [])
     }
 }
 

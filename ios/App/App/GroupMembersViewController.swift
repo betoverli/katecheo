@@ -67,6 +67,7 @@ final class GroupMembersViewController: UIViewController, UITableViewDelegate, U
                     meId = try? await NativeAPIClient.getMe().id
                 }
                 members = try await NativeAPIClient.listGroupMembers(groupId: group.id)
+                V2NActivityStore.reconcileGroupPending(groupId: group.id, pendingCount: pending.count)
                 emptyState.hide()
                 tableView.isHidden = false
                 tableView.reloadData()

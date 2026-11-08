@@ -7,7 +7,6 @@ final class ReadingHomeViewController: UIViewController, UICollectionViewDelegat
     private let refresh = UIRefreshControl()
     private let emptyState = V2NEmptyStateView()
     private let search = UISearchController(searchResultsController: nil)
-    private let embeddedSearch = UISearchBar()
     private var collectionView: UICollectionView!
     private let embedded: Bool
 
@@ -45,18 +44,12 @@ final class ReadingHomeViewController: UIViewController, UICollectionViewDelegat
         search.searchResultsUpdater = self
         search.obscuresBackgroundDuringPresentation = false
         search.searchBar.placeholder = String(localized: "Buscar planos")
-        if embedded {
-            embeddedSearch.placeholder = String(localized: "Buscar planos")
-            embeddedSearch.delegate = self
-            embeddedSearch.searchBarStyle = .minimal
-            embeddedSearch.translatesAutoresizingMaskIntoConstraints = false
-            embeddedSearch.autocapitalizationType = .none
-            embeddedSearch.returnKeyType = .search
-        } else {
+        if !embedded {
             navigationItem.searchController = search
             navigationItem.hidesSearchBarWhenScrolling = true
             definesPresentationContext = true
         }
+        // Embedded: parent Ferramentas owns navigationItem.searchController (pull-to-reveal).
 
         collectionView = UICollectionView(frame: .zero, collectionViewLayout: makeLayout())
         collectionView.translatesAutoresizingMaskIntoConstraints = false
@@ -77,35 +70,16 @@ final class ReadingHomeViewController: UIViewController, UICollectionViewDelegat
         view.addSubview(collectionView)
         view.addSubview(emptyState)
 
-        if embedded {
-            view.addSubview(embeddedSearch)
-            NSLayoutConstraint.activate([
-                embeddedSearch.topAnchor.constraint(equalTo: view.topAnchor, constant: V2NDesign.Space.xxs),
-                embeddedSearch.leadingAnchor.constraint(equalTo: view.layoutMarginsGuide.leadingAnchor),
-                embeddedSearch.trailingAnchor.constraint(equalTo: view.layoutMarginsGuide.trailingAnchor),
-
-                collectionView.topAnchor.constraint(equalTo: embeddedSearch.bottomAnchor, constant: V2NDesign.Space.xxs),
-                collectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-                collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-                collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-
-                emptyState.topAnchor.constraint(equalTo: embeddedSearch.bottomAnchor),
-                emptyState.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-                emptyState.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-                emptyState.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
-            ])
-        } else {
-            NSLayoutConstraint.activate([
-                collectionView.topAnchor.constraint(equalTo: view.topAnchor),
-                collectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-                collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-                collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-                emptyState.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-                emptyState.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-                emptyState.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-                emptyState.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
-            ])
-        }
+        NSLayoutConstraint.activate([
+            collectionView.topAnchor.constraint(equalTo: view.topAnchor),
+            collectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            emptyState.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            emptyState.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            emptyState.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            emptyState.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+        ])
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -119,16 +93,18 @@ final class ReadingHomeViewController: UIViewController, UICollectionViewDelegat
         reload()
     }
 
+    /// Parent Tools search forwards here when Leitura is selected.
+    func applyParentSearchQuery(_ query: String) {
+        search.searchBar.text = query
+        reload()
+    }
+
+    var parentSearchController: UISearchController { search }
+
     @objc private func reload() {
         Task { @MainActor in
             defer { refresh.endRefreshing() }
-            let rawQuery: String
-            if embedded {
-                rawQuery = embeddedSearch.text ?? ""
-            } else {
-                rawQuery = search.searchBar.text ?? ""
-            }
-            let q = rawQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+            let q = (search.searchBar.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             searching = !q.isEmpty
             do {
                 if NativeAPIClient.hasBearer {
@@ -163,6 +139,7 @@ final class ReadingHomeViewController: UIViewController, UICollectionViewDelegat
                 emptyState.hide()
                 collectionView.isHidden = false
                 collectionView.reloadData()
+                V2NActivityStore.reconcileReadingDue(prefs: prefs, plans: myPlans.isEmpty ? plans : myPlans)
             } catch {
                 collectionView.isHidden = true
                 emptyState.show(
@@ -488,14 +465,29 @@ final class ReadingPlanDetailViewController: UITableViewController {
         v2nApplyGroupedChrome()
         title = String(localized: "Plano")
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "row")
-        navigationItem.rightBarButtonItem = UIBarButtonItem(
-            image: UIImage(systemName: "square.and.arrow.up"),
-            style: .plain,
-            target: self,
-            action: #selector(sharePlan)
-        )
-        navigationItem.rightBarButtonItem?.accessibilityLabel = String(localized: "Compartilhar")
+        navigationItem.rightBarButtonItems = [
+            UIBarButtonItem(
+                image: UIImage(systemName: "square.and.arrow.up"),
+                style: .plain,
+                target: self,
+                action: #selector(sharePlan)
+            ),
+            UIBarButtonItem(
+                title: String(localized: "Dispensar aviso"),
+                style: .plain,
+                target: self,
+                action: #selector(dismissReadingDue)
+            ),
+        ]
+        navigationItem.rightBarButtonItems?.first?.accessibilityLabel = String(localized: "Compartilhar")
+        navigationItem.rightBarButtonItems?.last?.accessibilityLabel = String(localized: "Dispensar aviso de leitura")
         reload()
+    }
+
+    @objc private func dismissReadingDue() {
+        V2NActivityStore.dismissReadingDue(planId: planId)
+        V2NActivityStore.clear(kind: .readingDue, targetId: "digest")
+        V2NHaptics.selection()
     }
 
     private func reload() {
@@ -667,6 +659,14 @@ final class ReadingPlanDetailViewController: UITableViewController {
             do {
                 try await NativeAPIClient.markReadingPlanDay(planId: planId, day: day, on: on)
                 if on { marked.insert(day) } else { marked.remove(day) }
+                // Clear reading-due when the plan has no remaining unmarked day (completed).
+                // Opening Tools / the plan alone does not clear — use Dispensar aviso for that.
+                let daysCount = plan?.days ?? days.count
+                let next = (1...max(daysCount, 1)).first { !marked.contains($0) }
+                if next == nil {
+                    V2NActivityStore.dismissReadingDue(planId: planId)
+                    V2NActivityStore.clear(kind: .readingDue, targetId: "digest")
+                }
                 V2NHaptics.selection()
                 tableView.reloadData()
             } catch {

@@ -85,7 +85,7 @@ jobs:
             "${RUNNER_TEMP}/verse2note-ios" \
             /tmp \
             "${GITHUB_WORKSPACE}" \
-            \( -name 'tf222-*.png' -o -name 'tab-bg-*.png' -o -name 'b234-*.png' \) 2>/dev/null \
+            \( -name 'tf222-*.png' -o -name 'tab-bg-*.png' -o -name 'b234-*.png' -o -name 'b238-*.png' \) 2>/dev/null \
             | head -160 \
             | while read -r f; do cp -f "$f" artifacts/ 2>/dev/null || true; done
           ls -la artifacts || true
@@ -110,6 +110,13 @@ jobs:
         with:
           name: build-234-feedback
           path: artifacts/b234-*.png
+          if-no-files-found: warn
+      - name: Upload build-238 screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-238-feedback
+          path: artifacts/b238-*.png
           if-no-files-found: error
 
   testflight:

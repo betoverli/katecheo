@@ -164,6 +164,7 @@ final class NativeLoginService: NSObject {
         }
         KeychainStore.deleteBearerToken()
         LocalSessionCache.clearAll()
+        V2NActivityStore.clearAccount()
         LocalSessionCache.showOfflineHint = false
         UserDefaults.standard.removeObject(forKey: NativeSessionBootstrap.migratedFlagKey)
     }

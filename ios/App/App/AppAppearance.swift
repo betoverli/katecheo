@@ -7,6 +7,15 @@ import UIKit
 /// took effect after visiting the Appearance screen (which called `apply` locally).
 enum AppAppearance {
     static let themeDefaultsKey = "v2n.appearance.theme"
+    /// Keep note editing Light even when the app theme is Dark / System (build-238).
+    /// Local-only — not synced via prefs.
+    static let keepEditorLightKey = "v2n.appearance.editorLight"
+
+    /// When true, `NoteDetailViewController` forces Light while editing.
+    static var keepEditorInLightMode: Bool {
+        get { UserDefaults.standard.bool(forKey: keepEditorLightKey) }
+        set { UserDefaults.standard.set(newValue, forKey: keepEditorLightKey) }
+    }
 
     /// Resolved preference id: `light` | `dark` | `system`.
     static var storedTheme: String {
@@ -95,5 +104,10 @@ enum AppAppearance {
             LocalSessionCache.saveMe(me)
         }
         apply()
+    }
+
+    @MainActor
+    static func setKeepEditorInLightMode(_ enabled: Bool) {
+        keepEditorInLightMode = enabled
     }
 }

@@ -515,7 +515,6 @@ final class ThemesHomeViewController: UITableViewController, UISearchResultsUpda
     private var themes: [NativeAPIClient.ThemeCardDTO] = []
     private var kind = "index"
     private let search = UISearchController(searchResultsController: nil)
-    private let embeddedSearch = UISearchBar()
     private let emptyState = V2NEmptyStateView()
 
     init(prefs: NativeAPIClient.PrefsDTO?, embedded: Bool = false) {
@@ -548,13 +547,8 @@ final class ThemesHomeViewController: UITableViewController, UISearchResultsUpda
         search.searchBar.placeholder = String(localized: "Buscar temas")
         search.searchBar.tintColor = V2NDesign.accent
         if embedded {
-            // Keep parent nav title/chips; search lives in the content area.
-            embeddedSearch.placeholder = String(localized: "Buscar temas")
-            embeddedSearch.delegate = self
-            embeddedSearch.searchBarStyle = .minimal
-            embeddedSearch.tintColor = V2NDesign.accent
-            embeddedSearch.sizeToFit()
-            tableView.tableHeaderView = embeddedSearch
+            // Parent Ferramentas owns navigationItem.searchController (pull-to-reveal).
+            // No permanent embedded search bar.
         } else {
             navigationItem.searchController = search
             navigationItem.hidesSearchBarWhenScrolling = true
@@ -625,15 +619,18 @@ final class ThemesHomeViewController: UITableViewController, UISearchResultsUpda
         reload()
     }
 
+    /// Parent Tools search forwards here when Temas is selected.
+    func applyParentSearchQuery(_ query: String) {
+        search.searchBar.text = query
+        reload()
+    }
+
+    var parentSearchController: UISearchController { search }
+
     @objc private func reload() {
         Task { @MainActor in
             defer { refreshControl?.endRefreshing() }
-            let q: String
-            if embedded {
-                q = (embeddedSearch.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-            } else {
-                q = (search.searchBar.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-            }
+            let q = (search.searchBar.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             do {
                 let result = try await NativeAPIClient.fetchThemes(query: q.isEmpty ? nil : q)
                 kind = result.kind
@@ -913,10 +910,22 @@ final class MyCollectionsViewController: UITableViewController {
             navigationItem.rightBarButtonItem?.tintColor = V2NDesign.accent
         }
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "list")
+        // backgroundView + Auto Layout fights UITableView frame ownership (build-238:
+        // empty copy + Nova lista sat indented). Use autoresizing fill instead.
+        emptyState.translatesAutoresizingMaskIntoConstraints = true
+        emptyState.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         tableView.backgroundView = emptyState
         refreshControl = UIRefreshControl()
         refreshControl?.tintColor = V2NDesign.accent
         refreshControl?.addTarget(self, action: #selector(reload), for: .valueChanged)
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        v2nApplyTabBarScrollClearanceIfNeeded()
+        if let bg = tableView.backgroundView {
+            bg.frame = tableView.bounds
+        }
     }
 
     override func viewWillAppear(_ animated: Bool) {

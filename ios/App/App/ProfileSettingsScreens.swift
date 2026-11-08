@@ -216,6 +216,7 @@ final class ProfileThemeViewController: UITableViewController {
         v2nApplyGroupedChrome()
         title = String(localized: "Aparência")
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "theme")
+        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "editorLight")
     }
 
     override func viewDidLayoutSubviews() {
@@ -223,15 +224,39 @@ final class ProfileThemeViewController: UITableViewController {
         v2nApplyTabBarScrollClearanceIfNeeded()
     }
 
+    override func numberOfSections(in tableView: UITableView) -> Int { 2 }
+
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        options.count
+        section == 0 ? options.count : 1
+    }
+
+    override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
+        section == 1 ? String(localized: "Editor") : nil
     }
 
     override func tableView(_ tableView: UITableView, titleForFooterInSection section: Int) -> String? {
-        String(localized: "A aparência se aplica às telas nativas. O tema fica salvo na sua conta.")
+        if section == 0 {
+            return String(localized: "A aparência se aplica às telas nativas. O tema fica salvo na sua conta.")
+        }
+        return String(localized: "Só enquanto edita uma nota. O restante do app segue a Aparência.")
     }
 
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        if indexPath.section == 1 {
+            let cell = tableView.dequeueReusableCell(withIdentifier: "editorLight", for: indexPath)
+            var config = cell.defaultContentConfiguration()
+            config.text = String(localized: "Editor sempre claro")
+            config.secondaryText = String(localized: "Manter a edição de notas no modo Claro")
+            config.image = UIImage(systemName: "sun.max.circle")
+            cell.contentConfiguration = config
+            cell.selectionStyle = .none
+            let toggle = UISwitch()
+            toggle.isOn = AppAppearance.keepEditorInLightMode
+            toggle.addTarget(self, action: #selector(editorLightChanged(_:)), for: .valueChanged)
+            cell.accessoryView = toggle
+            cell.v2nApplyThemedGroupedCell()
+            return cell
+        }
         let cell = tableView.dequeueReusableCell(withIdentifier: "theme", for: indexPath)
         let option = options[indexPath.row]
         var config = cell.defaultContentConfiguration()
@@ -239,12 +264,14 @@ final class ProfileThemeViewController: UITableViewController {
         config.image = UIImage(systemName: option.symbol)
         cell.contentConfiguration = config
         cell.accessoryType = theme == option.id ? .checkmark : .none
+        cell.accessoryView = nil
         cell.v2nApplyThemedGroupedCell()
         return cell
     }
 
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
+        guard indexPath.section == 0 else { return }
         let option = options[indexPath.row]
         theme = option.id
         tableView.reloadData()
@@ -257,6 +284,11 @@ final class ProfileThemeViewController: UITableViewController {
                 presentSaveError(on: self, error)
             }
         }
+    }
+
+    @objc private func editorLightChanged(_ toggle: UISwitch) {
+        AppAppearance.setKeepEditorInLightMode(toggle.isOn)
+        V2NHaptics.selection()
     }
 }
 

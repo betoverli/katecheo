@@ -120,6 +120,7 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
                 groups = try await NativeAPIClient.listGroups()
                 // Success: no persistent "sincronizado" banner (was leaking across screens).
                 statusBanner.setStatus(nil)
+                await refreshPendingActivityDots()
                 applyFilter()
             } catch NativeAPIClient.APIError.unauthorized {
                 statusBanner.setStatus(String(localized: "Sessão expirada. Entre novamente."), kind: .error)
@@ -186,7 +187,10 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: V2NGroupRowCell.reuseId, for: indexPath) as! V2NGroupRowCell
-        cell.configure(filtered[indexPath.row])
+        let group = filtered[indexPath.row]
+        let unread = V2NActivityStore.targetIds(kind: .groupActivity).contains(group.id)
+            || V2NActivityStore.targetIds(kind: .groupPending).contains(group.id)
+        cell.configure(group, unread: unread)
         return cell
     }
 
@@ -194,8 +198,19 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
         tableView.deselectRow(at: indexPath, animated: true)
         V2NHaptics.selection()
         let group = filtered[indexPath.row]
+        V2NActivityStore.markGroupViewed(group.id)
         let detail = NotebookListViewController(group: group)
         navigationController?.pushViewController(detail, animated: true)
+    }
+
+    /// Admin groups: pending join requests are reachable in Membros — keep a groupPending dot.
+    private func refreshPendingActivityDots() async {
+        let adminGroups = groups.filter(\.isAdmin).prefix(12)
+        for group in adminGroups {
+            let members = (try? await NativeAPIClient.listGroupMembers(groupId: group.id)) ?? []
+            let pending = members.filter(\.isPending).count
+            V2NActivityStore.reconcileGroupPending(groupId: group.id, pendingCount: pending)
+        }
     }
 
     func tableView(
@@ -217,8 +232,8 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
             style: .destructive,
             systemName: "trash",
             accessibilityLabel: String(localized: "Excluir")
-        ) { [weak self] _, _, done in
-            self?.confirmDelete(group) { done($0) }
+        ) { [weak self] _, view, done in
+            self?.confirmDelete(group, from: view, at: indexPath) { done($0) }
         }
         return UISwipeActionsConfiguration(actions: [delete, rename])
     }
@@ -303,7 +318,12 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
         }
     }
 
-    private func confirmDelete(_ group: NativeAPIClient.GroupDTO, completion: @escaping (Bool) -> Void) {
+    private func confirmDelete(
+        _ group: NativeAPIClient.GroupDTO,
+        from source: UIView?,
+        at indexPath: IndexPath,
+        completion: @escaping (Bool) -> Void
+    ) {
         let alert = UIAlertController(
             title: String(localized: "Excluir «\(group.name)»?"),
             message: String(localized: "Esta ação remove o grupo e as publicações. Não dá para desfazer."),
@@ -326,8 +346,14 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
             }
         })
         if let pop = alert.popoverPresentationController {
-            pop.sourceView = tableView
-            pop.sourceRect = tableView.bounds
+            if let source {
+                pop.sourceView = source
+                pop.sourceRect = source.bounds
+            } else {
+                pop.sourceView = tableView
+                pop.sourceRect = tableView.rectForRow(at: indexPath)
+            }
+            pop.permittedArrowDirections = [.up, .down]
         }
         present(alert, animated: true)
     }
