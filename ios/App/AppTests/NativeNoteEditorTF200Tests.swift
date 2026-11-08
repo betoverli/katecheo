@@ -191,14 +191,13 @@ final class NativeNoteEditorTF200Tests: XCTestCase {
     }
 
     // TF210: @ and / insert as ordinary characters (no shortcut sheets).
+    // Empty-body ZWSP may be replaced 1:1, so assert presence — not length growth.
     func testAtAndSlash_insertAsOrdinaryCharacters() {
-        let before = editor.testing_textStorage().string
-        editor.testing_insertText("@")
+        editor.testing_insertText("@hello")
         XCTAssertTrue(
-            editor.testing_textStorage().string.contains("@"),
+            editor.testing_textStorage().string.contains("@hello"),
             "@ must insert as a normal character"
         )
-        XCTAssertGreaterThan(editor.testing_textStorage().string.count, before.count)
         editor.testing_insertText("/")
         XCTAssertTrue(
             editor.testing_textStorage().string.contains("/"),
