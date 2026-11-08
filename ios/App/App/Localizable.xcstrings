@@ -14193,49 +14193,70 @@
       }
     },
     "Aguardando API nativa": {
+      "extractionState": "manual",
       "localizations": {
-        "en": {
+        "pt-BR": {
           "stringUnit": {
             "state": "translated",
             "value": "Aguardando API nativa"
           }
         },
-        "pt": {
+        "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Aguardando API nativa"
+            "value": "Waiting for native API"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esperando API nativa"
           }
         }
       }
     },
     "No web já funciona; no app iOS ainda não há endpoints Bearer.": {
+      "extractionState": "manual",
       "localizations": {
-        "en": {
+        "pt-BR": {
           "stringUnit": {
             "state": "translated",
             "value": "No web já funciona; no app iOS ainda não há endpoints Bearer."
           }
         },
-        "pt": {
+        "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "No web já funciona; no app iOS ainda não há endpoints Bearer."
+            "value": "Already works on the web; the iOS app still has no Bearer endpoints."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En la web ya funciona; en la app iOS aún no hay endpoints Bearer."
           }
         }
       }
     },
     "Listar, aceitar e recusar pedidos exige wrapping nativo das rotas web de amigos (listLinks / acceptLink / declineLink). Sem isso, o iOS não mostra bolinha em Perfil — evita beco sem saída.": {
+      "extractionState": "manual",
       "localizations": {
-        "en": {
+        "pt-BR": {
           "stringUnit": {
             "state": "translated",
             "value": "Listar, aceitar e recusar pedidos exige wrapping nativo das rotas web de amigos (listLinks / acceptLink / declineLink). Sem isso, o iOS não mostra bolinha em Perfil — evita beco sem saída."
           }
         },
-        "pt": {
+        "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Listar, aceitar e recusar pedidos exige wrapping nativo das rotas web de amigos (listLinks / acceptLink / declineLink). Sem isso, o iOS não mostra bolinha em Perfil — evita beco sem saída."
+            "value": "Listing, accepting, and declining friend requests needs a native wrap of the web friends routes (listLinks / acceptLink / declineLink). Without that, iOS does not show a Profile badge — avoids a dead end."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listar, aceptar y rechazar solicitudes exige un wrapping nativo de las rutas web de amigos (listLinks / acceptLink / declineLink). Sin eso, iOS no muestra bolita en Perfil — evita un callejón sin salida."
           }
         }
       }
