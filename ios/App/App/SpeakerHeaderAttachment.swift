@@ -7,8 +7,8 @@ import UIKit
 /// - × → delete section
 /// - name / remaining header → rename via speaker picker
 ///
-/// Colors are resolved against an explicit trait collection and baked into the image.
-/// Call `refreshImage` again when appearance changes (TF214 light-mode reopen bug).
+/// Colors are flattened to concrete RGB under an explicit trait collection and baked
+/// into `alwaysOriginal` images. Re-call `refreshImage` when appearance changes (TF214/TF219).
 final class SpeakerHeaderAttachment: NSTextAttachment {
     enum Hit: Equatable {
         case toggleCollapse
@@ -46,7 +46,12 @@ final class SpeakerHeaderAttachment: NSTextAttachment {
         self.collapsed = collapsed
         self.preview = preview
         super.init(data: nil, ofType: nil)
-        refreshImage(width: 320, traits: UITraitCollection.current)
+        // Prefer light as a safe default when no window traits exist yet (decode / tests).
+        let seed = UITraitCollection(traitsFrom: [
+            UITraitCollection.current,
+            UITraitCollection(userInterfaceStyle: .light),
+        ])
+        refreshImage(width: 320, traits: seed)
     }
 
     @available(*, unavailable)
@@ -59,6 +64,7 @@ final class SpeakerHeaderAttachment: NSTextAttachment {
         characterIndex charIndex: Int
     ) -> CGRect {
         let width = max(lineFrag.width, textContainer?.size.width ?? 300, 120)
+        // Prefer ambient traits here; NativeNoteEditorView also refreshes with textView.traitCollection.
         let traits = UITraitCollection.current
         let style = traits.userInterfaceStyle
         let widthDirty = abs(renderedWidth - width) > 1
@@ -78,16 +84,17 @@ final class SpeakerHeaderAttachment: NSTextAttachment {
         return .rename
     }
 
-    /// Rebuild the chrome image with colors resolved for `traits` (never rely on ambient bake alone).
+    /// Rebuild the chrome image with colors resolved for `traits`.
     func refreshImage(width: CGFloat, traits: UITraitCollection = .current) {
         let w = max(width, 120)
         // ≥44pt tall so the × hit box meets HIG without enlarging the glyph.
         let height: CGFloat = 44
         let nameFont = V2NDesign.preferred(.title3, weight: .semibold)
         let previewFont = V2NDesign.preferred(.caption1, weight: .regular)
-        // Resolve dynamic colors for the target appearance (TF214).
-        let nameColor = UIColor.label.resolvedColor(with: traits)
-        let muted = UIColor.secondaryLabel.resolvedColor(with: traits)
+        // Flatten dynamic colors under the requested traits so UIGraphicsImageRenderer
+        // cannot re-resolve against ambient (often dark) traits during draw (TF219).
+        let nameColor = Self.concreteColor(UIColor.label, traits: traits)
+        let muted = Self.concreteColor(UIColor.secondaryLabel, traits: traits)
         let name = speakerName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             ? String(localized: "Speaker")
             : speakerName
@@ -106,101 +113,116 @@ final class SpeakerHeaderAttachment: NSTextAttachment {
         let format = UIGraphicsImageRendererFormat()
         format.opaque = false
         format.scale = traits.displayScale > 0 ? traits.displayScale : UIScreen.main.scale
-        // Prefer the requested interface style when baking pixels.
-        if #available(iOS 17.0, *) {
-            // Keep format.scale; color resolution already uses `traits` below.
-        }
 
-        let renderer = UIGraphicsImageRenderer(size: CGSize(width: w, height: height), format: format)
-        image = renderer.image { _ in
-            // Chevron (CSS-like rotated square borders).
-            let chevronCenter = CGPoint(x: padL + chevronSize / 2, y: height / 2)
-            let path = UIBezierPath()
-            let arm: CGFloat = 4.5
-            if collapsed {
-                // ▸ pointing right-ish
-                path.move(to: CGPoint(x: chevronCenter.x - 2, y: chevronCenter.y - arm))
-                path.addLine(to: CGPoint(x: chevronCenter.x + 3, y: chevronCenter.y))
-                path.addLine(to: CGPoint(x: chevronCenter.x - 2, y: chevronCenter.y + arm))
-            } else {
-                // ▾ pointing down
-                path.move(to: CGPoint(x: chevronCenter.x - arm, y: chevronCenter.y - 2))
-                path.addLine(to: CGPoint(x: chevronCenter.x, y: chevronCenter.y + 3))
-                path.addLine(to: CGPoint(x: chevronCenter.x + arm, y: chevronCenter.y - 2))
-            }
-            path.lineWidth = 1.6
-            muted.setStroke()
-            path.stroke()
+        var baked: UIImage!
+        traits.performAsCurrent {
+            let renderer = UIGraphicsImageRenderer(size: CGSize(width: w, height: height), format: format)
+            baked = renderer.image { _ in
+                // Chevron (CSS-like rotated square borders).
+                let chevronCenter = CGPoint(x: padL + chevronSize / 2, y: height / 2)
+                let path = UIBezierPath()
+                let arm: CGFloat = 4.5
+                if collapsed {
+                    path.move(to: CGPoint(x: chevronCenter.x - 2, y: chevronCenter.y - arm))
+                    path.addLine(to: CGPoint(x: chevronCenter.x + 3, y: chevronCenter.y))
+                    path.addLine(to: CGPoint(x: chevronCenter.x - 2, y: chevronCenter.y + arm))
+                } else {
+                    path.move(to: CGPoint(x: chevronCenter.x - arm, y: chevronCenter.y - 2))
+                    path.addLine(to: CGPoint(x: chevronCenter.x, y: chevronCenter.y + 3))
+                    path.addLine(to: CGPoint(x: chevronCenter.x + arm, y: chevronCenter.y - 2))
+                }
+                path.lineWidth = 1.6
+                muted.setStroke()
+                path.stroke()
 
-            let nameX = padL + chevronSize + gap
-            let removeX = w - removeVisualSize
-            let maxNameW = max(40, removeX - nameX - gap - (collapsed && !preview.isEmpty ? w * 0.35 : 0))
+                let nameX = padL + chevronSize + gap
+                let removeX = w - removeVisualSize
+                let maxNameW = max(40, removeX - nameX - gap - (collapsed && !preview.isEmpty ? w * 0.35 : 0))
 
-            let nameAttr = NSAttributedString(string: name, attributes: [
-                .font: nameFont,
-                .foregroundColor: nameColor,
-            ])
-            let nameSize = nameAttr.boundingRect(
-                with: CGSize(width: maxNameW, height: height),
-                options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine],
-                context: nil
-            ).integral.size
-            let nameRect = CGRect(
-                x: nameX,
-                y: (height - nameSize.height) / 2,
-                width: min(nameSize.width, maxNameW),
-                height: nameSize.height
-            )
-            nameAttr.draw(with: nameRect, options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], context: nil)
+                let nameAttr = NSAttributedString(string: name, attributes: [
+                    .font: nameFont,
+                    .foregroundColor: nameColor,
+                ])
+                let nameSize = nameAttr.boundingRect(
+                    with: CGSize(width: maxNameW, height: height),
+                    options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine],
+                    context: nil
+                ).integral.size
+                let nameRect = CGRect(
+                    x: nameX,
+                    y: (height - nameSize.height) / 2,
+                    width: min(nameSize.width, maxNameW),
+                    height: nameSize.height
+                )
+                nameAttr.draw(with: nameRect, options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], context: nil)
 
-            if collapsed {
-                let previewText = preview.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !previewText.isEmpty {
-                    let previewX = nameRect.maxX + gap
-                    let previewW = max(0, removeX - previewX - gap)
-                    if previewW > 24 {
-                        let previewAttr = NSAttributedString(string: previewText, attributes: [
-                            .font: previewFont,
-                            .foregroundColor: muted,
-                        ])
-                        let pSize = previewAttr.boundingRect(
-                            with: CGSize(width: previewW, height: height),
-                            options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine],
-                            context: nil
-                        ).integral.size
-                        let pRect = CGRect(
-                            x: previewX,
-                            y: (height - pSize.height) / 2,
-                            width: min(pSize.width, previewW),
-                            height: pSize.height
-                        )
-                        previewAttr.draw(
-                            with: pRect,
-                            options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine],
-                            context: nil
-                        )
+                if collapsed {
+                    let previewText = preview.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !previewText.isEmpty {
+                        let previewX = nameRect.maxX + gap
+                        let previewW = max(0, removeX - previewX - gap)
+                        if previewW > 24 {
+                            let previewAttr = NSAttributedString(string: previewText, attributes: [
+                                .font: previewFont,
+                                .foregroundColor: muted,
+                            ])
+                            let pSize = previewAttr.boundingRect(
+                                with: CGSize(width: previewW, height: height),
+                                options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine],
+                                context: nil
+                            ).integral.size
+                            let pRect = CGRect(
+                                x: previewX,
+                                y: (height - pSize.height) / 2,
+                                width: min(pSize.width, previewW),
+                                height: pSize.height
+                            )
+                            previewAttr.draw(
+                                with: pRect,
+                                options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine],
+                                context: nil
+                            )
+                        }
                     }
                 }
-            }
 
-            // × remove control (web `.note-speaker-remove`) — glyph centered in the
-            // visual column; hit testing uses the wider `removeHitSize` band.
-            let xAttr = NSAttributedString(string: "×", attributes: [
-                .font: V2NDesign.preferred(.title2, weight: .regular),
-                .foregroundColor: muted,
-            ])
-            let xSize = xAttr.size()
-            let xRect = CGRect(
-                x: removeX + (removeVisualSize - xSize.width) / 2,
-                y: (height - xSize.height) / 2,
-                width: xSize.width,
-                height: xSize.height
-            )
-            xAttr.draw(in: xRect)
+                let xAttr = NSAttributedString(string: "×", attributes: [
+                    .font: V2NDesign.preferred(.title2, weight: .regular),
+                    .foregroundColor: muted,
+                ])
+                let xSize = xAttr.size()
+                let xRect = CGRect(
+                    x: removeX + (removeVisualSize - xSize.width) / 2,
+                    y: (height - xSize.height) / 2,
+                    width: xSize.width,
+                    height: xSize.height
+                )
+                xAttr.draw(in: xRect)
+            }
         }
+
+        image = baked.withRenderingMode(.alwaysOriginal)
         bounds = CGRect(x: 0, y: -8, width: w, height: height)
         renderedWidth = w
         renderedInterfaceStyle = traits.userInterfaceStyle
+    }
+
+    /// Snapshot a dynamic color to concrete RGB under `traits` (survives later draw contexts).
+    static func concreteColor(_ color: UIColor, traits: UITraitCollection) -> UIColor {
+        let resolved = color.resolvedColor(with: traits)
+        var r: CGFloat = 0
+        var g: CGFloat = 0
+        var b: CGFloat = 0
+        var a: CGFloat = 0
+        if resolved.getRed(&r, green: &g, blue: &b, alpha: &a) {
+            return UIColor(red: r, green: g, blue: b, alpha: a)
+        }
+        // Fallback for grayscale / pattern colors.
+        var white: CGFloat = 0
+        if resolved.getWhite(&white, alpha: &a) {
+            return UIColor(white: white, alpha: a)
+        }
+        return resolved
     }
 
     /// Luminance of an opaque name-area pixel (0…1). Used by AppTests.
@@ -214,12 +236,10 @@ final class SpeakerHeaderAttachment: NSTextAttachment {
         else { return nil }
         let bpp = max(cg.bitsPerPixel / 8, 4)
         let y = h / 2
-        // Scan the name band (after chevron) for the first reasonably opaque ink pixel.
         let startX = Int(CGFloat(w) * 0.08)
         let endX = Int(CGFloat(w) * 0.55)
         for x in startX..<min(endX, w) {
             let idx = (y * cg.bytesPerRow) + x * bpp
-            // Prefer alpha-last RGBA; fall back if alpha looks empty.
             let a = bpp >= 4 ? Int(ptr[idx + 3]) : 255
             if a < 80 { continue }
             let r = CGFloat(ptr[idx]) / 255

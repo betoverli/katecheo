@@ -246,7 +246,7 @@ final class ProfileThemeViewController: UITableViewController {
         let option = options[indexPath.row]
         theme = option.id
         tableView.reloadData()
-        applyThemeLocally(option.id)
+        AppAppearance.setTheme(option.id)
         Task { @MainActor in
             do {
                 _ = try await NativeAPIClient.patchPrefs(["theme": option.id])
@@ -254,19 +254,6 @@ final class ProfileThemeViewController: UITableViewController {
             } catch {
                 presentSaveError(on: self, error)
             }
-        }
-    }
-
-    private func applyThemeLocally(_ theme: String) {
-        guard let scene = view.window?.windowScene else { return }
-        let style: UIUserInterfaceStyle
-        switch theme {
-        case "light": style = .light
-        case "dark": style = .dark
-        default: style = .unspecified
-        }
-        for window in scene.windows {
-            window.overrideUserInterfaceStyle = style
         }
     }
 }

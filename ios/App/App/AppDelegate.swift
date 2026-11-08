@@ -7,6 +7,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         V2NChrome.applyAppWide()
+        // Seed Appearance from cache early so SceneDelegate windows inherit the right style.
+        AppAppearance.syncFromCacheAndApply()
         NativePushService.shared.configure()
         return true
     }
