@@ -85,6 +85,11 @@ final class ProfileEditViewController: UITableViewController {
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "field")
     }
 
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        v2nApplyTabBarScrollClearanceIfNeeded()
+    }
+
     override func numberOfSections(in tableView: UITableView) -> Int { 1 }
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int { 4 }
@@ -212,6 +217,11 @@ final class ProfileThemeViewController: UITableViewController {
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "theme")
     }
 
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        v2nApplyTabBarScrollClearanceIfNeeded()
+    }
+
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         options.count
     }
@@ -289,6 +299,11 @@ final class ProfileLanguageViewController: UITableViewController {
         syncInterfaceLocaleToServer()
     }
 
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        v2nApplyTabBarScrollClearanceIfNeeded()
+    }
+
     /// Interface language follows the iPhone; keep server `locale` in sync for prefs consumers.
     private func syncInterfaceLocaleToServer() {
         let device = AppLocale.apiCode
@@ -361,14 +376,14 @@ final class ProfileLanguageViewController: UITableViewController {
 
 // MARK: - Bible
 
+/// Profile → App de Bíblia. Single scrolling table so Translation / Open with clear the floating tab bar (TF214).
 final class ProfileBibleViewController: UIViewController, UICollectionViewDelegate, UICollectionViewDataSource, UITableViewDelegate, UITableViewDataSource {
     private var prefs: NativeAPIClient.PrefsDTO
     private let onSaved: () -> Void
+    private let tableView = UITableView(frame: .zero, style: .insetGrouped)
     private var logoCollection: UICollectionView!
     private var logoHeightConstraint: NSLayoutConstraint?
-    private let optionsTable = UITableView(frame: .zero, style: .insetGrouped)
-    private let scroll = UIScrollView()
-    private let content = UIStackView()
+    private var headerContainer: UIView!
 
     init(prefs: NativeAPIClient.PrefsDTO, onSaved: @escaping () -> Void) {
         self.prefs = prefs
@@ -384,16 +399,36 @@ final class ProfileBibleViewController: UIViewController, UICollectionViewDelega
         V2NChrome.styleCanvas(view)
         title = String(localized: "App de Bíblia")
 
-        scroll.translatesAutoresizingMaskIntoConstraints = false
-        scroll.alwaysBounceVertical = true
-        view.addSubview(scroll)
+        tableView.translatesAutoresizingMaskIntoConstraints = false
+        V2NChrome.styleGroupedTable(tableView)
+        tableView.delegate = self
+        tableView.dataSource = self
+        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "opt")
+        tableView.alwaysBounceVertical = true
+        tableView.keyboardDismissMode = .onDrag
+        view.addSubview(tableView)
 
-        content.axis = .vertical
-        content.spacing = V2NDesign.Space.sm
-        content.translatesAutoresizingMaskIntoConstraints = false
-        scroll.addSubview(content)
+        NSLayoutConstraint.activate([
+            tableView.topAnchor.constraint(equalTo: view.topAnchor),
+            tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
 
-        content.addArrangedSubview(makeSectionHeader(String(localized: "Aplicativo")))
+        buildHeader()
+        tableView.tableHeaderView = headerContainer
+    }
+
+    private func buildHeader() {
+        let header = UIView()
+        header.backgroundColor = .clear
+
+        let title = UILabel()
+        title.translatesAutoresizingMaskIntoConstraints = false
+        title.text = String(localized: "Aplicativo").uppercased()
+        title.font = V2NDesign.sectionHeader()
+        title.textColor = .secondaryLabel
+        title.accessibilityTraits = .header
 
         let layout = UICollectionViewCompositionalLayout { _, env in
             let width = env.container.effectiveContentSize.width
@@ -413,59 +448,33 @@ final class ProfileBibleViewController: UIViewController, UICollectionViewDelega
             section.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 10, bottom: 8, trailing: 10)
             return section
         }
-        logoCollection = UICollectionView(frame: .zero, collectionViewLayout: layout)
-        logoCollection.translatesAutoresizingMaskIntoConstraints = false
-        logoCollection.backgroundColor = .clear
-        logoCollection.isScrollEnabled = false
-        logoCollection.delegate = self
-        logoCollection.dataSource = self
-        logoCollection.register(V2NBibleAppLogoCell.self, forCellWithReuseIdentifier: V2NBibleAppLogoCell.reuseId)
-        content.addArrangedSubview(logoCollection)
+        let logos = UICollectionView(frame: .zero, collectionViewLayout: layout)
+        logos.translatesAutoresizingMaskIntoConstraints = false
+        logos.backgroundColor = .clear
+        logos.isScrollEnabled = false
+        logos.delegate = self
+        logos.dataSource = self
+        logos.register(V2NBibleAppLogoCell.self, forCellWithReuseIdentifier: V2NBibleAppLogoCell.reuseId)
 
-        optionsTable.translatesAutoresizingMaskIntoConstraints = false
-        V2NChrome.styleGroupedTable(optionsTable)
-        optionsTable.delegate = self
-        optionsTable.dataSource = self
-        optionsTable.isScrollEnabled = false
-        optionsTable.register(UITableViewCell.self, forCellReuseIdentifier: "opt")
-        content.addArrangedSubview(optionsTable)
-
-        let logoHeight = logoCollection.heightAnchor.constraint(equalToConstant: logoGridHeight(columns: 3))
+        header.addSubview(title)
+        header.addSubview(logos)
+        let logoHeight = logos.heightAnchor.constraint(equalToConstant: logoGridHeight(columns: 3))
         logoHeightConstraint = logoHeight
-
         NSLayoutConstraint.activate([
-            scroll.topAnchor.constraint(equalTo: view.topAnchor),
-            scroll.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            scroll.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            scroll.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            title.topAnchor.constraint(equalTo: header.topAnchor, constant: V2NDesign.Space.sm),
+            title.leadingAnchor.constraint(equalTo: header.leadingAnchor, constant: 20),
+            title.trailingAnchor.constraint(equalTo: header.trailingAnchor, constant: -20),
 
-            content.topAnchor.constraint(equalTo: scroll.contentLayoutGuide.topAnchor, constant: V2NDesign.Space.sm),
-            content.leadingAnchor.constraint(equalTo: scroll.frameLayoutGuide.leadingAnchor),
-            content.trailingAnchor.constraint(equalTo: scroll.frameLayoutGuide.trailingAnchor),
-            content.bottomAnchor.constraint(equalTo: scroll.contentLayoutGuide.bottomAnchor, constant: -V2NDesign.Space.xl),
-            content.widthAnchor.constraint(equalTo: scroll.frameLayoutGuide.widthAnchor),
-
+            logos.topAnchor.constraint(equalTo: title.bottomAnchor, constant: 4),
+            logos.leadingAnchor.constraint(equalTo: header.leadingAnchor),
+            logos.trailingAnchor.constraint(equalTo: header.trailingAnchor),
+            logos.bottomAnchor.constraint(equalTo: header.bottomAnchor, constant: -V2NDesign.Space.xs),
             logoHeight,
-            optionsTable.heightAnchor.constraint(equalToConstant: optionsTableHeight()),
         ])
-    }
 
-    private func makeSectionHeader(_ text: String) -> UIView {
-        let box = UIView()
-        let label = UILabel()
-        label.translatesAutoresizingMaskIntoConstraints = false
-        label.text = text.uppercased()
-        label.font = V2NDesign.sectionHeader()
-        label.textColor = .secondaryLabel
-        box.addSubview(label)
-        NSLayoutConstraint.activate([
-            label.leadingAnchor.constraint(equalTo: box.leadingAnchor, constant: 20),
-            label.trailingAnchor.constraint(equalTo: box.trailingAnchor, constant: -20),
-            label.topAnchor.constraint(equalTo: box.topAnchor, constant: 8),
-            label.bottomAnchor.constraint(equalTo: box.bottomAnchor, constant: -4),
-            box.heightAnchor.constraint(greaterThanOrEqualToConstant: 28),
-        ])
-        return box
+        logoCollection = logos
+        headerContainer = header
+        relayoutHeader(width: view.bounds.width > 0 ? view.bounds.width : UIScreen.main.bounds.width)
     }
 
     private func logoGridHeight(columns: Int) -> CGFloat {
@@ -474,9 +483,21 @@ final class ProfileBibleViewController: UIViewController, UICollectionViewDelega
         return CGFloat(rows) * 118 + 16
     }
 
-    private func optionsTableHeight() -> CGFloat {
-        let rows = ProfileBibleCatalog.translations.count + 2
-        return CGFloat(rows) * 48 + 88
+    private func relayoutHeader(width: CGFloat) {
+        guard let headerContainer, width > 0 else { return }
+        let cols = width > 500 ? 4 : 3
+        logoHeightConstraint?.constant = logoGridHeight(columns: cols)
+        let target = CGSize(width: width, height: UIView.layoutFittingCompressedSize.height)
+        let height = headerContainer.systemLayoutSizeFitting(
+            target,
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        ).height
+        let next = CGRect(x: 0, y: 0, width: width, height: height)
+        if abs(headerContainer.frame.height - height) > 0.5 || abs(headerContainer.frame.width - width) > 0.5 {
+            headerContainer.frame = next
+            tableView.tableHeaderView = headerContainer
+        }
     }
 
     private func assetName(for appId: String) -> String {
@@ -496,8 +517,8 @@ final class ProfileBibleViewController: UIViewController, UICollectionViewDelega
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        let cols = view.bounds.width > 500 ? 4 : 3
-        logoHeightConstraint?.constant = logoGridHeight(columns: cols)
+        relayoutHeader(width: tableView.bounds.width)
+        v2nApplyTabBarScrollClearance(to: tableView)
     }
 
     // MARK: Logo grid
@@ -537,6 +558,7 @@ final class ProfileBibleViewController: UIViewController, UICollectionViewDelega
     }
 
     func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
+        // "Abertura" localizes to "Open with" — keep source string for catalog continuity.
         section == 0 ? String(localized: "Tradução") : String(localized: "Abertura")
     }
 
@@ -601,6 +623,11 @@ final class ProfileNotifyViewController: UITableViewController {
         v2nApplyGroupedChrome()
         title = String(localized: "Avisos")
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "notify")
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        v2nApplyTabBarScrollClearanceIfNeeded()
     }
 
     override func numberOfSections(in tableView: UITableView) -> Int { 2 }

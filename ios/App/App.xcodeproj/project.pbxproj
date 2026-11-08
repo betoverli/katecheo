@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		T8SCROLL2FED7965001685T8 /* V2NScrollChromeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T8SCROLL1FED7965001685T8 /* V2NScrollChromeTests.swift */; };
 		T7TF21022FED7965001685T7 /* NativeNoteEditorTF210Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T7TF21021FED7965001685T7 /* NativeNoteEditorTF210Tests.swift */; };
 		T7TAGS12FED7965001685T7 /* NoteEditorTagsStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = T7TAGS11FED7965001685T7 /* NoteEditorTagsStrip.swift */; };
 		T1A2B0102FED7965001685T1 /* NoteDocumentCodecTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T1A2B0112FED7965001685T1 /* NoteDocumentCodecTests.swift */; };
@@ -120,6 +121,7 @@
 		T6TF19421FED7965001685T6 /* NativeNoteEditorTF194Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeNoteEditorTF194Tests.swift; sourceTree = "<group>"; };
 		T6TF20021FED7965001685T6 /* NativeNoteEditorTF200Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeNoteEditorTF200Tests.swift; sourceTree = "<group>"; };
 		T7TF21021FED7965001685T7 /* NativeNoteEditorTF210Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeNoteEditorTF210Tests.swift; sourceTree = "<group>"; };
+		T8SCROLL1FED7965001685T8 /* V2NScrollChromeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2NScrollChromeTests.swift; sourceTree = "<group>"; };
 		T7TAGS11FED7965001685T7 /* NoteEditorTagsStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteEditorTagsStrip.swift; sourceTree = "<group>"; };
 		T1A2B0142FED7965001685T1 /* AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -227,6 +229,7 @@
 				T6TF19421FED7965001685T6 /* NativeNoteEditorTF194Tests.swift */,
 				T6TF20021FED7965001685T6 /* NativeNoteEditorTF200Tests.swift */,
 				T7TF21021FED7965001685T7 /* NativeNoteEditorTF210Tests.swift */,
+				T8SCROLL1FED7965001685T8 /* V2NScrollChromeTests.swift */,
 			);
 			path = AppTests;
 			sourceTree = "<group>";
@@ -415,6 +418,7 @@
 				T6TF19422FED7965001685T6 /* NativeNoteEditorTF194Tests.swift in Sources */,
 				T6TF20022FED7965001685T6 /* NativeNoteEditorTF200Tests.swift in Sources */,
 				T7TF21022FED7965001685T7 /* NativeNoteEditorTF210Tests.swift in Sources */,
+				T8SCROLL2FED7965001685T8 /* V2NScrollChromeTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -421,6 +421,13 @@ extension UITableViewController {
         V2NChrome.styleGroupedTable(tableView)
         tableView.tintColor = V2NDesign.accent
         view.tintColor = V2NDesign.accent
+        // Profile settings stay above the floating tab bar — keep last rows reachable (TF214).
+        tableView.contentInsetAdjustmentBehavior = .automatic
+    }
+
+    /// Subclasses call `super` then this from `viewDidLayoutSubviews` when hosted in a tab.
+    func v2nApplyTabBarScrollClearanceIfNeeded() {
+        v2nApplyTabBarScrollClearance(to: tableView)
     }
 }
 
