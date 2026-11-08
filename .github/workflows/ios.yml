@@ -63,6 +63,7 @@ jobs:
           ')"
           echo "Destino dos testes: $DEST"
           mkdir -p artifacts
+          set +e
           xcodebuild \
             -project ios/App/App.xcodeproj \
             -scheme App \
@@ -76,7 +77,9 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             DEVELOPMENT_TEAM="" \
             test
-          # AppTests write PNGs inside the Simulator app sandbox — harvest them.
+          TEST_STATUS=$?
+          set -e
+          # AppTests write PNGs inside the Simulator app sandbox — harvest even on failure.
           find \
             "${HOME}/Library/Developer/CoreSimulator" \
             "${RUNNER_TEMP}/verse2note-ios" \
@@ -86,6 +89,7 @@ jobs:
             | head -80 \
             | while read -r f; do cp -f "$f" artifacts/ 2>/dev/null || true; done
           ls -la artifacts || true
+          exit "$TEST_STATUS"
       - name: Upload speaker appearance screenshots
         if: always()
         uses: actions/upload-artifact@v4

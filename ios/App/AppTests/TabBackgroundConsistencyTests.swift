@@ -31,7 +31,12 @@ final class TabBackgroundConsistencyTests: XCTestCase {
         let appearance = V2NChrome.makeNavigationBarAppearance()
         XCTAssertEqual(appearance.backgroundColor, V2NDesign.screenBackground)
         XCTAssertNil(appearance.backgroundEffect)
-        XCTAssertEqual(appearance.shadowColor, .clear)
+        // UIKit may normalize `.clear` to nil — either means no hairline shadow.
+        if let shadow = appearance.shadowColor {
+            var alpha: CGFloat = 1
+            XCTAssertTrue(shadow.getWhite(nil, alpha: &alpha) || shadow.cgColor.alpha < 0.01)
+            XCTAssertLessThan(shadow.cgColor.alpha, 0.01)
+        }
 
         let bar = UINavigationBar()
         V2NChrome.applyNavigationBarAppearance(to: bar)
