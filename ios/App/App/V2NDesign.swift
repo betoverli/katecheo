@@ -316,3 +316,26 @@ enum V2NHaptics {
         UISelectionFeedbackGenerator().selectionChanged()
     }
 }
+
+// MARK: - Icon-only swipe actions (Mail / Notes style)
+
+extension UIContextualAction {
+    /// Image-only swipe button: `title` is nil so UIKit centers the SF Symbol;
+    /// VoiceOver reads the localized `accessibilityLabel`.
+    static func v2nIconOnly(
+        style: UIContextualAction.Style,
+        systemName: String,
+        accessibilityLabel: String,
+        backgroundColor: UIColor? = nil,
+        handler: @escaping UIContextualAction.Handler
+    ) -> UIContextualAction {
+        let action = UIContextualAction(style: style, title: nil, handler: handler)
+        let config = UIImage.SymbolConfiguration(pointSize: 20, weight: .medium)
+        action.image = UIImage(systemName: systemName, withConfiguration: config)
+        action.accessibilityLabel = accessibilityLabel
+        if let backgroundColor {
+            action.backgroundColor = backgroundColor
+        }
+        return action
+    }
+}

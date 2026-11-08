@@ -551,6 +551,12 @@ if (notebookList.includes("Site clássico") || notebookList.includes("capacitorS
 if (!notebookList.includes("UIActivityViewController") || !notebookList.includes("trailingSwipeActions")) {
   errors.push("A lista nativa tem de ter swipe e partilha nativa.");
 }
+if (!notebookList.includes("v2nIconOnly") || !notebookList.includes("leadingSwipeActions")) {
+  errors.push("Swipe do Caderno tem de ser só ícone (v2nIconOnly) em leading/trailing.");
+}
+if (/UIContextualAction\(style:.*title:\s*String\(localized:/.test(notebookList)) {
+  errors.push("Swipe do Caderno não pode mostrar título de texto (usar title nil + ícone).");
+}
 if (!notebookList.includes("NativeSignInViewController") || !(notebookList.includes("Sair") || notebookList.includes("Terminar sessão"))) {
   errors.push("O Caderno tem de abrir o login nativo e permitir sair da sessão.");
 }
@@ -777,6 +783,9 @@ if (!project.includes("ProfileViewController.swift in Sources") || !project.incl
 }
 if (!project.includes("V2NScrollChromeTests.swift in Sources")) {
   errors.push("AppTests V2NScrollChromeTests têm de estar no target.");
+}
+if (!project.includes("V2NSwipeActionTests.swift in Sources")) {
+  errors.push("AppTests V2NSwipeActionTests têm de estar no target.");
 }
 if (!project.includes("NativeNoteEditorTF214Tests.swift in Sources")) {
   errors.push("AppTests TF214 (NativeNoteEditorTF214Tests) têm de estar no target.");
