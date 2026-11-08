@@ -8,6 +8,7 @@ final class Build238FeedbackTests: XCTestCase {
         AppAppearance.setTheme("system")
         AppAppearance.setKeepEditorInLightMode(false)
         V2NActivityStore.clearAccount()
+        LocalNoteCache.saveNotes([])
         try await super.tearDown()
     }
 

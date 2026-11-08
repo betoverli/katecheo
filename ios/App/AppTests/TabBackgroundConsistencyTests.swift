@@ -4,8 +4,16 @@ import XCTest
 /// Root tabs must share one Profile-matched fill (nav + content) in light and dark.
 @MainActor
 final class TabBackgroundConsistencyTests: XCTestCase {
+    override func setUp() async throws {
+        try await super.setUp()
+        // Prior suite tests (e.g. Build238 tags) may leave notes in LocalNoteCache;
+        // insetGrouped white cells would then skew header/body luma samples.
+        LocalNoteCache.saveNotes([])
+    }
+
     override func tearDown() async throws {
         AppAppearance.setTheme("system")
+        LocalNoteCache.saveNotes([])
         try await super.tearDown()
     }
 
@@ -116,10 +124,10 @@ final class TabBackgroundConsistencyTests: XCTestCase {
                 let snap = try XCTUnwrap(Self.renderSnapshot(of: nav.view, size: CGSize(width: 390, height: 844)))
                 Self.writeArtifact(snap, name: "tab-bg-\(fileTag)-\(name).png", into: self)
 
-                // Sample the trailing margin (away from large-title glyphs) so we compare
-                // page fill, not ink — catches a lighter nav band vs list fill.
-                if let header = Self.sampleLuma(in: snap, normalizedX: 0.92, normalizedY: 0.07),
-                   let body = Self.sampleLuma(in: snap, normalizedX: 0.92, normalizedY: 0.42)
+                // Sample the extreme trailing margin (outside insetGrouped cards / glyphs)
+                // so we compare page fill, not cell surface or large-title ink.
+                if let header = Self.sampleLuma(in: snap, normalizedX: 0.985, normalizedY: 0.07),
+                   let body = Self.sampleLuma(in: snap, normalizedX: 0.985, normalizedY: 0.42)
                 {
                     XCTAssertLessThan(
                         abs(header - body),
