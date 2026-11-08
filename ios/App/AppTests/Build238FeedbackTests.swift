@@ -360,9 +360,13 @@ final class Build238FeedbackTests: XCTestCase {
         xct.name = name
         xct.lifetime = .keepAlways
         test.add(xct)
-        let tmp = URL(fileURLWithPath: "/tmp").appendingPathComponent(name)
-        try? image.pngData()?.write(to: tmp, options: .atomic)
-        NSLog("b238 artifact written: %@", tmp.path)
+        // Write into the Simulator app sandbox tmp (same pattern as tab-bg) so the
+        // CI harvest `find … CoreSimulator` actually sees b238-*.png.
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("verse2note-b238", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let url = dir.appendingPathComponent(name)
+        try? image.pngData()?.write(to: url, options: .atomic)
+        NSLog("b238 artifact written: %@", url.path)
     }
 }
 
