@@ -119,6 +119,8 @@
 		T3PATH21FED7965001685T3 /* NativeNoteEditorSpeakerPathTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeNoteEditorSpeakerPathTests.swift; sourceTree = "<group>"; };
 		T6TF19421FED7965001685T6 /* NativeNoteEditorTF194Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeNoteEditorTF194Tests.swift; sourceTree = "<group>"; };
 		T6TF20021FED7965001685T6 /* NativeNoteEditorTF200Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeNoteEditorTF200Tests.swift; sourceTree = "<group>"; };
+		T7TF21021FED7965001685T7 /* NativeNoteEditorTF210Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeNoteEditorTF210Tests.swift; sourceTree = "<group>"; };
+		T7TAGS11FED7965001685T7 /* NoteEditorTagsStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteEditorTagsStrip.swift; sourceTree = "<group>"; };
 		T1A2B0142FED7965001685T1 /* AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -192,6 +194,7 @@
 				E4F1A0192FED796500168550 /* NotebookListViewController.swift */,
 				E4F1A01B2FED796500168550 /* NoteDetailViewController.swift */,
 				E4F1A01D2FED796500168550 /* NoteSettingsViewController.swift */,
+				T7TAGS11FED7965001685T7 /* NoteEditorTagsStrip.swift */,
 				E4F1A01F2FED796500168550 /* SpeakerPickerViewController.swift */,
 				E4F1B0112FED796500168560 /* NativeSessionBootstrap.swift */,
 				E4F1B0132FED796500168560 /* NativeLoginService.swift */,
@@ -223,6 +226,7 @@
 				T3PATH21FED7965001685T3 /* NativeNoteEditorSpeakerPathTests.swift */,
 				T6TF19421FED7965001685T6 /* NativeNoteEditorTF194Tests.swift */,
 				T6TF20021FED7965001685T6 /* NativeNoteEditorTF200Tests.swift */,
+				T7TF21021FED7965001685T7 /* NativeNoteEditorTF210Tests.swift */,
 			);
 			path = AppTests;
 			sourceTree = "<group>";
@@ -386,6 +390,7 @@
 				E4F1A0182FED796500168550 /* NotebookListViewController.swift in Sources */,
 				E4F1A01A2FED796500168550 /* NoteDetailViewController.swift in Sources */,
 				E4F1A01C2FED796500168550 /* NoteSettingsViewController.swift in Sources */,
+				T7TAGS12FED7965001685T7 /* NoteEditorTagsStrip.swift in Sources */,
 				E4F1A01E2FED796500168550 /* SpeakerPickerViewController.swift in Sources */,
 				E4F1B0102FED796500168560 /* NativeSessionBootstrap.swift in Sources */,
 				E4F1B0122FED796500168560 /* NativeLoginService.swift in Sources */,
@@ -409,6 +414,7 @@
 				T3PATH22FED7965001685T3 /* NativeNoteEditorSpeakerPathTests.swift in Sources */,
 				T6TF19422FED7965001685T6 /* NativeNoteEditorTF194Tests.swift in Sources */,
 				T6TF20022FED7965001685T6 /* NativeNoteEditorTF200Tests.swift in Sources */,
+				T7TF21022FED7965001685T7 /* NativeNoteEditorTF210Tests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
