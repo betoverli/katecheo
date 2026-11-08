@@ -6,6 +6,9 @@ import UIKit
 /// - chevron → collapse/expand
 /// - × → delete section
 /// - name / remaining header → rename via speaker picker
+///
+/// Colors are resolved against an explicit trait collection and baked into the image.
+/// Call `refreshImage` again when appearance changes (TF214 light-mode reopen bug).
 final class SpeakerHeaderAttachment: NSTextAttachment {
     enum Hit: Equatable {
         case toggleCollapse
@@ -24,6 +27,10 @@ final class SpeakerHeaderAttachment: NSTextAttachment {
     private(set) var chevronEndX: CGFloat = 0.12
     private(set) var removeStartX: CGFloat = 0.88
 
+    /// Last traits / width used to bake `image` — drives dirty checks.
+    private(set) var renderedInterfaceStyle: UIUserInterfaceStyle = .unspecified
+    private(set) var renderedWidth: CGFloat = 0
+
     init(
         blockId: String,
         speakerId: String?,
@@ -39,7 +46,7 @@ final class SpeakerHeaderAttachment: NSTextAttachment {
         self.collapsed = collapsed
         self.preview = preview
         super.init(data: nil, ofType: nil)
-        refreshImage(width: 320)
+        refreshImage(width: 320, traits: UITraitCollection.current)
     }
 
     @available(*, unavailable)
@@ -52,8 +59,12 @@ final class SpeakerHeaderAttachment: NSTextAttachment {
         characterIndex charIndex: Int
     ) -> CGRect {
         let width = max(lineFrag.width, textContainer?.size.width ?? 300, 120)
-        if abs((image?.size.width ?? 0) - width) > 1 {
-            refreshImage(width: width)
+        let traits = UITraitCollection.current
+        let style = traits.userInterfaceStyle
+        let widthDirty = abs(renderedWidth - width) > 1
+        let styleDirty = renderedInterfaceStyle != style && style != .unspecified
+        if widthDirty || styleDirty || image == nil {
+            refreshImage(width: width, traits: traits)
         }
         let height = image?.size.height ?? 36
         return CGRect(x: 0, y: -6, width: width, height: height)
@@ -67,14 +78,16 @@ final class SpeakerHeaderAttachment: NSTextAttachment {
         return .rename
     }
 
-    func refreshImage(width: CGFloat) {
+    /// Rebuild the chrome image with colors resolved for `traits` (never rely on ambient bake alone).
+    func refreshImage(width: CGFloat, traits: UITraitCollection = .current) {
         let w = max(width, 120)
         // ≥44pt tall so the × hit box meets HIG without enlarging the glyph.
         let height: CGFloat = 44
         let nameFont = V2NDesign.preferred(.title3, weight: .semibold)
         let previewFont = V2NDesign.preferred(.caption1, weight: .regular)
-        let nameColor = UIColor.label
-        let muted = UIColor.secondaryLabel
+        // Resolve dynamic colors for the target appearance (TF214).
+        let nameColor = UIColor.label.resolvedColor(with: traits)
+        let muted = UIColor.secondaryLabel.resolvedColor(with: traits)
         let name = speakerName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             ? String(localized: "Speaker")
             : speakerName
@@ -90,7 +103,15 @@ final class SpeakerHeaderAttachment: NSTextAttachment {
         chevronEndX = (padL + chevronSize + gap) / w
         removeStartX = (w - removeHitSize) / w
 
-        let renderer = UIGraphicsImageRenderer(size: CGSize(width: w, height: height))
+        let format = UIGraphicsImageRendererFormat()
+        format.opaque = false
+        format.scale = traits.displayScale > 0 ? traits.displayScale : UIScreen.main.scale
+        // Prefer the requested interface style when baking pixels.
+        if #available(iOS 17.0, *) {
+            // Keep format.scale; color resolution already uses `traits` below.
+        }
+
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: w, height: height), format: format)
         image = renderer.image { _ in
             // Chevron (CSS-like rotated square borders).
             let chevronCenter = CGPoint(x: padL + chevronSize / 2, y: height / 2)
@@ -178,5 +199,34 @@ final class SpeakerHeaderAttachment: NSTextAttachment {
             xAttr.draw(in: xRect)
         }
         bounds = CGRect(x: 0, y: -8, width: w, height: height)
+        renderedWidth = w
+        renderedInterfaceStyle = traits.userInterfaceStyle
+    }
+
+    /// Luminance of an opaque name-area pixel (0…1). Used by AppTests.
+    func testing_namePixelLuminance() -> CGFloat? {
+        guard let image, let cg = image.cgImage else { return nil }
+        let w = cg.width
+        let h = cg.height
+        guard w > 8, h > 8 else { return nil }
+        guard let data = cg.dataProvider?.data,
+              let ptr = CFDataGetBytePtr(data)
+        else { return nil }
+        let bpp = max(cg.bitsPerPixel / 8, 4)
+        let y = h / 2
+        // Scan the name band (after chevron) for the first reasonably opaque ink pixel.
+        let startX = Int(CGFloat(w) * 0.08)
+        let endX = Int(CGFloat(w) * 0.55)
+        for x in startX..<min(endX, w) {
+            let idx = (y * cg.bytesPerRow) + x * bpp
+            // Prefer alpha-last RGBA; fall back if alpha looks empty.
+            let a = bpp >= 4 ? Int(ptr[idx + 3]) : 255
+            if a < 80 { continue }
+            let r = CGFloat(ptr[idx]) / 255
+            let g = CGFloat(ptr[idx + 1]) / 255
+            let b = CGFloat(ptr[idx + 2]) / 255
+            return 0.2126 * r + 0.7152 * g + 0.0722 * b
+        }
+        return nil
     }
 }
