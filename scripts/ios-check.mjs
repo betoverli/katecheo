@@ -699,6 +699,20 @@ try {
   if (!bibleSettings.includes("V2NBibleAppLogoCell") || !bibleSettings.includes("BibleApp_")) {
     errors.push("App de Bíblia: grelha de logos (V2NBibleAppLogoCell + assets).");
   }
+  if (!bibleSettings.includes("v2nApplyTabBarScrollClearance") || !bibleSettings.includes("tableHeaderView")) {
+    errors.push("App de Bíblia: scroll único + clearance da tab bar (TF214).");
+  }
+  const design = read("ios/App/App/V2NDesign.swift");
+  if (!design.includes("V2NScrollChrome") || !design.includes("tabBarClearance")) {
+    errors.push("V2NScrollChrome tem de calcular inset inferior sob a tab bar flutuante.");
+  }
+  const speakerHeader = read("ios/App/App/SpeakerHeaderAttachment.swift");
+  if (!speakerHeader.includes("resolvedColor(with:") || !speakerHeader.includes("renderedInterfaceStyle")) {
+    errors.push("SpeakerHeaderAttachment tem de resolver cores dinâmicas por trait (TF214).");
+  }
+  if (!editor.includes("refreshSpeakerHeaderAppearances") || !editor.includes("traitCollectionDidChange")) {
+    errors.push("NativeNoteEditorView tem de re-renderizar headers de speaker ao mudar light/dark.");
+  }
 } catch {
   errors.push("Arquivo Phase 4 em falta: VersesHomeViewController.swift / VersesScreens.swift");
 }
@@ -727,6 +741,12 @@ try {
 }
 if (!project.includes("ProfileViewController.swift in Sources") || !project.includes("ProfileSettingsScreens.swift in Sources")) {
   errors.push("ProfileViewController / ProfileSettingsScreens têm de estar no target Xcode.");
+}
+if (!project.includes("V2NScrollChromeTests.swift in Sources")) {
+  errors.push("AppTests V2NScrollChromeTests têm de estar no target.");
+}
+if (!project.includes("NativeNoteEditorTF214Tests.swift in Sources")) {
+  errors.push("AppTests TF214 (NativeNoteEditorTF214Tests) têm de estar no target.");
 }
 
 const authRouter = read("src/lib/native/api/v1-router.ts");

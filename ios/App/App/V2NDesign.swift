@@ -239,6 +239,64 @@ enum V2NChrome {
     }
 }
 
+// MARK: - Floating tab bar scroll clearance (TF214)
+
+enum V2NScrollChrome {
+    /// Extra bottom inset so scroll content clears a floating / Liquid Glass tab bar.
+    /// Pure helper — unit-tested with synthetic metrics.
+    static func tabBarClearance(
+        tabBarHeight: CGFloat,
+        safeAreaBottom: CGFloat,
+        tabBarMinYInView: CGFloat?,
+        viewHeight: CGFloat
+    ) -> CGFloat {
+        guard tabBarHeight > 0 else { return 0 }
+        var clearance = max(0, tabBarHeight - safeAreaBottom)
+        if let minY = tabBarMinYInView {
+            let overlap = max(0, viewHeight - max(minY, 0) - safeAreaBottom)
+            clearance = max(clearance, overlap)
+        }
+        if clearance > 0 {
+            clearance += V2NDesign.Space.md
+        }
+        return clearance
+    }
+
+    /// Apply `contentInset` / indicator insets so the last rows sit above the tab bar.
+    @MainActor
+    static func applyTabBarClearance(to scrollView: UIScrollView, from host: UIViewController) {
+        let tabBar = host.tabBarController?.tabBar
+        let tabHeight = (tabBar?.isHidden == false) ? (tabBar?.bounds.height ?? 0) : 0
+        let minY: CGFloat? = {
+            guard let tabBar, tabBar.isHidden == false, let hostView = host.view else { return nil }
+            return tabBar.convert(tabBar.bounds, to: hostView).minY
+        }()
+        let clearance = tabBarClearance(
+            tabBarHeight: tabHeight,
+            safeAreaBottom: host.view?.safeAreaInsets.bottom ?? 0,
+            tabBarMinYInView: minY,
+            viewHeight: host.view?.bounds.height ?? 0
+        )
+        // Raise contentInset.bottom only for the portion not already covered by safe-area adjustment.
+        let currentBottom = scrollView.contentInset.bottom
+        let systemBottom = scrollView.adjustedContentInset.bottom - scrollView.contentInset.bottom
+        let needed = max(0, clearance - systemBottom)
+        if abs(currentBottom - needed) > 0.5 {
+            scrollView.contentInset.bottom = needed
+            scrollView.verticalScrollIndicatorInsets.bottom = needed
+        }
+    }
+}
+
+extension UIViewController {
+    /// Call from `viewDidLayoutSubviews` on Profile / settings screens that sit above the tab bar.
+    @MainActor
+    func v2nApplyTabBarScrollClearance(to scrollView: UIScrollView?) {
+        guard let scrollView else { return }
+        V2NScrollChrome.applyTabBarClearance(to: scrollView, from: self)
+    }
+}
+
 // MARK: - Haptics
 
 enum V2NHaptics {

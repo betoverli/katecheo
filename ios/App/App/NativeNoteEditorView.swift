@@ -144,6 +144,34 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         repositionTagsStrip()
     }
 
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        guard traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection) else { return }
+        // Speaker headers bake colors into images — rebuild for light/dark (TF214).
+        refreshSpeakerHeaderAppearances()
+    }
+
+    /// Re-render every `SpeakerHeaderAttachment` for the current trait collection.
+    private func refreshSpeakerHeaderAppearances() {
+        let storage = textView.textStorage
+        guard storage.length > 0 else { return }
+        let inset = textView.textContainerInset
+        let width = max(120, textView.bounds.width - inset.left - inset.right - textView.textContainer.lineFragmentPadding * 2)
+        let traits = traitCollection
+        var touched = false
+        storage.enumerateAttribute(.attachment, in: NSRange(location: 0, length: storage.length)) { value, _, _ in
+            guard let header = value as? SpeakerHeaderAttachment else { return }
+            let w = header.image?.size.width ?? width
+            header.refreshImage(width: w, traits: traits)
+            touched = true
+        }
+        guard touched else { return }
+        let full = NSRange(location: 0, length: storage.length)
+        textView.layoutManager.invalidateLayout(forCharacterRange: full, actualCharacterRange: nil)
+        textView.layoutManager.invalidateDisplay(forCharacterRange: full)
+        textView.setNeedsDisplay()
+    }
+
     private func refreshSpeakerRails() {
         railLayoutManager.rails = NoteDocumentCodec.speakerRailSpecs(
             in: textView.textStorage,
@@ -293,6 +321,8 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         tagsStrip.setTags(note.tags)
         applyingRemote = false
         isReady = true
+        // Headers may have been baked offline / under the wrong traits — sync to this view.
+        refreshSpeakerHeaderAppearances()
         refreshSpeakerRails()
         refreshPlaceholders()
         repositionTagsStrip()
@@ -1718,6 +1748,10 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
     func testing_isFormattingToolbarVisible() -> Bool {
         textView.inputAccessoryView != nil
+    }
+
+    func testing_refreshSpeakerHeaderAppearances() {
+        refreshSpeakerHeaderAppearances()
     }
 }
 

@@ -518,5 +518,6 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         layoutHeader()
+        v2nApplyTabBarScrollClearance(to: tableView)
     }
 }
