@@ -143,6 +143,20 @@ if (scene.includes("import Capacitor") || scene.includes("SceneDelegateProxy") |
 if (!scene.includes("NativeDeepLinkRouter") || !scene.includes("NSUserActivityTypeBrowsingWeb")) {
   errors.push("SceneDelegate tem de encaminhar Universal Links para NativeDeepLinkRouter.");
 }
+if (!scene.includes("AppAppearance") || scene.includes("overrideUserInterfaceStyle = .unspecified")) {
+  errors.push("SceneDelegate tem de aplicar AppAppearance no connect (não forçar .unspecified) — TF219.");
+}
+try {
+  const appearance = read("ios/App/App/AppAppearance.swift");
+  if (!appearance.includes("overrideUserInterfaceStyle") || !appearance.includes("storedTheme") || !appearance.includes("syncFromCacheAndApply")) {
+    errors.push("AppAppearance tem de persistir o tema e pintar todos os UIWindow (TF219).");
+  }
+} catch {
+  errors.push("Falta AppAppearance.swift (TF219).");
+}
+if (!project.includes("AppAppearance.swift in Sources")) {
+  errors.push("AppAppearance.swift tem de estar no target Xcode.");
+}
 
 const appRoot = read("ios/App/App/AppRoot.swift");
 if (!appRoot.includes("NativeRootTabBarController") || appRoot.includes("Verse2NoteBridge") || appRoot.includes("capacitorSite")) {
@@ -710,8 +724,14 @@ try {
   if (!speakerHeader.includes("resolvedColor(with:") || !speakerHeader.includes("renderedInterfaceStyle")) {
     errors.push("SpeakerHeaderAttachment tem de resolver cores dinâmicas por trait (TF214).");
   }
+  if (!speakerHeader.includes("performAsCurrent") || !speakerHeader.includes("concreteColor") || !speakerHeader.includes("alwaysOriginal")) {
+    errors.push("SpeakerHeaderAttachment tem de achatar cores sob traits explícitos (TF219).");
+  }
   if (!editor.includes("refreshSpeakerHeaderAppearances") || !editor.includes("traitCollectionDidChange")) {
     errors.push("NativeNoteEditorView tem de re-renderizar headers de speaker ao mudar light/dark.");
+  }
+  if (!editor.includes("speakerBakeTraits") || !editor.includes("didMoveToWindow") || !editor.includes("textView.traitCollection")) {
+    errors.push("NativeNoteEditorView tem de bakear headers com traits do UITextView + Appearance (TF219).");
   }
 } catch {
   errors.push("Arquivo Phase 4 em falta: VersesHomeViewController.swift / VersesScreens.swift");
@@ -747,6 +767,9 @@ if (!project.includes("V2NScrollChromeTests.swift in Sources")) {
 }
 if (!project.includes("NativeNoteEditorTF214Tests.swift in Sources")) {
   errors.push("AppTests TF214 (NativeNoteEditorTF214Tests) têm de estar no target.");
+}
+if (!project.includes("NativeNoteEditorTF219Tests.swift in Sources")) {
+  errors.push("AppTests TF219 (NativeNoteEditorTF219Tests) têm de estar no target.");
 }
 
 const authRouter = read("src/lib/native/api/v1-router.ts");

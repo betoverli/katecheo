@@ -144,24 +144,58 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         repositionTagsStrip()
     }
 
-    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
-        super.traitCollectionDidChange(previousTraitCollection)
-        guard traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection) else { return }
-        // Speaker headers bake colors into images — rebuild for light/dark (TF214).
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        // Window attachment is when overrideUserInterfaceStyle finally reaches the text view.
+        guard window != nil else { return }
         refreshSpeakerHeaderAppearances()
     }
 
-    /// Re-render every `SpeakerHeaderAttachment` for the current trait collection.
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        guard traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection)
+            || textView.traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection)
+        else { return }
+        // Speaker headers bake colors into images — rebuild for light/dark (TF214/TF219).
+        refreshSpeakerHeaderAppearances()
+    }
+
+    /// Traits used to bake speaker chrome: prefer the text view's real traits, then the
+    /// in-app Appearance override, so cold-launch never stamps white names onto beige.
+    private func speakerBakeTraits() -> UITraitCollection {
+        var style = textView.traitCollection.userInterfaceStyle
+        if style == .unspecified {
+            style = traitCollection.userInterfaceStyle
+        }
+        if style == .unspecified {
+            style = window?.traitCollection.userInterfaceStyle ?? .unspecified
+        }
+        if style == .unspecified {
+            style = AppAppearance.style(forTheme: AppAppearance.storedTheme)
+        }
+        if style == .unspecified {
+            style = .light
+        }
+        return UITraitCollection(traitsFrom: [
+            textView.traitCollection,
+            UITraitCollection(userInterfaceStyle: style),
+            UITraitCollection(displayScale: textView.traitCollection.displayScale > 0
+                ? textView.traitCollection.displayScale
+                : UIScreen.main.scale),
+        ])
+    }
+
+    /// Re-render every `SpeakerHeaderAttachment` for the text view's trait collection.
     private func refreshSpeakerHeaderAppearances() {
         let storage = textView.textStorage
         guard storage.length > 0 else { return }
         let inset = textView.textContainerInset
         let width = max(120, textView.bounds.width - inset.left - inset.right - textView.textContainer.lineFragmentPadding * 2)
-        let traits = traitCollection
+        let traits = speakerBakeTraits()
         var touched = false
         storage.enumerateAttribute(.attachment, in: NSRange(location: 0, length: storage.length)) { value, _, _ in
             guard let header = value as? SpeakerHeaderAttachment else { return }
-            let w = header.image?.size.width ?? width
+            let w = max(header.image?.size.width ?? 0, width)
             header.refreshImage(width: w, traits: traits)
             touched = true
         }
@@ -959,6 +993,8 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         }
         textView.typingAttributes = typingAttributesForCaret()
         applyingRemote = false
+        // Re-bake headers under the live text-view traits (TF219 — wrong traits at decode).
+        refreshSpeakerHeaderAppearances()
         refreshSpeakerRails()
         emitChange()
     }

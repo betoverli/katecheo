@@ -651,6 +651,7 @@ enum NativeAPIClient {
         else { throw APIError.decoding }
         LocalSessionCache.saveMe(me)
         LocalSessionCache.showOfflineHint = false
+        await MainActor.run { AppAppearance.sync(from: me.prefs) }
         return me
     }
 
@@ -666,6 +667,7 @@ enum NativeAPIClient {
               let me = decoded.me
         else { throw APIError.decoding }
         LocalSessionCache.saveMe(me)
+        await MainActor.run { AppAppearance.sync(from: me.prefs) }
         return me
     }
 
@@ -680,6 +682,7 @@ enum NativeAPIClient {
               let prefs = decoded.prefs
         else { throw APIError.decoding }
         ReferencePrefs.sync(from: prefs)
+        await MainActor.run { AppAppearance.sync(from: prefs) }
         return prefs
     }
 
@@ -695,6 +698,7 @@ enum NativeAPIClient {
               let prefs = decoded.prefs
         else { throw APIError.decoding }
         ReferencePrefs.sync(from: prefs)
+        await MainActor.run { AppAppearance.sync(from: prefs) }
         return prefs
     }
 

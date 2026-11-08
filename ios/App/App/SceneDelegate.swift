@@ -9,9 +9,13 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
         window = UIWindow(windowScene: windowScene)
         window?.tintColor = V2NDesign.accent
-        window?.overrideUserInterfaceStyle = .unspecified
+        // Apply saved Appearance BEFORE the first frame (TF219) — never force system.
+        AppAppearance.syncFromCacheAndApply()
+        AppAppearance.apply(to: window)
         window?.rootViewController = AppRoot.makeRootViewController()
         window?.makeKeyAndVisible()
+        // Re-assert after the window is key (covers late scene attachment).
+        AppAppearance.apply(to: window)
 
         // Existing Cap users: cookie → Keychain, then one-time localStorage import.
         // Must stay on main — WebKit data-store / importer init off-main crashes.
@@ -89,6 +93,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
 
     func sceneDidBecomeActive(_ scene: UIScene) {
+        // Keep Appearance on every window (sheets / late scene windows) — TF219.
+        AppAppearance.apply(to: window)
         Task { @MainActor in
             await NativeOutbox.flushIfPossible()
         }
