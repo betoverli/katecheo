@@ -77,11 +77,6 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
         )
     }
 
-    override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
-        v2nApplyTabBarScrollClearance(to: tableView)
-    }
-
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         Task { @MainActor in
@@ -523,5 +518,6 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         layoutHeader()
+        v2nApplyTabBarScrollClearance(to: tableView)
     }
 }
