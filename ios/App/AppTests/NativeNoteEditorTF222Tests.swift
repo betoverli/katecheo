@@ -237,7 +237,7 @@ final class NativeNoteEditorTF222Tests: XCTestCase {
 
     private static func writeArtifact(_ image: UIImage, name: String, into test: XCTestCase) {
         guard let data = image.pngData() else { return }
-        let xct = XCTAttachment(data: data, uniformityTypeIdentifier: "public.png")
+        let xct = XCTAttachment(image: image)
         xct.name = name
         xct.lifetime = .keepAlways
         test.add(xct)
