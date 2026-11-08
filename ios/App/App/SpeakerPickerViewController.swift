@@ -33,7 +33,11 @@ final class SpeakerPickerViewController: UIViewController, UITableViewDelegate, 
     override func viewDidLoad() {
         super.viewDidLoad()
         title = String(localized: "Speakers")
-        V2NChrome.styleCanvas(view)
+        V2NChrome.styleScreen(view)
+        if let nav = navigationController {
+            V2NChrome.applyNavigationBarAppearance(to: nav.navigationBar)
+            nav.view.backgroundColor = V2NDesign.screenBackground
+        }
         navigationItem.leftBarButtonItem = UIBarButtonItem(title: String(localized: "Fechar"), style: .plain, target: self, action: #selector(close))
         navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(addSpeaker))
 
@@ -134,6 +138,7 @@ final class SpeakerPickerViewController: UIViewController, UITableViewDelegate, 
             }
         }
         cell.contentConfiguration = config
+        cell.v2nApplyThemedGroupedCell()
         return cell
     }
 

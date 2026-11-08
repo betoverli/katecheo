@@ -360,7 +360,7 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
         }
 
         cell.contentConfiguration = config
-        cell.backgroundColor = V2NDesign.surface
+        cell.v2nApplyThemedGroupedCell()
         return cell
     }
 

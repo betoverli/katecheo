@@ -42,6 +42,7 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         navigationItem.title = nil
         navigationItem.largeTitleDisplayMode = .never
         navigationItem.backButtonDisplayMode = .minimal
+        applyEditorChrome()
 
         syncButton.translatesAutoresizingMaskIntoConstraints = false
         syncButton.addTarget(self, action: #selector(syncIconTapped), for: .touchUpInside)
@@ -62,6 +63,7 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         topChrome.spacing = V2NDesign.Space.xxs
         topChrome.alignment = .leading
         topChrome.translatesAutoresizingMaskIntoConstraints = false
+        topChrome.backgroundColor = V2NDesign.canvas
         topChrome.isLayoutMarginsRelativeArrangement = true
         topChrome.layoutMargins = UIEdgeInsets(
             top: V2NDesign.Space.xxs,
@@ -134,12 +136,29 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         super.viewWillAppear(animated)
         // Keep the nav compact while editing (parent Caderno uses large titles).
         navigationController?.navigationBar.prefersLargeTitles = false
+        applyEditorChrome()
     }
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         if isMovingFromParent || isBeingDismissed {
             navigationController?.navigationBar.prefersLargeTitles = true
+            // Restore tab chrome (screenBackground) when popping back to Caderno.
+            if let nav = navigationController {
+                V2NChrome.applyNavigationBarAppearance(to: nav.navigationBar)
+                nav.view.backgroundColor = V2NDesign.screenBackground
+            }
+        }
+    }
+
+    /// Nav + page fill match the warm editor canvas (not the darker tab screenBackground).
+    private func applyEditorChrome() {
+        V2NChrome.styleCanvas(view)
+        topChrome.backgroundColor = V2NDesign.canvas
+        editor.backgroundColor = V2NDesign.canvas
+        if let nav = navigationController {
+            V2NChrome.applyNavigationBarAppearance(to: nav.navigationBar, background: V2NDesign.canvas)
+            nav.view.backgroundColor = V2NDesign.canvas
         }
     }
 

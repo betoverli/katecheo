@@ -14,6 +14,7 @@
 		T8SCROLL2FED7965001685T8 /* V2NScrollChromeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T8SCROLL1FED7965001685T8 /* V2NScrollChromeTests.swift */; };
 		TBSWIPE2FED7965001685TB /* V2NSwipeActionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TBSWIPE1FED7965001685TB /* V2NSwipeActionTests.swift */; };
 		TCTABBG2FED7965001685TC /* TabBackgroundConsistencyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TCTABBG1FED7965001685TC /* TabBackgroundConsistencyTests.swift */; };
+		TB234FB2FED7965001685TB /* Build234FeedbackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TB234FB1FED7965001685TB /* Build234FeedbackTests.swift */; };
 		T7TF21022FED7965001685T7 /* NativeNoteEditorTF210Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T7TF21021FED7965001685T7 /* NativeNoteEditorTF210Tests.swift */; };
 		T7TAGS12FED7965001685T7 /* NoteEditorTagsStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = T7TAGS11FED7965001685T7 /* NoteEditorTagsStrip.swift */; };
 		T1A2B0102FED7965001685T1 /* NoteDocumentCodecTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T1A2B0112FED7965001685T1 /* NoteDocumentCodecTests.swift */; };
@@ -134,6 +135,7 @@
 		T8SCROLL1FED7965001685T8 /* V2NScrollChromeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2NScrollChromeTests.swift; sourceTree = "<group>"; };
 		TBSWIPE1FED7965001685TB /* V2NSwipeActionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2NSwipeActionTests.swift; sourceTree = "<group>"; };
 		TCTABBG1FED7965001685TC /* TabBackgroundConsistencyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBackgroundConsistencyTests.swift; sourceTree = "<group>"; };
+		TB234FB1FED7965001685TB /* Build234FeedbackTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Build234FeedbackTests.swift; sourceTree = "<group>"; };
 		T7TAGS11FED7965001685T7 /* NoteEditorTagsStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteEditorTagsStrip.swift; sourceTree = "<group>"; };
 		T1A2B0142FED7965001685T1 /* AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -248,6 +250,7 @@
 				T8SCROLL1FED7965001685T8 /* V2NScrollChromeTests.swift */,
 				TBSWIPE1FED7965001685TB /* V2NSwipeActionTests.swift */,
 				TCTABBG1FED7965001685TC /* TabBackgroundConsistencyTests.swift */,
+				TB234FB1FED7965001685TB /* Build234FeedbackTests.swift */,
 			);
 			path = AppTests;
 			sourceTree = "<group>";
@@ -443,6 +446,7 @@
 				T8SCROLL2FED7965001685T8 /* V2NScrollChromeTests.swift in Sources */,
 				TBSWIPE2FED7965001685TB /* V2NSwipeActionTests.swift in Sources */,
 				TCTABBG2FED7965001685TC /* TabBackgroundConsistencyTests.swift in Sources */,
+				TB234FB2FED7965001685TB /* Build234FeedbackTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

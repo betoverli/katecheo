@@ -859,27 +859,65 @@ private extension UIFont {
 
 // MARK: - Bible ref pill attachment
 
+/// Bible reference chrome as a baked `NSTextAttachment` image.
+///
+/// Same TF222 / build-234 rule as `SpeakerHeaderAttachment`: never re-bake from ambient
+/// `UITraitCollection.current` (system Dark + app Light stamped the wrong palette a few
+/// seconds after open when `pushNote` rebuilt pills). Colors are hard RGB for an explicit
+/// style; `attachmentBounds` / `image(forBounds:)` only return the cached image.
 final class BibleRefPillAttachment: NSTextAttachment {
     let payload: NoteDocumentCodec.BibleRefPayload
     let label: String
     let kind: NoteDocumentCodec.BibleRefKind
+    private(set) var renderedInterfaceStyle: UIUserInterfaceStyle = .unspecified
 
     init(payload: NoteDocumentCodec.BibleRefPayload, label: String, kind: NoteDocumentCodec.BibleRefKind) {
         self.payload = payload
         self.label = label
         self.kind = kind
         super.init(data: nil, ofType: nil)
-        refreshImage()
+        let seed = SpeakerHeaderAttachment.resolvedBakeStyle(preferred: .unspecified)
+        refreshImage(traits: SpeakerHeaderAttachment.bakeTraits(style: seed))
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    private func colors() -> (UIColor, UIColor) {
-        let dark = UITraitCollection.current.userInterfaceStyle == .dark
+    override func attachmentBounds(
+        for textContainer: NSTextContainer?,
+        proposedLineFragment lineFrag: CGRect,
+        glyphPosition position: CGPoint,
+        characterIndex charIndex: Int
+    ) -> CGRect {
+        // Fixed-size pill — never consult ambient traits here (TF222 / build-234).
+        if image == nil {
+            let style = SpeakerHeaderAttachment.resolvedBakeStyle(preferred: renderedInterfaceStyle)
+            refreshImage(traits: SpeakerHeaderAttachment.bakeTraits(style: style))
+        }
+        let size = image?.size ?? CGSize(width: 40, height: 18)
+        return CGRect(x: 0, y: -4, width: size.width, height: size.height)
+    }
+
+    override func image(
+        forBounds imageBounds: CGRect,
+        textContainer: NSTextContainer?,
+        characterIndex charIndex: Int
+    ) -> UIImage? {
+        image
+    }
+
+    /// Hard RGB for `style` — never `UITraitCollection.current` or dynamic accent during draw.
+    static func palette(
+        kind: NoteDocumentCodec.BibleRefKind,
+        style: UIUserInterfaceStyle
+    ) -> (bg: UIColor, fg: UIColor) {
+        let dark = style == .dark
         switch kind {
         case .gospel:
-            return (V2NDesign.accent, .white)
+            let accent = dark
+                ? UIColor(red: 0.83, green: 0.65, blue: 0.45, alpha: 1)
+                : UIColor(red: 0.69, green: 0.48, blue: 0.27, alpha: 1)
+            return (accent, UIColor(white: 1, alpha: 1))
         case .nt:
             return dark
                 ? (UIColor(red: 0.24, green: 0.29, blue: 0.36, alpha: 1), UIColor(red: 0.91, green: 0.93, blue: 0.96, alpha: 1))
@@ -891,9 +929,13 @@ final class BibleRefPillAttachment: NSTextAttachment {
         }
     }
 
-    func refreshImage() {
+    func refreshImage(traits: UITraitCollection? = nil) {
+        let resolvedTraits = traits ?? SpeakerHeaderAttachment.bakeTraits(
+            style: SpeakerHeaderAttachment.resolvedBakeStyle(preferred: renderedInterfaceStyle)
+        )
+        let style = SpeakerHeaderAttachment.resolvedBakeStyle(preferred: resolvedTraits.userInterfaceStyle)
         let font = V2NDesign.preferred(.footnote, weight: .semibold)
-        let (bg, fg) = colors()
+        let (bg, fg) = Self.palette(kind: kind, style: style)
         let text = NSAttributedString(string: label, attributes: [
             .font: font,
             .foregroundColor: fg,
@@ -902,21 +944,68 @@ final class BibleRefPillAttachment: NSTextAttachment {
         let padX: CGFloat = 8
         let padY: CGFloat = 3
         let size = CGSize(width: ceil(textSize.width + padX * 2), height: ceil(textSize.height + padY * 2))
-        let renderer = UIGraphicsImageRenderer(size: size)
-        image = renderer.image { _ in
-            let rect = CGRect(origin: .zero, size: size)
-            let path = UIBezierPath(roundedRect: rect, cornerRadius: size.height / 2)
-            bg.setFill()
-            path.fill()
-            let textRect = CGRect(
-                x: padX,
-                y: (size.height - textSize.height) / 2,
-                width: textSize.width,
-                height: textSize.height
-            )
-            text.draw(in: textRect)
+        let format = UIGraphicsImageRendererFormat()
+        format.opaque = false
+        format.scale = resolvedTraits.displayScale > 0 ? resolvedTraits.displayScale : UIScreen.main.scale
+        format.preferredRange = .standard
+        let bakeTraits = SpeakerHeaderAttachment.bakeTraits(style: style, scale: format.scale)
+        var baked: UIImage!
+        bakeTraits.performAsCurrent {
+            let renderer = UIGraphicsImageRenderer(size: size, format: format)
+            baked = renderer.image { _ in
+                let rect = CGRect(origin: .zero, size: size)
+                let path = UIBezierPath(roundedRect: rect, cornerRadius: size.height / 2)
+                bg.setFill()
+                path.fill()
+                let textRect = CGRect(
+                    x: padX,
+                    y: (size.height - textSize.height) / 2,
+                    width: textSize.width,
+                    height: textSize.height
+                )
+                text.draw(in: textRect)
+            }
         }
+        image = baked.withRenderingMode(.alwaysOriginal)
         bounds = CGRect(x: 0, y: font.descender - 2, width: size.width, height: size.height)
+        renderedInterfaceStyle = style
+    }
+
+    /// Average luma of opaque pill pixels (0…1) — AppTests.
+    func testing_averageLuminance() -> CGFloat? {
+        guard let image else { return nil }
+        let w = max(Int(image.size.width * image.scale), 4)
+        let h = max(Int(image.size.height * image.scale), 4)
+        var data = [UInt8](repeating: 0, count: w * h * 4)
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let bitmapInfo = CGBitmapInfo.byteOrder32Big.union(
+            CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue)
+        )
+        guard let ctx = CGContext(
+            data: &data,
+            width: w,
+            height: h,
+            bitsPerComponent: 8,
+            bytesPerRow: w * 4,
+            space: colorSpace,
+            bitmapInfo: bitmapInfo.rawValue
+        ), let cg = image.cgImage
+        else { return nil }
+        ctx.draw(cg, in: CGRect(x: 0, y: 0, width: w, height: h))
+        var sum: CGFloat = 0
+        var count: CGFloat = 0
+        for i in stride(from: 0, to: data.count, by: 4) {
+            let a = Int(data[i + 3])
+            if a < 80 { continue }
+            let inv = 255.0 / CGFloat(a)
+            let r = min(1, CGFloat(data[i]) / 255 * inv)
+            let g = min(1, CGFloat(data[i + 1]) / 255 * inv)
+            let b = min(1, CGFloat(data[i + 2]) / 255 * inv)
+            sum += 0.2126 * r + 0.7152 * g + 0.0722 * b
+            count += 1
+        }
+        guard count > 0 else { return nil }
+        return sum / count
     }
 }
 

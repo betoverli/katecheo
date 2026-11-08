@@ -17,9 +17,13 @@ final class NativeSignInViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        V2NChrome.styleCanvas(view)
+        V2NChrome.styleScreen(view)
         title = String(localized: "Entrar")
         navigationItem.largeTitleDisplayMode = .never
+        if let nav = navigationController {
+            V2NChrome.applyNavigationBarAppearance(to: nav.navigationBar)
+            nav.view.backgroundColor = V2NDesign.screenBackground
+        }
 
         scroll.translatesAutoresizingMaskIntoConstraints = false
         scroll.alwaysBounceVertical = true

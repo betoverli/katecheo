@@ -85,8 +85,8 @@ jobs:
             "${RUNNER_TEMP}/verse2note-ios" \
             /tmp \
             "${GITHUB_WORKSPACE}" \
-            \( -name 'tf222-*.png' -o -name 'tab-bg-*.png' \) 2>/dev/null \
-            | head -80 \
+            \( -name 'tf222-*.png' -o -name 'tab-bg-*.png' -o -name 'b234-*.png' \) 2>/dev/null \
+            | head -160 \
             | while read -r f; do cp -f "$f" artifacts/ 2>/dev/null || true; done
           ls -la artifacts || true
           exit "$TEST_STATUS"
@@ -103,6 +103,13 @@ jobs:
         with:
           name: tab-background-consistency
           path: artifacts/tab-bg-*.png
+          if-no-files-found: error
+      - name: Upload build-234 screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-234-feedback
+          path: artifacts/b234-*.png
           if-no-files-found: error
 
   testflight:
