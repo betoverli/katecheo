@@ -22,7 +22,12 @@ final class NoteSettingsViewController: UIViewController, UITableViewDelegate, U
     override func viewDidLoad() {
         super.viewDidLoad()
         title = String(localized: "Configurações")
+        // Match the note editor paper canvas (same screen family as NoteDetail).
         V2NChrome.styleCanvas(view)
+        if let nav = navigationController {
+            V2NChrome.applyNavigationBarAppearance(to: nav.navigationBar, background: V2NDesign.canvas)
+            nav.view.backgroundColor = V2NDesign.canvas
+        }
         navigationItem.leftBarButtonItem = UIBarButtonItem(title: String(localized: "Cancelar"), style: .plain, target: self, action: #selector(cancel))
         navigationItem.rightBarButtonItem = UIBarButtonItem(title: String(localized: "Pronto"), style: .done, target: self, action: #selector(done))
         navigationItem.rightBarButtonItem?.tintColor = V2NDesign.accent
@@ -42,7 +47,10 @@ final class NoteSettingsViewController: UIViewController, UITableViewDelegate, U
         }
 
         table.translatesAutoresizingMaskIntoConstraints = false
-        V2NChrome.styleGroupedTable(table)
+        table.backgroundColor = V2NDesign.canvas
+        table.backgroundView = UIView()
+        table.backgroundView?.backgroundColor = V2NDesign.canvas
+        table.separatorColor = V2NDesign.separator
         table.delegate = self
         table.dataSource = self
         table.register(UITableViewCell.self, forCellReuseIdentifier: "cell")
@@ -98,6 +106,14 @@ final class NoteSettingsViewController: UIViewController, UITableViewDelegate, U
         cell.selectionStyle = .default
         cell.contentConfiguration = nil
         cell.contentView.subviews.forEach { $0.removeFromSuperview() }
+
+        // Note settings sits on canvas paper — surface cells still kill bluish template.
+        cell.backgroundColor = V2NDesign.surface
+        cell.contentView.backgroundColor = .clear
+        var bg = UIBackgroundConfiguration.listGroupedCell()
+        bg.backgroundColor = V2NDesign.surface
+        cell.backgroundConfiguration = bg
+        cell.tintColor = V2NDesign.accent
 
         switch indexPath.section {
         case 0:

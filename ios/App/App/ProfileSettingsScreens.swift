@@ -147,6 +147,7 @@ final class ProfileEditViewController: UITableViewController {
             field.topAnchor.constraint(equalTo: cell.contentView.topAnchor, constant: 12),
             field.bottomAnchor.constraint(equalTo: cell.contentView.bottomAnchor, constant: -12),
         ])
+        cell.v2nApplyThemedGroupedCell()
         return cell
     }
 
@@ -238,6 +239,7 @@ final class ProfileThemeViewController: UITableViewController {
         config.image = UIImage(systemName: option.symbol)
         cell.contentConfiguration = config
         cell.accessoryType = theme == option.id ? .checkmark : .none
+        cell.v2nApplyThemedGroupedCell()
         return cell
     }
 
@@ -337,6 +339,7 @@ final class ProfileLanguageViewController: UITableViewController {
             cell.accessoryType = prefs.copyLocale == option.id ? .checkmark : .none
         }
         cell.contentConfiguration = config
+        cell.v2nApplyThemedGroupedCell()
         return cell
     }
 
@@ -385,6 +388,10 @@ final class ProfileBibleViewController: UIViewController, UICollectionViewDelega
         super.viewDidLoad()
         V2NChrome.styleScreen(view)
         title = String(localized: "App de Bíblia")
+        if let nav = navigationController {
+            V2NChrome.applyNavigationBarAppearance(to: nav.navigationBar)
+            nav.view.backgroundColor = V2NDesign.screenBackground
+        }
 
         tableView.translatesAutoresizingMaskIntoConstraints = false
         V2NChrome.styleGroupedTable(tableView)
@@ -565,6 +572,7 @@ final class ProfileBibleViewController: UIViewController, UICollectionViewDelega
         }
         cell.contentConfiguration = config
         cell.tintColor = V2NDesign.accent
+        cell.v2nApplyThemedGroupedCell()
         return cell
     }
 
@@ -647,6 +655,7 @@ final class ProfileNotifyViewController: UITableViewController {
             cell.accessoryType = .disclosureIndicator
             cell.selectionStyle = .default
             cell.contentConfiguration = config
+            cell.v2nApplyThemedGroupedCell()
             return cell
         }
 
@@ -660,6 +669,7 @@ final class ProfileNotifyViewController: UITableViewController {
         toggle.tag = indexPath.row
         toggle.addTarget(self, action: #selector(toggleChanged(_:)), for: .valueChanged)
         cell.accessoryView = toggle
+        cell.v2nApplyThemedGroupedCell()
         return cell
     }
 

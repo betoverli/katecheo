@@ -218,11 +218,13 @@ enum V2NChrome {
         navigationController.view.backgroundColor = V2NDesign.screenBackground
     }
 
-    /// Shared nav appearance: opaque Profile-matched fill in every scroll state.
-    static func makeNavigationBarAppearance() -> UINavigationBarAppearance {
+    /// Shared nav appearance: opaque fill in every scroll state (no hairline / no flash).
+    static func makeNavigationBarAppearance(
+        background: UIColor = V2NDesign.screenBackground
+    ) -> UINavigationBarAppearance {
         let nav = UINavigationBarAppearance()
         nav.configureWithOpaqueBackground()
-        nav.backgroundColor = V2NDesign.screenBackground
+        nav.backgroundColor = background
         nav.backgroundEffect = nil
         nav.titleTextAttributes = [
             .foregroundColor: UIColor.label,
@@ -236,8 +238,11 @@ enum V2NChrome {
         return nav
     }
 
-    static func applyNavigationBarAppearance(to bar: UINavigationBar) {
-        let appearance = makeNavigationBarAppearance()
+    static func applyNavigationBarAppearance(
+        to bar: UINavigationBar,
+        background: UIColor = V2NDesign.screenBackground
+    ) {
+        let appearance = makeNavigationBarAppearance(background: background)
         bar.standardAppearance = appearance
         bar.compactAppearance = appearance
         bar.scrollEdgeAppearance = appearance
@@ -245,8 +250,8 @@ enum V2NChrome {
             bar.compactScrollEdgeAppearance = appearance
         }
         bar.isTranslucent = false
-        bar.barTintColor = V2NDesign.screenBackground
-        bar.backgroundColor = V2NDesign.screenBackground
+        bar.barTintColor = background
+        bar.backgroundColor = background
     }
 
     /// Note-editor paper (warm canvas) — not tab chrome.
@@ -260,11 +265,15 @@ enum V2NChrome {
     }
 
     static func styleGroupedTable(_ table: UITableView) {
+        // UIKit equivalent of SwiftUI `.scrollContentBackground(.hidden)`:
+        // opaque themed fill + explicit backgroundView so insetGrouped never shows
+        // the system bluish template behind cells.
         table.backgroundColor = V2NDesign.screenBackground
         table.backgroundView = UIView()
         table.backgroundView?.backgroundColor = V2NDesign.screenBackground
         table.separatorColor = V2NDesign.separator
         table.sectionHeaderTopPadding = V2NDesign.Space.sm
+        table.tintColor = V2NDesign.accent
     }
 
     static func styleScrollSurface(_ scrollView: UIScrollView) {

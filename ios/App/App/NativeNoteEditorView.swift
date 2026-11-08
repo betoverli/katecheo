@@ -148,7 +148,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         super.didMoveToWindow()
         // Window attachment is when overrideUserInterfaceStyle finally reaches the text view.
         guard window != nil else { return }
-        refreshSpeakerHeaderAppearances()
+        refreshAttachmentAppearances()
     }
 
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
@@ -156,11 +156,11 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         guard traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection)
             || textView.traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection)
         else { return }
-        // Speaker headers bake colors into images — rebuild for light/dark (TF214/TF219).
-        refreshSpeakerHeaderAppearances()
+        // Baked attachments (speaker headers + bible pills) — rebuild for light/dark.
+        refreshAttachmentAppearances()
     }
 
-    /// Traits used to bake speaker chrome: prefer the text view's real traits, then the
+    /// Traits used to bake attachment chrome: prefer the text view's real traits, then the
     /// in-app Appearance override. Always returns a concrete `.light` / `.dark` style.
     private func speakerBakeTraits() -> UITraitCollection {
         var style = textView.traitCollection.userInterfaceStyle
@@ -177,6 +177,11 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
                 ? textView.traitCollection.displayScale
                 : UIScreen.main.scale
         )
+    }
+
+    private func refreshAttachmentAppearances() {
+        refreshSpeakerHeaderAppearances()
+        refreshBibleRefPillAppearances()
     }
 
     /// Re-render every `SpeakerHeaderAttachment` for the text view's trait collection.
@@ -201,6 +206,29 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             touched = true
         }
         guard touched else { return }
+        invalidateAttachmentDisplay()
+    }
+
+    /// Re-bake bible ref pills under the live text-view / Appearance traits (build-234).
+    private func refreshBibleRefPillAppearances() {
+        let storage = textView.textStorage
+        guard storage.length > 0 else { return }
+        let traits = speakerBakeTraits()
+        let style = SpeakerHeaderAttachment.resolvedBakeStyle(preferred: traits.userInterfaceStyle)
+        var touched = false
+        storage.enumerateAttribute(.attachment, in: NSRange(location: 0, length: storage.length)) { value, _, _ in
+            guard let pill = value as? BibleRefPillAttachment else { return }
+            if pill.image != nil, pill.renderedInterfaceStyle == style { return }
+            pill.refreshImage(traits: traits)
+            touched = true
+        }
+        guard touched else { return }
+        invalidateAttachmentDisplay()
+    }
+
+    private func invalidateAttachmentDisplay() {
+        let storage = textView.textStorage
+        guard storage.length > 0 else { return }
         let full = NSRange(location: 0, length: storage.length)
         textView.layoutManager.invalidateLayout(forCharacterRange: full, actualCharacterRange: nil)
         textView.layoutManager.invalidateDisplay(forCharacterRange: full)
@@ -356,8 +384,8 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         tagsStrip.setTags(note.tags)
         applyingRemote = false
         isReady = true
-        // Headers may have been baked offline / under the wrong traits — sync to this view.
-        refreshSpeakerHeaderAppearances()
+        // Attachments may have been baked offline / under the wrong traits — sync to this view.
+        refreshAttachmentAppearances()
         refreshSpeakerRails()
         refreshPlaceholders()
         repositionTagsStrip()
@@ -994,8 +1022,8 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         }
         textView.typingAttributes = typingAttributesForCaret()
         applyingRemote = false
-        // Re-bake headers under the live text-view traits (TF219 — wrong traits at decode).
-        refreshSpeakerHeaderAppearances()
+        // Re-bake attachments under the live text-view traits (TF219 / build-234).
+        refreshAttachmentAppearances()
         refreshSpeakerRails()
         emitChange()
     }
@@ -1789,6 +1817,14 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
     func testing_refreshSpeakerHeaderAppearances() {
         refreshSpeakerHeaderAppearances()
+    }
+
+    func testing_refreshBibleRefPillAppearances() {
+        refreshBibleRefPillAppearances()
+    }
+
+    func testing_refreshAttachmentAppearances() {
+        refreshAttachmentAppearances()
     }
 }
 

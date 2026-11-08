@@ -416,13 +416,17 @@ final class V2NSectionHeaderLabel: UILabel {
 
 extension UITableViewController {
     /// Profile-matched screen fill + grouped table (insetGrouped settings / pickers).
+    /// Kills the system bluish grouped template: screenBackground page + surface cells.
     func v2nApplyGroupedChrome() {
         V2NChrome.styleScreen(view)
         V2NChrome.styleGroupedTable(tableView)
         tableView.tintColor = V2NDesign.accent
         view.tintColor = V2NDesign.accent
-        // Profile settings stay above the floating tab bar — keep last rows reachable (TF214).
         tableView.contentInsetAdjustmentBehavior = .automatic
+        if let nav = navigationController {
+            V2NChrome.applyNavigationBarAppearance(to: nav.navigationBar)
+            nav.view.backgroundColor = V2NDesign.screenBackground
+        }
     }
 
     /// Subclasses call `super` then this from `viewDidLayoutSubviews` when hosted in a tab.
@@ -449,9 +453,26 @@ extension UIListContentConfiguration {
 }
 
 extension UITableViewCell {
-    func v2nApplyBrandChrome() {
-        tintColor = V2NDesign.accent
+    /// Warm surface cell on `screenBackground` lists (not system bluish grouped fill).
+    func v2nApplyThemedGroupedCell() {
+        // Prefer backgroundConfiguration so defaultContentConfiguration cells don't
+        // keep UIKit's bluish insetGrouped template fill.
+        var bg = UIBackgroundConfiguration.listGroupedCell()
+        bg.backgroundColor = V2NDesign.surface
+        backgroundConfiguration = bg
         backgroundColor = V2NDesign.surface
+        contentView.backgroundColor = .clear
+        tintColor = V2NDesign.accent
+        selectionStyle = selectionStyle == .none ? .none : .default
+        selectedBackgroundView = {
+            let v = UIView()
+            v.backgroundColor = V2NDesign.accentSoft
+            return v
+        }()
+    }
+
+    func v2nApplyBrandChrome() {
+        v2nApplyThemedGroupedCell()
     }
 }
 
@@ -1203,7 +1224,7 @@ final class V2NNamedCreateViewController: UIViewController, UITextFieldDelegate 
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        V2NChrome.styleCanvas(view)
+        V2NChrome.styleScreen(view)
         title = kind.title
         navigationItem.leftBarButtonItem = UIBarButtonItem(
             title: String(localized: "Cancelar"),
@@ -1211,6 +1232,9 @@ final class V2NNamedCreateViewController: UIViewController, UITextFieldDelegate 
             target: self,
             action: #selector(cancel)
         )
+        if let nav = navigationController {
+            V2NChrome.applyNavigationBarAppearance(to: nav.navigationBar)
+        }
 
         let scroll = UIScrollView()
         scroll.translatesAutoresizingMaskIntoConstraints = false

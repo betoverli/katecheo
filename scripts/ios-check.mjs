@@ -824,6 +824,54 @@ if (!project.includes("NativeNoteEditorTF219Tests.swift in Sources")) {
 if (!project.includes("NativeNoteEditorTF222Tests.swift in Sources")) {
   errors.push("AppTests TF222 (NativeNoteEditorTF222Tests) têm de estar no target.");
 }
+if (!project.includes("Build234FeedbackTests.swift in Sources")) {
+  errors.push("AppTests Build234 (Build234FeedbackTests) têm de estar no target.");
+}
+try {
+  const noteDetail = read("ios/App/App/NoteDetailViewController.swift");
+  if (!noteDetail.includes("applyEditorChrome") || !noteDetail.includes("background: V2NDesign.canvas")) {
+    errors.push("NoteDetail tem de pintar nav standard/scrollEdge/compact com V2NDesign.canvas (build-234).");
+  }
+  const codec = read("ios/App/App/NoteDocumentCodec.swift");
+  if (!codec.includes("final class BibleRefPillAttachment") || !codec.includes("renderedInterfaceStyle")) {
+    errors.push("BibleRefPillAttachment tem de existir com renderedInterfaceStyle (build-234).");
+  }
+  {
+    const pillChunk = (codec.split("final class BibleRefPillAttachment")[1] || "").split("extension UIColor")[0] || "";
+    const boundsChunk = (pillChunk.split("func attachmentBounds")[1] || "").split("override func image")[0] || "";
+    if (boundsChunk.includes("UITraitCollection.current")) {
+      errors.push("BibleRefPillAttachment.attachmentBounds não pode re-bakear com UITraitCollection.current (build-234).");
+    }
+    if (!pillChunk.includes("palette(") || !pillChunk.includes("alwaysOriginal")) {
+      errors.push("BibleRefPillAttachment tem de bakear alwaysOriginal com palette RGB fixa (build-234).");
+    }
+  }
+  const editor = read("ios/App/App/NativeNoteEditorView.swift");
+  if (!editor.includes("refreshBibleRefPillAppearances")) {
+    errors.push("NativeNoteEditorView tem de refreshBibleRefPillAppearances (build-234).");
+  }
+  const chrome = read("ios/App/App/V2NComponents.swift");
+  if (!chrome.includes("v2nApplyThemedGroupedCell") || !chrome.includes("v2nApplyGroupedChrome")) {
+    errors.push("Profile/settings cells têm de usar v2nApplyThemedGroupedCell + v2nApplyGroupedChrome (build-234).");
+  }
+  const settings = read("ios/App/App/ProfileSettingsScreens.swift");
+  for (const cls of [
+    "ProfileEditViewController",
+    "ProfileThemeViewController",
+    "ProfileLanguageViewController",
+    "ProfileBibleViewController",
+    "ProfileNotifyViewController",
+  ]) {
+    if (!settings.includes(cls)) {
+      errors.push(`Falta ${cls} (build-234 Profile audit).`);
+    }
+  }
+  if (!settings.includes("v2nApplyGroupedChrome") || !settings.includes("v2nApplyThemedGroupedCell")) {
+    errors.push("ProfileSettingsScreens têm de aplicar chrome/células themed (build-234).");
+  }
+} catch {
+  errors.push("Falha ao validar checks build-234.");
+}
 
 const authRouter = read("src/lib/native/api/v1-router.ts");
 if (!authRouter.includes("auth-claim") || !authRouter.includes("auth-email") || !authRouter.includes("auth-apple")) {
