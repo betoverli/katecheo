@@ -128,9 +128,8 @@ final class NativeNoteEditorTF219Tests: XCTestCase {
         window.isHidden = true
     }
 
-    func testSpeakerHeader_concreteColorsSurviveAmbientDarkTraits() {
-        // Even if UIGraphicsImageRenderer runs while ambient traits are dark,
-        // baking under explicit light traits must produce a dark name.
+    func testSpeakerHeader_hardPaletteSurvivesAmbientDarkTraits() {
+        // Hard RGB palette + explicit light traits must ignore ambient Dark.
         let attachment = SpeakerHeaderAttachment(
             blockId: "hdr",
             speakerId: "sp1",
@@ -139,10 +138,7 @@ final class NativeNoteEditorTF219Tests: XCTestCase {
             collapsed: false
         )
         let ambientDark = UITraitCollection(userInterfaceStyle: .dark)
-        let light = UITraitCollection(traitsFrom: [
-            UITraitCollection(userInterfaceStyle: .light),
-            UITraitCollection(displayScale: 3),
-        ])
+        let light = SpeakerHeaderAttachment.bakeTraits(style: .light, scale: 3)
         ambientDark.performAsCurrent {
             attachment.refreshImage(width: 320, traits: light)
         }
@@ -150,6 +146,6 @@ final class NativeNoteEditorTF219Tests: XCTestCase {
             return XCTFail("missing pixels")
         }
         XCTAssertEqual(attachment.renderedInterfaceStyle, .light)
-        XCTAssertLessThan(luma, 0.45, "concrete bake must ignore ambient dark (luma=\(luma))")
+        XCTAssertLessThan(luma, 0.45, "hard palette bake must ignore ambient dark (luma=\(luma))")
     }
 }

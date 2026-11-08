@@ -443,6 +443,9 @@ enum NoteDocumentCodec {
         style.paragraphSpacingBefore = 14
         style.paragraphSpacing = 4
         attrs[.paragraphStyle] = style
+        // Never leave `.label` on the attachment character — TextKit can tint the
+        // baked image with the run's foregroundColor (bible pills already use clear).
+        attrs[.foregroundColor] = UIColor.clear
         let result = NSMutableAttributedString(attachment: attachment)
         result.addAttributes(attrs, range: NSRange(location: 0, length: result.length))
         return result

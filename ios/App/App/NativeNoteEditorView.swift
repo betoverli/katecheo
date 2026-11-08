@@ -161,7 +161,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     }
 
     /// Traits used to bake speaker chrome: prefer the text view's real traits, then the
-    /// in-app Appearance override, so cold-launch never stamps white names onto beige.
+    /// in-app Appearance override. Always returns a concrete `.light` / `.dark` style.
     private func speakerBakeTraits() -> UITraitCollection {
         var style = textView.traitCollection.userInterfaceStyle
         if style == .unspecified {
@@ -170,19 +170,13 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         if style == .unspecified {
             style = window?.traitCollection.userInterfaceStyle ?? .unspecified
         }
-        if style == .unspecified {
-            style = AppAppearance.style(forTheme: AppAppearance.storedTheme)
-        }
-        if style == .unspecified {
-            style = .light
-        }
-        return UITraitCollection(traitsFrom: [
-            textView.traitCollection,
-            UITraitCollection(userInterfaceStyle: style),
-            UITraitCollection(displayScale: textView.traitCollection.displayScale > 0
+        style = SpeakerHeaderAttachment.resolvedBakeStyle(preferred: style)
+        return SpeakerHeaderAttachment.bakeTraits(
+            style: style,
+            scale: textView.traitCollection.displayScale > 0
                 ? textView.traitCollection.displayScale
-                : UIScreen.main.scale),
-        ])
+                : UIScreen.main.scale
+        )
     }
 
     /// Re-render every `SpeakerHeaderAttachment` for the text view's trait collection.
@@ -192,10 +186,17 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         let inset = textView.textContainerInset
         let width = max(120, textView.bounds.width - inset.left - inset.right - textView.textContainer.lineFragmentPadding * 2)
         let traits = speakerBakeTraits()
+        let style = SpeakerHeaderAttachment.resolvedBakeStyle(preferred: traits.userInterfaceStyle)
         var touched = false
         storage.enumerateAttribute(.attachment, in: NSRange(location: 0, length: storage.length)) { value, _, _ in
             guard let header = value as? SpeakerHeaderAttachment else { return }
             let w = max(header.image?.size.width ?? 0, width)
+            if header.image != nil,
+               abs(header.renderedWidth - w) <= 1,
+               header.renderedInterfaceStyle == style
+            {
+                return
+            }
             header.refreshImage(width: w, traits: traits)
             touched = true
         }

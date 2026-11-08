@@ -721,17 +721,30 @@ try {
     errors.push("V2NScrollChrome tem de calcular inset inferior sob a tab bar flutuante.");
   }
   const speakerHeader = read("ios/App/App/SpeakerHeaderAttachment.swift");
-  if (!speakerHeader.includes("resolvedColor(with:") || !speakerHeader.includes("renderedInterfaceStyle")) {
-    errors.push("SpeakerHeaderAttachment tem de resolver cores dinâmicas por trait (TF214).");
+  if (!speakerHeader.includes("renderedInterfaceStyle") || !speakerHeader.includes("alwaysOriginal")) {
+    errors.push("SpeakerHeaderAttachment tem de bakear imagem alwaysOriginal com renderedInterfaceStyle (TF214/TF222).");
   }
-  if (!speakerHeader.includes("performAsCurrent") || !speakerHeader.includes("concreteColor") || !speakerHeader.includes("alwaysOriginal")) {
-    errors.push("SpeakerHeaderAttachment tem de achatar cores sob traits explícitos (TF219).");
+  if (!speakerHeader.includes("palette(for:") || !speakerHeader.includes("resolvedBakeStyle")) {
+    errors.push("SpeakerHeaderAttachment tem de usar palette RGB fixa (não UIColor.label) — TF222.");
+  }
+  {
+    const boundsChunk = (speakerHeader.split("func attachmentBounds")[1] || "").split("func hit")[0] || "";
+    if (boundsChunk.includes("UITraitCollection.current")) {
+      errors.push("attachmentBounds não pode re-bakear com UITraitCollection.current (TF222 — white on beige).");
+    }
+  }
+  if (speakerHeader.includes("UIColor.label") || speakerHeader.includes("UIColor.secondaryLabel")) {
+    errors.push("SpeakerHeaderAttachment não pode usar UIColor.label/secondaryLabel no bake (TF222).");
   }
   if (!editor.includes("refreshSpeakerHeaderAppearances") || !editor.includes("traitCollectionDidChange")) {
     errors.push("NativeNoteEditorView tem de re-renderizar headers de speaker ao mudar light/dark.");
   }
   if (!editor.includes("speakerBakeTraits") || !editor.includes("didMoveToWindow") || !editor.includes("textView.traitCollection")) {
     errors.push("NativeNoteEditorView tem de bakear headers com traits do UITextView + Appearance (TF219).");
+  }
+  const codec = read("ios/App/App/NoteDocumentCodec.swift");
+  if (!codec.includes("speakerSectionHeader") || !codec.includes("UIColor.clear")) {
+    errors.push("speakerSectionHeader tem de usar foregroundColor clear no attachment (TF222).");
   }
 } catch {
   errors.push("Arquivo Phase 4 em falta: VersesHomeViewController.swift / VersesScreens.swift");
@@ -770,6 +783,9 @@ if (!project.includes("NativeNoteEditorTF214Tests.swift in Sources")) {
 }
 if (!project.includes("NativeNoteEditorTF219Tests.swift in Sources")) {
   errors.push("AppTests TF219 (NativeNoteEditorTF219Tests) têm de estar no target.");
+}
+if (!project.includes("NativeNoteEditorTF222Tests.swift in Sources")) {
+  errors.push("AppTests TF222 (NativeNoteEditorTF222Tests) têm de estar no target.");
 }
 
 const authRouter = read("src/lib/native/api/v1-router.ts");
