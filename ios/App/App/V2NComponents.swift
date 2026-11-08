@@ -415,9 +415,9 @@ final class V2NSectionHeaderLabel: UILabel {
 }
 
 extension UITableViewController {
-    /// Warm canvas + grouped table tokens for insetGrouped settings / pickers.
+    /// Profile-matched screen fill + grouped table (insetGrouped settings / pickers).
     func v2nApplyGroupedChrome() {
-        V2NChrome.styleCanvas(view)
+        V2NChrome.styleScreen(view)
         V2NChrome.styleGroupedTable(tableView)
         tableView.tintColor = V2NDesign.accent
         view.tintColor = V2NDesign.accent

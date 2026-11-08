@@ -5,8 +5,13 @@ import UIKit
 final class NativeRootTabBarController: UITabBarController {
     override func viewDidLoad() {
         super.viewDidLoad()
-        V2NChrome.styleCanvas(view)
+        V2NChrome.styleScreen(view)
         tabBar.tintColor = V2NDesign.accent
+        tabBar.unselectedItemTintColor = .secondaryLabel
+        tabBar.standardAppearance.backgroundColor = V2NDesign.screenBackground
+        if #available(iOS 15.0, *) {
+            tabBar.scrollEdgeAppearance?.backgroundColor = V2NDesign.screenBackground
+        }
 
         let notebook = UINavigationController(rootViewController: NotebookListViewController())
         V2NChrome.style(navigationController: notebook)

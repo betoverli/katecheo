@@ -19,7 +19,7 @@ final class VerseChapterViewController: UIViewController, UICollectionViewDelega
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        V2NChrome.styleCanvas(view)
+        V2NChrome.styleScreen(view)
         title = book.name
 
         hintLabel.text = String(localized: "Capítulo")
@@ -96,7 +96,7 @@ final class VerseNumberViewController: UIViewController, UICollectionViewDelegat
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        V2NChrome.styleCanvas(view)
+        V2NChrome.styleScreen(view)
         title = String(localized: "\(book.abbr) \(chapter)")
         navigationItem.rightBarButtonItem = UIBarButtonItem(
             title: String(localized: "Capítulo inteiro"),
