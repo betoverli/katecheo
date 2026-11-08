@@ -40,24 +40,20 @@ enum SpeakerSectionEditing {
     static func listTypingAttributes(
         type: String,
         blockId: String = NoteDocumentCodec.newId(),
-        inSpeakerSection: Bool = false
+        inSpeakerSection: Bool = false,
+        listNumber: Int = 1
     ) -> [NSAttributedString.Key: Any] {
         var attrs = NoteDocumentCodec.baseAttributes(
             type: type,
             id: blockId,
             checked: type == "check" ? false : nil,
             speakerId: nil,
-            speakers: [:]
+            speakers: [:],
+            listNumber: listNumber
         )
         if inSpeakerSection {
-            // Keep list hanging relative to the section inset.
-            let style = ((attrs[.paragraphStyle] as? NSParagraphStyle)?.mutableCopy() as? NSMutableParagraphStyle)
-                ?? NSMutableParagraphStyle()
-            let inset = NoteDocumentCodec.speakerSectionContentInset
-            style.firstLineHeadIndent = inset
-            style.headIndent = inset + 22
-            attrs[.paragraphStyle] = style
-            attrs[NoteDocumentCodec.speakerBodyKey] = true
+            // Preserve measured marker hang under the section inset (TF210).
+            attrs = NoteDocumentCodec.applyingSpeakerSectionInset(attrs)
         }
         return attrs
     }
@@ -170,10 +166,16 @@ enum SpeakerSectionEditing {
         at caretLocation: Int,
         listType: String,
         marker: String,
-        inSpeakerSection: Bool
+        inSpeakerSection: Bool,
+        listNumber: Int = 1
     ) -> Result {
         let blockId = NoteDocumentCodec.newId()
-        var attrs = listTypingAttributes(type: listType, blockId: blockId, inSpeakerSection: inSpeakerSection)
+        var attrs = listTypingAttributes(
+            type: listType,
+            blockId: blockId,
+            inSpeakerSection: inSpeakerSection,
+            listNumber: listNumber
+        )
         let para = paragraphRange(in: storage, at: caretLocation)
         let paraEnd = NSMaxRange(para)
         let terminatorLen: Int = {

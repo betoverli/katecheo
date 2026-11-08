@@ -16,7 +16,57 @@ final class NoteDocumentCodecTests: XCTestCase {
         XCTAssertEqual(titleAttrs[.foregroundColor] as? UIColor, .label)
 
         let style = titleAttrs[.paragraphStyle] as! NSParagraphStyle
-        XCTAssertEqual(style.paragraphSpacing, 8, accuracy: 0.1)
+        XCTAssertEqual(
+            style.paragraphSpacing,
+            NoteDocumentCodec.titleTagsReservedSpacing,
+            accuracy: 0.1,
+            "title reserves space for the tags strip"
+        )
+    }
+
+    @MainActor
+    func testListHangIndent_matchesMeasuredMarkerWidth() {
+        let font = UIFont.preferredFont(forTextStyle: .body)
+        let bulletW = NoteDocumentCodec.listMarkerWidth(type: "bullet", checked: nil, number: 1, font: font)
+        let attrs = NoteDocumentCodec.baseAttributesPublic(
+            type: "bullet",
+            id: "b1",
+            checked: nil,
+            speakerId: nil,
+            speakers: [:]
+        )
+        let style = attrs[.paragraphStyle] as! NSParagraphStyle
+        XCTAssertEqual(style.firstLineHeadIndent, 0, accuracy: 0.5)
+        XCTAssertEqual(style.headIndent, bulletW, accuracy: 0.5)
+
+        let insetAttrs = NoteDocumentCodec.applyingSpeakerSectionInset(attrs)
+        let insetStyle = insetAttrs[.paragraphStyle] as! NSParagraphStyle
+        let inset = NoteDocumentCodec.speakerSectionContentInset
+        XCTAssertEqual(insetStyle.firstLineHeadIndent, inset, accuracy: 0.5)
+        XCTAssertEqual(insetStyle.headIndent, inset + bulletW, accuracy: 0.5)
+    }
+
+    func testPreview_stripsBibleRefs() {
+        var note = NativeAPIClient.emptyNote()
+        note.title = "Culto"
+        note.body.blocks = [
+            NativeAPIClient.LineBlock(
+                id: "p1",
+                type: "paragraph",
+                spans: [
+                    .init(type: "bibleRef", text: "Lc 14:26", marks: nil, bookId: "LUK", chapter: 14, verseStart: 26, verseEnd: nil, href: nil),
+                    .init(type: "text", text: " amar a Deus", marks: nil, bookId: nil, chapter: nil, verseStart: nil, verseEnd: nil, href: nil),
+                ],
+                speakerId: nil,
+                title: nil,
+                collapsed: nil,
+                checked: nil,
+                blocks: nil
+            ),
+        ]
+        XCTAssertEqual(note.preview, "amar a Deus")
+        XCTAssertFalse(note.preview.contains("LUK"))
+        XCTAssertFalse(note.preview.contains("14:26"))
     }
 
     func testRoundTripPreservesParagraphTextAndTypes() {

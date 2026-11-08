@@ -190,20 +190,18 @@ final class NativeNoteEditorTF200Tests: XCTestCase {
         runListEnterInsideSpeaker(listType: "numbered")
     }
 
-    // Bug 2: @ and / must not insert the trigger character (full screens open via delegate).
-    func testAtAndSlash_doNotInsertTriggerCharacter() {
-        let before = editor.testing_textStorage().string
-        editor.testing_insertText("@")
-        XCTAssertEqual(
-            editor.testing_textStorage().string,
-            before,
-            "@ must open the speaker screen without inserting @"
+    // TF210: @ and / insert as ordinary characters (no shortcut sheets).
+    // Empty-body ZWSP may be replaced 1:1, so assert presence — not length growth.
+    func testAtAndSlash_insertAsOrdinaryCharacters() {
+        editor.testing_insertText("@hello")
+        XCTAssertTrue(
+            editor.testing_textStorage().string.contains("@hello"),
+            "@ must insert as a normal character"
         )
         editor.testing_insertText("/")
-        XCTAssertEqual(
-            editor.testing_textStorage().string,
-            before,
-            "/ must open the reference screen without inserting /"
+        XCTAssertTrue(
+            editor.testing_textStorage().string.contains("/"),
+            "/ must insert as a normal character"
         )
     }
 

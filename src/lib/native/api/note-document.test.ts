@@ -77,11 +77,12 @@ describe("noteToDocument / documentToNote", () => {
 });
 
 describe("documentPreview", () => {
-  it("flattens text and bible refs for list rows", () => {
+  it("flattens plain text only — strips bible refs for list rows", () => {
     const doc = noteToDocument(sampleLegacy);
     const preview = documentPreview(doc);
     assert.match(preview, /Hello/);
-    assert.match(preview, /JHN 3:16/);
+    assert.doesNotMatch(preview, /JHN/);
+    assert.doesNotMatch(preview, /3:16/);
   });
 });
 

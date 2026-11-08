@@ -28,6 +28,8 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     private var tapGesture: UITapGestureRecognizer!
     private let titlePlaceholderLabel = UILabel()
     private let bodyPlaceholderLabel = UILabel()
+    private let tagsStrip = NoteEditorTagsStrip()
+    private var bodyPlaceholderTopConstraint: NSLayoutConstraint?
 
     override init(frame: CGRect) {
         let storage = NSTextStorage()
@@ -88,6 +90,16 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         bodyPlaceholderLabel.numberOfLines = 1
         addSubview(bodyPlaceholderLabel)
 
+        tagsStrip.translatesAutoresizingMaskIntoConstraints = true
+        tagsStrip.onTagsChange = { [weak self] tags in
+            self?.applyTags(tags)
+        }
+        tagsStrip.onEditingChange = { [weak self] _ in
+            self?.refreshEditingChrome()
+        }
+        // Scrolls with the title — lives inside the text view.
+        textView.addSubview(tagsStrip)
+
         accessory.onAction = { [weak self] action in
             self?.handleAccessory(action)
         }
@@ -95,6 +107,11 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         textView.inputAccessoryView = nil
 
         let inset = textView.textContainerInset
+        let bodyTop = bodyPlaceholderLabel.topAnchor.constraint(
+            equalTo: titlePlaceholderLabel.bottomAnchor,
+            constant: 12 + NoteEditorTagsStrip.preferredHeight + 8
+        )
+        bodyPlaceholderTopConstraint = bodyTop
         NSLayoutConstraint.activate([
             textView.topAnchor.constraint(equalTo: topAnchor),
             textView.leadingAnchor.constraint(equalTo: leadingAnchor),
@@ -105,7 +122,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             titlePlaceholderLabel.leadingAnchor.constraint(equalTo: textView.leadingAnchor, constant: inset.left + 5),
             titlePlaceholderLabel.trailingAnchor.constraint(lessThanOrEqualTo: textView.trailingAnchor, constant: -(inset.right)),
 
-            bodyPlaceholderLabel.topAnchor.constraint(equalTo: titlePlaceholderLabel.bottomAnchor, constant: 18),
+            bodyTop,
             bodyPlaceholderLabel.leadingAnchor.constraint(equalTo: titlePlaceholderLabel.leadingAnchor),
             bodyPlaceholderLabel.trailingAnchor.constraint(lessThanOrEqualTo: textView.trailingAnchor, constant: -(inset.right)),
         ])
@@ -119,6 +136,12 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
         observeKeyboard()
         refreshPlaceholders()
+        repositionTagsStrip()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        repositionTagsStrip()
     }
 
     private func refreshSpeakerRails() {
@@ -201,6 +224,46 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         }
     }
 
+    /// Toolbar only while editing the body — hidden for title / tags (TF210).
+    private func refreshEditingChrome() {
+        let show = textView.isFirstResponder && !isCaretInTitle() && !tagsStrip.isEditingTags
+        setEditingChrome(show)
+    }
+
+    private func isCaretInTitle() -> Bool {
+        let attrs = paragraphStartAttributes()
+        if (attrs[NoteDocumentCodec.blockIdKey] as? String) == "title" { return true }
+        let range = paragraphRange()
+        return range.location == 0 && (attrs[NoteDocumentCodec.blockTypeKey] as? String) == "heading"
+    }
+
+    private func applyTags(_ tags: [String]) {
+        documentBase.tags = tags
+        emitChange()
+    }
+
+    private func repositionTagsStrip() {
+        let inset = textView.textContainerInset
+        let width = max(0, textView.bounds.width - inset.left - inset.right - 5)
+        let height = NoteEditorTagsStrip.preferredHeight
+        var y = inset.top + 28
+        if textView.textStorage.length > 0 {
+            let titlePara = (textView.textStorage.string as NSString).paragraphRange(
+                for: NSRange(location: 0, length: 0)
+            )
+            let glyphRange = textView.layoutManager.glyphRange(
+                forCharacterRange: titlePara,
+                actualCharacterRange: nil
+            )
+            let rect = textView.layoutManager.boundingRect(
+                forGlyphRange: glyphRange,
+                in: textView.textContainer
+            )
+            y = inset.top + rect.maxY + 4
+        }
+        tagsStrip.frame = CGRect(x: inset.left + 5, y: y, width: width, height: height)
+    }
+
     private func scrollCaretVisible(animated: Bool) {
         guard textView.isFirstResponder else { return }
         let range = textView.selectedRange
@@ -226,10 +289,13 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         textView.selectedRange = NSRange(location: 0, length: 0)
         textView.typingAttributes = typingAttributesForCaret()
         textView.isEditable = !readOnly
+        tagsStrip.isUserInteractionEnabled = !readOnly
+        tagsStrip.setTags(note.tags)
         applyingRemote = false
         isReady = true
         refreshSpeakerRails()
         refreshPlaceholders()
+        repositionTagsStrip()
     }
 
     /// Refresh the in-memory speaker catalog without rewriting the note body.
@@ -256,6 +322,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         textView.selectedRange = NSRange(location: end, length: 0)
         textView.typingAttributes = baseTypingAttributes()
         emitChange()
+        refreshPlaceholders()
         scrollCaretVisible(animated: true)
     }
 
@@ -281,6 +348,8 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         applyingRemote = false
         emitChange()
         refreshSpeakerRails()
+        refreshPlaceholders()
+        refreshEditingChrome()
         scrollCaretVisible(animated: true)
         _ = textView.becomeFirstResponder()
     }
@@ -305,12 +374,12 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     // MARK: - UITextViewDelegate
 
     func textViewDidBeginEditing(_ textView: UITextView) {
-        setEditingChrome(true)
         ensureTypingAttributes()
+        refreshEditingChrome()
     }
 
     func textViewDidEndEditing(_ textView: UITextView) {
-        setEditingChrome(false)
+        refreshEditingChrome()
     }
 
     func textViewDidChange(_ textView: UITextView) {
@@ -339,6 +408,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         if !applyingRemote {
             moveCaretOffSpeakerHeaderIfNeeded()
             ensureTypingAttributes()
+            refreshEditingChrome()
         }
     }
 
@@ -405,17 +475,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             textView.typingAttributes = typingAttributesForSpeakerBody()
         }
 
-        // TF200 #2: @ / open the same full screens as the toolbar — never inline popovers.
-        // Do not insert the typed trigger character.
-        if text == "@" {
-            presentSpeakerPicker()
-            return false
-        }
-        if text == "/" {
-            presentBibleRefPicker()
-            return false
-        }
-
+        // TF210: @ and / are ordinary characters — speaker / reference only via toolbar.
         return true
     }
 
@@ -440,8 +500,6 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         case .strike: toggleStrikeMark()
         case .bibleRef: presentBibleRefPicker()
         case .speaker: presentSpeakerPicker()
-        case .undo: undoEdit()
-        case .redo: redoEdit()
         }
     }
 
@@ -577,7 +635,8 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             at: textView.selectedRange.location,
             listType: listType,
             marker: marker,
-            inSpeakerSection: inSection
+            inSpeakerSection: inSection,
+            listNumber: max(number, 1)
         )
         textView.selectedRange = NSRange(location: result.caret, length: 0)
         textView.typingAttributes = result.typingAttributes
@@ -967,12 +1026,17 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         // Lists inside a section keep hanging indent relative to the rail (same as
         // insertContinuingListParagraph) — equal inset alone made bullets look broken.
         let isList = type == "bullet" || type == "numbered" || type == "check"
+        let listNumber = numberedIndex(
+            forParagraphStartingAt: range.location,
+            promotingToNumbered: type == "numbered"
+        )
         var styled: [NSAttributedString.Key: Any]
         if isList {
             styled = SpeakerSectionEditing.listTypingAttributes(
                 type: type,
                 blockId: id,
-                inSpeakerSection: inSection
+                inSpeakerSection: inSection,
+                listNumber: max(listNumber, 1)
             )
             if type == "check" {
                 styled[NoteDocumentCodec.checkedKey] = checked ?? false
@@ -1001,7 +1065,6 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             textView.selectedRange = NSRange(location: range.location + 1, length: 0)
         }
 
-        let listNumber = numberedIndex(forParagraphStartingAt: range.location, promotingToNumbered: type == "numbered")
         if let marker = NoteDocumentCodec.listMarkerString(type: type, checked: checked, number: listNumber) {
             var markerAttrs = styled
             markerAttrs[NoteDocumentCodec.listMarkerKey] = true
@@ -1222,16 +1285,6 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
     @objc private func presentSpeakerPicker() {
         delegate?.nativeNoteEditorRequestSpeaker(self)
-    }
-
-    @objc private func undoEdit() {
-        textView.undoManager?.undo()
-        emitChange()
-    }
-
-    @objc private func redoEdit() {
-        textView.undoManager?.redo()
-        emitChange()
     }
 
     // MARK: - Hit testing (bible pills vs speaker / text)
@@ -1487,15 +1540,42 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .isEmpty
         titlePlaceholderLabel.isHidden = !titleEmpty
+        // Hide body placeholder whenever the body has any content — plain text,
+        // bibleRef pills, speaker headers, or any other attachment (TF210).
+        bodyPlaceholderLabel.isHidden = bodyHasVisibleContent()
+        repositionTagsStrip()
+    }
 
-        let hasBodyContent = doc.body.blocks.contains { block in
-            if block.type == "speakerSection" { return true }
-            let t = (block.spans ?? []).compactMap(\.text).joined()
+    /// True when the body region of `textStorage` is non-empty (attachments count).
+    private func bodyHasVisibleContent() -> Bool {
+        let storage = textView.textStorage
+        guard storage.length > 0 else { return false }
+        let titlePara = (storage.string as NSString).paragraphRange(for: NSRange(location: 0, length: 0))
+        let bodyStart = NSMaxRange(titlePara)
+        guard bodyStart < storage.length else { return false }
+        let bodyRange = NSRange(location: bodyStart, length: storage.length - bodyStart)
+        var found = false
+        storage.enumerateAttributes(in: bodyRange, options: []) { attrs, range, stop in
+            if attrs[.attachment] != nil {
+                found = true
+                stop.pointee = true
+                return
+            }
+            if attrs[NoteDocumentCodec.bibleRefKey] != nil {
+                found = true
+                stop.pointee = true
+                return
+            }
+            let chunk = (storage.string as NSString).substring(with: range)
                 .replacingOccurrences(of: "\u{200B}", with: "")
+                .replacingOccurrences(of: "\n", with: "")
                 .trimmingCharacters(in: .whitespacesAndNewlines)
-            return !t.isEmpty
+            if !chunk.isEmpty {
+                found = true
+                stop.pointee = true
+            }
         }
-        bodyPlaceholderLabel.isHidden = hasBodyContent
+        return found
     }
 
     // MARK: - AppTests seams (real UITextView path)
@@ -1625,6 +1705,19 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
     func testing_bodyPlaceholderText() -> String? {
         bodyPlaceholderLabel.text
+    }
+
+    func testing_setTags(_ tags: [String]) {
+        tagsStrip.setTags(tags)
+        applyTags(tags)
+    }
+
+    func testing_tags() -> [String] {
+        tagsStrip.currentTags()
+    }
+
+    func testing_isFormattingToolbarVisible() -> Bool {
+        textView.inputAccessoryView != nil
     }
 }
 
@@ -1780,7 +1873,7 @@ final class NoteEditorAccessoryBar: UIView {
     enum Action {
         case bold, italic, underline, strike
         case heading, bullet, numbered, check, quote
-        case bibleRef, speaker, undo, redo
+        case bibleRef, speaker
     }
 
     var onAction: ((Action) -> Void)?
@@ -1811,7 +1904,12 @@ final class NoteEditorAccessoryBar: UIView {
         stack.translatesAutoresizingMaskIntoConstraints = false
         scroll.addSubview(stack)
 
+        // TF210: speaker + reference first, then formatting. No undo/redo buttons.
         let groups: [[(String, Action, String)]] = [
+            [
+                ("person.wave.2", .speaker, String(localized: "Speaker")),
+                ("book", .bibleRef, String(localized: "Referência bíblica")),
+            ],
             [
                 ("bold", .bold, String(localized: "Negrito")),
                 ("italic", .italic, String(localized: "Itálico")),
@@ -1824,12 +1922,6 @@ final class NoteEditorAccessoryBar: UIView {
                 ("list.number", .numbered, String(localized: "Numerada")),
                 ("checklist", .check, String(localized: "Checklist")),
                 ("text.quote", .quote, String(localized: "Citação")),
-            ],
-            [
-                ("book", .bibleRef, String(localized: "Referência bíblica")),
-                ("person.wave.2", .speaker, String(localized: "Speaker")),
-                ("arrow.uturn.backward", .undo, String(localized: "Desfazer")),
-                ("arrow.uturn.forward", .redo, String(localized: "Refazer")),
             ],
         ]
 
@@ -1900,5 +1992,13 @@ final class NoteEditorAccessoryBar: UIView {
 
     override var intrinsicContentSize: CGSize {
         CGSize(width: UIView.noIntrinsicMetric, height: 52)
+    }
+
+    /// Ordered accessibility labels of toolbar buttons (AppTests / TF210).
+    static func testing_actionLabels() -> [String] {
+        let bar = NoteEditorAccessoryBar()
+        return bar.stack.arrangedSubviews.compactMap { view in
+            (view as? UIButton)?.accessibilityLabel
+        }
     }
 }

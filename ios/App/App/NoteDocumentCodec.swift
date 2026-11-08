@@ -91,7 +91,10 @@ enum NoteDocumentCodec {
             let preview: String = {
                 for child in children {
                     let text = (child.spans ?? [])
-                        .compactMap(\.text)
+                        .compactMap { span -> String? in
+                            if span.type == "bibleRef" { return nil }
+                            return span.text
+                        }
                         .joined()
                         .replacingOccurrences(of: "\u{200B}", with: "")
                         .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -203,7 +206,14 @@ enum NoteDocumentCodec {
         listNumber: Int = 1,
         inSpeakerSection: Bool = false
     ) {
-        var base = baseAttributes(type: type, id: id, checked: checked, speakerId: speakerId, speakers: speakers)
+        var base = baseAttributes(
+            type: type,
+            id: id,
+            checked: checked,
+            speakerId: speakerId,
+            speakers: speakers,
+            listNumber: listNumber
+        )
         if inSpeakerSection || type == "speakerSection" {
             base = applyingSpeakerSectionInset(base)
         }
@@ -237,17 +247,17 @@ enum NoteDocumentCodec {
     }
 
     /// Indent used so the left rail can sit beside section content (web `.note-speaker` padding).
-    /// Both first-line and head indent use the **same** value so wrapped lines align
-    /// (web has no hanging indent on body — only section `padding-left`).
+    /// Preserves any list hanging indent (marker width) relative to the section inset so
+    /// wrapped list lines still align under the text after the marker (TF210).
+    /// Non-list body lines keep equal first/head indent (TF194 #2).
     static func applyingSpeakerSectionInset(_ attrs: [NSAttributedString.Key: Any]) -> [NSAttributedString.Key: Any] {
         var next = attrs
         let style = ((attrs[.paragraphStyle] as? NSParagraphStyle)?.mutableCopy() as? NSMutableParagraphStyle)
             ?? NSMutableParagraphStyle()
         let inset = speakerSectionContentInset
-        // Force equality — `max` with a prior list hanging indent (first=0, head=22)
-        // produced TF194 bug #2 (first line further left than wraps).
+        let hang = max(0, style.headIndent - style.firstLineHeadIndent)
         style.firstLineHeadIndent = inset
-        style.headIndent = inset
+        style.headIndent = inset + hang
         next[.paragraphStyle] = style
         next[speakerBodyKey] = true
         return next
@@ -281,6 +291,21 @@ enum NoteDocumentCodec {
         default:
             return nil
         }
+    }
+
+    /// Measured width of the list marker run — used as hanging indent so wraps align
+    /// under the first line’s text (`headIndent = firstLineHeadIndent + markerWidth`).
+    static func listMarkerWidth(
+        type: String,
+        checked: Bool?,
+        number: Int = 1,
+        font: UIFont = UIFont.preferredFont(forTextStyle: .body)
+    ) -> CGFloat {
+        guard let marker = listMarkerString(type: type, checked: checked, number: number) else {
+            return 0
+        }
+        let size = (marker as NSString).size(withAttributes: [.font: font])
+        return ceil(size.width)
     }
 
     private static func spanAttributed(_ span: NativeAPIClient.TextSpan, base: [NSAttributedString.Key: Any]) -> NSAttributedString {
@@ -321,13 +346,17 @@ enum NoteDocumentCodec {
         return NSAttributedString(string: text, attributes: attrs)
     }
 
+    /// Space reserved under the note title for the inline tags strip (TF210).
+    static let titleTagsReservedSpacing: CGFloat = 40
+
     /// Shared paragraph / typing attributes (load path + live typing must match).
     static func baseAttributes(
         type: String,
         id: String,
         checked: Bool?,
         speakerId: String?,
-        speakers: [String: NativeAPIClient.SpeakerDTO]
+        speakers: [String: NativeAPIClient.SpeakerDTO],
+        listNumber: Int = 1
     ) -> [NSAttributedString.Key: Any] {
         let style = NSMutableParagraphStyle()
         style.lineSpacing = 3
@@ -339,7 +368,8 @@ enum NoteDocumentCodec {
         case "heading":
             font = UIFont.preferredFont(forTextStyle: id == "title" ? .title1 : .title2)
             style.paragraphSpacingBefore = id == "title" ? 0 : 10
-            style.paragraphSpacing = id == "title" ? 8 : 10
+            // Title keeps room for the editable tags strip directly underneath.
+            style.paragraphSpacing = id == "title" ? titleTagsReservedSpacing : 10
         case "speakerSection":
             // Name-only header (no "Speaker" label) — matches original web `.note-speaker-name`.
             font = V2NDesign.preferred(.title3, weight: .semibold)
@@ -348,9 +378,10 @@ enum NoteDocumentCodec {
             foreground = .label
             _ = speakers
         case "bullet", "numbered", "check":
-            // Marker sits on the first line; wraps align under the text after the marker.
-            style.headIndent = 22
+            // Marker on first line; wraps hang by the measured marker width (TF210).
+            let markerW = listMarkerWidth(type: type, checked: checked, number: max(listNumber, 1), font: font)
             style.firstLineHeadIndent = 0
+            style.headIndent = markerW
             style.paragraphSpacing = 8
         case "quote":
             style.headIndent = 16
