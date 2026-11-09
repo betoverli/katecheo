@@ -149,6 +149,11 @@ enum NativeSWR {
         networkProbeEnabled = false
         clearAccountDiskCaches()
         clearPublicDiskCaches()
+        // Avoid leaking session mirrors / outbox / notes across XCTest cases.
+        LocalNoteCache.clearAll()
+        NativeOutbox.clearAll()
+        LocalSessionCache.clearMe()
+        LocalSessionCache.clearGroups()
     }
 
     // MARK: - Activity debounce

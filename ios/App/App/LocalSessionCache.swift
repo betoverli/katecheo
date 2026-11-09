@@ -48,6 +48,7 @@ enum LocalSessionCache {
     static func clearAll() {
         clearMe()
         clearGroups()
+        // Avoid re-entrancy: clearAccountScoped also clears note/outbox disk.
         NativeSWR.clearAccountScoped()
     }
 

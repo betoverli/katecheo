@@ -7,15 +7,18 @@ final class NativeSWRCacheTests: XCTestCase {
         super.setUp()
         NativeSWR.resetAllForTests()
         NativeSWR.networkProbeEnabled = true
-        NativeAPIClient.session = MockNativeURLProtocol.makeSession()
         MockNativeURLProtocol.reset()
-        _ = KeychainStore.setBearerToken("test-bearer-swr")
+        MockNativeURLProtocol.register()
+        NativeAPIClient.session = MockNativeURLProtocol.makeSession()
+        NativeAPIClient.testAuthToken = "test-bearer-swr"
+        XCTAssertTrue(NativeAPIClient.hasBearer, "test auth token must be set")
     }
 
     override func tearDown() {
+        NativeAPIClient.testAuthToken = nil
         NativeSWR.resetAllForTests()
         NativeAPIClient.session = .shared
-        _ = KeychainStore.deleteBearerToken()
+        MockNativeURLProtocol.unregister()
         super.tearDown()
     }
 
@@ -30,8 +33,8 @@ final class NativeSWRCacheTests: XCTestCase {
         MockNativeURLProtocol.speakersJSON = Self.speakersPayload
         MockNativeURLProtocol.grantedJSON = Self.grantedPayload
 
-        // First appear — 3 list GETs
-        _ = try await NativeAPIClient.listNotes()
+        let notes = try await NativeAPIClient.listNotes()
+        XCTAssertFalse(notes.isEmpty)
         _ = try await NativeAPIClient.listSpeakers()
         _ = try await NativeAPIClient.listGrantedNotes()
         XCTAssertEqual(countExact("/api/native/v1/notes"), 1)
@@ -40,7 +43,6 @@ final class NativeSWRCacheTests: XCTestCase {
 
         NativeSWR.resetProbe()
 
-        // Second appear within TTL — 0 network
         _ = try await NativeAPIClient.listNotes()
         _ = try await NativeAPIClient.listSpeakers()
         _ = try await NativeAPIClient.listGrantedNotes()
@@ -48,7 +50,6 @@ final class NativeSWRCacheTests: XCTestCase {
         XCTAssertEqual(countExact("/api/native/v1/speakers"), 0)
         XCTAssertEqual(countExact("/api/native/v1/notes/granted"), 0)
 
-        // Pull-to-refresh forces network again
         _ = try await NativeAPIClient.listNotes(force: true)
         XCTAssertEqual(countExact("/api/native/v1/notes"), 1)
     }
@@ -76,20 +77,19 @@ final class NativeSWRCacheTests: XCTestCase {
         _ = try await NativeAPIClient.getMe()
         NativeSWR.resetProbe()
         _ = try await NativeAPIClient.getMe()
-        XCTAssertEqual(NativeSWR.probeCount(containing: "/me"), 0)
+        XCTAssertEqual(countExact("/api/native/v1/me"), 0)
         _ = try await NativeAPIClient.getMe(force: true)
-        XCTAssertEqual(NativeSWR.probeCount(containing: "/me"), 1)
+        XCTAssertEqual(countExact("/api/native/v1/me"), 1)
     }
 
     func testPrefs_sharedAcrossVersesAndReading() async throws {
         MockNativeURLProtocol.prefsJSON = Self.prefsPayload
         _ = try await NativeAPIClient.getPrefs()
         NativeSWR.resetProbe()
-        // Verses tab + Reading + NoteDetail-style prefs hits
         _ = try await NativeAPIClient.getPrefs()
         _ = try await NativeAPIClient.getPrefs()
         _ = try await NativeAPIClient.getPrefs()
-        XCTAssertEqual(NativeSWR.probeCount(containing: "/prefs"), 0)
+        XCTAssertEqual(countExact("/api/native/v1/prefs"), 0)
     }
 
     // MARK: - Bible books (≤1/day)
@@ -118,9 +118,9 @@ final class NativeSWRCacheTests: XCTestCase {
     // MARK: - Activity debounce + coalesce
 
     func testActivitySync_debouncedUnlessForce() async {
-        MockNativeURLProtocol.linksJSON = #"{"ok":true,"friends":[],"incoming":[],"outgoing":[]}"#
+        MockNativeURLProtocol.linksJSON = Self.linksPayload
         MockNativeURLProtocol.grantedJSON = Self.grantedPayload
-        MockNativeURLProtocol.summaryJSON = #"{"ok":true,"items":[],"unread":0,"byKind":{}}"#
+        MockNativeURLProtocol.summaryJSON = Self.summaryPayload
 
         let first = await V2NActivitySync.refreshFromServer(force: true)
         XCTAssertEqual(first, .updated)
@@ -131,9 +131,9 @@ final class NativeSWRCacheTests: XCTestCase {
     }
 
     func testActivitySync_coalescesConcurrent() async {
-        MockNativeURLProtocol.linksJSON = #"{"ok":true,"friends":[],"incoming":[],"outgoing":[]}"#
+        MockNativeURLProtocol.linksJSON = Self.linksPayload
         MockNativeURLProtocol.grantedJSON = Self.grantedPayload
-        MockNativeURLProtocol.summaryJSON = #"{"ok":true,"items":[],"unread":0,"byKind":{}}"#
+        MockNativeURLProtocol.summaryJSON = Self.summaryPayload
         MockNativeURLProtocol.artificialDelayMs = 80
 
         NativeSWR.resetProbe()
@@ -142,9 +142,8 @@ final class NativeSWRCacheTests: XCTestCase {
         let results = await (a, b)
         XCTAssertEqual(results.0, .updated)
         XCTAssertEqual(results.1, .updated)
-        // links+granted+summary once (not doubled)
-        XCTAssertEqual(NativeSWR.probeCount(containing: "/links"), 1)
-        XCTAssertEqual(NativeSWR.probeCount(containing: "/granted"), 1)
+        XCTAssertEqual(countExact("/api/native/v1/links"), 1)
+        XCTAssertEqual(countExact("/api/native/v1/notes/granted"), 1)
         XCTAssertEqual(NativeSWR.probeCount(containing: "/notifications/summary"), 1)
         MockNativeURLProtocol.artificialDelayMs = 0
     }
@@ -152,8 +151,10 @@ final class NativeSWRCacheTests: XCTestCase {
     func testAccountSwitch_clearsCaches() async throws {
         MockNativeURLProtocol.notesJSON = Self.notesPayload
         MockNativeURLProtocol.speakersJSON = Self.speakersPayload
-        _ = try await NativeAPIClient.listNotes()
-        _ = try await NativeAPIClient.listSpeakers()
+        let notes = try await NativeAPIClient.listNotes()
+        let speakers = try await NativeAPIClient.listSpeakers()
+        XCTAssertFalse(notes.isEmpty)
+        XCTAssertFalse(speakers.isEmpty)
         XCTAssertFalse(LocalNoteCache.loadNotes().isEmpty)
         XCTAssertFalse(LocalNoteCache.loadSpeakers().isEmpty)
 
@@ -163,6 +164,7 @@ final class NativeSWRCacheTests: XCTestCase {
         XCTAssertEqual(NativeOutbox.pendingCount, 0)
 
         NativeSWR.resetProbe()
+        NativeAPIClient.testAuthToken = "test-bearer-swr"
         _ = try await NativeAPIClient.listNotes()
         XCTAssertEqual(countExact("/api/native/v1/notes"), 1)
     }
@@ -170,27 +172,22 @@ final class NativeSWRCacheTests: XCTestCase {
     // MARK: - Auth providers long cache
 
     func testAuthProviders_longCache() async {
-        MockNativeURLProtocol.providersJSON = #"{"ok":true,"google":true,"apple":true,"email":true}"#
+        MockNativeURLProtocol.providersJSON = Self.providersPayload
         _ = await NativeLoginService.shared.fetchProviders()
         let firstHits = NativeSWR.probeCount(containing: "auth/providers")
         XCTAssertGreaterThanOrEqual(firstHits, 1)
         NativeSWR.resetProbe()
         _ = await NativeLoginService.shared.fetchProviders()
-        // Second call should not hit network path (records cache:… instead)
         XCTAssertEqual(NativeSWR.probeCount(containing: "/api/native/v1/auth/providers"), 0)
     }
 
     // MARK: - Screen transition tallies (documented before/after)
 
-    /// Documents Caderno `viewWillAppear` → `reload` call shape before vs after SWR.
     func testScreenTransition_notebook_callCounts() async throws {
         MockNativeURLProtocol.notesJSON = Self.notesPayload
         MockNativeURLProtocol.speakersJSON = Self.speakersPayload
         MockNativeURLProtocol.grantedJSON = Self.grantedPayload
-        MockNativeURLProtocol.linksJSON = #"{"ok":true,"friends":[],"incoming":[],"outgoing":[]}"#
-        MockNativeURLProtocol.summaryJSON = #"{"ok":true,"items":[],"unread":0,"byKind":{}}"#
 
-        // BEFORE (legacy): every appear hit notes+speakers+granted (+ activity).
         let beforePerAppear = 3
 
         NativeSWR.resetProbe()
@@ -217,32 +214,33 @@ final class NativeSWRCacheTests: XCTestCase {
         MockNativeURLProtocol.prefsJSON = Self.prefsPayload
         MockNativeURLProtocol.bibleBooksJSON = Self.biblePayload
 
-        // Profile appear ×2
         _ = try await NativeAPIClient.getMe(force: true)
         NativeSWR.resetProbe()
         _ = try await NativeAPIClient.getMe(force: false)
-        XCTAssertEqual(NativeSWR.probeCount(containing: "/me"), 0, "AFTER Profile re-appear: 0 (was 1)")
+        XCTAssertEqual(countExact("/api/native/v1/me"), 0, "AFTER Profile re-appear: 0 (was 1)")
 
-        // Verses books+prefs ×2
         _ = try await NativeAPIClient.fetchBibleBooks(locale: "pt", force: true)
         _ = try await NativeAPIClient.getPrefs(force: true)
         NativeSWR.resetProbe()
         _ = try await NativeAPIClient.fetchBibleBooks(locale: "pt", force: false)
         _ = try await NativeAPIClient.getPrefs(force: false)
         XCTAssertEqual(NativeSWR.probeCount(containing: "/bible/books"), 0, "AFTER Verses re-appear: 0 bible (was 1)")
-        XCTAssertEqual(NativeSWR.probeCount(containing: "/prefs"), 0, "AFTER Verses re-appear: 0 prefs (was 1)")
+        XCTAssertEqual(countExact("/api/native/v1/prefs"), 0, "AFTER Verses re-appear: 0 prefs (was 1)")
     }
 
     // MARK: - Fixtures
 
-    // Use ##"…"## so hex colors like #111 don't terminate Swift raw strings.
+    // Use ##"…"## so hex colors like #111111 don't terminate Swift raw strings.
     private static let notesPayload = ##"{"ok":true,"notes":[{"schemaVersion":1,"id":"n1","title":"A","happenedAt":"2026-01-01","tags":[],"visibility":"private","updatedAt":"2026-01-01T00:00:00Z","body":{"blocks":[]}}]}"##
     private static let speakersPayload = ##"{"ok":true,"speakers":[{"id":"s1","name":"Ana","color":"#111111","updatedAt":"2026-01-01T00:00:00Z"}]}"##
     private static let grantedPayload = ##"{"ok":true,"notes":[]}"##
     private static let singleNotePayload = ##"{"ok":true,"note":{"schemaVersion":1,"id":"n1","title":"A","happenedAt":"2026-01-01","tags":[],"visibility":"private","updatedAt":"2026-01-01T00:00:00Z","body":{"blocks":[]}},"speakers":[],"via":"owned"}"##
     private static let mePayload = ##"{"ok":true,"me":{"id":"u1","email":"a@b.c","displayName":"A","prefs":{"locale":"pt","copyLocale":"pt","appId":"youversion","translationId":"NVI","preferNative":false,"copyFormat":"text","citeBook":"name","citeSep":"colon","booksCompact":false,"theme":"system","avatarId":"","avatarUrl":"","handle":"ana","firstName":"Ana","lastName":"","profileEmail":"a@b.c"},"notify":{"reading":true,"friends":true,"shares":true,"groups":true}}}"##
     private static let prefsPayload = ##"{"ok":true,"prefs":{"locale":"pt","copyLocale":"pt","appId":"youversion","translationId":"NVI","preferNative":false,"copyFormat":"text","citeBook":"name","citeSep":"colon","booksCompact":false,"theme":"system","avatarId":"","avatarUrl":"","handle":"ana","firstName":"Ana","lastName":"","profileEmail":"a@b.c"}}"##
-    private static let biblePayload = ##"{"ok":true,"locale":"pt","books":[{"id":"GEN","testament":"ot","name":"Gênesis","abbr":"Gn","chapters":1,"verses":[31]}]}"##
+    private static let biblePayload = ##"{"ok":true,"locale":"pt","books":[{"id":"GEN","testament":"ot","name":"Genesis","abbr":"Gn","chapters":1,"verses":[31]}]}"##
+    private static let linksPayload = ##"{"ok":true,"friends":[],"incoming":[],"outgoing":[]}"##
+    private static let summaryPayload = ##"{"ok":true,"items":[],"unread":0,"byKind":{}}"##
+    private static let providersPayload = ##"{"ok":true,"google":true,"apple":true,"email":true}"##
 }
 
 // MARK: - URLProtocol mock
@@ -260,6 +258,21 @@ final class MockNativeURLProtocol: URLProtocol {
     static var summaryJSON: String?
     static var providersJSON: String?
     static var artificialDelayMs: UInt64 = 0
+    private static var registered = false
+
+    static func register() {
+        if !registered {
+            URLProtocol.registerClass(MockNativeURLProtocol.self)
+            registered = true
+        }
+    }
+
+    static func unregister() {
+        if registered {
+            URLProtocol.unregisterClass(MockNativeURLProtocol.self)
+            registered = false
+        }
+    }
 
     static func reset() {
         notesJSON = nil
@@ -279,6 +292,7 @@ final class MockNativeURLProtocol: URLProtocol {
     static func makeSession() -> URLSession {
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [MockNativeURLProtocol.self]
+        config.timeoutIntervalForRequest = 5
         return URLSession(configuration: config)
     }
 
@@ -313,18 +327,26 @@ final class MockNativeURLProtocol: URLProtocol {
             body = Self.providersJSON
         }
 
-        let data = (body ?? #"{"ok":true}"#).data(using: .utf8)!
-        let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: ["Content-Type": "application/json"])!
+        // Missing fixture → 404 (don't hit the real network / don't look like success).
+        let status = body == nil ? 404 : 200
+        let data = (body ?? ##"{"ok":false,"error":"mock_miss"}"##).data(using: .utf8)!
+        let response = HTTPURLResponse(
+            url: request.url!,
+            statusCode: status,
+            httpVersion: nil,
+            headerFields: ["Content-Type": "application/json"]
+        )!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+
+        let finish = {
+            self.client?.urlProtocol(self, didLoad: data)
+            self.client?.urlProtocolDidFinishLoading(self)
+        }
         if Self.artificialDelayMs > 0 {
             let ms = Self.artificialDelayMs
-            DispatchQueue.global().asyncAfter(deadline: .now() + .milliseconds(Int(ms))) {
-                self.client?.urlProtocol(self, didLoad: data)
-                self.client?.urlProtocolDidFinishLoading(self)
-            }
+            DispatchQueue.global().asyncAfter(deadline: .now() + .milliseconds(Int(ms)), execute: finish)
         } else {
-            client?.urlProtocol(self, didLoad: data)
-            client?.urlProtocolDidFinishLoading(self)
+            finish()
         }
     }
 

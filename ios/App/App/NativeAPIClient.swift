@@ -31,9 +31,14 @@ enum NativeAPIClient {
     /// Replaceable for tests (URLProtocol / mock session).
     static var session: URLSession = .shared
 
+    /// Test-only bearer so AppTests don't depend on the Keychain entitlement.
+    /// Production code never sets this; `handleUnauthorized` clears it.
+    static var testAuthToken: String?
+
     /// Clear Keychain bearer and notify UI to re-login. Idempotent.
     /// Only call for explicit 401 / invalid token — never for transport/network failures.
     static func handleUnauthorized() {
+        testAuthToken = nil
         KeychainStore.deleteBearerToken()
         LocalSessionCache.clearAll()
         NativeSWR.clearAccountScoped()
@@ -392,7 +397,9 @@ enum NativeAPIClient {
         body: Data? = nil,
         query: [URLQueryItem] = []
     ) throws -> URLRequest {
-        guard let token = KeychainStore.bearerToken(), !token.isEmpty else {
+        let token = (testAuthToken?.isEmpty == false ? testAuthToken : nil)
+            ?? KeychainStore.bearerToken()
+        guard let token, !token.isEmpty else {
             throw APIError.unauthorized
         }
         var url = baseURL
@@ -424,7 +431,8 @@ enum NativeAPIClient {
     }
 
     static var hasBearer: Bool {
-        !(KeychainStore.bearerToken() ?? "").isEmpty
+        if let testAuthToken, !testAuthToken.isEmpty { return true }
+        return !(KeychainStore.bearerToken() ?? "").isEmpty
     }
 
     static func getSession() async throws -> SessionUser {
