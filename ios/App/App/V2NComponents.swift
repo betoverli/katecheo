@@ -336,6 +336,7 @@ final class V2NGroupRowCell: UITableViewCell {
     private let badge = UIImageView()
     private let titleLabel = UILabel()
     private let subtitleLabel = UILabel()
+    private let unreadDot = UIView()
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -366,8 +367,16 @@ final class V2NGroupRowCell: UITableViewCell {
         subtitleLabel.adjustsFontForContentSizeCategory = true
         subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
 
+        unreadDot.translatesAutoresizingMaskIntoConstraints = false
+        unreadDot.backgroundColor = V2NDesign.accent
+        unreadDot.layer.cornerRadius = 4
+        unreadDot.isHidden = true
+        unreadDot.isAccessibilityElement = true
+        unreadDot.accessibilityLabel = String(localized: "Não lido")
+
         contentView.addSubview(titleLabel)
         contentView.addSubview(subtitleLabel)
+        contentView.addSubview(unreadDot)
 
         NSLayoutConstraint.activate([
             badgeWrap.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 14),
@@ -379,26 +388,37 @@ final class V2NGroupRowCell: UITableViewCell {
             badge.centerYAnchor.constraint(equalTo: badgeWrap.centerYAnchor),
 
             titleLabel.leadingAnchor.constraint(equalTo: badgeWrap.trailingAnchor, constant: 12),
-            titleLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -8),
+            titleLabel.trailingAnchor.constraint(equalTo: unreadDot.leadingAnchor, constant: -8),
             titleLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 12),
 
             subtitleLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
             subtitleLabel.trailingAnchor.constraint(equalTo: titleLabel.trailingAnchor),
             subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 2),
             subtitleLabel.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -12),
+
+            unreadDot.widthAnchor.constraint(equalToConstant: 8),
+            unreadDot.heightAnchor.constraint(equalToConstant: 8),
+            unreadDot.centerYAnchor.constraint(equalTo: titleLabel.centerYAnchor),
+            unreadDot.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -4),
         ])
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    func configure(_ group: NativeAPIClient.GroupDTO) {
+    func configure(_ group: NativeAPIClient.GroupDTO, unread: Bool = false) {
         titleLabel.text = group.name
         let visibility = group.visibility == "listed" ? String(localized: "Listado") : String(localized: "Privado")
         let pending = group.myStatus == "pending" ? String(localized: " · pedido pendente") : ""
         subtitleLabel.text = String(localized: "\(group.memberCount) membros · \(visibility)\(pending)")
         badge.image = UIImage(systemName: group.visibility == "listed" ? "globe" : "lock.fill")
+        unreadDot.isHidden = !unread
         accessibilityLabel = "\(group.name). \(subtitleLabel.text ?? "")"
+        if unread {
+            accessibilityValue = String(localized: "Não lido")
+        } else {
+            accessibilityValue = nil
+        }
     }
 }
 
@@ -497,6 +517,8 @@ final class V2NFilterChipsView: UIView {
     private var chips: [V2NFilterChip] = []
     private(set) var selectedId: String?
     private var buttons: [String: UIButton] = [:]
+    private var badgedIds: Set<String> = []
+    private var badgeViews: [String: UIView] = [:]
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -531,21 +553,53 @@ final class V2NFilterChipsView: UIView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    func configure(chips: [V2NFilterChip], selectedId: String?) {
+    func configure(chips: [V2NFilterChip], selectedId: String?, badgedIds: Set<String> = []) {
         self.chips = chips
         self.selectedId = selectedId
+        self.badgedIds = badgedIds
         stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         buttons.removeAll()
+        badgeViews.removeAll()
         for chip in chips {
             let button = makeButton(chip: chip, selected: chip.id == selectedId)
             buttons[chip.id] = button
             stack.addArrangedSubview(button)
+            attachBadge(to: button, chipId: chip.id)
         }
     }
 
     /// Convenience for call sites that always pass a non-optional id.
-    func configure(chips: [V2NFilterChip], selectedId: String) {
-        configure(chips: chips, selectedId: Optional(selectedId))
+    func configure(chips: [V2NFilterChip], selectedId: String, badgedIds: Set<String> = []) {
+        configure(chips: chips, selectedId: Optional(selectedId), badgedIds: badgedIds)
+    }
+
+    func setBadgedIds(_ ids: Set<String>) {
+        badgedIds = ids
+        for (id, badge) in badgeViews {
+            let on = ids.contains(id)
+            badge.isHidden = !on
+            badge.accessibilityElementsHidden = !on
+        }
+    }
+
+    private func attachBadge(to button: UIButton, chipId: String) {
+        let dot = UIView()
+        dot.translatesAutoresizingMaskIntoConstraints = false
+        dot.backgroundColor = V2NDesign.accent
+        dot.layer.cornerRadius = 4
+        dot.isUserInteractionEnabled = false
+        dot.isAccessibilityElement = true
+        dot.accessibilityLabel = String(localized: "Não lido")
+        button.addSubview(dot)
+        NSLayoutConstraint.activate([
+            dot.widthAnchor.constraint(equalToConstant: 8),
+            dot.heightAnchor.constraint(equalToConstant: 8),
+            dot.topAnchor.constraint(equalTo: button.topAnchor, constant: 4),
+            dot.trailingAnchor.constraint(equalTo: button.trailingAnchor, constant: -4),
+        ])
+        let on = badgedIds.contains(chipId)
+        dot.isHidden = !on
+        badgeViews[chipId] = dot
     }
 
     func setSelected(_ id: String?, animated: Bool = true) {

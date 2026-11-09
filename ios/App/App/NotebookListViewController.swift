@@ -119,6 +119,16 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             name: .nativeSessionDidChange,
             object: nil
         )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(refreshSharedChipDot),
+            name: V2NActivityStore.didChangeNotification,
+            object: nil
+        )
+    }
+
+    @objc private func refreshSharedChipDot() {
+        filterChips.setBadgedIds(V2NActivityStore.sharedChipDot ? [NoteFilter.shared.rawValue] : [])
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -180,10 +190,13 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 }
                 async let remoteNotes = NativeAPIClient.listNotes()
                 async let remoteSpeakers = NativeAPIClient.listSpeakers()
+                async let remoteGranted = NativeAPIClient.listGrantedNotes()
                 notes = try await remoteNotes
                 speakers = try await remoteSpeakers
+                grantedNotes = (try? await remoteGranted) ?? []
                 setBannerStatus(nil)
                 applyFilter()
+                Task { await V2NActivitySync.refreshFromServer() }
             } catch NativeAPIClient.APIError.unauthorized {
                 setBannerStatus(String(localized: "Sessão expirada. Entre novamente."), kind: .error)
                 if group == nil {
@@ -279,7 +292,16 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
         tableView.isHidden = false
     }
 
+    private func refreshSharedActivity() {
+        var badged = Set<String>()
+        if V2NActivityStore.sharedChipDot {
+            badged.insert(NoteFilter.shared.rawValue)
+        }
+        filterChips.setBadgedIds(badged)
+    }
+
     private func applyFilter() {
+        refreshSharedActivity()
         let q = (search.searchBar.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if isGroupMode {
             if q.isEmpty {
@@ -414,7 +436,11 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             return
         }
         let note = filtered[indexPath.row]
-        let detail = NoteDetailViewController(noteId: note.id, initial: note)
+        let isGranted = noteFilter == .shared || grantedNotes.contains(where: { $0.id == note.id })
+        if isGranted {
+            V2NActivityStore.markSharedNoteOpened(note.id)
+        }
+        let detail = NoteDetailViewController(noteId: note.id, initial: note, grantedReadOnly: isGranted)
         navigationController?.pushViewController(detail, animated: true)
     }
 
@@ -429,18 +455,22 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 style: .destructive,
                 systemName: "folder.badge.minus",
                 accessibilityLabel: String(localized: "Retirar")
-            ) { [weak self] _, _, done in
-                self?.confirmUnpublish(card) { done($0) }
+            ) { [weak self] _, view, done in
+                self?.confirmUnpublish(card, from: view, at: indexPath) { done($0) }
             }
             return UISwipeActionsConfiguration(actions: [remove])
         }
         let note = filtered[indexPath.row]
+        // Granted (Compartilhadas) notes are not owned — no delete.
+        if noteFilter == .shared || grantedNotes.contains(where: { $0.id == note.id && !notes.contains(where: { $0.id == note.id }) }) {
+            return nil
+        }
         let delete = UIContextualAction.v2nIconOnly(
             style: .destructive,
             systemName: "trash",
             accessibilityLabel: String(localized: "Excluir")
-        ) { [weak self] _, _, done in
-            self?.confirmDelete(note) { done($0) }
+        ) { [weak self] _, view, done in
+            self?.confirmDelete(note, from: view, at: indexPath) { done($0) }
         }
         return UISwipeActionsConfiguration(actions: [delete])
     }
@@ -475,7 +505,12 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
         return UISwipeActionsConfiguration(actions: [share])
     }
 
-    private func confirmUnpublish(_ card: NativeAPIClient.GroupNoteCardDTO, completion: @escaping (Bool) -> Void) {
+    private func confirmUnpublish(
+        _ card: NativeAPIClient.GroupNoteCardDTO,
+        from source: UIView?,
+        at indexPath: IndexPath,
+        completion: @escaping (Bool) -> Void
+    ) {
         guard let group else {
             completion(false)
             return
@@ -498,14 +533,16 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 }
             }
         })
-        if let pop = alert.popoverPresentationController {
-            pop.sourceView = tableView
-            pop.sourceRect = tableView.bounds
-        }
+        anchorActionSheet(alert, from: source, at: indexPath)
         present(alert, animated: true)
     }
 
-    private func confirmDelete(_ note: NativeAPIClient.NoteDocument, completion: @escaping (Bool) -> Void) {
+    private func confirmDelete(
+        _ note: NativeAPIClient.NoteDocument,
+        from source: UIView?,
+        at indexPath: IndexPath,
+        completion: @escaping (Bool) -> Void
+    ) {
         let alert = UIAlertController(title: nil, message: String(localized: "Excluir esta nota?"), preferredStyle: .actionSheet)
         alert.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel) { _ in completion(false) })
         alert.addAction(UIAlertAction(title: String(localized: "Excluir nota"), style: .destructive) { [weak self] _ in
@@ -530,11 +567,21 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 }
             }
         })
-        if let pop = alert.popoverPresentationController {
-            pop.sourceView = tableView
-            pop.sourceRect = tableView.bounds
-        }
+        anchorActionSheet(alert, from: source, at: indexPath)
         present(alert, animated: true)
+    }
+
+    /// iPhone: standard action sheet. iPad: popover anchored to the swiped row/action.
+    private func anchorActionSheet(_ alert: UIAlertController, from source: UIView?, at indexPath: IndexPath) {
+        guard let pop = alert.popoverPresentationController else { return }
+        if let source {
+            pop.sourceView = source
+            pop.sourceRect = source.bounds
+        } else {
+            pop.sourceView = tableView
+            pop.sourceRect = tableView.rectForRow(at: indexPath)
+        }
+        pop.permittedArrowDirections = [.up, .down]
     }
 
     private func share(_ note: NativeAPIClient.NoteDocument, from source: UIView) {
@@ -691,9 +738,13 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
         selectedTag = nil
         selectedSpeakerId = nil
         if filter == .shared {
-            // Shared grants reuse listNotes visibility until a dedicated grants API ships.
-            grantedNotes = notes.filter { $0.visibility == "shared" || $0.visibility == "link" }
-            applyFilter()
+            // Real grants from `/notes/granted` — never invent from owned visibility.
+            Task { @MainActor in
+                if NativeAPIClient.hasBearer {
+                    self.grantedNotes = (try? await NativeAPIClient.listGrantedNotes()) ?? self.grantedNotes
+                }
+                self.applyFilter()
+            }
         } else if filter == .tags {
             presentTagPicker()
             applyFilter()

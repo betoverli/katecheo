@@ -6,7 +6,16 @@ export type NativeV1Route =
   | { kind: "catalog" }
   | { kind: "session" }
   | { kind: "notes"; noteId?: string }
+  | { kind: "notes-granted" }
   | { kind: "note-groups"; noteId: string }
+  | { kind: "links" }
+  | { kind: "links-accept" }
+  | { kind: "links-decline" }
+  | { kind: "links-request" }
+  | { kind: "links-search" }
+  | { kind: "notifications" }
+  | { kind: "notifications-read" }
+  | { kind: "notifications-summary" }
   | { kind: "speakers"; speakerId?: string }
   | { kind: "devices-apns" }
   | { kind: "auth-providers" }
@@ -54,9 +63,23 @@ export function matchNativeV1Route(splat: string): NativeV1Route {
 
   if (a === "session" && parts.length === 1) return { kind: "session" };
   if (a === "notes" && parts.length === 1) return { kind: "notes" };
+  // Must precede notes/:id so "granted" is not treated as a note id.
+  if (a === "notes" && b === "granted" && parts.length === 2) return { kind: "notes-granted" };
   if (a === "notes" && parts.length === 2 && b) return { kind: "notes", noteId: b };
   if (a === "notes" && b && c === "groups" && parts.length === 3) {
     return { kind: "note-groups", noteId: b };
+  }
+  if (a === "links" && parts.length === 1) return { kind: "links" };
+  if (a === "links" && b === "accept" && parts.length === 2) return { kind: "links-accept" };
+  if (a === "links" && b === "decline" && parts.length === 2) return { kind: "links-decline" };
+  if (a === "links" && b === "request" && parts.length === 2) return { kind: "links-request" };
+  if (a === "links" && b === "search" && parts.length === 2) return { kind: "links-search" };
+  if (a === "notifications" && parts.length === 1) return { kind: "notifications" };
+  if (a === "notifications" && b === "summary" && parts.length === 2) {
+    return { kind: "notifications-summary" };
+  }
+  if (a === "notifications" && b === "read" && parts.length === 2) {
+    return { kind: "notifications-read" };
   }
   if (a === "speakers" && parts.length === 1) return { kind: "speakers" };
   if (a === "speakers" && parts.length === 2 && b) return { kind: "speakers", speakerId: b };
@@ -150,6 +173,20 @@ export function methodAllowed(route: NativeV1Route, method: string): boolean {
     case "notes":
       if (!route.noteId) return m === "GET" || m === "POST";
       return m === "GET" || m === "PATCH" || m === "PUT" || m === "DELETE";
+    case "notes-granted":
+      return m === "GET";
+    case "links":
+    case "links-search":
+      return m === "GET";
+    case "links-accept":
+    case "links-decline":
+    case "links-request":
+      return m === "POST";
+    case "notifications":
+    case "notifications-summary":
+      return m === "GET";
+    case "notifications-read":
+      return m === "POST";
     case "note-groups":
       return m === "GET";
     case "speakers":

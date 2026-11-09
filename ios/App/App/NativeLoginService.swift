@@ -162,7 +162,9 @@ final class NativeLoginService: NSObject {
             request.setValue("application/json", forHTTPHeaderField: "Accept")
             _ = try? await URLSession.shared.data(for: request)
         }
+        let accountId = LocalSessionCache.loadMe()?.id
         KeychainStore.deleteBearerToken()
+        V2NActivityStore.clearAccount(accountId)
         LocalSessionCache.clearAll()
         LocalSessionCache.showOfflineHint = false
         UserDefaults.standard.removeObject(forKey: NativeSessionBootstrap.migratedFlagKey)

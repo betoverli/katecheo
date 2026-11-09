@@ -10,6 +10,7 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
 
     private enum PrefRow: Int, CaseIterable {
         case edit
+        case friends
         case appearance
         case language
         case bible
@@ -318,6 +319,16 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
                 config.text = String(localized: "Editar perfil")
                 config.secondaryText = me?.prefs.displayName
                 config.image = UIImage(systemName: "pencil")
+            case .friends:
+                config.text = String(localized: "Amigos")
+                let pending = V2NActivityStore.items(kind: .friendPending).count
+                let accepted = V2NActivityStore.items(kind: .friendAccepted).count
+                if pending + accepted > 0 {
+                    config.secondaryText = String(localized: "Atividade nova")
+                } else {
+                    config.secondaryText = String(localized: "Pedidos e aceites")
+                }
+                config.image = UIImage(systemName: "person.2")
             case .appearance:
                 config.text = String(localized: "Aparência")
                 config.secondaryText = themeLabel(me?.prefs.theme ?? "system")
@@ -360,7 +371,14 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
         }
 
         cell.contentConfiguration = config
+        cell.accessoryView = nil
         cell.v2nApplyThemedGroupedCell()
+        if case .preferences = sectionKind(at: indexPath.section),
+           PrefRow(rawValue: indexPath.row) == .friends,
+           V2NActivityStore.friendsEntryDot
+        {
+            cell.accessibilityValue = String(localized: "Não lido")
+        }
         return cell
     }
 
@@ -376,6 +394,8 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
             case .edit:
                 let edit = ProfileEditViewController(me: me) { [weak self] in self?.reload() }
                 navigationController?.pushViewController(edit, animated: true)
+            case .friends:
+                navigationController?.pushViewController(FriendsActivityViewController(), animated: true)
             case .appearance:
                 let vc = ProfileThemeViewController(theme: me.prefs.theme) { [weak self] in self?.reload() }
                 navigationController?.pushViewController(vc, animated: true)

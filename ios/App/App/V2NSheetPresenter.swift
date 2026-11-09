@@ -22,6 +22,12 @@ enum V2NSheetPresenter {
             sheet.largestUndimmedDetentIdentifier = nil
             sheet.prefersEdgeAttachedInCompactHeight = true
         }
+        // Inherit host Light override so editor sheets match canvas when
+        // "Editor sempre claro" is on (build-238).
+        if host.overrideUserInterfaceStyle != .unspecified {
+            nav.overrideUserInterfaceStyle = host.overrideUserInterfaceStyle
+            viewController.overrideUserInterfaceStyle = host.overrideUserInterfaceStyle
+        }
         host.present(nav, animated: true)
     }
 }

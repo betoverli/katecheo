@@ -56,5 +56,32 @@ final class NativeRootTabBarController: UITabBarController {
 
         // Liquid Glass paints system chrome on iOS 26; older OS keeps classic appearances from V2NChrome.
         _ = V2NGlassMaterial.sdkHasLiquidGlass()
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(refreshActivityDots),
+            name: V2NActivityStore.didChangeNotification,
+            object: nil
+        )
+        refreshActivityDots()
+    }
+
+    @objc private func refreshActivityDots() {
+        applyDot(at: 0, on: V2NActivityStore.notebookDot, label: String(localized: "Caderno com itens não lidos"))
+        applyDot(at: 1, on: V2NActivityStore.groupsDot, label: String(localized: "Grupos com atividade não lida"))
+        applyDot(at: 2, on: V2NActivityStore.toolsDot, label: String(localized: "Ferramentas com leitura pendente"))
+        applyDot(at: 3, on: V2NActivityStore.profileDot, label: String(localized: "Perfil com pedidos de amizade"))
+    }
+
+    private func applyDot(at index: Int, on: Bool, label: String) {
+        guard let item = viewControllers?[index].tabBarItem else { return }
+        // Empty badgeValue renders a subtle system red dot (no count).
+        item.badgeValue = on ? "" : nil
+        item.badgeColor = V2NDesign.accent
+        if on {
+            item.accessibilityValue = label
+        } else {
+            item.accessibilityValue = nil
+        }
     }
 }

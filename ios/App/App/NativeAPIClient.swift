@@ -127,7 +127,81 @@ enum NativeAPIClient {
         let ok: Bool?
         let note: NoteDocument?
         let speakers: [SpeakerDTO]?
+        /// `owned` | `grant` — grants are read-only and must not enter the owned LocalNoteCache.
+        let via: String?
         let error: String?
+    }
+
+    struct LinkPersonDTO: Codable, Equatable {
+        var userId: String
+        var handle: String
+        var firstName: String
+        var lastName: String
+        var avatarId: String
+        var avatarUrl: String
+
+        var displayName: String {
+            let name = [firstName, lastName].filter { !$0.isEmpty }.joined(separator: " ")
+            if !name.isEmpty { return name }
+            if !handle.isEmpty { return "@\(handle)" }
+            return String(localized: "Amigo")
+        }
+    }
+
+    struct LinksResponse: Decodable {
+        let ok: Bool?
+        let friends: [LinkPersonDTO]?
+        let incoming: [LinkPersonDTO]?
+        let outgoing: [LinkPersonDTO]?
+        let error: String?
+    }
+
+    struct InboxItemDTO: Codable, Equatable {
+        var id: String
+        var kind: String
+        var title: String
+        var body: String
+        var href: String
+        var read: Bool
+        var createdAt: String
+    }
+
+    struct NotificationsResponse: Decodable {
+        let ok: Bool?
+        let items: [InboxItemDTO]?
+        let nextCursor: String?
+        let unread: Int?
+        let byKind: [String: Int]?
+        let error: String?
+    }
+
+    struct PeopleHitDTO: Codable, Equatable {
+        var userId: String
+        var handle: String
+        var firstName: String
+        var lastName: String
+        var avatarId: String
+        var avatarUrl: String
+        var status: String
+
+        var asPerson: LinkPersonDTO {
+            LinkPersonDTO(
+                userId: userId, handle: handle, firstName: firstName, lastName: lastName,
+                avatarId: avatarId, avatarUrl: avatarUrl
+            )
+        }
+    }
+
+    struct PeopleSearchResponse: Decodable {
+        let ok: Bool?
+        let people: [PeopleHitDTO]?
+        let error: String?
+    }
+
+    struct LinkActionResponse: Decodable {
+        let ok: Bool?
+        let error: String?
+        let status: String?
     }
 
     struct SpeakersResponse: Decodable {
@@ -308,13 +382,22 @@ enum NativeAPIClient {
 
     // MARK: - Requests
 
-    private static func authorizedRequest(path: String, method: String, body: Data? = nil) throws -> URLRequest {
+    private static func authorizedRequest(
+        path: String,
+        method: String,
+        body: Data? = nil,
+        query: [URLQueryItem] = []
+    ) throws -> URLRequest {
         guard let token = KeychainStore.bearerToken(), !token.isEmpty else {
             throw APIError.unauthorized
         }
         var url = baseURL
         for part in path.split(separator: "/") {
             url = url.appendingPathComponent(String(part))
+        }
+        if !query.isEmpty, var comps = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+            comps.queryItems = query
+            if let withQuery = comps.url { url = withQuery }
         }
         var request = URLRequest(url: url)
         request.httpMethod = method
@@ -364,7 +447,7 @@ enum NativeAPIClient {
         return notes
     }
 
-    static func getNote(id: String) async throws -> (note: NoteDocument, speakers: [SpeakerDTO]) {
+    static func getNote(id: String) async throws -> (note: NoteDocument, speakers: [SpeakerDTO], via: String) {
         let request = try authorizedRequest(path: "api/native/v1/notes/\(id)", method: "GET")
         let (status, data) = try await perform(request)
         try throwIfUnauthorized(status)
@@ -374,12 +457,157 @@ enum NativeAPIClient {
         guard let decoded = try? JSONDecoder().decode(NoteResponse.self, from: data),
               let note = decoded.note
         else { throw APIError.decoding }
-        LocalNoteCache.upsertNote(note)
+        let via = decoded.via ?? "owned"
+        // Grants must not pollute the owned Caderno cache.
+        if via != "grant" {
+            LocalNoteCache.upsertNote(note)
+        }
         // Note payload only includes speakers used by this note — merge, never replace
         // the full catalog cache (TF200 #3 empty picker).
         let noteSpeakers = decoded.speakers ?? []
-        _ = LocalNoteCache.mergeSpeakers(noteSpeakers)
-        return (note, noteSpeakers)
+        if via != "grant" {
+            _ = LocalNoteCache.mergeSpeakers(noteSpeakers)
+        }
+        return (note, noteSpeakers, via)
+    }
+
+    static func listGrantedNotes() async throws -> [NoteDocument] {
+        let request = try authorizedRequest(path: "api/native/v1/notes/granted", method: "GET")
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(NotesResponse.self, from: data),
+              let notes = decoded.notes
+        else { throw APIError.decoding }
+        return notes
+    }
+
+    static func listLinks() async throws -> (friends: [LinkPersonDTO], incoming: [LinkPersonDTO], outgoing: [LinkPersonDTO]) {
+        let request = try authorizedRequest(path: "api/native/v1/links", method: "GET")
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(LinksResponse.self, from: data) else {
+            throw APIError.decoding
+        }
+        return (decoded.friends ?? [], decoded.incoming ?? [], decoded.outgoing ?? [])
+    }
+
+    static func acceptLink(handle: String) async throws {
+        struct Body: Encodable { let handle: String }
+        let body = try JSONEncoder().encode(Body(handle: handle))
+        let request = try authorizedRequest(path: "api/native/v1/links/accept", method: "POST", body: body)
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+    }
+
+    static func declineLink(handle: String) async throws {
+        struct Body: Encodable { let handle: String }
+        let body = try JSONEncoder().encode(Body(handle: handle))
+        let request = try authorizedRequest(path: "api/native/v1/links/decline", method: "POST", body: body)
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+    }
+
+    /// Web `requestLink` — by @handle. Errors: missing / limit / rate (no user enumeration beyond web).
+    @discardableResult
+    static func requestLink(handle: String) async throws -> String {
+        struct Body: Encodable { let handle: String }
+        let body = try JSONEncoder().encode(Body(handle: handle))
+        let request = try authorizedRequest(path: "api/native/v1/links/request", method: "POST", body: body)
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        let decoded = try? JSONDecoder().decode(LinkActionResponse.self, from: data)
+        guard status >= 200, status < 300, decoded?.ok == true else {
+            let err = decoded?.error ?? (String(data: data, encoding: .utf8) ?? "")
+            throw APIError.http(status, err)
+        }
+        return decoded?.status ?? "outgoing"
+    }
+
+    static func searchPeople(query: String) async throws -> [PeopleHitDTO] {
+        let request = try authorizedRequest(
+            path: "api/native/v1/links/search",
+            method: "GET",
+            query: [URLQueryItem(name: "q", value: query)]
+        )
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(PeopleSearchResponse.self, from: data) else {
+            throw APIError.decoding
+        }
+        return decoded.people ?? []
+    }
+
+    static func listNotifications(
+        cursor: String? = nil,
+        limit: Int? = nil,
+        unreadOnly: Bool = false
+    ) async throws -> (items: [InboxItemDTO], nextCursor: String?, unread: Int) {
+        var query: [URLQueryItem] = []
+        if let cursor, !cursor.isEmpty { query.append(URLQueryItem(name: "cursor", value: cursor)) }
+        if let limit { query.append(URLQueryItem(name: "limit", value: String(limit))) }
+        if unreadOnly { query.append(URLQueryItem(name: "unreadOnly", value: "1")) }
+        let request = try authorizedRequest(path: "api/native/v1/notifications", method: "GET", query: query)
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(NotificationsResponse.self, from: data) else {
+            throw APIError.decoding
+        }
+        return (decoded.items ?? [], decoded.nextCursor, decoded.unread ?? 0)
+    }
+
+    /// Fetches every unread page (for correct dot aggregation beyond page 1).
+    static func listAllUnreadNotifications(pageLimit: Int = 50, maxPages: Int = 40) async throws -> [InboxItemDTO] {
+        var all: [InboxItemDTO] = []
+        var cursor: String? = nil
+        for _ in 0..<maxPages {
+            let page = try await listNotifications(cursor: cursor, limit: pageLimit, unreadOnly: true)
+            all.append(contentsOf: page.items)
+            guard let next = page.nextCursor, !next.isEmpty else { break }
+            cursor = next
+        }
+        return all
+    }
+
+    static func notificationsSummary() async throws -> (items: [InboxItemDTO], nextCursor: String?, unread: Int, byKind: [String: Int]) {
+        let request = try authorizedRequest(path: "api/native/v1/notifications/summary", method: "GET")
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(NotificationsResponse.self, from: data) else {
+            throw APIError.decoding
+        }
+        return (decoded.items ?? [], decoded.nextCursor, decoded.unread ?? 0, decoded.byKind ?? [:])
+    }
+
+    static func markNotificationsRead(id: String? = nil) async throws {
+        struct Body: Encodable { let id: String? }
+        let body = try JSONEncoder().encode(Body(id: id))
+        let request = try authorizedRequest(path: "api/native/v1/notifications/read", method: "POST", body: body)
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
     }
 
     static func upsertNote(_ note: NoteDocument) async throws -> NoteDocument {

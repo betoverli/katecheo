@@ -80,14 +80,17 @@ jobs:
           TEST_STATUS=$?
           set -e
           # AppTests write PNGs inside the Simulator app sandbox — harvest even on failure.
-          find \
-            "${HOME}/Library/Developer/CoreSimulator" \
-            "${RUNNER_TEMP}/verse2note-ios" \
-            /tmp \
-            "${GITHUB_WORKSPACE}" \
-            \( -name 'tf222-*.png' -o -name 'tab-bg-*.png' -o -name 'b234-*.png' \) 2>/dev/null \
-            | head -160 \
-            | while read -r f; do cp -f "$f" artifacts/ 2>/dev/null || true; done
+          # Per-pattern finds (no shared head) so b238 is not crowded out by older tf/b234 PNGs.
+          for pat in 'tf222-*.png' 'tab-bg-*.png' 'b234-*.png' 'b238-*.png'; do
+            find \
+              "${HOME}/Library/Developer/CoreSimulator" \
+              "${RUNNER_TEMP}/verse2note-ios" \
+              /tmp \
+              "${GITHUB_WORKSPACE}" \
+              -name "$pat" 2>/dev/null \
+              | head -80 \
+              | while read -r f; do cp -f "$f" artifacts/ 2>/dev/null || true; done
+          done
           ls -la artifacts || true
           exit "$TEST_STATUS"
       - name: Upload speaker appearance screenshots
@@ -110,6 +113,13 @@ jobs:
         with:
           name: build-234-feedback
           path: artifacts/b234-*.png
+          if-no-files-found: warn
+      - name: Upload build-238 screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-238-feedback
+          path: artifacts/b238-*.png
           if-no-files-found: error
 
   testflight:

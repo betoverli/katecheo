@@ -5,7 +5,10 @@ import { formatPassage } from "@/lib/bible/passage";
 import { planById, readingToPassage } from "@/lib/bible/reading-plans";
 import { getSql, type Sql } from "@/lib/db";
 import { t, type I18nKey } from "@/lib/i18n";
+import { decodeInboxCursor, encodeInboxCursor } from "@/lib/notify-cursor";
 import { allowRequest } from "@/lib/rate-limit";
+
+export { encodeInboxCursor, decodeInboxCursor } from "@/lib/notify-cursor";
 
 export type NotifyKind = "reading" | "friends" | "shares" | "groups";
 
@@ -27,7 +30,10 @@ export type InboxItem = {
 };
 
 const VAPID_SUB = "https://verse2note.com";
-const MAX_INBOX = 50;
+/** Retention for *read* rows only — unread are never trimmed (dots/pagination need them). */
+const MAX_READ_RETAINED = 100;
+/** Default page size for cursor inbox (native + web first page). */
+export const INBOX_PAGE_SIZE = 50;
 
 function asLocale(value: string): Locale {
   return value === "en" || value === "es" || value === "pt" ? value : "pt";
@@ -87,11 +93,16 @@ export async function vapidPublicKey() {
 }
 
 async function trimInbox(sql: Sql, userId: string) {
+  // Never delete unread — only prune older read rows beyond retention.
   await sql`
     delete from notifications
     where user_id = ${userId}
+      and read_at is not null
       and id not in (
-        select id from notifications where user_id = ${userId} order by created_at desc limit ${MAX_INBOX}
+        select id from notifications
+        where user_id = ${userId} and read_at is not null
+        order by created_at desc, id desc
+        limit ${MAX_READ_RETAINED}
       )
   `;
 }
@@ -424,24 +435,18 @@ export async function savePrefs(userId: string, patch: Partial<NotifyPrefs>) {
   return { reading, friends, shares, groups };
 }
 
-export async function listInbox(userId: string): Promise<InboxItem[]> {
-  const sql = await getSql();
-  const rows = await sql<{
-    id: string;
-    kind: string;
-    title: string;
-    body: string;
-    href: string;
-    read_at: string | null;
-    created_at: string;
-  }>`
-    select id, kind, title, body, href, read_at, created_at
-    from notifications
-    where user_id = ${userId}
-    order by created_at desc
-    limit ${MAX_INBOX}
-  `;
-  return rows.map((row) => ({
+type InboxRow = {
+  id: string;
+  kind: string;
+  title: string;
+  body: string;
+  href: string;
+  read_at: string | null;
+  created_at: string;
+};
+
+function mapInboxRow(row: InboxRow): InboxItem {
+  return {
     id: row.id,
     kind: asKind(row.kind),
     title: row.title,
@@ -449,7 +454,80 @@ export async function listInbox(userId: string): Promise<InboxItem[]> {
     href: safeHref(row.href),
     read: Boolean(row.read_at),
     createdAt: String(row.created_at),
-  }));
+  };
+}
+
+export type InboxPage = {
+  items: InboxItem[];
+  nextCursor: string | null;
+};
+
+/**
+ * Cursor page over inbox. Stable order: created_at DESC, id DESC.
+ * `unreadOnly` skips read rows (for activity-dot sync).
+ */
+export async function listInboxPage(
+  userId: string,
+  opts: { cursor?: string | null; limit?: number; unreadOnly?: boolean } = {},
+): Promise<InboxPage> {
+  const sql = await getSql();
+  const limit = Math.min(Math.max(Math.floor(opts.limit ?? INBOX_PAGE_SIZE), 1), 100);
+  const decoded = decodeInboxCursor(opts.cursor ?? null);
+  const unreadOnly = opts.unreadOnly === true;
+
+  let rows: InboxRow[];
+  if (decoded) {
+    if (unreadOnly) {
+      rows = await sql<InboxRow>`
+        select id, kind, title, body, href, read_at, created_at
+        from notifications
+        where user_id = ${userId}
+          and read_at is null
+          and (created_at, id) < (${decoded.createdAt}::timestamptz, ${decoded.id})
+        order by created_at desc, id desc
+        limit ${limit + 1}
+      `;
+    } else {
+      rows = await sql<InboxRow>`
+        select id, kind, title, body, href, read_at, created_at
+        from notifications
+        where user_id = ${userId}
+          and (created_at, id) < (${decoded.createdAt}::timestamptz, ${decoded.id})
+        order by created_at desc, id desc
+        limit ${limit + 1}
+      `;
+    }
+  } else if (unreadOnly) {
+    rows = await sql<InboxRow>`
+      select id, kind, title, body, href, read_at, created_at
+      from notifications
+      where user_id = ${userId} and read_at is null
+      order by created_at desc, id desc
+      limit ${limit + 1}
+    `;
+  } else {
+    rows = await sql<InboxRow>`
+      select id, kind, title, body, href, read_at, created_at
+      from notifications
+      where user_id = ${userId}
+      order by created_at desc, id desc
+      limit ${limit + 1}
+    `;
+  }
+
+  const hasMore = rows.length > limit;
+  const page = hasMore ? rows.slice(0, limit) : rows;
+  const last = page[page.length - 1];
+  return {
+    items: page.map(mapInboxRow),
+    nextCursor: hasMore && last ? encodeInboxCursor(String(last.created_at), last.id) : null,
+  };
+}
+
+/** Web-compatible first page (no cursor). */
+export async function listInbox(userId: string): Promise<InboxItem[]> {
+  const page = await listInboxPage(userId, { limit: INBOX_PAGE_SIZE });
+  return page.items;
 }
 
 export async function unreadCount(userId: string) {
@@ -458,6 +536,38 @@ export async function unreadCount(userId: string) {
     select count(*)::int as n from notifications where user_id = ${userId} and read_at is null
   `;
   return Number(rows[0]?.n ?? 0);
+}
+
+export async function unreadCountsByKind(userId: string) {
+  const sql = await getSql();
+  const rows = await sql<{ kind: string; n: number }>`
+    select kind, count(*)::int as n
+    from notifications
+    where user_id = ${userId} and read_at is null
+    group by kind
+  `;
+  const byKind: Record<NotifyKind, number> = { reading: 0, friends: 0, shares: 0, groups: 0 };
+  for (const row of rows) {
+    const kind = asKind(row.kind);
+    byKind[kind] = Number(row.n ?? 0);
+  }
+  return byKind;
+}
+
+/** Counts + first unread page for native activity dots (client continues with cursor). */
+export async function unreadSummary(
+  userId: string,
+  opts: { limit?: number } = {},
+): Promise<{
+  unread: number;
+  byKind: Record<NotifyKind, number>;
+  items: InboxItem[];
+  nextCursor: string | null;
+}> {
+  const byKind = await unreadCountsByKind(userId);
+  const unread = Object.values(byKind).reduce((a, b) => a + b, 0);
+  const page = await listInboxPage(userId, { unreadOnly: true, limit: opts.limit ?? INBOX_PAGE_SIZE });
+  return { unread, byKind, items: page.items, nextCursor: page.nextCursor };
 }
 
 export async function markRead(userId: string, id?: string) {

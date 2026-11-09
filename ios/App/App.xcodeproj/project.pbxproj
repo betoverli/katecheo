@@ -11,10 +11,14 @@
 		T9TF21922FED7965001685T9 /* NativeNoteEditorTF219Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T9TF21921FED7965001685T9 /* NativeNoteEditorTF219Tests.swift */; };
 		TATF22222FED7965001685TA /* NativeNoteEditorTF222Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TATF22221FED7965001685TA /* NativeNoteEditorTF222Tests.swift */; };
 		T9APPAPP2FED7965001685T9 /* AppAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = T9APPAPP1FED7965001685T9 /* AppAppearance.swift */; };
+		V2NFRN12FED7965001685V2 /* FriendsActivityViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = V2NFRN11FED7965001685V2 /* FriendsActivityViewController.swift */; };
+		V2NACT12FED7965001685V2 /* V2NActivityStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = V2NACT11FED7965001685V2 /* V2NActivityStore.swift */; };
+		V2NSYNC2FED7965001685V2 /* V2NActivitySync.swift in Sources */ = {isa = PBXBuildFile; fileRef = V2NSYNC1FED7965001685V2 /* V2NActivitySync.swift */; };
 		T8SCROLL2FED7965001685T8 /* V2NScrollChromeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T8SCROLL1FED7965001685T8 /* V2NScrollChromeTests.swift */; };
 		TBSWIPE2FED7965001685TB /* V2NSwipeActionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TBSWIPE1FED7965001685TB /* V2NSwipeActionTests.swift */; };
 		TCTABBG2FED7965001685TC /* TabBackgroundConsistencyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TCTABBG1FED7965001685TC /* TabBackgroundConsistencyTests.swift */; };
 		TB234FB2FED7965001685TB /* Build234FeedbackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TB234FB1FED7965001685TB /* Build234FeedbackTests.swift */; };
+		TB238FB2FED7965001685TB /* Build238FeedbackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TB238FB1FED7965001685TB /* Build238FeedbackTests.swift */; };
 		T7TF21022FED7965001685T7 /* NativeNoteEditorTF210Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T7TF21021FED7965001685T7 /* NativeNoteEditorTF210Tests.swift */; };
 		T7TAGS12FED7965001685T7 /* NoteEditorTagsStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = T7TAGS11FED7965001685T7 /* NoteEditorTagsStrip.swift */; };
 		T1A2B0102FED7965001685T1 /* NoteDocumentCodecTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T1A2B0112FED7965001685T1 /* NoteDocumentCodecTests.swift */; };
@@ -82,6 +86,9 @@
 		T2SPEAK11FED7965001685T2 /* SpeakerSectionEditing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerSectionEditing.swift; sourceTree = "<group>"; };
 		T4HEAD11FED7965001685T4 /* SpeakerHeaderAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerHeaderAttachment.swift; sourceTree = "<group>"; };
 		T9APPAPP1FED7965001685T9 /* AppAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAppearance.swift; sourceTree = "<group>"; };
+		V2NFRN11FED7965001685V2 /* FriendsActivityViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendsActivityViewController.swift; sourceTree = "<group>"; };
+		V2NACT11FED7965001685V2 /* V2NActivityStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2NActivityStore.swift; sourceTree = "<group>"; };
+		V2NSYNC1FED7965001685V2 /* V2NActivitySync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2NActivitySync.swift; sourceTree = "<group>"; };
 		T9TF21921FED7965001685T9 /* NativeNoteEditorTF219Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeNoteEditorTF219Tests.swift; sourceTree = "<group>"; };
 		TATF22221FED7965001685TA /* NativeNoteEditorTF222Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeNoteEditorTF222Tests.swift; sourceTree = "<group>"; };
 		T5SHEET11FED7965001685T5 /* V2NSheetPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2NSheetPresenter.swift; sourceTree = "<group>"; };
@@ -136,6 +143,7 @@
 		TBSWIPE1FED7965001685TB /* V2NSwipeActionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2NSwipeActionTests.swift; sourceTree = "<group>"; };
 		TCTABBG1FED7965001685TC /* TabBackgroundConsistencyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBackgroundConsistencyTests.swift; sourceTree = "<group>"; };
 		TB234FB1FED7965001685TB /* Build234FeedbackTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Build234FeedbackTests.swift; sourceTree = "<group>"; };
+		TB238FB1FED7965001685TB /* Build238FeedbackTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Build238FeedbackTests.swift; sourceTree = "<group>"; };
 		T7TAGS11FED7965001685T7 /* NoteEditorTagsStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteEditorTagsStrip.swift; sourceTree = "<group>"; };
 		T1A2B0142FED7965001685T1 /* AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -191,6 +199,9 @@
 				T2SPEAK11FED7965001685T2 /* SpeakerSectionEditing.swift */,
 				T4HEAD11FED7965001685T4 /* SpeakerHeaderAttachment.swift */,
 				T9APPAPP1FED7965001685T9 /* AppAppearance.swift */,
+				V2NFRN11FED7965001685V2 /* FriendsActivityViewController.swift */,
+				V2NACT11FED7965001685V2 /* V2NActivityStore.swift */,
+				V2NSYNC1FED7965001685V2 /* V2NActivitySync.swift */,
 				T5SHEET11FED7965001685T5 /* V2NSheetPresenter.swift */,
 				F7A7E0132FED7965001685C0 /* NoteDocumentCodec.swift */,
 				F7A7E0152FED7965001685C0 /* BibleRefInsertPicker.swift */,
@@ -251,6 +262,7 @@
 				TBSWIPE1FED7965001685TB /* V2NSwipeActionTests.swift */,
 				TCTABBG1FED7965001685TC /* TabBackgroundConsistencyTests.swift */,
 				TB234FB1FED7965001685TB /* Build234FeedbackTests.swift */,
+				TB238FB1FED7965001685TB /* Build238FeedbackTests.swift */,
 			);
 			path = AppTests;
 			sourceTree = "<group>";
@@ -394,6 +406,9 @@
 				T2SPEAK12FED7965001685T2 /* SpeakerSectionEditing.swift in Sources */,
 				T4HEAD12FED7965001685T4 /* SpeakerHeaderAttachment.swift in Sources */,
 				T9APPAPP2FED7965001685T9 /* AppAppearance.swift in Sources */,
+				V2NFRN12FED7965001685V2 /* FriendsActivityViewController.swift in Sources */,
+				V2NACT12FED7965001685V2 /* V2NActivityStore.swift in Sources */,
+				V2NSYNC2FED7965001685V2 /* V2NActivitySync.swift in Sources */,
 				T5SHEET12FED7965001685T5 /* V2NSheetPresenter.swift in Sources */,
 				F7A7E0122FED7965001685C0 /* NoteDocumentCodec.swift in Sources */,
 				F7A7E0142FED7965001685C0 /* BibleRefInsertPicker.swift in Sources */,
@@ -447,6 +462,7 @@
 				TBSWIPE2FED7965001685TB /* V2NSwipeActionTests.swift in Sources */,
 				TCTABBG2FED7965001685TC /* TabBackgroundConsistencyTests.swift in Sources */,
 				TB234FB2FED7965001685TB /* Build234FeedbackTests.swift in Sources */,
+				TB238FB2FED7965001685TB /* Build238FeedbackTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

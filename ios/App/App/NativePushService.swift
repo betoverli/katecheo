@@ -102,6 +102,11 @@ final class NativePushService: NSObject, UNUserNotificationCenterDelegate {
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
+        let userInfo = notification.request.content.userInfo
+        let title = notification.request.content.title
+        DispatchQueue.main.async {
+            Self.ingestActivity(from: userInfo, title: title)
+        }
         completionHandler([.banner, .sound, .badge])
     }
 
@@ -113,11 +118,26 @@ final class NativePushService: NSObject, UNUserNotificationCenterDelegate {
         let userInfo = response.notification.request.content.userInfo
         let href = (userInfo["href"] as? String)
             ?? ((userInfo["data"] as? [String: Any])?["href"] as? String)
-        if let href, !href.isEmpty {
-            DispatchQueue.main.async {
+        let title = response.notification.request.content.title
+        DispatchQueue.main.async {
+            Self.ingestActivity(from: userInfo, title: title)
+            if let href, !href.isEmpty {
                 NativeDeepLinkRouter.open(href: href)
             }
         }
         completionHandler()
+    }
+
+    @MainActor
+    private static func ingestActivity(from userInfo: [AnyHashable: Any], title: String) {
+        let href = (userInfo["href"] as? String)
+            ?? ((userInfo["data"] as? [String: Any])?["href"] as? String)
+        // Do not light dots from the payload alone — confirm via server state for this account.
+        Task { @MainActor in
+            await V2NActivitySync.handlePushHint(
+                href: href,
+                title: title.isEmpty ? nil : title
+            )
+        }
     }
 }
