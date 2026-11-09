@@ -22,8 +22,8 @@ export function Wordmark({
       )}
       aria-label="Katecheo"
     >
-      <span className="font-display font-medium tracking-tight italic">Verse</span>
-      <span className="font-sans font-semibold tracking-tight not-italic">2Note</span>
+      <span className="font-display font-medium tracking-tight italic">Kate</span>
+      <span className="font-sans font-semibold tracking-tight not-italic">cheo</span>
     </span>
   );
 }

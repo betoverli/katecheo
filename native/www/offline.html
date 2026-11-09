@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>Verse2Note</title>
+    <title>Katecheo</title>
     <style>
       html, body { margin: 0; height: 100%; background: #000; color: #fff; font: 17px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; }
       main { min-height: 100%; display: grid; place-items: center; padding: max(24px, env(safe-area-inset-top)) 24px max(24px, env(safe-area-inset-bottom)); }
@@ -19,7 +19,7 @@
       <div>
         <h1>Sem ligação</h1>
         <p>
-          Não foi possível abrir o Verse2Note. Depois da primeira abertura com
+          Não foi possível abrir o Katecheo. Depois da primeira abertura com
           internet, o caderno fica em cache e funciona offline. Confira a ligação
           e tente de novo.
         </p>
@@ -29,8 +29,8 @@
     </main>
     <script>
       (function () {
-        var ORIGIN = "https://verse2note.com";
-        var TARGETS = [ORIGIN + "/notebook", ORIGIN + "/app", ORIGIN + "/"];
+        var ORIGIN = "https://katecheo.app";
+        var TARGETS = [ORIGIN + "/notebook", ORIGIN + "/app", ORIGIN + "/", "https://verse2note.com/notebook"];
         var button = document.getElementById("retry");
         var cached = document.getElementById("cached");
 
@@ -47,8 +47,7 @@
           go(TARGETS[0]);
         });
 
-        // Prefer the service-worker cache as soon as the radio looks up, or
-        // when a prior install already registered for verse2note.com.
+        // Prefer the service-worker cache as soon as the radio looks up.
         var tries = 0;
         var timer = setInterval(function () {
           tries += 1;
@@ -60,10 +59,9 @@
           if (tries >= 16) clearInterval(timer);
         }, 2000);
 
-        // Opportunistic: if SW controls this after a prior session, jump in.
         if ("serviceWorker" in navigator) {
           navigator.serviceWorker.getRegistrations().then(function () {
-            /* local file origin — registrations live on verse2note.com */
+            /* local file origin — registrations live on the public host */
           }).catch(function () {});
         }
       })();

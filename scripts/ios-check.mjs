@@ -35,6 +35,9 @@ if (!launchScreen.includes("SplashBrand") || !launchScreen.includes("SplashBackg
 if (launchScreen.includes("scaleAspectFill") || launchScreen.includes('image="Splash"')) {
   errors.push("LaunchScreen não pode voltar ao Splash em ecrã inteiro.");
 }
+if (/Verse2Note|Verse 2 Note|VERSE2NOTE/.test(launchScreen)) {
+  errors.push("LaunchScreen.storyboard não pode conter o wordmark Verse2Note.");
+}
 for (const asset of [
   "ios/App/App/Assets.xcassets/SplashBrand.imageset/Contents.json",
   "ios/App/App/Assets.xcassets/SplashBackground.colorset/Contents.json",
@@ -46,6 +49,75 @@ for (const asset of [
     }
   } catch {
     errors.push(`Ficheiro em falta: ${asset}`);
+  }
+}
+
+// Katecheo splash: asset filenames + LaunchScreen must not keep Verse2Note wordmarks.
+{
+  const assetsRoot = join(root, "ios/App/App/Assets.xcassets");
+  /** @type {string[]} */
+  const badNames = [];
+  const walkAssets = (dir) => {
+    let entries;
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const ent of entries) {
+      const full = join(dir, ent.name);
+      if (/verse2note|verse.?2.?note/i.test(ent.name)) {
+        badNames.push(full.slice(root.length + 1));
+      }
+      if (ent.isDirectory()) walkAssets(full);
+    }
+  };
+  walkAssets(assetsRoot);
+  if (badNames.length) {
+    errors.push(
+      "Assets.xcassets: nomes com verse2note / Verse2Note proibidos (wordmark antigo). Hits: " +
+        badNames.join(", "),
+    );
+  }
+  const brandFiles = [
+    "splash-brand-light.png",
+    "splash-brand-light@2x.png",
+    "splash-brand-light@3x.png",
+    "splash-brand-dark.png",
+    "splash-brand-dark@2x.png",
+    "splash-brand-dark@3x.png",
+  ];
+  for (const name of brandFiles) {
+    const rel = `ios/App/App/Assets.xcassets/SplashBrand.imageset/${name}`;
+    try {
+      const st = statSync(join(root, rel));
+      if (!st.isFile() || st.size < 500) {
+        errors.push(`${rel} em falta ou demasiado pequeno (regenerar com scripts/generate-splash-brand.mjs).`);
+      }
+    } catch {
+      errors.push(`Falta ${rel} — rode scripts/generate-splash-brand.mjs.`);
+    }
+  }
+  try {
+    read("scripts/generate-splash-brand.mjs");
+  } catch {
+    errors.push("Falta scripts/generate-splash-brand.mjs (fonte do wordmark Katecheo na splash).");
+  }
+  // Capacitor placeholder www (not the product UI, but still user-visible if opened).
+  // Match the product wordmark only — not hostnames like verse2note.com.
+  const wordmarkNeedle = /Verse2Note|Verse 2 Note|VERSE2NOTE/;
+  for (const rel of ["native/www/index.html", "native/www/offline.html"]) {
+    try {
+      const html = read(rel);
+      if (wordmarkNeedle.test(html)) {
+        errors.push(`${rel}: substitua o wordmark Verse2Note por Katecheo.`);
+      }
+    } catch {
+      /* optional */
+    }
+  }
+  if (!read("capacitor.config.ts").includes('appName: "Katecheo"')) {
+    errors.push('capacitor.config.ts appName tem de ser "Katecheo".');
   }
 }
 
