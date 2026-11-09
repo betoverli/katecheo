@@ -193,7 +193,8 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
                 tableView.reloadData()
             }
             do {
-                me = try await NativeAPIClient.getMe()
+                let force = refresh.isRefreshing
+                me = try await NativeAPIClient.getMe(force: force)
                 LocalSessionCache.showOfflineHint = false
                 loadError = nil
             } catch NativeAPIClient.APIError.unauthorized {

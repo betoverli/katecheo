@@ -56,6 +56,9 @@ describe("Phase 4 native verses API", () => {
     assert.match(http, /v1-verses\.server/);
     assert.match(http, /verses-append/);
     assert.match(http, /bible-themes/);
+    // Optional CDN-friendly caching for the auth-free static catalog.
+    assert.match(http, /bible-books[\s\S]*Cache-Control[\s\S]*max-age=86400/);
+    assert.match(http, /ETag[\s\S]*bible-books-v1/);
     const catalog = read("src/lib/native/api/v1.server.ts");
     assert.match(catalog, /\/bible\/books/);
     assert.match(catalog, /\/verses\/append/);

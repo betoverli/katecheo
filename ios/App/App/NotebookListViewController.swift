@@ -177,6 +177,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 return
             }
             do {
+                let force = refresh.isRefreshing
                 if let group {
                     let refreshed = try await NativeAPIClient.getGroup(id: group.id)
                     self.group = refreshed
@@ -188,15 +189,15 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                     applyFilter()
                     return
                 }
-                async let remoteNotes = NativeAPIClient.listNotes()
-                async let remoteSpeakers = NativeAPIClient.listSpeakers()
-                async let remoteGranted = NativeAPIClient.listGrantedNotes()
+                async let remoteNotes = NativeAPIClient.listNotes(force: force)
+                async let remoteSpeakers = NativeAPIClient.listSpeakers(force: force)
+                async let remoteGranted = NativeAPIClient.listGrantedNotes(force: force)
                 notes = try await remoteNotes
                 speakers = try await remoteSpeakers
                 grantedNotes = (try? await remoteGranted) ?? []
                 setBannerStatus(nil)
                 applyFilter()
-                Task { await V2NActivitySync.refreshFromServer() }
+                Task { await V2NActivitySync.refreshFromServer(force: force) }
             } catch NativeAPIClient.APIError.unauthorized {
                 setBannerStatus(String(localized: "Sessão expirada. Entre novamente."), kind: .error)
                 if group == nil {

@@ -44,7 +44,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         ) { _ in
             Task { @MainActor in
                 await NativeOutbox.flushIfPossible()
-                await V2NActivitySync.refreshFromServer()
+                // Account switch / login — always reconcile.
+                await V2NActivitySync.refreshFromServer(force: true)
             }
         }
 
@@ -98,7 +99,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         AppAppearance.apply(to: window)
         Task { @MainActor in
             await NativeOutbox.flushIfPossible()
-            await V2NActivitySync.refreshFromServer()
+            // Debounced unless TTL elapsed (push path forces separately).
+            await V2NActivitySync.refreshFromServer(force: false)
         }
     }
 

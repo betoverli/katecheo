@@ -840,6 +840,24 @@ if (!project.includes("V2NActivityStore.swift in Sources")) {
 if (!project.includes("V2NActivitySync.swift in Sources")) {
   errors.push("V2NActivitySync tem de estar no target App (build-238 inbox sync).");
 }
+if (!project.includes("NativeSWR.swift in Sources")) {
+  errors.push("NativeSWR tem de estar no target App (SWR cache / load reduction).");
+}
+try {
+  const swr = read("ios/App/App/NativeSWR.swift");
+  const api = read("ios/App/App/NativeAPIClient.swift");
+  if (!swr.includes("stale-while-revalidate") && !swr.includes("TTL")) {
+    errors.push("NativeSWR precisa de TTLs SWR.");
+  }
+  if (!api.includes("listNotes(force: Bool = false)") || !api.includes("getPrefs(force: Bool = false)")) {
+    errors.push("NativeAPIClient GETs precisam de force/SWR (listNotes/getPrefs/…).");
+  }
+  if (!read("ios/App/App/V2NActivitySync.swift").includes("skippedFresh")) {
+    errors.push("V2NActivitySync tem de debouncear refresh (skippedFresh).");
+  }
+} catch {
+  errors.push("Falha ao validar NativeSWR / activity debounce.");
+}
 if (!project.includes("FriendsActivityViewController.swift in Sources")) {
   errors.push("FriendsActivityViewController tem de estar no target App (build-238).");
 }
