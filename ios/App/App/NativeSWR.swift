@@ -14,6 +14,8 @@ enum NativeSWR {
         case note(String)
         case bibleBooks(String)
         case authProviders
+        case themesCatalog
+        case readingCatalog
 
         var description: String {
             switch self {
@@ -26,12 +28,14 @@ enum NativeSWR {
             case .note(let id): return "note:\(id)"
             case .bibleBooks(let locale): return "bibleBooks:\(locale)"
             case .authProviders: return "authProviders"
+            case .themesCatalog: return "themesCatalog"
+            case .readingCatalog: return "readingCatalog"
             }
         }
 
         var isAccountScoped: Bool {
             switch self {
-            case .bibleBooks, .authProviders: return false
+            case .bibleBooks, .authProviders, .themesCatalog, .readingCatalog: return false
             default: return true
             }
         }
@@ -43,10 +47,16 @@ enum NativeSWR {
         static let prefs: TimeInterval = 180
         static let me: TimeInterval = 180
         static let note: TimeInterval = 45
-        static let bibleBooks: TimeInterval = 86_400 // 1 day
+        /// Bible books never expire by time — only by `bibleBooksBundleVersion`.
+        static let bibleBooks: TimeInterval = .greatestFiniteMagnitude
         static let authProviders: TimeInterval = 604_800 // 7 days
         static let activitySync: TimeInterval = 180
+        /// Themes / reading catalog: treat as permanent until push / version bump / pull-to-refresh.
+        static let catalogContent: TimeInterval = .greatestFiniteMagnitude
     }
+
+    /// Must match `scripts/generate-bible-books-bundle.mjs` → `BIBLE_BOOKS_BUNDLE_VERSION`.
+    static let bibleBooksBundleVersion = 1
 
     private static let lock = NSLock()
     private static var fetchedAt: [String: Date] = [:]
@@ -124,7 +134,10 @@ enum NativeSWR {
     static func clearAccountScoped() {
         lock.lock(); defer { lock.unlock() }
         let keys = fetchedAt.keys.filter { key in
-            !(key.hasPrefix("bibleBooks:") || key == Key.authProviders.description)
+            !(key.hasPrefix("bibleBooks:")
+                || key == Key.authProviders.description
+                || key == Key.themesCatalog.description
+                || key == Key.readingCatalog.description)
         }
         for k in keys {
             fetchedAt.removeValue(forKey: k)
@@ -239,9 +252,15 @@ enum NativeSWR {
     private static func clearPublicDiskCaches() {
         let fm = FileManager.default
         guard let files = try? fm.contentsOfDirectory(at: swrDirectory, includingPropertiesForKeys: nil) else { return }
-        for url in files where url.lastPathComponent.hasPrefix("bible-") || url.lastPathComponent.hasPrefix("auth-providers") {
+        for url in files where url.lastPathComponent.hasPrefix("bible-")
+            || url.lastPathComponent.hasPrefix("auth-providers")
+            || url.lastPathComponent.hasPrefix("themes-")
+            || url.lastPathComponent.hasPrefix("reading-")
+        {
             try? fm.removeItem(at: url)
         }
+        UserDefaults.standard.removeObject(forKey: "v2n.catalog.themesVersion")
+        UserDefaults.standard.removeObject(forKey: "v2n.catalog.readingVersion")
     }
 
     static func saveGranted(_ notes: [NativeAPIClient.NoteDocument]) {
@@ -272,11 +291,15 @@ enum NativeSWR {
         guard let data = try? JSONEncoder().encode(books) else { return }
         try? data.write(to: swrDirectory.appendingPathComponent("bible-\(locale)-v1.json"), options: .atomic)
         UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "v2n.swr.bibleFetched.\(locale)")
+        UserDefaults.standard.set(bibleBooksBundleVersion, forKey: "v2n.swr.bibleVersion.\(locale)")
     }
 
     static func loadBibleBooks(locale: String) -> [NativeAPIClient.BibleBookDTO]? {
+        let storedVersion = UserDefaults.standard.integer(forKey: "v2n.swr.bibleVersion.\(locale)")
+        guard storedVersion == bibleBooksBundleVersion else { return nil }
         guard let data = try? Data(contentsOf: swrDirectory.appendingPathComponent("bible-\(locale)-v1.json")),
-              let books = try? JSONDecoder().decode([NativeAPIClient.BibleBookDTO].self, from: data)
+              let books = try? JSONDecoder().decode([NativeAPIClient.BibleBookDTO].self, from: data),
+              !books.isEmpty
         else { return nil }
         return books
     }
@@ -285,6 +308,84 @@ enum NativeSWR {
         let raw = UserDefaults.standard.double(forKey: "v2n.swr.bibleFetched.\(locale)")
         guard raw > 0 else { return nil }
         return Date(timeIntervalSince1970: raw)
+    }
+
+    /// Localized book rows from the shipped `BibleBooksData.json` (offline from first launch).
+    static func loadBundledBibleBooks(locale: String) -> [NativeAPIClient.BibleBookDTO]? {
+        guard let url = Bundle.main.url(forResource: "BibleBooksData", withExtension: "json"),
+              let data = try? Data(contentsOf: url),
+              let root = try? JSONDecoder().decode(BundledBibleRoot.self, from: data),
+              root.version == bibleBooksBundleVersion
+        else { return nil }
+        let loc: String = {
+            let lower = locale.lowercased()
+            if lower.hasPrefix("en") { return "en" }
+            if lower.hasPrefix("es") { return "es" }
+            return "pt"
+        }()
+        return root.books.map { book in
+            NativeAPIClient.BibleBookDTO(
+                id: book.id,
+                testament: book.testament,
+                name: book.names[loc] ?? book.names["en"] ?? book.id,
+                abbr: book.abbr[loc] ?? book.abbr["en"] ?? book.id,
+                chapters: book.chapters,
+                verses: book.verses
+            )
+        }
+    }
+
+    private struct BundledBibleRoot: Decodable {
+        var version: Int
+        var books: [BundledBibleBook]
+    }
+
+    private struct BundledBibleBook: Decodable {
+        var id: String
+        var testament: String
+        var names: [String: String]
+        var abbr: [String: String]
+        var chapters: Int
+        var verses: [Int]
+    }
+
+    // MARK: Themes / Reading catalog disk
+
+    static func saveThemesPayload(_ data: Data) {
+        try? data.write(to: swrDirectory.appendingPathComponent("themes-index-v1.json"), options: .atomic)
+    }
+
+    static func loadThemesPayload() -> Data? {
+        try? Data(contentsOf: swrDirectory.appendingPathComponent("themes-index-v1.json"))
+    }
+
+    static func saveReadingPayload(_ data: Data) {
+        try? data.write(to: swrDirectory.appendingPathComponent("reading-index-v1.json"), options: .atomic)
+    }
+
+    static func loadReadingPayload() -> Data? {
+        try? Data(contentsOf: swrDirectory.appendingPathComponent("reading-index-v1.json"))
+    }
+
+    static var storedThemesVersion: String? {
+        get { UserDefaults.standard.string(forKey: "v2n.catalog.themesVersion") }
+        set { UserDefaults.standard.set(newValue, forKey: "v2n.catalog.themesVersion") }
+    }
+
+    static var storedReadingVersion: String? {
+        get { UserDefaults.standard.string(forKey: "v2n.catalog.readingVersion") }
+        set { UserDefaults.standard.set(newValue, forKey: "v2n.catalog.readingVersion") }
+    }
+
+    static func invalidateThemesCatalog() {
+        invalidate(.themesCatalog)
+        try? FileManager.default.removeItem(at: swrDirectory.appendingPathComponent("themes-index-v1.json"))
+        // Keep storedThemesVersion — silent push clears payload; version check owns the etag.
+    }
+
+    static func invalidateReadingCatalog() {
+        invalidate(.readingCatalog)
+        try? FileManager.default.removeItem(at: swrDirectory.appendingPathComponent("reading-index-v1.json"))
     }
 
     static func saveAuthProvidersJSON(_ data: Data) {

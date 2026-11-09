@@ -80,6 +80,7 @@ describe("matchNativeV1Route", () => {
     assert.deepEqual(matchNativeV1Route("bible/apps"), { kind: "bible-apps" });
     assert.deepEqual(matchNativeV1Route("bible/link"), { kind: "bible-link" });
     assert.deepEqual(matchNativeV1Route("bible/themes"), { kind: "bible-themes" });
+    assert.deepEqual(matchNativeV1Route("catalog/versions"), { kind: "catalog-versions" });
     assert.deepEqual(matchNativeV1Route("verses/append"), { kind: "verses-append" });
     assert.deepEqual(matchNativeV1Route("my-collections"), { kind: "my-collections" });
     assert.deepEqual(matchNativeV1Route("my-collections/save"), { kind: "my-collections-save" });

@@ -103,6 +103,16 @@ final class NativePushService: NSObject, UNUserNotificationCenterDelegate {
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
         let userInfo = notification.request.content.userInfo
+        let type = (userInfo["type"] as? String)
+            ?? ((userInfo["data"] as? [String: Any])?["type"] as? String)
+        if type == "themes_updated" || type == "reading_updated" {
+            DispatchQueue.main.async {
+                NativeCatalogSync.handleSilentPush(type: type)
+            }
+            // Catalog hints are silent — never surface a banner.
+            completionHandler([])
+            return
+        }
         let title = notification.request.content.title
         DispatchQueue.main.async {
             Self.ingestActivity(from: userInfo, title: title)

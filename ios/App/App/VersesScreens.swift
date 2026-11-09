@@ -555,11 +555,29 @@ final class ThemesHomeViewController: UITableViewController, UISearchResultsUpda
         }
         refreshControl = UIRefreshControl()
         refreshControl?.tintColor = V2NDesign.accent
-        refreshControl?.addTarget(self, action: #selector(reload), for: .valueChanged)
+        refreshControl?.addTarget(self, action: #selector(pullToRefresh), for: .valueChanged)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(catalogDidChange),
+            name: NativeCatalogSync.themesDidChange,
+            object: nil
+        )
         _ = V2NGlassMaterial.sdkHasLiquidGlass()
         if !embedded {
-            reload()
+            reload(forceNetwork: false)
         }
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    @objc private func pullToRefresh() {
+        reload(forceNetwork: true)
+    }
+
+    @objc private func catalogDidChange() {
+        reload(forceNetwork: true)
     }
 
     @objc private func createTheme() {
@@ -616,33 +634,43 @@ final class ThemesHomeViewController: UITableViewController, UISearchResultsUpda
     }
 
     func reloadFromParent() {
-        reload()
+        // Cache-first — no appear poll. Push / version / pull-to-refresh force network.
+        reload(forceNetwork: false)
     }
 
     /// Parent Tools search forwards here when Temas is selected.
     func applyParentSearchQuery(_ query: String) {
         search.searchBar.text = query
-        reload()
+        reload(forceNetwork: true)
     }
 
     var parentSearchController: UISearchController { search }
 
     @objc private func reload() {
+        reload(forceNetwork: refreshControl?.isRefreshing == true)
+    }
+
+    private func reload(forceNetwork: Bool) {
         Task { @MainActor in
             defer { refreshControl?.endRefreshing() }
             let q = (search.searchBar.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             do {
-                let result = try await NativeAPIClient.fetchThemes(query: q.isEmpty ? nil : q)
+                let result = try await NativeAPIClient.fetchThemes(
+                    query: q.isEmpty ? nil : q,
+                    force: forceNetwork || !q.isEmpty
+                )
                 kind = result.kind
                 categories = result.categories
                 themes = result.themes
                 tableView.reloadData()
                 refreshEmptyState()
             } catch {
-                let alert = UIAlertController(title: String(localized: "Temas"), message: error.localizedDescription, preferredStyle: .alert)
-                alert.view.tintColor = V2NDesign.accent
-                alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
-                present(alert, animated: true)
+                if categories.isEmpty && themes.isEmpty {
+                    let alert = UIAlertController(title: String(localized: "Temas"), message: error.localizedDescription, preferredStyle: .alert)
+                    alert.view.tintColor = V2NDesign.accent
+                    alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
+                    present(alert, animated: true)
+                }
             }
         }
     }
@@ -660,16 +688,16 @@ final class ThemesHomeViewController: UITableViewController, UISearchResultsUpda
     }
 
     func updateSearchResults(for searchController: UISearchController) {
-        reload()
+        reload(forceNetwork: true)
     }
 
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
-        reload()
+        reload(forceNetwork: true)
     }
 
     func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
         searchBar.resignFirstResponder()
-        reload()
+        reload(forceNetwork: true)
     }
 
     override func numberOfSections(in tableView: UITableView) -> Int {

@@ -101,6 +101,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             await NativeOutbox.flushIfPossible()
             // Debounced unless TTL elapsed (push path forces separately).
             await V2NActivitySync.refreshFromServer(force: false)
+            // Cheap Themes/Reading etag — fallback when a silent push was missed.
+            await NativeCatalogSync.checkVersionsOnForeground()
         }
     }
 

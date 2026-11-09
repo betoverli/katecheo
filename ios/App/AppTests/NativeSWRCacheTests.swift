@@ -92,17 +92,45 @@ final class NativeSWRCacheTests: XCTestCase {
         XCTAssertEqual(countExact("/api/native/v1/prefs"), 0)
     }
 
-    // MARK: - Bible books (≤1/day)
+    // MARK: - Bible books (permanent — no daily refetch)
 
-    func testBibleBooks_cachedForDay() async throws {
+    func testBibleBooks_permanentCache_noDailyRefetch() async throws {
         MockNativeURLProtocol.bibleBooksJSON = Self.biblePayload
-        _ = try await NativeAPIClient.fetchBibleBooks(locale: "pt")
-        XCTAssertEqual(NativeSWR.probeCount(containing: "/bible/books"), 1)
+        let first = try await NativeAPIClient.fetchBibleBooks(locale: "pt")
+        XCTAssertFalse(first.isEmpty)
+        // Bundled JSON or one recovery GET — never more than one network hit for cold start.
+        XCTAssertLessThanOrEqual(NativeSWR.probeCount(containing: "/bible/books"), 1)
         NativeSWR.resetProbe()
         _ = try await NativeAPIClient.fetchBibleBooks(locale: "pt")
-        XCTAssertEqual(NativeSWR.probeCount(containing: "/bible/books"), 0)
+        XCTAssertEqual(NativeSWR.probeCount(containing: "/bible/books"), 0, "second call must use disk/memory")
         _ = try await NativeAPIClient.fetchBibleBooks(locale: "pt", force: true)
-        XCTAssertEqual(NativeSWR.probeCount(containing: "/bible/books"), 1)
+        XCTAssertEqual(
+            NativeSWR.probeCount(containing: "/bible/books"),
+            0,
+            "force re-reads disk/bundle; no periodic network revalidation"
+        )
+    }
+
+    func testThemesCatalog_diskCache_skipsNetworkUntilForce() async throws {
+        MockNativeURLProtocol.themesJSON = Self.themesPayload
+        _ = try await NativeAPIClient.fetchThemes(force: true)
+        XCTAssertEqual(NativeSWR.probeCount(containing: "/bible/themes"), 1)
+        NativeSWR.resetProbe()
+        _ = try await NativeAPIClient.fetchThemes(force: false)
+        XCTAssertEqual(NativeSWR.probeCount(containing: "/bible/themes"), 0)
+        NativeSWR.invalidateThemesCatalog()
+        NativeSWR.resetProbe()
+        _ = try await NativeAPIClient.fetchThemes(force: false)
+        XCTAssertEqual(NativeSWR.probeCount(containing: "/bible/themes"), 1)
+    }
+
+    func testReadingCatalog_diskCache_skipsNetworkUntilForce() async throws {
+        MockNativeURLProtocol.plansJSON = Self.plansPayload
+        _ = try await NativeAPIClient.fetchReadingPlans(force: true)
+        XCTAssertEqual(NativeSWR.probeCount(containing: "/api/native/v1/plans"), 1)
+        NativeSWR.resetProbe()
+        _ = try await NativeAPIClient.fetchReadingPlans(force: false)
+        XCTAssertEqual(NativeSWR.probeCount(containing: "/api/native/v1/plans"), 0)
     }
 
     // MARK: - Single note short TTL
@@ -219,12 +247,12 @@ final class NativeSWRCacheTests: XCTestCase {
         _ = try await NativeAPIClient.getMe(force: false)
         XCTAssertEqual(countExact("/api/native/v1/me"), 0, "AFTER Profile re-appear: 0 (was 1)")
 
-        _ = try await NativeAPIClient.fetchBibleBooks(locale: "pt", force: true)
+        _ = try await NativeAPIClient.fetchBibleBooks(locale: "pt", force: false)
         _ = try await NativeAPIClient.getPrefs(force: true)
         NativeSWR.resetProbe()
         _ = try await NativeAPIClient.fetchBibleBooks(locale: "pt", force: false)
         _ = try await NativeAPIClient.getPrefs(force: false)
-        XCTAssertEqual(NativeSWR.probeCount(containing: "/bible/books"), 0, "AFTER Verses re-appear: 0 bible (was 1)")
+        XCTAssertEqual(NativeSWR.probeCount(containing: "/bible/books"), 0, "AFTER Verses re-appear: 0 bible")
         XCTAssertEqual(countExact("/api/native/v1/prefs"), 0, "AFTER Verses re-appear: 0 prefs (was 1)")
     }
 
@@ -238,6 +266,8 @@ final class NativeSWRCacheTests: XCTestCase {
     private static let mePayload = ##"{"ok":true,"me":{"id":"u1","email":"a@b.c","displayName":"A","prefs":{"locale":"pt","copyLocale":"pt","appId":"youversion","translationId":"NVI","preferNative":false,"copyFormat":"text","citeBook":"name","citeSep":"colon","booksCompact":false,"theme":"system","avatarId":"","avatarUrl":"","handle":"ana","firstName":"Ana","lastName":"","profileEmail":"a@b.c"},"notify":{"reading":true,"friends":true,"shares":true,"groups":true}}}"##
     private static let prefsPayload = ##"{"ok":true,"prefs":{"locale":"pt","copyLocale":"pt","appId":"youversion","translationId":"NVI","preferNative":false,"copyFormat":"text","citeBook":"name","citeSep":"colon","booksCompact":false,"theme":"system","avatarId":"","avatarUrl":"","handle":"ana","firstName":"Ana","lastName":"","profileEmail":"a@b.c"}}"##
     private static let biblePayload = ##"{"ok":true,"locale":"pt","books":[{"id":"GEN","testament":"ot","name":"Genesis","abbr":"Gn","chapters":1,"verses":[31]}]}"##
+    private static let themesPayload = ##"{"ok":true,"kind":"index","themeTotal":1,"categories":[],"themes":[{"id":"faith","name":"Faith","count":1}]}"##
+    private static let plansPayload = ##"{"ok":true,"kind":"index","planTotal":1,"categories":[],"plans":[{"id":"gospels-30","name":"Gospels","days":30}]}"##
     private static let linksPayload = ##"{"ok":true,"friends":[],"incoming":[],"outgoing":[]}"##
     private static let summaryPayload = ##"{"ok":true,"items":[],"unread":0,"byKind":{}}"##
     private static let providersPayload = ##"{"ok":true,"google":true,"apple":true,"email":true}"##
@@ -254,6 +284,9 @@ final class MockNativeURLProtocol: URLProtocol {
     static var meJSON: String?
     static var prefsJSON: String?
     static var bibleBooksJSON: String?
+    static var themesJSON: String?
+    static var plansJSON: String?
+    static var catalogVersionsJSON: String?
     static var linksJSON: String?
     static var summaryJSON: String?
     static var providersJSON: String?
@@ -283,6 +316,9 @@ final class MockNativeURLProtocol: URLProtocol {
         meJSON = nil
         prefsJSON = nil
         bibleBooksJSON = nil
+        themesJSON = nil
+        plansJSON = nil
+        catalogVersionsJSON = nil
         linksJSON = nil
         summaryJSON = nil
         providersJSON = nil
@@ -319,6 +355,12 @@ final class MockNativeURLProtocol: URLProtocol {
             body = Self.prefsJSON
         } else if path.contains("/bible/books") {
             body = Self.bibleBooksJSON
+        } else if path.contains("/bible/themes") {
+            body = Self.themesJSON
+        } else if path.contains("/catalog/versions") {
+            body = Self.catalogVersionsJSON
+        } else if path.hasSuffix("/plans") || path.contains("/plans?") {
+            body = Self.plansJSON
         } else if path.hasSuffix("/links") {
             body = Self.linksJSON
         } else if path.contains("/notifications/summary") {

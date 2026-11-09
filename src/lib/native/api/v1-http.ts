@@ -57,6 +57,14 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
     return json(nativeV1Catalog());
   }
 
+  if (route.kind === "catalog-versions") {
+    const { nativeCatalogVersions } = await import("@/lib/bible/catalog-version");
+    // Tiny fingerprint payload — clients poll this on foreground instead of full catalogs.
+    return json(nativeCatalogVersions(), 200, {
+      "Cache-Control": "public, max-age=60, stale-while-revalidate=600",
+    });
+  }
+
   try {
     // Public reading plans catalog (same data as /api/plans).
     if (route.kind === "plans") {
@@ -521,6 +529,7 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
         const status = result.error === "missing" ? 404 : result.error === "limit" ? 409 : 400;
         return json(result, status);
       }
+      void import("@/lib/catalog-push.server").then((m) => m.pushCatalogHintToUser(user.id, "themes_updated"));
       return json(result);
     }
 
@@ -533,6 +542,7 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
         if (body === Symbol.for("invalid-json")) return json({ ok: false, error: "invalid_json" }, 400);
         const result = await versesApi.createMyCollectionForUser(user.id, body);
         if (!result.ok) return json(result, result.error === "limit" ? 409 : 400);
+        void import("@/lib/catalog-push.server").then((m) => m.pushCatalogHintToUser(user.id, "themes_updated"));
         return json(result, 201);
       }
       if (method === "GET") {
@@ -542,12 +552,16 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
       }
       if (method === "DELETE") {
         const result = await versesApi.deleteMyCollectionForUser(user.id, route.collectionId);
+        if (result.ok) {
+          void import("@/lib/catalog-push.server").then((m) => m.pushCatalogHintToUser(user.id, "themes_updated"));
+        }
         return json(result, result.ok ? 200 : 404);
       }
       const body = await readBody(request);
       if (body === Symbol.for("invalid-json")) return json({ ok: false, error: "invalid_json" }, 400);
       const result = await versesApi.updateMyCollectionForUser(user.id, route.collectionId, body);
       if (!result.ok) return json(result, result.error === "missing" ? 404 : 400);
+      void import("@/lib/catalog-push.server").then((m) => m.pushCatalogHintToUser(user.id, "themes_updated"));
       return json(result);
     }
 

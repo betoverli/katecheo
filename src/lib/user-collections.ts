@@ -183,6 +183,9 @@ export const createMyCollection = createServerFn({ method: "POST" })
       insert into user_collections (id, user_id, title, visibility, passages, source_id, updated_at)
       values (${id}, ${context.userId}, ${title}, ${"private"}, ${JSON.stringify(passages)}, ${sourceId}, now())
     `;
+    void import("@/lib/catalog-push.server")
+      .then((m) => m.pushCatalogHintToUser(context.userId, "themes_updated"))
+      .catch(() => undefined);
     return { ok: true as const, id };
   });
 
@@ -206,6 +209,9 @@ export const updateMyCollection = createServerFn({ method: "POST" })
       set title = ${title}, passages = ${JSON.stringify(passages)}, visibility = ${visibility}, updated_at = now()
       where id = ${data.id} and user_id = ${context.userId}
     `;
+    void import("@/lib/catalog-push.server")
+      .then((m) => m.pushCatalogHintToUser(context.userId, "themes_updated"))
+      .catch(() => undefined);
     return { ok: true as const };
   });
 
@@ -240,6 +246,9 @@ export const remixCollection = createServerFn({ method: "POST" })
     void import("@/lib/notify.server")
       .then((mod) => mod.notifyCollectionRemix(context.userId, row.user_id, source.title, source.id))
       .catch(() => undefined);
+    void import("@/lib/catalog-push.server")
+      .then((m) => m.pushCatalogHintToUser(context.userId, "themes_updated"))
+      .catch(() => undefined);
     return { ok: true as const, id };
   });
 
@@ -249,5 +258,8 @@ export const deleteMyCollection = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const sql = await getSql();
     await sql`delete from user_collections where id = ${data.id} and user_id = ${context.userId}`;
+    void import("@/lib/catalog-push.server")
+      .then((m) => m.pushCatalogHintToUser(context.userId, "themes_updated"))
+      .catch(() => undefined);
     return { ok: true as const };
   });

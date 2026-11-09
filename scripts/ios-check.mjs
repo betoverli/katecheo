@@ -1108,6 +1108,59 @@ if (!project.includes("AppLocale.swift in Sources")) {
   errors.push("AppLocale.swift tem de estar no target Xcode.");
 }
 
+// Build 256: Tools tab must localize via String(localized:) + Localizable en/es (not raw PT titleText).
+{
+  const toolsFiles = [
+    "ios/App/App/NativeRootTabBarController.swift",
+    "ios/App/App/VersesHomeViewController.swift",
+  ];
+  for (const rel of toolsFiles) {
+    const src = read(rel);
+    if (src.includes('titleText: "Ferramentas"') || src.includes('title = "Ferramentas"')) {
+      errors.push(`${rel}: use String(localized: "Ferramentas") — never a hardcoded tab/title literal.`);
+    }
+    if (!src.includes('String(localized: "Ferramentas")')) {
+      errors.push(`${rel}: tab/title Ferramentas tem de usar String(localized:).`);
+    }
+  }
+  try {
+    const catalog = JSON.parse(read("ios/App/App/Localizable.xcstrings"));
+    const ferr = catalog.strings?.Ferramentas?.localizations || {};
+    for (const lang of ["pt-BR", "en", "es"]) {
+      const value = ferr[lang]?.stringUnit?.value;
+      if (typeof value !== "string" || !value) {
+        errors.push(`Localizable.xcstrings: Ferramentas sem tradução ${lang}.`);
+      }
+    }
+    if (ferr.en?.stringUnit?.value !== "Tools") {
+      errors.push('Localizable.xcstrings: Ferramentas/en tem de ser "Tools".');
+    }
+  } catch {
+    errors.push("Não foi possível ler Localizable.xcstrings para a chave Ferramentas.");
+  }
+  if (!project.includes("BibleBooksData.json in Resources")) {
+    errors.push("BibleBooksData.json tem de estar nos Resources (catálogo bíblico permanente).");
+  }
+  if (!project.includes("NativeCatalogSync.swift in Sources")) {
+    errors.push("NativeCatalogSync.swift tem de estar no target (Themes/Reading version + silent push).");
+  }
+  const apiClient = read("ios/App/App/NativeAPIClient.swift");
+  if (!apiClient.includes("catalog/versions") || !apiClient.includes("loadBundledBibleBooks")) {
+    errors.push("NativeAPIClient: catalog/versions + bundled bible books são obrigatórios (build 256).");
+  }
+  const swr = read("ios/App/App/NativeSWR.swift");
+  if (
+    !swr.includes("bibleBooksBundleVersion") ||
+    !/static let bibleBooks:\s*TimeInterval\s*=\s*\.greatestFiniteMagnitude/.test(swr)
+  ) {
+    errors.push("NativeSWR: bible books TTL tem de ser permanente (greatestFiniteMagnitude).");
+  }
+  const catalogPush = read("src/lib/catalog-push.server.ts");
+  if (!catalogPush.includes("themes_updated") || !catalogPush.includes("reading_updated")) {
+    errors.push("catalog-push.server: themes_updated / reading_updated silenciosos.");
+  }
+}
+
 {
   const l10n = spawnSync(process.execPath, ["scripts/check-ios-l10n.mjs"], {
     cwd: root,
