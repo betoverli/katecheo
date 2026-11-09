@@ -11,8 +11,11 @@ export type NativeV1Route =
   | { kind: "links" }
   | { kind: "links-accept" }
   | { kind: "links-decline" }
+  | { kind: "links-request" }
+  | { kind: "links-search" }
   | { kind: "notifications" }
   | { kind: "notifications-read" }
+  | { kind: "notifications-summary" }
   | { kind: "speakers"; speakerId?: string }
   | { kind: "devices-apns" }
   | { kind: "auth-providers" }
@@ -69,7 +72,12 @@ export function matchNativeV1Route(splat: string): NativeV1Route {
   if (a === "links" && parts.length === 1) return { kind: "links" };
   if (a === "links" && b === "accept" && parts.length === 2) return { kind: "links-accept" };
   if (a === "links" && b === "decline" && parts.length === 2) return { kind: "links-decline" };
+  if (a === "links" && b === "request" && parts.length === 2) return { kind: "links-request" };
+  if (a === "links" && b === "search" && parts.length === 2) return { kind: "links-search" };
   if (a === "notifications" && parts.length === 1) return { kind: "notifications" };
+  if (a === "notifications" && b === "summary" && parts.length === 2) {
+    return { kind: "notifications-summary" };
+  }
   if (a === "notifications" && b === "read" && parts.length === 2) {
     return { kind: "notifications-read" };
   }
@@ -168,11 +176,14 @@ export function methodAllowed(route: NativeV1Route, method: string): boolean {
     case "notes-granted":
       return m === "GET";
     case "links":
+    case "links-search":
       return m === "GET";
     case "links-accept":
     case "links-decline":
+    case "links-request":
       return m === "POST";
     case "notifications":
+    case "notifications-summary":
       return m === "GET";
     case "notifications-read":
       return m === "POST";

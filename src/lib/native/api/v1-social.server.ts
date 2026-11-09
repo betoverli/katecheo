@@ -120,6 +120,125 @@ export async function listLinksForUser(userId: string): Promise<NativeLinksPaylo
   return { friends, incoming, outgoing };
 }
 
+function newId() {
+  return crypto.randomUUID().replaceAll("-", "");
+}
+
+async function pairStatus(
+  sql: Sql,
+  me: string,
+  other: string,
+): Promise<"none" | "self" | "incoming" | "outgoing" | "accepted"> {
+  if (me === other) return "self";
+  const rows = await sql<{ requester_id: string; addressee_id: string; status: string }>`
+    select requester_id, addressee_id, status
+    from user_links
+    where (requester_id = ${me} and addressee_id = ${other})
+       or (requester_id = ${other} and addressee_id = ${me})
+    limit 1
+  `;
+  const row = rows[0];
+  if (!row) return "none";
+  if (row.status === "accepted") return "accepted";
+  if (row.requester_id === me) return "outgoing";
+  return "incoming";
+}
+
+/**
+ * Same semantics as web `requestLink` (by handle).
+ * Missing/self → `{ ok:false, error:"missing" }` (no distinct “exists” signal).
+ * Duplicate outgoing/accepted → `{ ok:true, status }` (idempotent).
+ * Cancel sent request = `declineLinkForUser` (web uses decline on outgoing).
+ */
+export async function requestLinkForUser(
+  userId: string,
+  handleRaw: string,
+): Promise<
+  | { ok: true; error: null; status: "accepted" | "outgoing" | "incoming" | "none" }
+  | { ok: false; error: "missing" | "limit" | "rate"; status: "none" }
+> {
+  if (!allowRequest(`link-req:${userId}`, 20, 86_400_000)) {
+    return { ok: false, error: "rate", status: "none" };
+  }
+  const handle = cleanHandle(handleRaw);
+  const sql = await getSql();
+  const other = handle ? await prefsByHandle(sql, handle) : null;
+  if (!other || other.user_id === userId) {
+    return { ok: false, error: "missing", status: "none" };
+  }
+  const current = await pairStatus(sql, userId, other.user_id);
+  if (current === "accepted") return { ok: true, error: null, status: current };
+  if (current === "outgoing") return { ok: true, error: null, status: current };
+  if (current === "incoming") {
+    const rows = await sql<{ id: string }>`
+      update user_links set status = 'accepted'
+      where requester_id = ${other.user_id} and addressee_id = ${userId} and status = 'pending'
+      returning id
+    `;
+    if (!rows[0]) return { ok: false, error: "missing", status: "none" };
+    void import("@/lib/notify.server").then((mod) =>
+      mod.notifySocial(userId, other.user_id, "friends", "notifyLinkAcceptedTitle", "notifyLinkAcceptedBody", {
+        href: "/profile/friends",
+      }),
+    );
+    return { ok: true, error: null, status: "accepted" };
+  }
+  if ((await friendCount(sql, userId)) >= MAX_FRIENDS) {
+    return { ok: false, error: "limit", status: "none" };
+  }
+  await sql`
+    insert into user_links (id, requester_id, addressee_id, status)
+    values (${newId()}, ${userId}, ${other.user_id}, ${"pending"})
+    on conflict (requester_id, addressee_id) do nothing
+  `;
+  await sql`
+    delete from user_links
+    where requester_id = ${other.user_id} and addressee_id = ${userId} and status = 'pending'
+  `;
+  void import("@/lib/notify.server").then((mod) =>
+    mod.notifySocial(userId, other.user_id, "friends", "notifyLinkTitle", "notifyLinkBody", {
+      href: "/profile/friends",
+    }),
+  );
+  return { ok: true, error: null, status: "outgoing" };
+}
+
+export type NativePeopleHit = NativeLinkPerson & {
+  status: "none" | "self" | "incoming" | "outgoing" | "accepted";
+};
+
+/** Same as web `searchPeople` (handle/name, min 2 chars, rate-limited). */
+export async function searchPeopleForUser(userId: string, qRaw: string): Promise<NativePeopleHit[]> {
+  if (!allowRequest(`people:${userId}`, 30, 60_000)) return [];
+  const q = qRaw.trim().replace(/^@+/, "").replace(/[%_\\]/g, "").slice(0, 24);
+  if (q.length < 2) return [];
+  const sql = await getSql();
+  const like = `${q}%`;
+  const name = `%${q}%`;
+  const rows = await sql<
+    PrefRow & { link_status: string | null; requester_id: string | null }
+  >`
+    select p.user_id, p.handle, p.first_name, p.last_name, p.avatar_id, p.avatar_url,
+           l.status as link_status, l.requester_id
+    from user_prefs p
+    left join user_links l
+      on (l.requester_id = ${userId} and l.addressee_id = p.user_id)
+      or (l.requester_id = p.user_id and l.addressee_id = ${userId})
+    where p.handle <> ''
+      and p.user_id <> ${userId}
+      and (p.handle like ${like} or p.first_name ilike ${name} or p.last_name ilike ${name})
+    order by p.handle
+    limit 20
+  `;
+  return rows.map((row) => {
+    let status: NativePeopleHit["status"] = "none";
+    if (row.link_status === "accepted") status = "accepted";
+    else if (row.link_status === "pending" && row.requester_id === userId) status = "outgoing";
+    else if (row.link_status === "pending") status = "incoming";
+    return { ...person(row), status };
+  });
+}
+
 /** Same semantics as web `acceptLink` (by handle, addressee = me). */
 export async function acceptLinkForUser(
   userId: string,
@@ -240,13 +359,21 @@ async function listOwnerSpeakersForNote(
   return rows.map(speakerFromRow).filter((s) => used.has(s.id));
 }
 
-export async function listNotificationsForUser(userId: string) {
-  const { listInbox, maybeSendDigests } = await import("@/lib/notify.server");
+export async function listNotificationsForUser(
+  userId: string,
+  opts: { cursor?: string | null; limit?: number; unreadOnly?: boolean } = {},
+) {
+  const { listInboxPage, maybeSendDigests, unreadCount } = await import("@/lib/notify.server");
   void maybeSendDigests().catch(() => undefined);
-  const items = await listInbox(userId);
-  const { unreadCount } = await import("@/lib/notify.server");
+  const page = await listInboxPage(userId, opts);
   const unread = await unreadCount(userId);
-  return { items, unread };
+  return { items: page.items, nextCursor: page.nextCursor, unread };
+}
+
+export async function notificationsSummaryForUser(userId: string) {
+  const { unreadSummary, maybeSendDigests } = await import("@/lib/notify.server");
+  void maybeSendDigests().catch(() => undefined);
+  return unreadSummary(userId);
 }
 
 /** Idempotent: only sets read_at when still null; always scoped to userId. */

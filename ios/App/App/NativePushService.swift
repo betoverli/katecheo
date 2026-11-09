@@ -132,7 +132,12 @@ final class NativePushService: NSObject, UNUserNotificationCenterDelegate {
     private static func ingestActivity(from userInfo: [AnyHashable: Any], title: String) {
         let href = (userInfo["href"] as? String)
             ?? ((userInfo["data"] as? [String: Any])?["href"] as? String)
-        guard let href, !href.isEmpty else { return }
-        V2NActivityStore.ingestPush(href: href, title: title.isEmpty ? nil : title)
+        // Do not light dots from the payload alone — confirm via server state for this account.
+        Task { @MainActor in
+            await V2NActivitySync.handlePushHint(
+                href: href,
+                title: title.isEmpty ? nil : title
+            )
+        }
     }
 }

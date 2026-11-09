@@ -190,11 +190,10 @@ enum V2NActivityStore {
         inbox: [NativeAPIClient.InboxItemDTO]
     ) {
         guard let accountId = accountId() else { return }
+        // Drop speculative push leftovers; members pending + explicit local only survive.
         var next = loadItems().filter { item in
-            // Keep members-driven pending and any still-local push until inbox covers it.
-            item.source == .members || item.source == .push || item.source == .local
+            item.source == .members || item.source == .local
         }
-        // Drop push copies that inbox now owns (same kind+target).
         let unread = inbox.filter { !$0.read }
 
         // Friends pending — links.incoming only; persists until accept/decline.
@@ -323,13 +322,6 @@ enum V2NActivityStore {
             )
         }
 
-        // Drop stale push duplicates covered by inbox/links/grants.
-        let serverKeys = Set(next.filter { $0.source != .push && $0.source != .members && $0.source != .local }.map(\.id))
-        next = next.filter { item in
-            if item.source == .push, serverKeys.contains(item.id) { return false }
-            return true
-        }
-
         saveItems(next)
     }
 
@@ -411,29 +403,13 @@ enum V2NActivityStore {
         clear(kind: .friendPending, targetId: targetId)
     }
 
-    // MARK: - Push href ingest (offline until next reconcile)
+    // MARK: - Push
 
+    /// Speculative push dots are forbidden — server reconcile only (`V2NActivitySync.handlePushHint`).
+    /// Kept as a no-op so call sites compile; does not mutate the store.
     static func ingestPush(href: String, title: String?) {
-        let dest = NativeDeepLinkRouter.destination(href: href)
-        switch dest {
-        case .group(let id):
-            ingestGroupActivity(groupId: id, title: title)
-        case .note(let id):
-            upsert(kind: .sharedNote, targetId: id, title: title, source: .push)
-        case .readingPlan(let id):
-            upsert(kind: .readingDue, targetId: id, title: title, source: .push)
-        case .reading:
-            upsert(kind: .readingDue, targetId: "digest", title: title, source: .push)
-        case .profile:
-            if href.contains("friends") {
-                // Pending is owned by /links; treat as acceptance soft-signal if no pending match.
-                ingestFriendAccepted(targetId: "seen", title: title)
-            } else {
-                ingestFriendAccepted(targetId: "seen", title: title)
-            }
-        default:
-            break
-        }
+        _ = href
+        _ = title
     }
 
     // MARK: - Aggregates (children roll up; parent visit does not clear)

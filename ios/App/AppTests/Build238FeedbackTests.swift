@@ -209,6 +209,55 @@ final class Build238FeedbackTests: XCTestCase {
         XCTAssertFalse(V2NActivityStore.targetIds(kind: .readingDue).contains("plan-1"))
     }
 
+    func testActivityStore_pushIngestDoesNotLightDotsWithoutServer() {
+        let me = seedMe(id: "acct-b238-push")
+        LocalSessionCache.saveMe(me)
+        V2NActivityStore.ingestPush(href: "/groups/g1", title: "Novo")
+        V2NActivityStore.ingestPush(href: "/n/note-1", title: "Share")
+        V2NActivityStore.ingestPush(href: "/reading/plan-1", title: "Leitura")
+        V2NActivityStore.ingestPush(href: "/profile/friends", title: "Pedido")
+        XCTAssertFalse(V2NActivityStore.groupsDot)
+        XCTAssertFalse(V2NActivityStore.notebookDot)
+        XCTAssertFalse(V2NActivityStore.toolsDot)
+        XCTAssertFalse(V2NActivityStore.profileDot)
+    }
+
+    func testActivityStore_alreadyReadInboxDoesNotLightDots() {
+        let me = seedMe(id: "acct-b238-read")
+        LocalSessionCache.saveMe(me)
+        V2NActivityStore.reconcileServer(
+            incoming: [],
+            granted: [],
+            inbox: [
+                .init(id: "r1", kind: "reading", title: "Old", body: "", href: "/reading/plan-1", read: true, createdAt: "2026-01-02"),
+                .init(id: "f1", kind: "friends", title: "Aceite", body: "", href: "/profile/friends", read: true, createdAt: "2026-01-02"),
+                .init(id: "s1", kind: "shares", title: "Share", body: "", href: "/n/n1", read: true, createdAt: "2026-01-02"),
+                .init(id: "g1", kind: "groups", title: "Grupo", body: "", href: "/groups/g1", read: true, createdAt: "2026-01-02"),
+            ]
+        )
+        XCTAssertFalse(V2NActivityStore.toolsDot)
+        XCTAssertFalse(V2NActivityStore.profileDot)
+        XCTAssertFalse(V2NActivityStore.notebookDot)
+        XCTAssertFalse(V2NActivityStore.groupsDot)
+    }
+
+    func testActivityStore_reconcileDropsStalePushSourceItems() {
+        let me = seedMe(id: "acct-b238-stale-push")
+        LocalSessionCache.saveMe(me)
+        // Legacy path: force a push-sourced item, then server reconcile must wipe it.
+        V2NActivityStore.upsert(kind: .readingDue, targetId: "plan-x", source: .push)
+        XCTAssertTrue(V2NActivityStore.toolsDot)
+        V2NActivityStore.reconcileServer(incoming: [], granted: [], inbox: [])
+        XCTAssertFalse(V2NActivityStore.toolsDot)
+    }
+
+    func testActivitySync_skippedWithoutBearer() async {
+        LocalSessionCache.clearMe()
+        KeychainStore.deleteBearerToken()
+        let result = await V2NActivitySync.refreshFromServer()
+        XCTAssertEqual(result, .skippedNoBearer)
+    }
+
     func testActivityStore_crossAccountNoLeakOnClear() {
         let me = seedMe(id: "acct-b238-out")
         LocalSessionCache.saveMe(me)

@@ -234,7 +234,14 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
       return json({ ok: true, ...(await social.listLinksForUser(user.id)) });
     }
 
-    if (route.kind === "links-accept" || route.kind === "links-decline") {
+    if (route.kind === "links-search") {
+      const social = await import("./v1-social.server");
+      const url = new URL(request.url);
+      const q = url.searchParams.get("q") ?? "";
+      return json({ ok: true, people: await social.searchPeopleForUser(user.id, q) });
+    }
+
+    if (route.kind === "links-accept" || route.kind === "links-decline" || route.kind === "links-request") {
       const body = await readBody(request);
       if (body === Symbol.for("invalid-json")) return json({ ok: false, error: "invalid_json" }, 400);
       const payload = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
@@ -249,13 +256,38 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
         }
         return json(result);
       }
+      if (route.kind === "links-request") {
+        const result = await social.requestLinkForUser(user.id, handle);
+        if (!result.ok) {
+          const status = result.error === "rate" ? 429 : result.error === "limit" ? 409 : 404;
+          return json(result, status);
+        }
+        return json(result);
+      }
+      // decline also cancels outgoing (web friends page).
       const result = await social.declineLinkForUser(user.id, handle);
       return json(result, result.ok ? 200 : 404);
     }
 
     if (route.kind === "notifications") {
       const social = await import("./v1-social.server");
-      const payload = await social.listNotificationsForUser(user.id);
+      const url = new URL(request.url);
+      const cursor = url.searchParams.get("cursor");
+      const limitRaw = url.searchParams.get("limit");
+      const limit = limitRaw ? Number(limitRaw) : undefined;
+      const unreadOnly =
+        url.searchParams.get("unreadOnly") === "1" || url.searchParams.get("unreadOnly") === "true";
+      const payload = await social.listNotificationsForUser(user.id, {
+        cursor,
+        limit: Number.isFinite(limit) ? limit : undefined,
+        unreadOnly,
+      });
+      return json({ ok: true, ...payload });
+    }
+
+    if (route.kind === "notifications-summary") {
+      const social = await import("./v1-social.server");
+      const payload = await social.notificationsSummaryForUser(user.id);
       return json({ ok: true, ...payload });
     }
 

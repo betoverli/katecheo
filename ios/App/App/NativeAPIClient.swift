@@ -169,8 +169,39 @@ enum NativeAPIClient {
     struct NotificationsResponse: Decodable {
         let ok: Bool?
         let items: [InboxItemDTO]?
+        let nextCursor: String?
         let unread: Int?
+        let byKind: [String: Int]?
         let error: String?
+    }
+
+    struct PeopleHitDTO: Codable, Equatable {
+        var userId: String
+        var handle: String
+        var firstName: String
+        var lastName: String
+        var avatarId: String
+        var avatarUrl: String
+        var status: String
+
+        var asPerson: LinkPersonDTO {
+            LinkPersonDTO(
+                userId: userId, handle: handle, firstName: firstName, lastName: lastName,
+                avatarId: avatarId, avatarUrl: avatarUrl
+            )
+        }
+    }
+
+    struct PeopleSearchResponse: Decodable {
+        let ok: Bool?
+        let people: [PeopleHitDTO]?
+        let error: String?
+    }
+
+    struct LinkActionResponse: Decodable {
+        let ok: Bool?
+        let error: String?
+        let status: String?
     }
 
     struct SpeakersResponse: Decodable {
@@ -351,13 +382,22 @@ enum NativeAPIClient {
 
     // MARK: - Requests
 
-    private static func authorizedRequest(path: String, method: String, body: Data? = nil) throws -> URLRequest {
+    private static func authorizedRequest(
+        path: String,
+        method: String,
+        body: Data? = nil,
+        query: [URLQueryItem] = []
+    ) throws -> URLRequest {
         guard let token = KeychainStore.bearerToken(), !token.isEmpty else {
             throw APIError.unauthorized
         }
         var url = baseURL
         for part in path.split(separator: "/") {
             url = url.appendingPathComponent(String(part))
+        }
+        if !query.isEmpty, var comps = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+            comps.queryItems = query
+            if let withQuery = comps.url { url = withQuery }
         }
         var request = URLRequest(url: url)
         request.httpMethod = method
@@ -479,8 +519,49 @@ enum NativeAPIClient {
         }
     }
 
-    static func listNotifications() async throws -> (items: [InboxItemDTO], unread: Int) {
-        let request = try authorizedRequest(path: "api/native/v1/notifications", method: "GET")
+    /// Web `requestLink` — by @handle. Errors: missing / limit / rate (no user enumeration beyond web).
+    @discardableResult
+    static func requestLink(handle: String) async throws -> String {
+        struct Body: Encodable { let handle: String }
+        let body = try JSONEncoder().encode(Body(handle: handle))
+        let request = try authorizedRequest(path: "api/native/v1/links/request", method: "POST", body: body)
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        let decoded = try? JSONDecoder().decode(LinkActionResponse.self, from: data)
+        guard status >= 200, status < 300, decoded?.ok == true else {
+            let err = decoded?.error ?? (String(data: data, encoding: .utf8) ?? "")
+            throw APIError.http(status, err)
+        }
+        return decoded?.status ?? "outgoing"
+    }
+
+    static func searchPeople(query: String) async throws -> [PeopleHitDTO] {
+        let request = try authorizedRequest(
+            path: "api/native/v1/links/search",
+            method: "GET",
+            query: [URLQueryItem(name: "q", value: query)]
+        )
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(PeopleSearchResponse.self, from: data) else {
+            throw APIError.decoding
+        }
+        return decoded.people ?? []
+    }
+
+    static func listNotifications(
+        cursor: String? = nil,
+        limit: Int? = nil,
+        unreadOnly: Bool = false
+    ) async throws -> (items: [InboxItemDTO], nextCursor: String?, unread: Int) {
+        var query: [URLQueryItem] = []
+        if let cursor, !cursor.isEmpty { query.append(URLQueryItem(name: "cursor", value: cursor)) }
+        if let limit { query.append(URLQueryItem(name: "limit", value: String(limit))) }
+        if unreadOnly { query.append(URLQueryItem(name: "unreadOnly", value: "1")) }
+        let request = try authorizedRequest(path: "api/native/v1/notifications", method: "GET", query: query)
         let (status, data) = try await perform(request)
         try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
@@ -489,7 +570,33 @@ enum NativeAPIClient {
         guard let decoded = try? JSONDecoder().decode(NotificationsResponse.self, from: data) else {
             throw APIError.decoding
         }
-        return (decoded.items ?? [], decoded.unread ?? 0)
+        return (decoded.items ?? [], decoded.nextCursor, decoded.unread ?? 0)
+    }
+
+    /// Fetches every unread page (for correct dot aggregation beyond page 1).
+    static func listAllUnreadNotifications(pageLimit: Int = 50, maxPages: Int = 40) async throws -> [InboxItemDTO] {
+        var all: [InboxItemDTO] = []
+        var cursor: String? = nil
+        for _ in 0..<maxPages {
+            let page = try await listNotifications(cursor: cursor, limit: pageLimit, unreadOnly: true)
+            all.append(contentsOf: page.items)
+            guard let next = page.nextCursor, !next.isEmpty else { break }
+            cursor = next
+        }
+        return all
+    }
+
+    static func notificationsSummary() async throws -> (items: [InboxItemDTO], nextCursor: String?, unread: Int, byKind: [String: Int]) {
+        let request = try authorizedRequest(path: "api/native/v1/notifications/summary", method: "GET")
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(NotificationsResponse.self, from: data) else {
+            throw APIError.decoding
+        }
+        return (decoded.items ?? [], decoded.nextCursor, decoded.unread ?? 0, decoded.byKind ?? [:])
     }
 
     static func markNotificationsRead(id: String? = nil) async throws {

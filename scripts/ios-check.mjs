@@ -885,9 +885,19 @@ try {
   if (!api.includes("notes/granted") || !api.includes("links/accept") || !api.includes("notifications/read")) {
     errors.push("NativeAPIClient tem de chamar notes/granted, links accept/decline e notifications/read (build-238).");
   }
+  if (!api.includes("links/request") || !api.includes("links/search") || !api.includes("notifications/summary")) {
+    errors.push("NativeAPIClient tem de chamar links/request, links/search e notifications/summary (build-238 limits).");
+  }
   const friends = read("ios/App/App/FriendsActivityViewController.swift");
-  if (!friends.includes("acceptLink") || !friends.includes("declineLink")) {
-    errors.push("Amigos tem de aceitar/recusar via API nativa (build-238).");
+  if (!friends.includes("acceptLink") || !friends.includes("declineLink") || !friends.includes("requestLink")) {
+    errors.push("Amigos tem de pedir/aceitar/recusar via API nativa (build-238).");
+  }
+  const push = read("ios/App/App/NativePushService.swift");
+  if (push.includes("ingestPush") && !push.includes("handlePushHint") && !push.includes("refreshFromServer")) {
+    errors.push("Push não pode acender bolinha sem reconciliar servidor (build-238).");
+  }
+  if (!read("ios/App/App/V2NActivitySync.swift").includes("handlePushHint")) {
+    errors.push("V2NActivitySync.handlePushHint obrigatório (build-238).");
   }
   if (friends.includes("markFriendsAcceptedSeen") && friends.includes("clearKind(.friendPending)")) {
     // pending must not clear on appear — only accepted signals

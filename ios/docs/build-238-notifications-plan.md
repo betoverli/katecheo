@@ -1,4 +1,4 @@
-# Build 238 — plano de conclusão das bolinhas
+# Build 238 — bolinhas + limites
 
 ## Cinco fixes (preservados)
 
@@ -8,29 +8,26 @@
 4. Lists empty alinhado  
 5. Themes + Reading search até puxar  
 
-## Escopo aprovado (implementado no PR — sem merge/deploy)
+## Escopo Beto — implementado (sem merge/deploy)
 
-| # | Endpoint nativo Bearer | Wrap de | iOS |
-| --- | --- | --- | --- |
-| 1 | `GET /links`, `POST /links/accept\|decline` | `listLinks` / `acceptLink` / `declineLink` | Amigos com aceitar/recusar; pending até decisão |
-| 2 | `GET /notes/granted` (+ GET `/notes/:id` via grant) | `listGrantedNotes` / grant read | Chip **Compartilhadas** (sem secção nova) |
-| 3 | `GET /notifications`, `POST /notifications/read` | `listInbox` / `markRead` (`read_at`) | Digest leitura, groups, shares, friend accepted; seen cross-device |
+| # | Endpoint nativo Bearer | Wrap / mudança |
+| --- | --- | --- |
+| 1 | `GET/POST links*` | list / search / request / accept / decline |
+| 2 | `GET notes/granted` | listGrantedNotes |
+| 3 | `GET notifications` (+ cursor) · `summary` · `POST read` | inbox paginado + `read_at` |
 
-## Semântica das bolinhas
+## Limites resolvidos
 
-- Parent tab **não** marca tudo lido  
-- Pending friend → só accept/decline  
-- Reading due → dismiss/conclusão (+ `markRead`)  
-- Shared → abrir nota (+ `markRead`)  
-- Sync em foreground / troca de conta (`V2NActivitySync`)  
-- Sem notification-center UI  
+1. `POST /links/request` + `GET /links/search` — Amigos busca/@handle + cancel via decline  
+2. Inbox cursor (`created_at,id`) + `GET /notifications/summary`; unread nunca trimado  
+3. Push → `handlePushHint` → refresh servidor; `ingestPush` é no-op  
 
-## Limitações (honestas)
+## Limitações restantes (honestas)
 
-- Inbox nativo herda `limit` do web (`MAX_INBOX`) — sem cursor/pagination além disso  
-- `requestLink` (enviar pedido) **não** está neste pacote  
-- Push ainda pode pré-acender dots offline até o próximo reconcile  
+- Sem notification-center UI (só bolinhas + destinos)  
+- `searchPeople` / request usam @handle como o web (não email/código)  
+- Offline: push não inventa dots; estado local anterior permanece até rede  
 
 ## Fora de escopo até nova aprovação
 
-Merge · TestFlight · deploy produção · mutações manuais live
+Merge · TestFlight · deploy produção · mutações live manuais
