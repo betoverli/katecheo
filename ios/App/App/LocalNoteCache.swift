@@ -76,4 +76,10 @@ enum LocalNoteCache {
         else { return [] }
         return speakers
     }
+
+    /// Account switch / logout — owned notes+speakers must not leak across users.
+    static func clearAll() {
+        try? FileManager.default.removeItem(at: notesURL)
+        try? FileManager.default.removeItem(at: speakersURL)
+    }
 }

@@ -133,6 +133,9 @@ enum NativeSWR {
         activityLastForceAt = nil
         activityLastSuccessAt = nil
         clearAccountDiskCaches()
+        // Disk mirrors + outbox are account-owned (explore gap from SWR work).
+        LocalNoteCache.clearAll()
+        NativeOutbox.clearAll()
     }
 
     static func resetAllForTests() {

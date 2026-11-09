@@ -47,6 +47,11 @@ enum NativeOutbox {
 
     static var pendingCount: Int { load().count }
 
+    /// Drop queued jobs on logout / account switch so we never flush another user's mutations.
+    static func clearAll() {
+        try? FileManager.default.removeItem(at: fileURL)
+    }
+
     // MARK: - Enqueue (deduped)
 
     static func enqueueNoteUpsert(_ note: NativeAPIClient.NoteDocument) {

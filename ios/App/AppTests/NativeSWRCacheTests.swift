@@ -151,8 +151,17 @@ final class NativeSWRCacheTests: XCTestCase {
 
     func testAccountSwitch_clearsCaches() async throws {
         MockNativeURLProtocol.notesJSON = Self.notesPayload
+        MockNativeURLProtocol.speakersJSON = Self.speakersPayload
         _ = try await NativeAPIClient.listNotes()
+        _ = try await NativeAPIClient.listSpeakers()
+        XCTAssertFalse(LocalNoteCache.loadNotes().isEmpty)
+        XCTAssertFalse(LocalNoteCache.loadSpeakers().isEmpty)
+
         NativeSWR.clearAccountScoped()
+        XCTAssertTrue(LocalNoteCache.loadNotes().isEmpty, "account switch must clear Caderno disk")
+        XCTAssertTrue(LocalNoteCache.loadSpeakers().isEmpty)
+        XCTAssertEqual(NativeOutbox.pendingCount, 0)
+
         NativeSWR.resetProbe()
         _ = try await NativeAPIClient.listNotes()
         XCTAssertEqual(countExact("/api/native/v1/notes"), 1)
