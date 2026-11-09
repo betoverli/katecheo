@@ -37,7 +37,7 @@ const LINK_TOOL = {
 const COLLECTION_TOOL = {
   name: "verse2note_collection",
   description:
-    "Browse Verse2Note themed collections (160 lists of references). List categories, search themes, or return a theme as paste-ready markdown links. Does not return full verse text.",
+    "Browse Katecheo themed collections (160 lists of references). List categories, search themes, or return a theme as paste-ready markdown links. Does not return full verse text.",
   inputSchema: {
     type: "object",
     properties: {
@@ -59,7 +59,7 @@ const COLLECTION_TOOL = {
 const PLAN_TOOL = {
   name: "verse2note_plan",
   description:
-    "Browse Verse2Note Bible reading plans (whole chapters). List or search plans, or fetch one day's chapters as paste-ready markdown links. Does not return verse text. Does not read a user account; progress lives only in the web app.",
+    "Browse Katecheo Bible reading plans (whole chapters). List or search plans, or fetch one day's chapters as paste-ready markdown links. Does not return verse text. Does not read a user account; progress lives only in the web app.",
   inputSchema: {
     type: "object",
     properties: {
@@ -102,7 +102,7 @@ async function handleRpc(msg: Rpc): Promise<Response> {
     return rpcResult(msg.id, {
       protocolVersion: "2024-11-05",
       capabilities: { tools: {} },
-      serverInfo: { name: "verse2note", version: "1.2.0" },
+      serverInfo: { name: "Katecheo", version: "1.2.0" },
       instructions:
         "Use verse2note_link for a specific reference. Use verse2note_collection for a themed list. Use verse2note_plan for a reading-plan day (whole chapters). Default app is youversion. Do not invent URLs.",
     });
@@ -203,7 +203,7 @@ export const Route = createFileRoute("/api/mcp")({
         const limited = rateLimited(request);
         if (limited) return limited;
         return corsJson({
-          name: "verse2note",
+          name: "Katecheo",
           transport: "json-rpc",
           protocolVersion: "2024-11-05",
           endpoint: "/api/mcp",

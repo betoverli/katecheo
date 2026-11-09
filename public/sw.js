@@ -1,4 +1,4 @@
-const CACHE = "verse2note-v16";
+const CACHE = "katecheo-v16";
 
 const PRECACHE = [
   "/",
@@ -135,7 +135,7 @@ self.addEventListener("fetch", (event) => {
         const title = String(form.get("title") || "");
         const text = String(form.get("text") || form.get("url") || "");
         const file = form.get("file");
-        const cache = await caches.open("verse2note-share");
+        const cache = await caches.open("katecheo-share");
         const fileName = file instanceof File ? file.name : "";
         await cache.put(
           "/__import_share",
@@ -181,7 +181,7 @@ self.addEventListener("fetch", (event) => {
 });
 
 self.addEventListener("push", (event) => {
-  let payload = { title: "Verse2Note", body: "", href: "/app" };
+  let payload = { title: "Katecheo", body: "", href: "/app" };
   try {
     const data = event.data ? event.data.json() : {};
     payload = { ...payload, ...data };

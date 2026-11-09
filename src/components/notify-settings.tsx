@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 
 function nativePushEnabled() {
   try {
-    return localStorage.getItem("verse2note.apns") === "1";
+    return localStorage.getItem("Katecheo.apns") === "1";
   } catch {
     return false;
   }

@@ -1,10 +1,10 @@
-# Verse2Note
+# Katecheo
 
 > A free, offline-first web app that turns a Bible book, chapter and verses into rich text with a deep link to the user's Bible app. It also ships 160 themed collections (14 categories) and 34 reading plans of whole chapters.
 
-Verse2Note is a verse picker, not a Bible reader. Copy "João 3:16" / "John 3:16" / "Juan 3:16" already linked, and paste into Notes, WhatsApp or a document.
+Katecheo is a verse picker, not a Bible reader. Copy "João 3:16" / "John 3:16" / "Juan 3:16" already linked, and paste into Notes, WhatsApp or a document.
 
-Site: https://verse2note.com
+Site: https://katecheo.app
 
 ## Languages
 
@@ -84,8 +84,8 @@ Docs: /for-ai
 
 ## Portuguese
 
-O Verse2Note gera um texto rico com o nome da passagem já ligado ao app de Bíblia escolhido. Escolha o livro, o capítulo e os versos — ou abra uma coleção por tema, ou um plano de leitura de capítulos — copie e cole no Notes, no WhatsApp ou no documento. Conta (Google, X ou e-mail) é opcional: guarda Meus planos e o perfil entre aparelhos.
+O Katecheo gera um texto rico com o nome da passagem já ligado ao app de Bíblia escolhido. Escolha o livro, o capítulo e os versos — ou abra uma coleção por tema, ou um plano de leitura de capítulos — copie e cole no Notes, no WhatsApp ou no documento. Conta (Google, X ou e-mail) é opcional: guarda Meus planos e o perfil entre aparelhos.
 
 ## Español
 
-Verse2Note genera un texto enriquecido con el nombre del pasaje ya enlazado a la app de Biblia elegida. Elige el libro, el capítulo y los versículos — o abre una colección por tema, o un plan de lectura de capítulos — copia y pega en Notes, WhatsApp o el documento. La cuenta (Google, X o correo) es opcional: guarda Mis planes y el perfil entre dispositivos.
+Katecheo genera un texto enriquecido con el nombre del pasaje ya enlazado a la app de Biblia elegida. Elige el libro, el capítulo y los versículos — o abre una colección por tema, o un plan de lectura de capítulos — copia y pega en Notes, WhatsApp o el documento. La cuenta (Google, X o correo) es opcional: guarda Mis planes y el perfil entre dispositivos.

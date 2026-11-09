@@ -19,7 +19,7 @@ export const Route = createFileRoute("/n/$id")({
   }),
   head: () => {
     const seo = pageHead({
-      title: "Verse2Note — Nota",
+      title: "Katecheo — Nota",
       description: "Nota compartilhada do caderno.",
       path: "/n",
     });

@@ -67,11 +67,18 @@ const releaseEntitlements = read("ios/App/App/AppRelease.entitlements");
 if (!releaseEntitlements.includes("<string>production</string>")) {
   errors.push("O arquivo de Release tem de pedir APNs de produção (TestFlight).");
 }
+if (!releaseEntitlements.includes("applinks:katecheo.app")) {
+  errors.push("O Release tem de declarar applinks:katecheo.app para Universal Links.");
+}
+if (!releaseEntitlements.includes("webcredentials:katecheo.app")) {
+  errors.push("O Release tem de declarar webcredentials:katecheo.app (ASWebAuthenticationSession).");
+}
+// Keep legacy domain during DNS cutover so existing installs keep working.
 if (!releaseEntitlements.includes("applinks:verse2note.com")) {
-  errors.push("O Release tem de declarar o domínio verse2note.com para Universal Links.");
+  errors.push("O Release tem de manter applinks:verse2note.com durante o cutover.");
 }
 if (!releaseEntitlements.includes("webcredentials:verse2note.com")) {
-  errors.push("O Release tem de declarar webcredentials:verse2note.com (ASWebAuthenticationSession).");
+  errors.push("O Release tem de manter webcredentials:verse2note.com durante o cutover.");
 }
 if (!releaseEntitlements.includes("com.apple.developer.applesignin")) {
   errors.push("AppRelease.entitlements tem de incluir Sign in with Apple.");
@@ -1106,6 +1113,108 @@ if (!project.includes("Localizable.xcstrings in Resources") || !project.includes
 }
 if (!project.includes("AppLocale.swift in Sources")) {
   errors.push("AppLocale.swift tem de estar no target Xcode.");
+}
+if (!project.includes("AppSite.swift in Sources")) {
+  errors.push("AppSite.swift tem de estar no target Xcode (Katecheo base URL + fallback).");
+}
+
+// Katecheo rebrand: no user-visible "Verse2Note" / "Verse 2 Note" remains in iOS UI surfaces.
+// Allowed: bundle id com.verse2note.*, URL scheme verse2note, Info.plist keys Verse2Note*,
+// internal UserDefaults / Notification.Name prefixes, legacy outbox keys, comments, tests.
+{
+  const brandNeedle = /Verse\s*2\s*Note/i;
+  const allowLine =
+    /com\.verse2note|verse2note:\/\/|callbackURLScheme:\s*"verse2note"|scheme == "verse2note"|<string>verse2note<\/string>|CFBundleURLSchemes|Verse2NoteAPIBase|Verse2NoteApns|Verse2NoteUniversal|Verse2NoteNative|verse2note\.(native|legacy|cookie|apns|apiBase)|verse2note-outbox|PRODUCT_BUNDLE_IDENTIFIER|VERSE2NOTE_|Notification\.Name\("verse2note|defaultsKey|statusKey|migratedFlagKey|infoPlistKey|fallbackHost|fallbackOrigin|acceptedHosts|verse2note\.com|www\.verse2note\.com|temporaryDirectory\.appendingPathComponent\("verse2note-|\/\/|\/\*|\* /;
+
+  const scanFiles = (dir, pred) => {
+    /** @type {string[]} */
+    const out = [];
+    const walk = (d) => {
+      let entries;
+      try {
+        entries = readdirSync(d, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const ent of entries) {
+        const full = join(d, ent.name);
+        if (ent.isDirectory()) {
+          if (/(^|\/)(DerivedData|build|\.git)$/i.test(ent.name)) continue;
+          walk(full);
+          continue;
+        }
+        if (!pred(ent.name)) continue;
+        out.push(full);
+      }
+    };
+    walk(dir);
+    return out;
+  };
+
+  const appRoot = join(root, "ios/App/App");
+  const uiFiles = scanFiles(
+    appRoot,
+    (name) => /\.(swift|plist|xcstrings|storyboard|strings|intentdefinition|json)$/i.test(name),
+  );
+  /** @type {string[]} */
+  const brandHits = [];
+  for (const full of uiFiles) {
+    const rel = full.slice(root.length + 1);
+    // Bundle / project identifiers live in Info.plist keys — still scan values carefully.
+    let text;
+    try {
+      text = readFileSync(full, "utf8");
+    } catch {
+      continue;
+    }
+    const lines = text.split(/\r?\n/);
+    lines.forEach((line, idx) => {
+      if (!brandNeedle.test(line)) return;
+      if (allowLine.test(line)) return;
+      // xcstrings keys that are only internal MCP tool docs may still mention verse2note_link —
+      // brandNeedle is Verse2Note specifically.
+      brandHits.push(`${rel}:${idx + 1}:${line.trim().slice(0, 120)}`);
+    });
+  }
+
+  // Display name must be Katecheo in InfoPlist catalog + Info.plist.
+  try {
+    const infoCatalog = JSON.parse(read("ios/App/App/InfoPlist.xcstrings"));
+    for (const key of ["CFBundleDisplayName", "CFBundleName"]) {
+      for (const lang of ["pt-BR", "en", "es"]) {
+        const value = infoCatalog.strings?.[key]?.localizations?.[lang]?.stringUnit?.value;
+        if (value !== "Katecheo") {
+          errors.push(`InfoPlist.xcstrings ${key}/${lang} tem de ser "Katecheo" (é ${JSON.stringify(value)}).`);
+        }
+      }
+    }
+  } catch {
+    errors.push("InfoPlist.xcstrings ilegível para o rebrand Katecheo.");
+  }
+  const infoPlist = read("ios/App/App/Info.plist");
+  if (!infoPlist.includes("<string>Katecheo</string>")) {
+    errors.push('Info.plist CFBundleDisplayName tem de ser "Katecheo".');
+  }
+  if (!infoPlist.includes("<string>katecheo</string>")) {
+    errors.push("Info.plist tem de registar o URL scheme katecheo (além de verse2note).");
+  }
+
+  const site = read("ios/App/App/AppSite.swift");
+  if (!site.includes("katecheo.app") || !site.includes("verse2note.com") || !site.includes("considerFallback")) {
+    errors.push("AppSite.swift: primary katecheo.app + fallback verse2note.com + considerFallback.");
+  }
+  const api = read("ios/App/App/NativeAPIClient.swift");
+  if (!api.includes("AppSite.baseURL") || !api.includes("considerFallback")) {
+    errors.push("NativeAPIClient tem de usar AppSite.baseURL com fallback DNS/TLS.");
+  }
+
+  if (brandHits.length) {
+    errors.push(
+      "Rebrand Katecheo: string user-visible ainda contém Verse2Note (bundle id / ids internos OK). Hits:\n  - " +
+        brandHits.slice(0, 30).join("\n  - ") +
+        (brandHits.length > 30 ? `\n  - … +${brandHits.length - 30} more` : ""),
+    );
+  }
 }
 
 // Build 256: Tools tab must localize via String(localized:) + Localizable en/es (not raw PT titleText).

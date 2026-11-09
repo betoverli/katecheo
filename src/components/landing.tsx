@@ -12,8 +12,8 @@ const LOCALES: Locale[] = ["pt", "en", "es"];
 const JSON_LD = {
   "@context": "https://schema.org",
   "@type": "WebApplication",
-  name: "Verse2Note",
-  url: "https://verse2note.com",
+  name: "Katecheo",
+  url: "https://katecheo.app",
   applicationCategory: "UtilitiesApplication",
   operatingSystem: "Web",
   browserRequirements: "Requires JavaScript",

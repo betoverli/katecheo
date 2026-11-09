@@ -10,7 +10,7 @@ export const Route = createFileRoute("/profile/edit")({
   component: ProfileEditRoute,
   head: () => {
     const seo = pageHead({
-      title: "Verse2Note — Editar perfil",
+      title: "Katecheo — Editar perfil",
       description: "Edite avatar, @, nome e e-mail.",
       path: "/profile/edit",
     });

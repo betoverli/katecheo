@@ -10,8 +10,8 @@ export const Route = createFileRoute("/admin")({
   component: AdminRoute,
   head: () => {
     const seo = pageHead({
-      title: "Verse2Note — Uso",
-      description: "Painel de uso do Verse2Note.",
+      title: "Katecheo — Uso",
+      description: "Painel de uso do Katecheo.",
       path: "/admin",
     });
     return { ...seo, meta: [...seo.meta, { name: "robots", content: "noindex" }] };

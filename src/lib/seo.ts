@@ -1,4 +1,6 @@
-export const SITE = "https://verse2note.com";
+import { BRAND_NAME, absoluteUrl, publicBaseUrl } from "@/lib/site";
+
+export const SITE = publicBaseUrl();
 
 export function pageHead({
   title,
@@ -9,17 +11,18 @@ export function pageHead({
   description: string;
   path?: string;
 }) {
-  const url = `${SITE}${path}`;
+  const url = absoluteUrl(path);
+  const site = publicBaseUrl();
   return {
     meta: [
       { title },
       { name: "description", content: description },
       { property: "og:type", content: "website" },
-      { property: "og:site_name", content: "Verse2Note" },
+      { property: "og:site_name", content: BRAND_NAME },
       { property: "og:title", content: title },
       { property: "og:description", content: description },
       { property: "og:url", content: url },
-      { property: "og:image", content: `${SITE}/og.jpg` },
+      { property: "og:image", content: `${site}/og.jpg` },
       { property: "og:image:width", content: "1200" },
       { property: "og:image:height", content: "630" },
       { property: "og:locale", content: "pt_BR" },
@@ -28,7 +31,7 @@ export function pageHead({
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: title },
       { name: "twitter:description", content: description },
-      { name: "twitter:image", content: `${SITE}/x-banner.jpg` },
+      { name: "twitter:image", content: `${site}/x-banner.jpg` },
     ],
     links: [{ rel: "canonical", href: url }],
   };

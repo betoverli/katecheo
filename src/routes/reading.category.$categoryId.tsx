@@ -13,10 +13,10 @@ export const Route = createFileRoute("/reading/category/$categoryId")({
     const category = planCategoryById(params.categoryId);
     const name = category?.names.pt ?? "Leitura";
     return pageHead({
-      title: `Verse2Note — ${name}`,
+      title: `Katecheo — ${name}`,
       description: category
         ? `${category.names.pt}: planos de leitura bíblica com capítulos completos.`
-        : "Planos de leitura Verse2Note.",
+        : "Planos de leitura Katecheo.",
       path: `/reading/category/${params.categoryId}`,
     });
   },

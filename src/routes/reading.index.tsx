@@ -11,7 +11,7 @@ export const Route = createFileRoute("/reading/")({
   component: ReadingIndexRoute,
   head: () =>
     pageHead({
-      title: "Verse2Note — Planos de leitura",
+      title: "Katecheo — Planos de leitura",
       description: "Planos de leitura bíblica por duração, evangelhos e livros. Marque os capítulos que já leu.",
       path: "/reading",
     }),

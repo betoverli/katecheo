@@ -17,8 +17,8 @@ export const Route = createFileRoute("/u/$handle")({
   component: PublicProfileRoute,
   head: ({ params }) => {
     const seo = pageHead({
-      title: `Verse2Note — @${params.handle}`,
-      description: `Perfil público de @${params.handle} no Verse2Note.`,
+      title: `Katecheo — @${params.handle}`,
+      description: `Perfil público de @${params.handle} no Katecheo.`,
       path: `/u/${params.handle}`,
     });
     return { ...seo, meta: [...seo.meta, { name: "robots", content: "noindex" }] };

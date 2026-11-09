@@ -1,1363 +1,1363 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://verse2note.com/</loc>
+    <loc>https://katecheo.app/</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/app</loc>
+    <loc>https://katecheo.app/app</loc>
     <lastmod>2026-09-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/groups</loc>
+    <loc>https://katecheo.app/groups</loc>
     <lastmod>2026-09-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections</loc>
+    <loc>https://katecheo.app/collections</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/themes</loc>
+    <loc>https://katecheo.app/collections/themes</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading</loc>
+    <loc>https://katecheo.app/reading</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/all</loc>
+    <loc>https://katecheo.app/reading/all</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/about</loc>
+    <loc>https://katecheo.app/about</loc>
     <lastmod>2026-09-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/privacy</loc>
+    <loc>https://katecheo.app/privacy</loc>
     <lastmod>2026-09-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/for-ai</loc>
+    <loc>https://katecheo.app/for-ai</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/skill.md</loc>
+    <loc>https://katecheo.app/skill.md</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/llms.txt</loc>
+    <loc>https://katecheo.app/llms.txt</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/category/doctrine</loc>
-    <lastmod>2026-09-08</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://verse2note.com/collections/category/jesus</loc>
+    <loc>https://katecheo.app/collections/category/doctrine</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/category/personal</loc>
+    <loc>https://katecheo.app/collections/category/jesus</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/category/church-life</loc>
+    <loc>https://katecheo.app/collections/category/personal</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/category/home</loc>
+    <loc>https://katecheo.app/collections/category/church-life</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/category/seasons</loc>
+    <loc>https://katecheo.app/collections/category/home</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/category/society</loc>
+    <loc>https://katecheo.app/collections/category/seasons</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/category/character</loc>
+    <loc>https://katecheo.app/collections/category/society</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/category/spirit</loc>
+    <loc>https://katecheo.app/collections/category/character</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/category/last-things</loc>
+    <loc>https://katecheo.app/collections/category/spirit</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/category/stories</loc>
+    <loc>https://katecheo.app/collections/category/last-things</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/category/emotions</loc>
+    <loc>https://katecheo.app/collections/category/stories</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/category/work-money</loc>
+    <loc>https://katecheo.app/collections/category/emotions</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/category/worship-prayer</loc>
+    <loc>https://katecheo.app/collections/category/work-money</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/salvation</loc>
+    <loc>https://katecheo.app/collections/category/worship-prayer</loc>
     <lastmod>2026-09-08</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://katecheo.app/collections/salvation</loc>
+    <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/grace</loc>
+    <loc>https://katecheo.app/collections/grace</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/faith</loc>
+    <loc>https://katecheo.app/collections/faith</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/prayer</loc>
+    <loc>https://katecheo.app/collections/prayer</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/anxiety</loc>
+    <loc>https://katecheo.app/collections/anxiety</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/family</loc>
+    <loc>https://katecheo.app/collections/family</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/church</loc>
+    <loc>https://katecheo.app/collections/church</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/christmas</loc>
+    <loc>https://katecheo.app/collections/christmas</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/easter</loc>
+    <loc>https://katecheo.app/collections/easter</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/youth</loc>
+    <loc>https://katecheo.app/collections/youth</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/love</loc>
+    <loc>https://katecheo.app/collections/love</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/hope</loc>
+    <loc>https://katecheo.app/collections/hope</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/peace</loc>
+    <loc>https://katecheo.app/collections/peace</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/joy</loc>
+    <loc>https://katecheo.app/collections/joy</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/forgiveness</loc>
+    <loc>https://katecheo.app/collections/forgiveness</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/repentance</loc>
+    <loc>https://katecheo.app/collections/repentance</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/holiness</loc>
+    <loc>https://katecheo.app/collections/holiness</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/holy-spirit</loc>
+    <loc>https://katecheo.app/collections/holy-spirit</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/baptism</loc>
+    <loc>https://katecheo.app/collections/baptism</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/lords-supper</loc>
+    <loc>https://katecheo.app/collections/lords-supper</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/second-coming</loc>
+    <loc>https://katecheo.app/collections/second-coming</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/creation</loc>
+    <loc>https://katecheo.app/collections/creation</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/wisdom</loc>
+    <loc>https://katecheo.app/collections/wisdom</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/money</loc>
+    <loc>https://katecheo.app/collections/money</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/work</loc>
+    <loc>https://katecheo.app/collections/work</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/suffering</loc>
+    <loc>https://katecheo.app/collections/suffering</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/healing</loc>
+    <loc>https://katecheo.app/collections/healing</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/fear</loc>
+    <loc>https://katecheo.app/collections/fear</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/temptation</loc>
+    <loc>https://katecheo.app/collections/temptation</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/humility</loc>
+    <loc>https://katecheo.app/collections/humility</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/pride</loc>
+    <loc>https://katecheo.app/collections/pride</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/anger</loc>
+    <loc>https://katecheo.app/collections/anger</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/patience</loc>
+    <loc>https://katecheo.app/collections/patience</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/kindness</loc>
+    <loc>https://katecheo.app/collections/kindness</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/service</loc>
+    <loc>https://katecheo.app/collections/service</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/missions</loc>
+    <loc>https://katecheo.app/collections/missions</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/evangelism</loc>
+    <loc>https://katecheo.app/collections/evangelism</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/discipleship</loc>
+    <loc>https://katecheo.app/collections/discipleship</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/scripture</loc>
+    <loc>https://katecheo.app/collections/scripture</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/worship</loc>
+    <loc>https://katecheo.app/collections/worship</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/thanksgiving</loc>
+    <loc>https://katecheo.app/collections/thanksgiving</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/fasting</loc>
+    <loc>https://katecheo.app/collections/fasting</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/marriage</loc>
+    <loc>https://katecheo.app/collections/marriage</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/children</loc>
+    <loc>https://katecheo.app/collections/children</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/friendship</loc>
+    <loc>https://katecheo.app/collections/friendship</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/leadership</loc>
+    <loc>https://katecheo.app/collections/leadership</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/justice</loc>
+    <loc>https://katecheo.app/collections/justice</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/the-poor</loc>
+    <loc>https://katecheo.app/collections/the-poor</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/covenant</loc>
+    <loc>https://katecheo.app/collections/covenant</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/law-and-grace</loc>
+    <loc>https://katecheo.app/collections/law-and-grace</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/rest</loc>
+    <loc>https://katecheo.app/collections/rest</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/death</loc>
+    <loc>https://katecheo.app/collections/death</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/heaven</loc>
+    <loc>https://katecheo.app/collections/heaven</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/hell</loc>
+    <loc>https://katecheo.app/collections/hell</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/resurrection</loc>
+    <loc>https://katecheo.app/collections/resurrection</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/identity</loc>
+    <loc>https://katecheo.app/collections/identity</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/armor</loc>
+    <loc>https://katecheo.app/collections/armor</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/fruit</loc>
+    <loc>https://katecheo.app/collections/fruit</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/gifts</loc>
+    <loc>https://katecheo.app/collections/gifts</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/unity</loc>
+    <loc>https://katecheo.app/collections/unity</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/false-teaching</loc>
+    <loc>https://katecheo.app/collections/false-teaching</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/persecution</loc>
+    <loc>https://katecheo.app/collections/persecution</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/courage</loc>
+    <loc>https://katecheo.app/collections/courage</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/waiting</loc>
+    <loc>https://katecheo.app/collections/waiting</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/guidance</loc>
+    <loc>https://katecheo.app/collections/guidance</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/promises</loc>
+    <loc>https://katecheo.app/collections/promises</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/the-cross</loc>
+    <loc>https://katecheo.app/collections/the-cross</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/blood</loc>
+    <loc>https://katecheo.app/collections/blood</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/name-of-jesus</loc>
+    <loc>https://katecheo.app/collections/name-of-jesus</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/lordship</loc>
+    <loc>https://katecheo.app/collections/lordship</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/obedience</loc>
+    <loc>https://katecheo.app/collections/obedience</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/faith-and-works</loc>
+    <loc>https://katecheo.app/collections/faith-and-works</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/confession</loc>
+    <loc>https://katecheo.app/collections/confession</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/new-life</loc>
+    <loc>https://katecheo.app/collections/new-life</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/light</loc>
+    <loc>https://katecheo.app/collections/light</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/truth</loc>
+    <loc>https://katecheo.app/collections/truth</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/mercy</loc>
+    <loc>https://katecheo.app/collections/mercy</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/compassion</loc>
+    <loc>https://katecheo.app/collections/compassion</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/integrity</loc>
+    <loc>https://katecheo.app/collections/integrity</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/speech</loc>
+    <loc>https://katecheo.app/collections/speech</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/purity</loc>
+    <loc>https://katecheo.app/collections/purity</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/contentment</loc>
+    <loc>https://katecheo.app/collections/contentment</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/generosity</loc>
+    <loc>https://katecheo.app/collections/generosity</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/fathers</loc>
+    <loc>https://katecheo.app/collections/fathers</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/mothers</loc>
+    <loc>https://katecheo.app/collections/mothers</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/widows</loc>
+    <loc>https://katecheo.app/collections/widows</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/government</loc>
+    <loc>https://katecheo.app/collections/government</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/israel</loc>
+    <loc>https://katecheo.app/collections/israel</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/beatitudes</loc>
+    <loc>https://katecheo.app/collections/beatitudes</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/love-god</loc>
+    <loc>https://katecheo.app/collections/love-god</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/love-neighbor</loc>
+    <loc>https://katecheo.app/collections/love-neighbor</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/prodigal</loc>
+    <loc>https://katecheo.app/collections/prodigal</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/good-shepherd</loc>
+    <loc>https://katecheo.app/collections/good-shepherd</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/bread-of-life</loc>
+    <loc>https://katecheo.app/collections/bread-of-life</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/the-vine</loc>
+    <loc>https://katecheo.app/collections/the-vine</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/comfort</loc>
+    <loc>https://katecheo.app/collections/comfort</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/praise</loc>
+    <loc>https://katecheo.app/collections/praise</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/revival</loc>
+    <loc>https://katecheo.app/collections/revival</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/freedom</loc>
+    <loc>https://katecheo.app/collections/freedom</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/grief</loc>
+    <loc>https://katecheo.app/collections/grief</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/doubt</loc>
+    <loc>https://katecheo.app/collections/doubt</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/calling</loc>
+    <loc>https://katecheo.app/collections/calling</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/women</loc>
+    <loc>https://katecheo.app/collections/women</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/men</loc>
+    <loc>https://katecheo.app/collections/men</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/end-times</loc>
+    <loc>https://katecheo.app/collections/end-times</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/new-covenant</loc>
+    <loc>https://katecheo.app/collections/new-covenant</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/sabbath</loc>
+    <loc>https://katecheo.app/collections/sabbath</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/angels</loc>
+    <loc>https://katecheo.app/collections/angels</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/creation-care</loc>
+    <loc>https://katecheo.app/collections/creation-care</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/fast-and-pray</loc>
+    <loc>https://katecheo.app/collections/fast-and-pray</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/trinity</loc>
+    <loc>https://katecheo.app/collections/trinity</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/incarnation</loc>
+    <loc>https://katecheo.app/collections/incarnation</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/atonement</loc>
+    <loc>https://katecheo.app/collections/atonement</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/justification</loc>
+    <loc>https://katecheo.app/collections/justification</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/sanctification</loc>
+    <loc>https://katecheo.app/collections/sanctification</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/adoption</loc>
+    <loc>https://katecheo.app/collections/adoption</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/kingdom</loc>
+    <loc>https://katecheo.app/collections/kingdom</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/god-is</loc>
+    <loc>https://katecheo.app/collections/god-is</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/faithfulness</loc>
+    <loc>https://katecheo.app/collections/faithfulness</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/sovereignty</loc>
+    <loc>https://katecheo.app/collections/sovereignty</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/ten-commandments</loc>
+    <loc>https://katecheo.app/collections/ten-commandments</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/lords-prayer</loc>
+    <loc>https://katecheo.app/collections/lords-prayer</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/sermon-on-mount</loc>
+    <loc>https://katecheo.app/collections/sermon-on-mount</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/abraham</loc>
+    <loc>https://katecheo.app/collections/abraham</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/moses</loc>
+    <loc>https://katecheo.app/collections/moses</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/david</loc>
+    <loc>https://katecheo.app/collections/david</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/joseph</loc>
+    <loc>https://katecheo.app/collections/joseph</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/daniel</loc>
+    <loc>https://katecheo.app/collections/daniel</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/elijah</loc>
+    <loc>https://katecheo.app/collections/elijah</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/ruth</loc>
+    <loc>https://katecheo.app/collections/ruth</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/esther</loc>
+    <loc>https://katecheo.app/collections/esther</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/mary</loc>
+    <loc>https://katecheo.app/collections/mary</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/peter</loc>
+    <loc>https://katecheo.app/collections/peter</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/paul</loc>
+    <loc>https://katecheo.app/collections/paul</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/good-samaritan</loc>
+    <loc>https://katecheo.app/collections/good-samaritan</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/lost-sheep</loc>
+    <loc>https://katecheo.app/collections/lost-sheep</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/sower</loc>
+    <loc>https://katecheo.app/collections/sower</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/loneliness</loc>
+    <loc>https://katecheo.app/collections/loneliness</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/discouragement</loc>
+    <loc>https://katecheo.app/collections/discouragement</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/jealousy</loc>
+    <loc>https://katecheo.app/collections/jealousy</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/gossip</loc>
+    <loc>https://katecheo.app/collections/gossip</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/laziness</loc>
+    <loc>https://katecheo.app/collections/laziness</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/hospitality</loc>
+    <loc>https://katecheo.app/collections/hospitality</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/singleness</loc>
+    <loc>https://katecheo.app/collections/singleness</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/aging</loc>
+    <loc>https://katecheo.app/collections/aging</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/addiction</loc>
+    <loc>https://katecheo.app/collections/addiction</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/spiritual-warfare</loc>
+    <loc>https://katecheo.app/collections/spiritual-warfare</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/tithing</loc>
+    <loc>https://katecheo.app/collections/tithing</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/pentecost</loc>
+    <loc>https://katecheo.app/collections/pentecost</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/prophecy</loc>
+    <loc>https://katecheo.app/collections/prophecy</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/holy-week</loc>
+    <loc>https://katecheo.app/collections/holy-week</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/psalms</loc>
+    <loc>https://katecheo.app/collections/psalms</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/revelation</loc>
+    <loc>https://katecheo.app/collections/revelation</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/body-of-christ</loc>
+    <loc>https://katecheo.app/collections/body-of-christ</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/enemies</loc>
+    <loc>https://katecheo.app/collections/enemies</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/blessing</loc>
+    <loc>https://katecheo.app/collections/blessing</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/priesthood</loc>
+    <loc>https://katecheo.app/collections/priesthood</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/lamb</loc>
+    <loc>https://katecheo.app/collections/lamb</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/immanuel</loc>
+    <loc>https://katecheo.app/collections/immanuel</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/collections/stewardship</loc>
+    <loc>https://katecheo.app/collections/stewardship</loc>
     <lastmod>2026-09-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/category/duration</loc>
+    <loc>https://katecheo.app/reading/category/duration</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/category/chronological</loc>
+    <loc>https://katecheo.app/reading/category/chronological</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/category/themes</loc>
+    <loc>https://katecheo.app/reading/category/themes</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/category/gospels</loc>
+    <loc>https://katecheo.app/reading/category/gospels</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/category/new-testament</loc>
+    <loc>https://katecheo.app/reading/category/new-testament</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/category/old-testament</loc>
+    <loc>https://katecheo.app/reading/category/old-testament</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/category/books</loc>
+    <loc>https://katecheo.app/reading/category/books</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/bible-year</loc>
+    <loc>https://katecheo.app/reading/bible-year</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/bible-90</loc>
+    <loc>https://katecheo.app/reading/bible-90</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/nt-90</loc>
+    <loc>https://katecheo.app/reading/nt-90</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/nt-30</loc>
+    <loc>https://katecheo.app/reading/nt-30</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/gospels-30</loc>
+    <loc>https://katecheo.app/reading/gospels-30</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/john-21</loc>
+    <loc>https://katecheo.app/reading/john-21</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/matthew-28</loc>
+    <loc>https://katecheo.app/reading/matthew-28</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/luke-24</loc>
+    <loc>https://katecheo.app/reading/luke-24</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/acts-28</loc>
+    <loc>https://katecheo.app/reading/acts-28</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/romans-16</loc>
+    <loc>https://katecheo.app/reading/romans-16</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/proverbs-31</loc>
+    <loc>https://katecheo.app/reading/proverbs-31</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/psalms-30</loc>
+    <loc>https://katecheo.app/reading/psalms-30</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/pentateuch-90</loc>
+    <loc>https://katecheo.app/reading/pentateuch-90</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/paul-letters</loc>
+    <loc>https://katecheo.app/reading/paul-letters</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/chrono-bible</loc>
+    <loc>https://katecheo.app/reading/chrono-bible</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/chrono-ot</loc>
+    <loc>https://katecheo.app/reading/chrono-ot</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/chrono-nt</loc>
+    <loc>https://katecheo.app/reading/chrono-nt</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/four-paths</loc>
+    <loc>https://katecheo.app/reading/four-paths</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/ot-year</loc>
+    <loc>https://katecheo.app/reading/ot-year</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/isaiah-66</loc>
+    <loc>https://katecheo.app/reading/isaiah-66</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/story-40</loc>
+    <loc>https://katecheo.app/reading/story-40</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/hope-21</loc>
+    <loc>https://katecheo.app/reading/hope-21</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/prayer-21</loc>
+    <loc>https://katecheo.app/reading/prayer-21</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/women-21</loc>
+    <loc>https://katecheo.app/reading/women-21</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/justice-14</loc>
+    <loc>https://katecheo.app/reading/justice-14</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/wilderness-14</loc>
+    <loc>https://katecheo.app/reading/wilderness-14</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/covenant-14</loc>
+    <loc>https://katecheo.app/reading/covenant-14</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/holy-week</loc>
+    <loc>https://katecheo.app/reading/holy-week</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/advent-24</loc>
+    <loc>https://katecheo.app/reading/advent-24</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/who-is-jesus</loc>
+    <loc>https://katecheo.app/reading/who-is-jesus</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/lament-14</loc>
+    <loc>https://katecheo.app/reading/lament-14</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/wisdom-21</loc>
+    <loc>https://katecheo.app/reading/wisdom-21</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/apocalyptic</loc>
+    <loc>https://katecheo.app/reading/apocalyptic</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://verse2note.com/reading/early-church</loc>
+    <loc>https://katecheo.app/reading/early-church</loc>
     <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>

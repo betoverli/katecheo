@@ -11,9 +11,9 @@ export const Route = createFileRoute("/for-ai")({
   component: ForAiRoute,
   head: () =>
     pageHead({
-      title: "Verse2Note — API, skill e MCP",
+      title: "Katecheo — API, skill e MCP",
       description:
-        "API pública (sem login), skill e MCP do Verse2Note: gere deep links de referências, coleções por tema e o dia de um plano de leitura para Grok, Claude, Cursor ou qualquer agente.",
+        "API pública (sem login), skill e MCP do Katecheo: gere deep links de referências, coleções por tema e o dia de um plano de leitura para Grok, Claude, Cursor ou qualquer agente.",
       path: "/for-ai",
     }),
 });

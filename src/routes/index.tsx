@@ -23,7 +23,7 @@ export const Route = createFileRoute("/")({
   },
   head: () =>
     pageHead({
-      title: "Verse2Note — links ricos de referências bíblicas",
+      title: "Katecheo — links ricos de referências bíblicas",
       description:
         "Crie links ricos de referências bíblicas, coleções por tema e planos de leitura de capítulos para YouVersion, Logos e outros apps. Português, English, Español. Conta opcional. Funciona offline.",
       path: "/",

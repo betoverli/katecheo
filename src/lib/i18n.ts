@@ -2,7 +2,7 @@ import type { Locale } from "@/lib/bible/books";
 
 const strings = {
   pt: {
-    appName: "Verse2Note",
+    appName: "Katecheo",
     tagline: "Links para a Escritura",
     search: "Buscar livro ou João 3:16",
     ot: "Antigo Testamento",
@@ -42,7 +42,7 @@ const strings = {
     notebookImportRefs: "referências",
     notebookImportFail: "Não deu para ler esse arquivo.",
     notebookImportShare:
-      "No Android, com o app na tela inicial: Compartilhar → Verse2Note. No iPhone o sistema ainda não entrega o Compartilhar para PWA — copie o texto ou exporte o arquivo e abra aqui.",
+      "No Android, com o app na tela inicial: Compartilhar → Katecheo. No iPhone o sistema ainda não entrega o Compartilhar para PWA — copie o texto ou exporte o arquivo e abra aqui.",
     notebookSearch: "Buscar notas",
     searchClear: "Limpar",
     notebookTags: "Tags",
@@ -200,7 +200,7 @@ const strings = {
     pasteHint: "Cole no Notes, WhatsApp ou no documento — o nome da passagem já vai com o link.",
     install: "Tela inicial",
     installHint:
-      "No Safari ou Chrome, use Adicionar à Tela de Início. Depois de aberto uma vez, o Verse2Note funciona sem internet.",
+      "No Safari ou Chrome, use Adicionar à Tela de Início. Depois de aberto uma vez, o Katecheo funciona sem internet.",
     webBadge: "Web",
     nativeBadge: "App",
     localePt: "Português",
@@ -301,7 +301,7 @@ const strings = {
     aboutTitle: "Sobre e ajuda",
     aboutOriginTitle: "Como surgiu",
     aboutOrigin:
-      "Nasceu de um gesto chato em reunião: alguém lia as referências, e copiar cada uma com um link que realmente abre a Bíblia era um vai-e-volta. O Verse2Note faz só isso — livro, capítulo e versos. O nome da passagem já vai com o link, pronto para colar no Notes, no WhatsApp ou no documento.",
+      "Nasceu de um gesto chato em reunião: alguém lia as referências, e copiar cada uma com um link que realmente abre a Bíblia era um vai-e-volta. O Katecheo faz só isso — livro, capítulo e versos. O nome da passagem já vai com o link, pronto para colar no Notes, no WhatsApp ou no documento.",
     helpTitle: "Como usar",
     helpPick: "Toque no livro, no capítulo e nos versos. Dois versos seguidos viram um intervalo.",
     helpCopy:
@@ -317,7 +317,7 @@ const strings = {
     helpAccount:
       "Conta é opcional (Google ou e-mail) para Meus planos, listas, amigos e o perfil. Ao criar, escolha nome, @ e e-mail. Sem conta o seletor fica neste aparelho. A API para IA não usa conta.",
     helpImport:
-      "No caderno, + → Importar. Cole um texto ou um arquivo (PDF, Word, Markdown). Referências viram pílulas. No Android instalado, Compartilhar → Verse2Note. No iPhone, copie ou envie o arquivo.",
+      "No caderno, + → Importar. Cole um texto ou um arquivo (PDF, Word, Markdown). Referências viram pílulas. No Android instalado, Compartilhar → Katecheo. No iPhone, copie ou envie o arquivo.",
     helpNotifications:
       "No iPhone, avisos só depois de Adicionar à Tela de Início. No Perfil: leitura, amigos, envios e grupos.",
     helpSettings: "No Perfil: idioma, app da Bíblia, aparência, avisos e ajuda.",
@@ -337,11 +337,11 @@ const strings = {
     notifyGroupsHint: "Pedidos, aceites e notas novas no grupo.",
     notifyOff: "Desligado",
     notifyLogin: "Entre para ligar os avisos.",
-    notifyInstall: "No iPhone, adicione o Verse2Note à Tela de Início para receber avisos.",
+    notifyInstall: "No iPhone, adicione o Katecheo à Tela de Início para receber avisos.",
     notifyUnsupported: "Este aparelho não aceita avisos web.",
     notifyNativeHint: "Avisos nativos deste iPhone, mesmo com o app fechado.",
-    nativeAuthOpening: "A abrir o Verse2Note…",
-    nativeAuthReturn: "Pode voltar ao Verse2Note.",
+    nativeAuthOpening: "A abrir o Katecheo…",
+    nativeAuthReturn: "Pode voltar ao Katecheo.",
     nativeAuthFailed: "Não foi possível concluir o login.",
     notifyDenied: "Permissão recusada. Ative nas configurações do sistema.",
     notifyPromptTitle: "Avisos",
@@ -406,7 +406,7 @@ const strings = {
     adminViews: "Telas",
     adminSignups: "Contas",
     donateTitle: "Quer ajudar?",
-    donateLead: "O Verse2Note é gratuito e sem anúncio. Se ele te serve, um café ajuda a manter o projeto.",
+    donateLead: "O Katecheo é gratuito e sem anúncio. Se ele te serve, um café ajuda a manter o projeto.",
     donateCta: "Apoiar",
     privacyTitle: "Privacidade",
     exportData: "Baixar meus dados",
@@ -417,7 +417,7 @@ const strings = {
     landKicker: "Para reuniões, Notes e WhatsApp",
     landHeadline: "A passagem já vai com o link.",
     landLead:
-      "Escolha o livro, o capítulo e os versos — ou uma coleção por tema, ou um plano de leitura. O Verse2Note gera um texto rico que abre no seu app de Bíblia. No iPhone, cola no Notes. No Android, no Google Docs ou no Word.",
+      "Escolha o livro, o capítulo e os versos — ou uma coleção por tema, ou um plano de leitura. O Katecheo gera um texto rico que abre no seu app de Bíblia. No iPhone, cola no Notes. No Android, no Google Docs ou no Word.",
     landCta: "Continuar sem conta",
     landDemoLabel: "Reunião",
     landSample: "João 3:16",
@@ -430,7 +430,7 @@ const strings = {
     landFoot: "Conta opcional. Depois da primeira abertura, funciona sem internet.",
     forAiTitle: "Para IA e agentes",
     forAiLead:
-      "O Verse2Note também gera o mesmo link — coleções por tema e o dia de um plano de leitura — para o Grok, o Claude, o Cursor ou qualquer agente. A API é pública, sem login. O modelo chama a API; não inventa a URL.",
+      "O Katecheo também gera o mesmo link — coleções por tema e o dia de um plano de leitura — para o Grok, o Claude, o Cursor ou qualquer agente. A API é pública, sem login. O modelo chama a API; não inventa a URL.",
     forAiApiTitle: "API",
     forAiApiLead:
       "GET /api/link para uma referência. GET /api/collections para um tema. GET /api/plans?id=gospels-30&day=1 para o dia de um plano.",
@@ -440,13 +440,13 @@ const strings = {
     forAiSkillCta: "Abrir skill.md",
     forAiMcpTitle: "MCP",
     forAiMcpLead:
-      "JSON-RPC em POST /api/mcp. verse2note_link, verse2note_collection e verse2note_plan.",
+      "JSON-RPC em POST /api/mcp. Katecheo_link, Katecheo_collection e Katecheo_plan.",
     forAiAppsTitle: "Ids dos apps",
     forAiExample: "Resposta",
     helpForAi: "API, skill e MCP para gerar os mesmos links, coleções e planos a partir de um agente.",
   },
   en: {
-    appName: "Verse2Note",
+    appName: "Katecheo",
     tagline: "Deep links for Scripture",
     search: "Search a book or John 3:16",
     ot: "Old Testament",
@@ -486,7 +486,7 @@ const strings = {
     notebookImportRefs: "references",
     notebookImportFail: "Could not read that file.",
     notebookImportShare:
-      "On Android, with the app on the home screen: Share → Verse2Note. On iPhone, PWAs still do not get Share — copy the text or export the file and open it here.",
+      "On Android, with the app on the home screen: Share → Katecheo. On iPhone, PWAs still do not get Share — copy the text or export the file and open it here.",
     notebookSearch: "Search notes",
     searchClear: "Clear",
     notebookTags: "Tags",
@@ -644,7 +644,7 @@ const strings = {
     pasteHint: "Paste into Notes, chat, or a doc — the passage name is already the link.",
     install: "Home screen",
     installHint:
-      "In Safari or Chrome, use Add to Home Screen. Open it once online — after that, Verse2Note works offline.",
+      "In Safari or Chrome, use Add to Home Screen. Open it once online — after that, Katecheo works offline.",
     webBadge: "Web",
     nativeBadge: "App",
     localePt: "Português",
@@ -745,7 +745,7 @@ const strings = {
     aboutTitle: "About & help",
     aboutOriginTitle: "How it started",
     aboutOrigin:
-      "It started as a tedious meeting habit: someone would read off references, and copying each one as a link that actually opens a Bible was a back-and-forth. Verse2Note does only that — book, chapter, verses. The passage name is already the link, ready to paste into Notes, chat, or a document.",
+      "It started as a tedious meeting habit: someone would read off references, and copying each one as a link that actually opens a Bible was a back-and-forth. Katecheo does only that — book, chapter, verses. The passage name is already the link, ready to paste into Notes, chat, or a document.",
     helpTitle: "How to use",
     helpPick: "Tap a book, a chapter, then the verses. Two taps in a row make a range.",
     helpCopy:
@@ -761,7 +761,7 @@ const strings = {
     helpAccount:
       "An account is optional (Google or email) for My plans, lists, friends, and your profile. Sign-up asks for name, @, and email. Without an account the picker stays on this device. The AI API does not use an account.",
     helpImport:
-      "In the notebook, + → Import. Paste text or a file (PDF, Word, Markdown). References become pills. On installed Android, Share → Verse2Note. On iPhone, copy or send the file.",
+      "In the notebook, + → Import. Paste text or a file (PDF, Word, Markdown). References become pills. On installed Android, Share → Katecheo. On iPhone, copy or send the file.",
     helpNotifications:
       "On iPhone, alerts only work after Add to Home Screen. In Profile: reading, friends, shares, and groups.",
     helpSettings: "In Profile: language, Bible app, appearance, alerts, and help.",
@@ -781,11 +781,11 @@ const strings = {
     notifyGroupsHint: "Join requests, accepts, and new notes in a group.",
     notifyOff: "Off",
     notifyLogin: "Sign in to turn alerts on.",
-    notifyInstall: "On iPhone, add Verse2Note to the Home Screen to get alerts.",
+    notifyInstall: "On iPhone, add Katecheo to the Home Screen to get alerts.",
     notifyUnsupported: "This device does not support web alerts.",
     notifyNativeHint: "Native alerts on this iPhone, even when the app is closed.",
-    nativeAuthOpening: "Opening Verse2Note…",
-    nativeAuthReturn: "You can return to Verse2Note.",
+    nativeAuthOpening: "Opening Katecheo…",
+    nativeAuthReturn: "You can return to Katecheo.",
     nativeAuthFailed: "Could not finish signing in.",
     notifyDenied: "Permission denied. Turn it on in system settings.",
     notifyPromptTitle: "Notifications",
@@ -850,7 +850,7 @@ const strings = {
     adminViews: "Screens",
     adminSignups: "Accounts",
     donateTitle: "Want to help?",
-    donateLead: "Verse2Note is free and has no ads. If it serves you, a coffee helps keep it going.",
+    donateLead: "Katecheo is free and has no ads. If it serves you, a coffee helps keep it going.",
     donateCta: "Support",
     privacyTitle: "Privacy",
     exportData: "Download my data",
@@ -861,7 +861,7 @@ const strings = {
     landKicker: "For meetings, Notes, and chat",
     landHeadline: "The passage name is already the link.",
     landLead:
-      "Pick the book, chapter, and verses — or a themed collection, or a reading plan. Verse2Note makes rich text that opens in your Bible app. On iPhone, paste into Notes. On Android, into Google Docs or Word.",
+      "Pick the book, chapter, and verses — or a themed collection, or a reading plan. Katecheo makes rich text that opens in your Bible app. On iPhone, paste into Notes. On Android, into Google Docs or Word.",
     landCta: "Continue without an account",
     landDemoLabel: "Meeting",
     landSample: "John 3:16",
@@ -874,7 +874,7 @@ const strings = {
     landFoot: "Optional account. After the first open, it works offline.",
     forAiTitle: "For AI and agents",
     forAiLead:
-      "Verse2Note can mint the same link — themed collections and a reading-plan day — for Grok, Claude, Cursor, or any agent. The API is public, no login. The model calls the API; it should not invent the URL.",
+      "Katecheo can mint the same link — themed collections and a reading-plan day — for Grok, Claude, Cursor, or any agent. The API is public, no login. The model calls the API; it should not invent the URL.",
     forAiApiTitle: "API",
     forAiApiLead:
       "GET /api/link for a reference. GET /api/collections for a theme. GET /api/plans?id=gospels-30&day=1 for a plan day.",
@@ -884,13 +884,13 @@ const strings = {
     forAiSkillCta: "Open skill.md",
     forAiMcpTitle: "MCP",
     forAiMcpLead:
-      "JSON-RPC at POST /api/mcp. verse2note_link, verse2note_collection, and verse2note_plan.",
+      "JSON-RPC at POST /api/mcp. Katecheo_link, Katecheo_collection, and Katecheo_plan.",
     forAiAppsTitle: "App ids",
     forAiExample: "Response",
     helpForAi: "API, skill, and MCP so an agent can generate the same links, collections, and plans.",
   },
   es: {
-    appName: "Verse2Note",
+    appName: "Katecheo",
     tagline: "Enlaces para la Escritura",
     search: "Buscar libro o Juan 3:16",
     ot: "Antiguo Testamento",
@@ -930,7 +930,7 @@ const strings = {
     notebookImportRefs: "referencias",
     notebookImportFail: "No se pudo leer ese archivo.",
     notebookImportShare:
-      "En Android, con la app en la pantalla de inicio: Compartir → Verse2Note. En iPhone el sistema aún no entrega Compartir a un PWA — copia el texto o exporta el archivo y ábrelo aquí.",
+      "En Android, con la app en la pantalla de inicio: Compartir → Katecheo. En iPhone el sistema aún no entrega Compartir a un PWA — copia el texto o exporta el archivo y ábrelo aquí.",
     notebookSearch: "Buscar notas",
     searchClear: "Borrar",
     notebookTags: "Etiquetas",
@@ -1088,7 +1088,7 @@ const strings = {
     pasteHint: "Pega en Notes, el chat o un documento — el nombre del pasaje ya es el enlace.",
     install: "Pantalla de inicio",
     installHint:
-      "En Safari o Chrome, usa Añadir a pantalla de inicio. Ábrelo una vez con internet; después, Verse2Note funciona sin conexión.",
+      "En Safari o Chrome, usa Añadir a pantalla de inicio. Ábrelo una vez con internet; después, Katecheo funciona sin conexión.",
     webBadge: "Web",
     nativeBadge: "App",
     localePt: "Português",
@@ -1189,7 +1189,7 @@ const strings = {
     aboutTitle: "Acerca y ayuda",
     aboutOriginTitle: "Cómo nació",
     aboutOrigin:
-      "Nació de un gesto tedioso en una reunión: alguien leía las referencias, y copiar cada una con un enlace que realmente abre la Biblia era un ir y volver. Verse2Note hace solo eso — libro, capítulo y versículos. El nombre del pasaje ya va con el enlace, listo para pegar en Notes, el chat o un documento.",
+      "Nació de un gesto tedioso en una reunión: alguien leía las referencias, y copiar cada una con un enlace que realmente abre la Biblia era un ir y volver. Katecheo hace solo eso — libro, capítulo y versículos. El nombre del pasaje ya va con el enlace, listo para pegar en Notes, el chat o un documento.",
     helpTitle: "Cómo usar",
     helpPick: "Toca el libro, el capítulo y los versículos. Dos versículos seguidos forman un intervalo.",
     helpCopy:
@@ -1205,7 +1205,7 @@ const strings = {
     helpAccount:
       "La cuenta es opcional (Google o correo) para Mis planes, listas, amigos y el perfil. Al crear, elige nombre, @ y correo. Sin cuenta el selector queda en este dispositivo. La API para IA no usa cuenta.",
     helpImport:
-      "En el cuaderno, + → Importar. Pega un texto o un archivo (PDF, Word, Markdown). Las referencias se vuelven pastillas. En Android instalado, Compartir → Verse2Note. En iPhone, copia o envía el archivo.",
+      "En el cuaderno, + → Importar. Pega un texto o un archivo (PDF, Word, Markdown). Las referencias se vuelven pastillas. En Android instalado, Compartir → Katecheo. En iPhone, copia o envía el archivo.",
     helpNotifications:
       "En el iPhone, los avisos solo funcionan después de Añadir a pantalla de inicio. En Perfil: lectura, amigos, envíos y grupos.",
     helpSettings: "En Perfil: idioma, app de Biblia, apariencia, avisos y ayuda.",
@@ -1225,11 +1225,11 @@ const strings = {
     notifyGroupsHint: "Pedidos, aceptaciones y notas nuevas en el grupo.",
     notifyOff: "Apagado",
     notifyLogin: "Entra para activar los avisos.",
-    notifyInstall: "En el iPhone, añade Verse2Note a la pantalla de inicio para recibir avisos.",
+    notifyInstall: "En el iPhone, añade Katecheo a la pantalla de inicio para recibir avisos.",
     notifyUnsupported: "Este aparato no admite avisos web.",
     notifyNativeHint: "Avisos nativos de este iPhone, incluso con la app cerrada.",
-    nativeAuthOpening: "Abriendo Verse2Note…",
-    nativeAuthReturn: "Puedes volver a Verse2Note.",
+    nativeAuthOpening: "Abriendo Katecheo…",
+    nativeAuthReturn: "Puedes volver a Katecheo.",
     nativeAuthFailed: "No se pudo terminar el inicio de sesión.",
     notifyDenied: "Permiso rechazado. Actívalo en los ajustes del sistema.",
     notifyPromptTitle: "Avisos",
@@ -1294,7 +1294,7 @@ const strings = {
     adminViews: "Pantallas",
     adminSignups: "Cuentas",
     donateTitle: "¿Quieres ayudar?",
-    donateLead: "Verse2Note es gratis y sin anuncios. Si te sirve, un café ayuda a mantener el proyecto.",
+    donateLead: "Katecheo es gratis y sin anuncios. Si te sirve, un café ayuda a mantener el proyecto.",
     donateCta: "Apoyar",
     privacyTitle: "Privacidad",
     exportData: "Bajar mis datos",
@@ -1305,7 +1305,7 @@ const strings = {
     landKicker: "Para reuniones, Notes y WhatsApp",
     landHeadline: "El pasaje ya lleva el enlace.",
     landLead:
-      "Elige el libro, el capítulo y los versículos — o una colección por tema, o un plan de lectura. Verse2Note genera un texto enriquecido que abre en tu app de Biblia. En el iPhone, pega en Notes. En Android, en Google Docs o Word.",
+      "Elige el libro, el capítulo y los versículos — o una colección por tema, o un plan de lectura. Katecheo genera un texto enriquecido que abre en tu app de Biblia. En el iPhone, pega en Notes. En Android, en Google Docs o Word.",
     landCta: "Continuar sin cuenta",
     landDemoLabel: "Reunión",
     landSample: "Juan 3:16",
@@ -1318,7 +1318,7 @@ const strings = {
     landFoot: "Cuenta opcional. Después de la primera apertura, funciona sin internet.",
     forAiTitle: "Para IA y agentes",
     forAiLead:
-      "Verse2Note también genera el mismo enlace — colecciones por tema y el día de un plan de lectura — para Grok, Claude, Cursor o cualquier agente. La API es pública, sin login. El modelo llama a la API; no inventa la URL.",
+      "Katecheo también genera el mismo enlace — colecciones por tema y el día de un plan de lectura — para Grok, Claude, Cursor o cualquier agente. La API es pública, sin login. El modelo llama a la API; no inventa la URL.",
     forAiApiTitle: "API",
     forAiApiLead:
       "GET /api/link para una referencia. GET /api/collections para un tema. GET /api/plans?id=gospels-30&day=1 para el día de un plan.",
@@ -1328,7 +1328,7 @@ const strings = {
     forAiSkillCta: "Abrir skill.md",
     forAiMcpTitle: "MCP",
     forAiMcpLead:
-      "JSON-RPC en POST /api/mcp. verse2note_link, verse2note_collection y verse2note_plan.",
+      "JSON-RPC en POST /api/mcp. Katecheo_link, Katecheo_collection y Katecheo_plan.",
     forAiAppsTitle: "Ids de las apps",
     forAiExample: "Respuesta",
     helpForAi: "API, skill y MCP para generar los mismos enlaces, colecciones y planes desde un agente.",

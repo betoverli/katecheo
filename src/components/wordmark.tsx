@@ -20,7 +20,7 @@ export function Wordmark({
         SIZE[size],
         className,
       )}
-      aria-label="Verse2Note"
+      aria-label="Katecheo"
     >
       <span className="font-display font-medium tracking-tight italic">Verse</span>
       <span className="font-sans font-semibold tracking-tight not-italic">2Note</span>

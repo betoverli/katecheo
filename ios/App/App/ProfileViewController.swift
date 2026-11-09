@@ -228,7 +228,7 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
             tableView.tableHeaderView?.isHidden = false
             loadAvatar(urlString: me.prefs.avatarUrl)
         } else {
-            nameLabel.text = String(localized: "Conta Verse2Note")
+            nameLabel.text = String(localized: "Conta Katecheo")
             handleLabel.text = NativeAPIClient.hasBearer
                 ? (loadError ?? String(localized: "Carregando…"))
                 : String(localized: "Entre para ver seu perfil.")
@@ -461,7 +461,7 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
         Task { @MainActor in
             do {
                 let data = try await NativeAPIClient.exportAccount()
-                let url = FileManager.default.temporaryDirectory.appendingPathComponent("verse2note-dados.json")
+                let url = FileManager.default.temporaryDirectory.appendingPathComponent("katecheo-dados.json")
                 try data.write(to: url, options: .atomic)
                 let activity = UIActivityViewController(activityItems: [url], applicationActivities: nil)
                 if let pop = activity.popoverPresentationController {
@@ -517,7 +517,7 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
     }
 
     private func openHelp() {
-        guard let url = URL(string: "https://verse2note.com/about") else { return }
+        let url = AppSite.aboutURL()
         UIApplication.shared.open(url)
     }
 

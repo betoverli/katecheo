@@ -65,7 +65,12 @@ function isBibleHost(hostname: string): boolean {
 function isAppHost(hostname: string, pageHost: string): boolean {
   const host = hostname.toLowerCase();
   if (host === pageHost.toLowerCase()) return true;
-  return host === "verse2note.com" || host === "www.verse2note.com";
+  return (
+    host === "katecheo.app" ||
+    host === "www.katecheo.app" ||
+    host === "verse2note.com" ||
+    host === "www.verse2note.com"
+  );
 }
 
 /**
@@ -75,7 +80,7 @@ function isAppHost(hostname: string, pageHost: string): boolean {
  * is not sent to Safari by accident. Bible hosts and custom schemes always
  * leave, because WKWebView will not hand a universal link to YouVersion.
  */
-export function classifyLink(href: string, target = "", pageUrl = "https://verse2note.com/"): LinkDecision {
+export function classifyLink(href: string, target = "", pageUrl = "https://katecheo.app/"): LinkDecision {
   let url: URL;
   let page: URL;
   try {

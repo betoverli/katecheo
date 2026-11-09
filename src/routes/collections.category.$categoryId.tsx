@@ -13,10 +13,10 @@ export const Route = createFileRoute("/collections/category/$categoryId")({
     const category = categoryById(params.categoryId);
     const name = category?.names.pt ?? "Coleções";
     return pageHead({
-      title: `Verse2Note — ${name}`,
+      title: `Katecheo — ${name}`,
       description: category
         ? `${category.names.pt} / ${category.names.en} / ${category.names.es}: listas de referências bíblicas para copiar com deep link.`
-        : "Coleções Verse2Note.",
+        : "Coleções Katecheo.",
       path: `/collections/category/${params.categoryId}`,
     });
   },

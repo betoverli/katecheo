@@ -8,9 +8,9 @@ description: >
   today's reading in a plan.
 ---
 
-# Verse2Note
+# Katecheo
 
-Verse2Note is a verse picker, not a Bible. It does not return full verse text. It returns
+Katecheo is a verse picker, not a Bible. It does not return full verse text. It returns
 the **passage name already linked** to the user's Bible app.
 
 If you fetched this file from `{origin}/skill.md`:
@@ -52,7 +52,7 @@ Category ids: `doctrine`, `jesus`, `personal`, `church-life`, `home`, `seasons`,
 
 ## Human accounts vs agents
 
-Google / email accounts exist only in the Verse2Note web app (profile, My plans, Bible-app prefs). **Do not** send cookies, tokens, or a login to `/api/*` or `/api/mcp`. Those endpoints are public and anonymous.
+Google / email accounts exist only in the Katecheo web app (profile, My plans, Bible-app prefs). **Do not** send cookies, tokens, or a login to `/api/*` or `/api/mcp`. Those endpoints are public and anonymous.
 
 ```
 GET {origin}/api/plans?locale=pt

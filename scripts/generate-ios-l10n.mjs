@@ -330,7 +330,7 @@ const MANUAL = {
   "Sua conta foi removida.": ["Your account was removed.", "Tu cuenta fue eliminada."],
   "Sem nome": ["No name", "Sin nombre"],
   "Defina um @usuário": ["Set a @username", "Define un @usuario"],
-  "Conta Verse2Note": ["Verse2Note account", "Cuenta Verse2Note"],
+  "Conta Katecheo": ["Katecheo account", "Cuenta Katecheo"],
   "Entre para ver seu perfil.": ["Sign in to see your profile.", "Entra para ver tu perfil."],
   "Entre para ver seu caderno.": ["Sign in to see your notebook.", "Entra para ver tu cuaderno."],
   "Entrar com email": ["Sign in with email", "Entrar con correo"],
@@ -434,9 +434,9 @@ const MANUAL = {
     "Offline — showing cached groups.",
     "Sin conexión — mostrando grupos en caché.",
   ],
-  "Entre no grupo «%@» no Verse2Note": [
-    "Join the “%@” group on Verse2Note",
-    "Únete al grupo «%@» en Verse2Note",
+  "Entre no grupo «%@» no Katecheo": [
+    "Join the “%@” group on Katecheo",
+    "Únete al grupo «%@» en Katecheo",
   ],
   "Tentar de novo": ["Try again", "Intentar de nuevo"],
   "Puxe para atualizar quando a rede voltar.": [
@@ -483,8 +483,8 @@ const NEVER_WRAP = new Set([
   "cell",
   "yyyy-MM-dd",
   "en_US_POSIX",
-  "verse2note-dados.json",
-  "https://verse2note.com/about",
+  "Katecheo-dados.json",
+  "https://katecheo.app/about",
   "n/",
   "  ·  ",
   "@ ",
@@ -567,17 +567,17 @@ const infoPlistCatalog = {
     CFBundleDisplayName: {
       extractionState: "manual",
       localizations: {
-        "pt-BR": unit("Verse2Note"),
-        en: unit("Verse2Note"),
-        es: unit("Verse2Note"),
+        "pt-BR": unit("Katecheo"),
+        en: unit("Katecheo"),
+        es: unit("Katecheo"),
       },
     },
     CFBundleName: {
       extractionState: "manual",
       localizations: {
-        "pt-BR": unit("Verse2Note"),
-        en: unit("Verse2Note"),
-        es: unit("Verse2Note"),
+        "pt-BR": unit("Katecheo"),
+        en: unit("Katecheo"),
+        es: unit("Katecheo"),
       },
     },
   },

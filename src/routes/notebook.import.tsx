@@ -19,7 +19,7 @@ export const Route = createFileRoute("/notebook/import")({
   }),
   head: () =>
     pageHead({
-      title: "Verse2Note — Importar nota",
+      title: "Katecheo — Importar nota",
       description: "Importe uma nota do Notes, Docs, PDF ou Word e gere pílulas de referências.",
       path: "/notebook/import",
     }),
@@ -27,7 +27,7 @@ export const Route = createFileRoute("/notebook/import")({
 
 async function readShared(): Promise<{ text: string; filename?: string } | null> {
   try {
-    const cache = await caches.open("verse2note-share");
+    const cache = await caches.open("Katecheo-share");
     const metaRes = await cache.match("/__import_share");
     if (!metaRes) return null;
     const meta = (await metaRes.json()) as { text?: string; title?: string; fileName?: string };

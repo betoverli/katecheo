@@ -9,4 +9,4 @@ Disallow: /api/auth
 Disallow: /admin
 Disallow: /settings
 
-Sitemap: https://verse2note.com/sitemap.xml
+Sitemap: https://katecheo.app/sitemap.xml

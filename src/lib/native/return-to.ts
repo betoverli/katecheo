@@ -1,13 +1,18 @@
 /**
  * Where the system browser sends the one-time code. `https` is a Universal
- * Link on verse2note.com (only this app's team can claim it). `scheme` is the
- * custom URL, used until that association exists. Both are PKCE-bound.
+ * Link on the canonical public host (only this app's team can claim it).
+ * `scheme` is the custom URL, used until that association exists. Both are PKCE-bound.
  */
+
+import { isAllowedPublicHost, legacyPublicBaseUrl, publicBaseUrl } from "../site.ts";
 
 export type NativeReturnMode = "https" | "scheme";
 
 export const UNIVERSAL_RETURN_PATH = "/auth/native-return";
-export const UNIVERSAL_RETURN_ORIGIN = "https://verse2note.com";
+/** Canonical OAuth / Universal Link origin (PUBLIC_BASE_URL → katecheo.app). */
+export const UNIVERSAL_RETURN_ORIGIN = publicBaseUrl();
+/** Legacy apex kept live until DNS + 308 cutover finish. */
+export const LEGACY_RETURN_ORIGIN = legacyPublicBaseUrl();
 
 /**
  * Host the system browser must open for Google.
@@ -15,8 +20,9 @@ export const UNIVERSAL_RETURN_ORIGIN = "https://verse2note.com";
  * Better Auth sets `redirect_uri` from the request host
  * (`{origin}/api/auth/callback/google`). A WebView on any other host —
  * a Vercel deployment URL, for example — would send Google a callback that
- * is not the one registered for verse2note.com. Local and sandbox origins
- * stay put so those environments can register their own callback.
+ * is not registered. Local and sandbox origins stay put so those environments
+ * can register their own callback. katecheo.app and verse2note.com are both OK
+ * (apex form) during the cutover.
  */
 export function nativeOAuthStartOrigin(pageUrl: string): string {
   let url: URL;
@@ -26,7 +32,8 @@ export function nativeOAuthStartOrigin(pageUrl: string): string {
     return UNIVERSAL_RETURN_ORIGIN;
   }
   const host = url.hostname.toLowerCase();
-  if (host === "verse2note.com" || host === "www.verse2note.com") return UNIVERSAL_RETURN_ORIGIN;
+  if (host === "katecheo.app" || host === "www.katecheo.app") return UNIVERSAL_RETURN_ORIGIN;
+  if (host === "verse2note.com" || host === "www.verse2note.com") return LEGACY_RETURN_ORIGIN;
   const http = url.protocol === "http:" || url.protocol === "https:";
   if (
     http &&
@@ -103,9 +110,12 @@ export function isAllowedReturn(url: URL, mode: NativeReturnMode): boolean {
   if (mode === "https") {
     return (
       url.protocol === "https:" &&
-      url.hostname === "verse2note.com" &&
+      isAllowedPublicHost(url.hostname) &&
       url.pathname === UNIVERSAL_RETURN_PATH
     );
   }
-  return url.protocol === "verse2note:" && url.hostname === "auth";
+  // Existing installs use verse2note://; katecheo:// is registered as an extra scheme.
+  return (
+    (url.protocol === "verse2note:" || url.protocol === "katecheo:") && url.hostname === "auth"
+  );
 }

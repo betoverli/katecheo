@@ -11,9 +11,9 @@ export const Route = createFileRoute("/about")({
   component: AboutRoute,
   head: () =>
     pageHead({
-      title: "Verse2Note — Sobre e ajuda",
+      title: "Katecheo — Sobre e ajuda",
       description:
-        "Como surgiu o Verse2Note, como gerar links, coleções, planos de leitura, conta opcional e como ajudar o projeto.",
+        "Como surgiu o Katecheo, como gerar links, coleções, planos de leitura, conta opcional e como ajudar o projeto.",
       path: "/about",
     }),
 });
