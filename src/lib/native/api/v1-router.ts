@@ -35,6 +35,7 @@ export type NativeV1Route =
   | { kind: "account-export" }
   | { kind: "account-delete" }
   | { kind: "bible-books" }
+  | { kind: "catalog-versions" }
   | { kind: "bible-apps" }
   | { kind: "bible-link" }
   | { kind: "bible-themes" }
@@ -118,6 +119,7 @@ export function matchNativeV1Route(splat: string): NativeV1Route {
   if (a === "account" && b === "export" && parts.length === 2) return { kind: "account-export" };
   if (a === "account" && b === "delete" && parts.length === 2) return { kind: "account-delete" };
 
+  if (a === "catalog" && b === "versions" && parts.length === 2) return { kind: "catalog-versions" };
   if (a === "bible" && b === "books" && parts.length === 2) return { kind: "bible-books" };
   if (a === "bible" && b === "apps" && parts.length === 2) return { kind: "bible-apps" };
   if (a === "bible" && b === "link" && parts.length === 2) return { kind: "bible-link" };
@@ -154,6 +156,7 @@ export function isPublicNativeAuthRoute(route: NativeV1Route): boolean {
     route.kind === "auth-apple" ||
     route.kind === "auth-from-cookie" ||
     route.kind === "catalog" ||
+    route.kind === "catalog-versions" ||
     route.kind === "bible-books" ||
     route.kind === "bible-apps" ||
     route.kind === "bible-link" ||
@@ -167,6 +170,8 @@ export function methodAllowed(route: NativeV1Route, method: string): boolean {
   if (m === "OPTIONS") return true;
   switch (route.kind) {
     case "catalog":
+      return m === "GET";
+    case "catalog-versions":
       return m === "GET";
     case "session":
       return m === "GET";

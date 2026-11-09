@@ -1266,27 +1266,32 @@ enum NativeAPIClient {
     }
 
     static func fetchBibleBooks(locale: String = AppLocale.apiCode, force: Bool = false) async throws -> [BibleBookDTO] {
-        // Prefer disk / memory (chapter+verse counts from last server sync). Names also live
-        // in BibleBookCatalog for offline labels; network at most ~once/day unless forced.
-        if !force,
-           let cached = NativeSWR.loadBibleBooks(locale: locale),
-           let at = NativeSWR.bibleFetchedAt(locale: locale),
-           Date().timeIntervalSince(at) < NativeSWR.TTL.bibleBooks
-        {
+        // Permanent on-device catalog: memory → disk → bundled JSON.
+        // Network only if missing/corrupt or `NativeSWR.bibleBooksBundleVersion` changed.
+        // `force` re-reads disk/bundle; it does NOT trigger a daily/periodic refetch.
+        if !force, let mem: [BibleBookDTO] = NativeSWR.cachedValue(.bibleBooks(locale)), !mem.isEmpty {
+            return mem
+        }
+        if let cached = NativeSWR.loadBibleBooks(locale: locale) {
             NativeSWR.markFetched(.bibleBooks(locale), value: cached)
             return cached
+        }
+        if let bundled = NativeSWR.loadBundledBibleBooks(locale: locale) {
+            NativeSWR.saveBibleBooks(bundled, locale: locale)
+            NativeSWR.markFetched(.bibleBooks(locale), value: bundled)
+            return bundled
         }
         return try await NativeSWR.fetch(
             key: .bibleBooks(locale),
             ttl: NativeSWR.TTL.bibleBooks,
-            force: force,
+            force: true,
             loadDisk: { NativeSWR.loadBibleBooks(locale: locale) },
             saveDisk: { NativeSWR.saveBibleBooks($0, locale: locale) },
-            network: { try await fetchBibleBooksUncached(locale: locale) }
+            network: { try await fetchBibleBooksFromNetwork(locale: locale) }
         )
     }
 
-    private static func fetchBibleBooksUncached(locale: String) async throws -> [BibleBookDTO] {
+    private static func fetchBibleBooksFromNetwork(locale: String) async throws -> [BibleBookDTO] {
         let request = try publicRequest(
             path: "api/native/v1/bible/books",
             query: [URLQueryItem(name: "locale", value: locale)]
@@ -1296,9 +1301,8 @@ enum NativeAPIClient {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
         guard let decoded = try? JSONDecoder().decode(BooksResponse.self, from: data),
-              let books = decoded.books
+              let books = decoded.books, !books.isEmpty
         else { throw APIError.decoding }
-        NativeSWR.saveBibleBooks(books, locale: locale)
         return books
     }
 
@@ -1351,7 +1355,20 @@ enum NativeAPIClient {
         return "\(passage.bookId) \(passage.chapter)"
     }
 
-    static func fetchThemes(categoryId: String? = nil, themeId: String? = nil, query: String? = nil) async throws -> ThemesIndexResponseProxy {
+    static func fetchThemes(
+        categoryId: String? = nil,
+        themeId: String? = nil,
+        query: String? = nil,
+        force: Bool = false
+    ) async throws -> ThemesIndexResponseProxy {
+        let isIndex = categoryId == nil && themeId == nil && (query == nil || query?.isEmpty == true)
+        if isIndex, !force,
+           let cached = NativeSWR.loadThemesPayload(),
+           let decoded = try? JSONDecoder().decode(ThemesIndexResponse.self, from: cached)
+        {
+            NativeSWR.markFetched(.themesCatalog, value: true)
+            return themesProxy(from: decoded)
+        }
         var items: [URLQueryItem] = [URLQueryItem(name: "locale", value: AppLocale.apiCode)]
         if let categoryId { items.append(URLQueryItem(name: "category", value: categoryId)) }
         if let themeId { items.append(URLQueryItem(name: "id", value: themeId)) }
@@ -1364,7 +1381,15 @@ enum NativeAPIClient {
         guard let decoded = try? JSONDecoder().decode(ThemesIndexResponse.self, from: data) else {
             throw APIError.decoding
         }
-        return ThemesIndexResponseProxy(
+        if isIndex {
+            NativeSWR.saveThemesPayload(data)
+            NativeSWR.markFetched(.themesCatalog, value: true)
+        }
+        return themesProxy(from: decoded)
+    }
+
+    private static func themesProxy(from decoded: ThemesIndexResponse) -> ThemesIndexResponseProxy {
+        ThemesIndexResponseProxy(
             kind: decoded.kind ?? "",
             themeTotal: decoded.themeTotal,
             categories: decoded.categories ?? [],
@@ -1579,8 +1604,17 @@ enum NativeAPIClient {
         query: String? = nil,
         categoryId: String? = nil,
         planId: String? = nil,
-        day: Int? = nil
+        day: Int? = nil,
+        force: Bool = false
     ) async throws -> PlansIndexProxy {
+        let isIndex = categoryId == nil && planId == nil && day == nil && (query == nil || query?.isEmpty == true)
+        if isIndex, !force,
+           let cached = NativeSWR.loadReadingPayload(),
+           let decoded = try? JSONDecoder().decode(PlansIndexResponse.self, from: cached)
+        {
+            NativeSWR.markFetched(.readingCatalog, value: true)
+            return plansProxy(from: decoded)
+        }
         var items: [URLQueryItem] = [URLQueryItem(name: "locale", value: AppLocale.apiCode)]
         if let query, !query.isEmpty { items.append(URLQueryItem(name: "q", value: query)) }
         if let categoryId { items.append(URLQueryItem(name: "category", value: categoryId)) }
@@ -1594,7 +1628,15 @@ enum NativeAPIClient {
         guard let decoded = try? JSONDecoder().decode(PlansIndexResponse.self, from: data) else {
             throw APIError.decoding
         }
-        return PlansIndexProxy(
+        if isIndex {
+            NativeSWR.saveReadingPayload(data)
+            NativeSWR.markFetched(.readingCatalog, value: true)
+        }
+        return plansProxy(from: decoded)
+    }
+
+    private static func plansProxy(from decoded: PlansIndexResponse) -> PlansIndexProxy {
+        PlansIndexProxy(
             kind: decoded.kind ?? "",
             planTotal: decoded.planTotal,
             categories: decoded.categories ?? [],
@@ -1605,6 +1647,24 @@ enum NativeAPIClient {
             labels: decoded.labels ?? [],
             items: decoded.items ?? []
         )
+    }
+
+    struct CatalogVersionsDTO: Decodable {
+        var bibleBooks: String?
+        var themes: String?
+        var reading: String?
+    }
+
+    static func fetchCatalogVersions() async throws -> CatalogVersionsDTO {
+        let request = try publicRequest(path: "api/native/v1/catalog/versions")
+        let (status, data) = try await perform(request)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(CatalogVersionsDTO.self, from: data) else {
+            throw APIError.decoding
+        }
+        return decoded
     }
 
     static func startReadingPlan(_ planId: String) async throws -> PrefsDTO {

@@ -1,7 +1,7 @@
 import http2 from "node:http2";
 import { importPKCS8, SignJWT } from "jose";
 import type { Sql } from "@/lib/db";
-import { apnsPayload, type ApnsAlert } from "@/lib/apns-payload";
+import { apnsPayload, apnsSilentPayload, type ApnsAlert, type ApnsSilentHint } from "@/lib/apns-payload";
 
 const TOPIC = () => process.env.APNS_TOPIC?.trim() || "com.verse2note.app";
 
@@ -39,7 +39,13 @@ function hostFor(sandbox: boolean): string {
   return useSandbox ? "api.sandbox.push.apple.com" : "api.push.apple.com";
 }
 
-function postApns(host: string, device: string, jwt: string, body: string): Promise<{ status: number; body: string }> {
+function postApns(
+  host: string,
+  device: string,
+  jwt: string,
+  body: string,
+  opts?: { pushType?: "alert" | "background"; priority?: "5" | "10" },
+): Promise<{ status: number; body: string }> {
   return new Promise((resolve, reject) => {
     const client = http2.connect(`https://${host}`);
     const fail = (error: Error) => {
@@ -52,8 +58,8 @@ function postApns(host: string, device: string, jwt: string, body: string): Prom
       ":path": `/3/device/${device}`,
       authorization: `bearer ${jwt}`,
       "apns-topic": TOPIC(),
-      "apns-push-type": "alert",
-      "apns-priority": "10",
+      "apns-push-type": opts?.pushType ?? "alert",
+      "apns-priority": opts?.priority ?? "10",
     });
     let status = 0;
     let response = "";
@@ -73,18 +79,18 @@ function postApns(host: string, device: string, jwt: string, body: string): Prom
   });
 }
 
-/** Send one alert to every iOS device of this user. Web push is separate. */
-export async function sendApnsToUser(sql: Sql, userId: string, alert: ApnsAlert): Promise<void> {
+async function deliverToDevices(
+  sql: Sql,
+  devices: { token: string; sandbox: boolean }[],
+  body: string,
+  opts: { pushType: "alert" | "background"; priority: "5" | "10" },
+): Promise<void> {
   const jwt = await apnsJwt();
   if (!jwt) return;
-  const devices = await sql<{ token: string; sandbox: boolean }>`
-    select token, sandbox from apns_devices where user_id = ${userId}
-  `;
-  const body = JSON.stringify(apnsPayload(alert));
   for (const device of devices) {
     if (!/^[0-9a-fA-F]{64,200}$/.test(device.token)) continue;
     try {
-      const result = await postApns(hostFor(device.sandbox), device.token, jwt, body);
+      const result = await postApns(hostFor(device.sandbox), device.token, jwt, body, opts);
       if (result.status === 410 || result.status === 400) {
         const reason = result.body;
         if (result.status === 410 || /BadDeviceToken|Unregistered|DeviceTokenNotForTopic/.test(reason)) {
@@ -95,4 +101,37 @@ export async function sendApnsToUser(sql: Sql, userId: string, alert: ApnsAlert)
       /* one device failing must not stop the others or the web push path */
     }
   }
+}
+
+/** Send one alert to every iOS device of this user. Web push is separate. */
+export async function sendApnsToUser(sql: Sql, userId: string, alert: ApnsAlert): Promise<void> {
+  const devices = await sql<{ token: string; sandbox: boolean }>`
+    select token, sandbox from apns_devices where user_id = ${userId}
+  `;
+  await deliverToDevices(sql, devices, JSON.stringify(apnsPayload(alert)), {
+    pushType: "alert",
+    priority: "10",
+  });
+}
+
+/** Silent/background push for catalog hints (themes_updated / reading_updated). */
+export async function sendApnsSilentToUser(sql: Sql, userId: string, hint: ApnsSilentHint): Promise<void> {
+  const devices = await sql<{ token: string; sandbox: boolean }>`
+    select token, sandbox from apns_devices where user_id = ${userId}
+  `;
+  await deliverToDevices(sql, devices, JSON.stringify(apnsSilentPayload(hint)), {
+    pushType: "background",
+    priority: "5",
+  });
+}
+
+/** Broadcast a silent catalog hint to every registered iOS device (static catalog deploys). */
+export async function broadcastApnsSilent(sql: Sql, hint: ApnsSilentHint): Promise<void> {
+  const devices = await sql<{ token: string; sandbox: boolean }>`
+    select token, sandbox from apns_devices
+  `;
+  await deliverToDevices(sql, devices, JSON.stringify(apnsSilentPayload(hint)), {
+    pushType: "background",
+    priority: "5",
+  });
 }

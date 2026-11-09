@@ -65,10 +65,16 @@ final class ReadingHomeViewController: UIViewController, UICollectionViewDelegat
             forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader,
             withReuseIdentifier: V2NReadingSectionHeader.reuseId
         )
-        refresh.addTarget(self, action: #selector(reload), for: .valueChanged)
+        refresh.addTarget(self, action: #selector(pullToRefresh), for: .valueChanged)
         collectionView.refreshControl = refresh
         view.addSubview(collectionView)
         view.addSubview(emptyState)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(catalogDidChange),
+            name: NativeCatalogSync.readingDidChange,
+            object: nil
+        )
 
         NSLayoutConstraint.activate([
             collectionView.topAnchor.constraint(equalTo: view.topAnchor),
@@ -80,39 +86,62 @@ final class ReadingHomeViewController: UIViewController, UICollectionViewDelegat
             emptyState.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             emptyState.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
         ])
+        if !embedded {
+            reload(forceNetwork: false)
+        }
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        if !embedded {
-            reload()
+        // Cache-first — do not revalidate the catalog on every appear.
+        if !embedded, categories.isEmpty && plans.isEmpty && myPlans.isEmpty {
+            reload(forceNetwork: false)
         }
     }
 
     func reloadFromParent() {
-        reload()
+        reload(forceNetwork: false)
     }
 
     /// Parent Tools search forwards here when Leitura is selected.
     func applyParentSearchQuery(_ query: String) {
         search.searchBar.text = query
-        reload()
+        reload(forceNetwork: true)
     }
 
     var parentSearchController: UISearchController { search }
 
+    @objc private func pullToRefresh() {
+        reload(forceNetwork: true)
+    }
+
+    @objc private func catalogDidChange() {
+        reload(forceNetwork: true)
+    }
+
     @objc private func reload() {
+        reload(forceNetwork: refresh.isRefreshing)
+    }
+
+    private func reload(forceNetwork: Bool) {
         Task { @MainActor in
             defer { refresh.endRefreshing() }
             let q = (search.searchBar.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             searching = !q.isEmpty
             do {
                 if NativeAPIClient.hasBearer {
-                    prefs = try? await NativeAPIClient.getPrefs()
+                    prefs = try? await NativeAPIClient.getPrefs(force: forceNetwork)
                 } else {
                     prefs = nil
                 }
-                let index = try await NativeAPIClient.fetchReadingPlans(query: searching ? q : nil)
+                let index = try await NativeAPIClient.fetchReadingPlans(
+                    query: searching ? q : nil,
+                    force: forceNetwork || searching
+                )
                 planTotal = index.planTotal ?? index.plans.count
                 categories = index.categories
                 plans = index.plans
@@ -129,7 +158,7 @@ final class ReadingHomeViewController: UIViewController, UICollectionViewDelegat
                         }
                     }
                     myPlans = mine
-                    let browse = try await NativeAPIClient.fetchReadingPlans()
+                    let browse = try await NativeAPIClient.fetchReadingPlans(force: forceNetwork)
                     categories = browse.categories
                     plans = browse.plans
                     planTotal = browse.planTotal ?? browse.plans.count
@@ -141,35 +170,37 @@ final class ReadingHomeViewController: UIViewController, UICollectionViewDelegat
                 collectionView.reloadData()
                 V2NActivityStore.reconcileReadingDue(prefs: prefs, plans: myPlans.isEmpty ? plans : myPlans)
             } catch {
-                collectionView.isHidden = true
-                emptyState.show(
-                    symbol: "calendar",
-                    title: String(localized: "Não foi possível carregar"),
-                    message: error.localizedDescription,
-                    actionTitle: String(localized: "Tentar de novo"),
-                    action: { [weak self] in self?.reload() }
-                )
+                if categories.isEmpty && plans.isEmpty {
+                    collectionView.isHidden = true
+                    emptyState.show(
+                        symbol: "calendar",
+                        title: String(localized: "Não foi possível carregar"),
+                        message: error.localizedDescription,
+                        actionTitle: String(localized: "Tentar de novo"),
+                        action: { [weak self] in self?.reload(forceNetwork: true) }
+                    )
+                }
             }
         }
     }
 
     func updateSearchResults(for searchController: UISearchController) {
-        reload()
+        reload(forceNetwork: true)
     }
 
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
-        reload()
+        reload(forceNetwork: true)
     }
 
     func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
         searchBar.resignFirstResponder()
-        reload()
+        reload(forceNetwork: true)
     }
 
     func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
         searchBar.text = ""
         searchBar.resignFirstResponder()
-        reload()
+        reload(forceNetwork: false)
     }
 
     private func sectionKind(_ section: Int) -> Section? {

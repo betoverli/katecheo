@@ -21,6 +21,7 @@
 		TB238FB2FED7965001685TB /* Build238FeedbackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TB238FB1FED7965001685TB /* Build238FeedbackTests.swift */; };
 		V2NSWR12FED7965001685V2 /* NativeSWR.swift in Sources */ = {isa = PBXBuildFile; fileRef = V2NSWR11FED7965001685V2 /* NativeSWR.swift */; };
 		V2NSWR22FED7965001685V2 /* NativeSWRCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = V2NSWR21FED7965001685V2 /* NativeSWRCacheTests.swift */; };
+		V2NCAT12FED7965001685V2 /* NativeCatalogSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = V2NCAT11FED7965001685V2 /* NativeCatalogSync.swift */; };
 		T7TF21022FED7965001685T7 /* NativeNoteEditorTF210Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T7TF21021FED7965001685T7 /* NativeNoteEditorTF210Tests.swift */; };
 		T7TAGS12FED7965001685T7 /* NoteEditorTagsStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = T7TAGS11FED7965001685T7 /* NoteEditorTagsStrip.swift */; };
 		T1A2B0102FED7965001685T1 /* NoteDocumentCodecTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T1A2B0112FED7965001685T1 /* NoteDocumentCodecTests.swift */; };
@@ -35,6 +36,7 @@
 		504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3101FED79650016851F /* LaunchScreen.storyboard */; };
 		B8L10N012FED7965001685D0 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B8L10N002FED7965001685D0 /* Localizable.xcstrings */; };
 		B8L10N032FED7965001685D0 /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B8L10N022FED7965001685D0 /* InfoPlist.xcstrings */; };
+		V2NBIB12FED7965001685V2 /* BibleBooksData.json in Resources */ = {isa = PBXBuildFile; fileRef = V2NBIB11FED7965001685V2 /* BibleBooksData.json */; };
 		B8L10N052FED7965001685D0 /* AppLocale.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8L10N042FED7965001685D0 /* AppLocale.swift */; };
 		B8L10N072FED7965001685D0 /* BibleBookCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8L10N062FED7965001685D0 /* BibleBookCatalog.swift */; };
 		T2SPEAK12FED7965001685T2 /* SpeakerSectionEditing.swift in Sources */ = {isa = PBXBuildFile; fileRef = T2SPEAK11FED7965001685T2 /* SpeakerSectionEditing.swift */; };
@@ -83,6 +85,7 @@
 		504EC30E1FED79650016851F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B8L10N002FED7965001685D0 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		B8L10N022FED7965001685D0 /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
+		V2NBIB11FED7965001685V2 /* BibleBooksData.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = BibleBooksData.json; sourceTree = "<group>"; };
 		B8L10N042FED7965001685D0 /* AppLocale.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLocale.swift; sourceTree = "<group>"; };
 		B8L10N062FED7965001685D0 /* BibleBookCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleBookCatalog.swift; sourceTree = "<group>"; };
 		T2SPEAK11FED7965001685T2 /* SpeakerSectionEditing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerSectionEditing.swift; sourceTree = "<group>"; };
@@ -148,6 +151,7 @@
 		TB238FB1FED7965001685TB /* Build238FeedbackTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Build238FeedbackTests.swift; sourceTree = "<group>"; };
 		V2NSWR11FED7965001685V2 /* NativeSWR.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeSWR.swift; sourceTree = "<group>"; };
 		V2NSWR21FED7965001685V2 /* NativeSWRCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeSWRCacheTests.swift; sourceTree = "<group>"; };
+		V2NCAT11FED7965001685V2 /* NativeCatalogSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeCatalogSync.swift; sourceTree = "<group>"; };
 		T7TAGS11FED7965001685T7 /* NoteEditorTagsStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteEditorTagsStrip.swift; sourceTree = "<group>"; };
 		T1A2B0142FED7965001685T1 /* AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -197,6 +201,7 @@
 				B8L10N062FED7965001685D0 /* BibleBookCatalog.swift */,
 				B8L10N002FED7965001685D0 /* Localizable.xcstrings */,
 				B8L10N022FED7965001685D0 /* InfoPlist.xcstrings */,
+				V2NBIB11FED7965001685V2 /* BibleBooksData.json */,
 				F8B8E0132FED7965001685D0 /* V2NComponents.swift */,
 				F8B8E0112FED7965001685D0 /* V2NDesign.swift */,
 				F7A7E0112FED7965001685C0 /* NativeNoteEditorView.swift */,
@@ -207,6 +212,7 @@
 				V2NACT11FED7965001685V2 /* V2NActivityStore.swift */,
 				V2NSYNC1FED7965001685V2 /* V2NActivitySync.swift */,
 				V2NSWR11FED7965001685V2 /* NativeSWR.swift */,
+				V2NCAT11FED7965001685V2 /* NativeCatalogSync.swift */,
 				T5SHEET11FED7965001685T5 /* V2NSheetPresenter.swift */,
 				F7A7E0132FED7965001685C0 /* NoteDocumentCodec.swift */,
 				F7A7E0152FED7965001685C0 /* BibleRefInsertPicker.swift */,
@@ -385,6 +391,7 @@
 				504EC30D1FED79650016851F /* Main.storyboard in Resources */,
 				B8L10N012FED7965001685D0 /* Localizable.xcstrings in Resources */,
 				B8L10N032FED7965001685D0 /* InfoPlist.xcstrings in Resources */,
+				V2NBIB12FED7965001685V2 /* BibleBooksData.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -416,6 +423,7 @@
 				V2NACT12FED7965001685V2 /* V2NActivityStore.swift in Sources */,
 				V2NSYNC2FED7965001685V2 /* V2NActivitySync.swift in Sources */,
 				V2NSWR12FED7965001685V2 /* NativeSWR.swift in Sources */,
+				V2NCAT12FED7965001685V2 /* NativeCatalogSync.swift in Sources */,
 				T5SHEET12FED7965001685T5 /* V2NSheetPresenter.swift in Sources */,
 				F7A7E0122FED7965001685C0 /* NoteDocumentCodec.swift in Sources */,
 				F7A7E0142FED7965001685C0 /* BibleRefInsertPicker.swift in Sources */,
