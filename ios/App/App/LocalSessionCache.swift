@@ -48,6 +48,7 @@ enum LocalSessionCache {
     static func clearAll() {
         clearMe()
         clearGroups()
+        NativeSWR.clearAccountScoped()
     }
 
     static var showOfflineHint: Bool {

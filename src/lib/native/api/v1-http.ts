@@ -7,13 +7,18 @@ const CORS = {
   "Access-Control-Allow-Headers": "Authorization, Content-Type, Cookie",
 };
 
-export function json(data: unknown, status = 200): Response {
+export function json(
+  data: unknown,
+  status = 200,
+  extraHeaders: Record<string, string> = {},
+): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       "Content-Type": "application/json; charset=utf-8",
       "Cache-Control": "no-store",
       ...CORS,
+      ...extraHeaders,
     },
   });
 }
@@ -71,7 +76,12 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
       const versesApi = await import("./v1-verses.server");
       const url = new URL(request.url);
       if (route.kind === "bible-books") {
-        return json(versesApi.listBibleBooks(url.searchParams.get("locale") ?? undefined));
+        // Auth-free static catalog — safe to cache at the edge/CDN for a day.
+        // Clients also SWR locally; this is optional and does not change payload.
+        return json(versesApi.listBibleBooks(url.searchParams.get("locale") ?? undefined), 200, {
+          "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+          ETag: `"bible-books-v1-${url.searchParams.get("locale") ?? "pt"}"`,
+        });
       }
       if (route.kind === "bible-apps") {
         return json(versesApi.listBibleApps(url.searchParams.get("locale") ?? undefined));

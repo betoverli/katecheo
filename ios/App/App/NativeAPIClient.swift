@@ -28,11 +28,15 @@ enum NativeAPIClient {
         }
     }
 
+    /// Replaceable for tests (URLProtocol / mock session).
+    static var session: URLSession = .shared
+
     /// Clear Keychain bearer and notify UI to re-login. Idempotent.
     /// Only call for explicit 401 / invalid token — never for transport/network failures.
     static func handleUnauthorized() {
         KeychainStore.deleteBearerToken()
         LocalSessionCache.clearAll()
+        NativeSWR.clearAccountScoped()
         LocalSessionCache.showOfflineHint = false
         NotificationCenter.default.post(name: .nativeSessionDidExpire, object: nil)
         NotificationCenter.default.post(name: .nativeSessionDidChange, object: nil)
@@ -411,7 +415,10 @@ enum NativeAPIClient {
     }
 
     private static func perform(_ request: URLRequest) async throws -> (Int, Data) {
-        let (data, response) = try await URLSession.shared.data(for: request)
+        if let path = request.url?.path {
+            NativeSWR.recordNetworkHit(path)
+        }
+        let (data, response) = try await session.data(for: request)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         return (status, data)
     }
@@ -433,7 +440,18 @@ enum NativeAPIClient {
         return user
     }
 
-    static func listNotes() async throws -> [NoteDocument] {
+    static func listNotes(force: Bool = false) async throws -> [NoteDocument] {
+        try await NativeSWR.fetch(
+            key: .notes,
+            ttl: NativeSWR.TTL.lists,
+            force: force,
+            loadDisk: { LocalNoteCache.loadNotes() },
+            saveDisk: { LocalNoteCache.saveNotes($0) },
+            network: { try await listNotesUncached() }
+        )
+    }
+
+    private static func listNotesUncached() async throws -> [NoteDocument] {
         let request = try authorizedRequest(path: "api/native/v1/notes", method: "GET")
         let (status, data) = try await perform(request)
         try throwIfUnauthorized(status)
@@ -447,7 +465,34 @@ enum NativeAPIClient {
         return notes
     }
 
-    static func getNote(id: String) async throws -> (note: NoteDocument, speakers: [SpeakerDTO], via: String) {
+    struct NotePack: Equatable {
+        var note: NoteDocument
+        var speakers: [SpeakerDTO]
+        var via: String
+    }
+
+    static func getNote(id: String, force: Bool = false) async throws -> (note: NoteDocument, speakers: [SpeakerDTO], via: String) {
+        let pack: NotePack = try await NativeSWR.fetch(
+            key: .note(id),
+            ttl: NativeSWR.TTL.note,
+            force: force,
+            loadDisk: {
+                // Owned notes only — grants must not be served from Caderno disk cache.
+                guard let note = LocalNoteCache.loadNotes().first(where: { $0.id == id }) else { return nil }
+                return NotePack(note: note, speakers: LocalNoteCache.loadSpeakers(), via: "owned")
+            },
+            saveDisk: { pack in
+                if pack.via != "grant" {
+                    LocalNoteCache.upsertNote(pack.note)
+                    _ = LocalNoteCache.mergeSpeakers(pack.speakers)
+                }
+            },
+            network: { try await getNoteUncached(id: id) }
+        )
+        return (pack.note, pack.speakers, pack.via)
+    }
+
+    private static func getNoteUncached(id: String) async throws -> NotePack {
         let request = try authorizedRequest(path: "api/native/v1/notes/\(id)", method: "GET")
         let (status, data) = try await perform(request)
         try throwIfUnauthorized(status)
@@ -468,10 +513,21 @@ enum NativeAPIClient {
         if via != "grant" {
             _ = LocalNoteCache.mergeSpeakers(noteSpeakers)
         }
-        return (note, noteSpeakers, via)
+        return NotePack(note: note, speakers: noteSpeakers, via: via)
     }
 
-    static func listGrantedNotes() async throws -> [NoteDocument] {
+    static func listGrantedNotes(force: Bool = false) async throws -> [NoteDocument] {
+        try await NativeSWR.fetch(
+            key: .granted,
+            ttl: NativeSWR.TTL.lists,
+            force: force,
+            loadDisk: { NativeSWR.loadGranted() },
+            saveDisk: { NativeSWR.saveGranted($0) },
+            network: { try await listGrantedNotesUncached() }
+        )
+    }
+
+    private static func listGrantedNotesUncached() async throws -> [NoteDocument] {
         let request = try authorizedRequest(path: "api/native/v1/notes/granted", method: "GET")
         let (status, data) = try await perform(request)
         try throwIfUnauthorized(status)
@@ -481,6 +537,7 @@ enum NativeAPIClient {
         guard let decoded = try? JSONDecoder().decode(NotesResponse.self, from: data),
               let notes = decoded.notes
         else { throw APIError.decoding }
+        NativeSWR.saveGranted(notes)
         return notes
     }
 
@@ -625,6 +682,9 @@ enum NativeAPIClient {
               let saved = decoded.note
         else { throw APIError.decoding }
         LocalNoteCache.upsertNote(saved)
+        NativeSWR.invalidateNotesSubtree(noteId: saved.id)
+        NativeSWR.markFetched(.note(saved.id), value: NotePack(note: saved, speakers: [], via: "owned"))
+        NativeSWR.invalidate(.notes)
         return saved
     }
 
@@ -636,9 +696,21 @@ enum NativeAPIClient {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
         LocalNoteCache.removeNote(id: id)
+        NativeSWR.invalidateNotesSubtree(noteId: id)
     }
 
-    static func listSpeakers() async throws -> [SpeakerDTO] {
+    static func listSpeakers(force: Bool = false) async throws -> [SpeakerDTO] {
+        try await NativeSWR.fetch(
+            key: .speakers,
+            ttl: NativeSWR.TTL.lists,
+            force: force,
+            loadDisk: { LocalNoteCache.loadSpeakers() },
+            saveDisk: { LocalNoteCache.saveSpeakers($0) },
+            network: { try await listSpeakersUncached() }
+        )
+    }
+
+    private static func listSpeakersUncached() async throws -> [SpeakerDTO] {
         let request = try authorizedRequest(path: "api/native/v1/speakers", method: "GET")
         let (status, data) = try await perform(request)
         try throwIfUnauthorized(status)
@@ -662,6 +734,7 @@ enum NativeAPIClient {
         }
         // Keep the picker catalog complete even before the next listSpeakers (TF194 #8).
         _ = LocalNoteCache.mergeSpeakers([speaker])
+        NativeSWR.invalidate(.speakers)
     }
 
     static func deleteSpeaker(id: String) async throws {
@@ -672,6 +745,7 @@ enum NativeAPIClient {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
         LocalNoteCache.removeSpeaker(id: id)
+        NativeSWR.invalidate(.speakers)
     }
 
     static func emptyNote(id: String = UUID().uuidString.replacingOccurrences(of: "-", with: "")) -> NoteDocument {
@@ -695,7 +769,18 @@ enum NativeAPIClient {
 
     // MARK: - Groups (Phase 2)
 
-    static func listGroups() async throws -> [GroupDTO] {
+    static func listGroups(force: Bool = false) async throws -> [GroupDTO] {
+        try await NativeSWR.fetch(
+            key: .groups,
+            ttl: NativeSWR.TTL.lists,
+            force: force,
+            loadDisk: { LocalSessionCache.loadGroups() },
+            saveDisk: { LocalSessionCache.saveGroups($0) },
+            network: { try await listGroupsUncached() }
+        )
+    }
+
+    private static func listGroupsUncached() async throws -> [GroupDTO] {
         let request = try authorizedRequest(path: "api/native/v1/groups", method: "GET")
         let (status, data) = try await perform(request)
         try throwIfUnauthorized(status)
@@ -739,6 +824,7 @@ enum NativeAPIClient {
         guard let decoded = try? JSONDecoder().decode(GroupResponse.self, from: data),
               let group = decoded.group
         else { throw APIError.decoding }
+        NativeSWR.invalidate(.groups)
         return group
     }
 
@@ -757,6 +843,7 @@ enum NativeAPIClient {
         guard let decoded = try? JSONDecoder().decode(GroupResponse.self, from: data),
               let group = decoded.group
         else { throw APIError.decoding }
+        NativeSWR.invalidate(.groups)
         return group
     }
 
@@ -767,6 +854,7 @@ enum NativeAPIClient {
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
+        NativeSWR.invalidate(.groups)
     }
 
     static func listGroupNotes(groupId: String) async throws -> [GroupNoteCardDTO] {
@@ -867,7 +955,18 @@ enum NativeAPIClient {
 
     // MARK: - Profile (Phase 3)
 
-    static func getMe() async throws -> MeDTO {
+    static func getMe(force: Bool = false) async throws -> MeDTO {
+        try await NativeSWR.fetch(
+            key: .me,
+            ttl: NativeSWR.TTL.me,
+            force: force,
+            loadDisk: { LocalSessionCache.loadMe() },
+            saveDisk: { LocalSessionCache.saveMe($0) },
+            network: { try await getMeUncached() }
+        )
+    }
+
+    private static func getMeUncached() async throws -> MeDTO {
         let request = try authorizedRequest(path: "api/native/v1/me", method: "GET")
         let (status, data) = try await perform(request)
         try throwIfUnauthorized(status)
@@ -895,11 +994,26 @@ enum NativeAPIClient {
               let me = decoded.me
         else { throw APIError.decoding }
         LocalSessionCache.saveMe(me)
+        NativeSWR.invalidate(.me, .prefs)
+        NativeSWR.markFetched(.me, value: me)
+        NativeSWR.markFetched(.prefs, value: me.prefs)
+        NativeSWR.savePrefs(me.prefs)
         await MainActor.run { AppAppearance.sync(from: me.prefs) }
         return me
     }
 
-    static func getPrefs() async throws -> PrefsDTO {
+    static func getPrefs(force: Bool = false) async throws -> PrefsDTO {
+        try await NativeSWR.fetch(
+            key: .prefs,
+            ttl: NativeSWR.TTL.prefs,
+            force: force,
+            loadDisk: { NativeSWR.loadPrefs() ?? LocalSessionCache.loadMe()?.prefs },
+            saveDisk: { NativeSWR.savePrefs($0) },
+            network: { try await getPrefsUncached() }
+        )
+    }
+
+    private static func getPrefsUncached() async throws -> PrefsDTO {
         let request = try authorizedRequest(path: "api/native/v1/prefs", method: "GET")
         let (status, data) = try await perform(request)
         try throwIfUnauthorized(status)
@@ -910,6 +1024,7 @@ enum NativeAPIClient {
               let prefs = decoded.prefs
         else { throw APIError.decoding }
         ReferencePrefs.sync(from: prefs)
+        NativeSWR.savePrefs(prefs)
         await MainActor.run { AppAppearance.sync(from: prefs) }
         return prefs
     }
@@ -926,6 +1041,9 @@ enum NativeAPIClient {
               let prefs = decoded.prefs
         else { throw APIError.decoding }
         ReferencePrefs.sync(from: prefs)
+        NativeSWR.savePrefs(prefs)
+        NativeSWR.invalidate(.prefs, .me)
+        NativeSWR.markFetched(.prefs, value: prefs)
         await MainActor.run { AppAppearance.sync(from: prefs) }
         return prefs
     }
@@ -1139,7 +1257,28 @@ enum NativeAPIClient {
         return request
     }
 
-    static func fetchBibleBooks(locale: String = AppLocale.apiCode) async throws -> [BibleBookDTO] {
+    static func fetchBibleBooks(locale: String = AppLocale.apiCode, force: Bool = false) async throws -> [BibleBookDTO] {
+        // Prefer disk / memory (chapter+verse counts from last server sync). Names also live
+        // in BibleBookCatalog for offline labels; network at most ~once/day unless forced.
+        if !force,
+           let cached = NativeSWR.loadBibleBooks(locale: locale),
+           let at = NativeSWR.bibleFetchedAt(locale: locale),
+           Date().timeIntervalSince(at) < NativeSWR.TTL.bibleBooks
+        {
+            NativeSWR.markFetched(.bibleBooks(locale), value: cached)
+            return cached
+        }
+        return try await NativeSWR.fetch(
+            key: .bibleBooks(locale),
+            ttl: NativeSWR.TTL.bibleBooks,
+            force: force,
+            loadDisk: { NativeSWR.loadBibleBooks(locale: locale) },
+            saveDisk: { NativeSWR.saveBibleBooks($0, locale: locale) },
+            network: { try await fetchBibleBooksUncached(locale: locale) }
+        )
+    }
+
+    private static func fetchBibleBooksUncached(locale: String) async throws -> [BibleBookDTO] {
         let request = try publicRequest(
             path: "api/native/v1/bible/books",
             query: [URLQueryItem(name: "locale", value: locale)]
@@ -1151,6 +1290,7 @@ enum NativeAPIClient {
         guard let decoded = try? JSONDecoder().decode(BooksResponse.self, from: data),
               let books = decoded.books
         else { throw APIError.decoding }
+        NativeSWR.saveBibleBooks(books, locale: locale)
         return books
     }
 

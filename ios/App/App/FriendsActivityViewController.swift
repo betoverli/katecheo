@@ -40,18 +40,18 @@ final class FriendsActivityViewController: UITableViewController, UISearchResult
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         V2NActivityStore.markFriendsAcceptedSeen()
-        Task { await reload() }
+        Task { await reload(force: false) }
     }
 
     @objc private func pullRefresh() {
-        Task { await reload() }
+        Task { await reload(force: true) }
     }
 
     private var isSearching: Bool {
         (search.searchBar.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines).count >= 2
     }
 
-    private func reload() async {
+    private func reload(force: Bool = false) async {
         guard NativeAPIClient.hasBearer else {
             await MainActor.run {
                 friends = []; incoming = []; outgoing = []; hits = []
@@ -63,7 +63,7 @@ final class FriendsActivityViewController: UITableViewController, UISearchResult
         loading = true
         do {
             let pack = try await NativeAPIClient.listLinks()
-            await V2NActivitySync.refreshFromServer()
+            await V2NActivitySync.refreshFromServer(force: force)
             await MainActor.run {
                 self.friends = pack.friends
                 self.incoming = pack.incoming
@@ -300,7 +300,7 @@ final class FriendsActivityViewController: UITableViewController, UISearchResult
         busyHandle = handle
         do {
             _ = try await NativeAPIClient.requestLink(handle: handle)
-            await reload()
+            await reload(force: true)
             await MainActor.run {
                 self.search.searchBar.text = ""
                 self.hits = []
@@ -319,7 +319,7 @@ final class FriendsActivityViewController: UITableViewController, UISearchResult
         do {
             try await NativeAPIClient.declineLink(handle: handle)
             V2NActivityStore.clearFriendPending(targetId: handle)
-            await reload()
+            await reload(force: true)
         } catch {
             await MainActor.run { self.presentError(error.localizedDescription) }
         }
@@ -336,7 +336,7 @@ final class FriendsActivityViewController: UITableViewController, UISearchResult
             }
             V2NActivityStore.clearFriendPending(targetId: handle)
             V2NActivityStore.clearFriendPending(targetId: person.userId)
-            await reload()
+            await reload(force: true)
         } catch {
             await MainActor.run { self.presentError(error.localizedDescription) }
         }

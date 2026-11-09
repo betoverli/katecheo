@@ -100,7 +100,8 @@ final class VersesHomeViewController: UIViewController, UISearchResultsUpdating 
         navigationItem.largeTitleDisplayMode = .always
         Task { @MainActor in
             if NativeAPIClient.hasBearer {
-                prefs = try? await NativeAPIClient.getPrefs()
+                // SWR — skip network when prefs TTL still fresh.
+                prefs = try? await NativeAPIClient.getPrefs(force: false)
                 booksVC.updatePrefs(prefs)
             }
             refreshSelectedEmbedded()
@@ -371,9 +372,18 @@ final class BooksHomeViewController: UIViewController, UICollectionViewDelegate,
         Task { @MainActor in
             defer { collectionView.refreshControl?.endRefreshing() }
             do {
-                async let booksTask = NativeAPIClient.fetchBibleBooks(locale: AppLocale.apiCode)
+                let forceNetwork = collectionView.refreshControl?.isRefreshing == true
+                // Instant paint from disk / prior day cache before any network.
+                if books.isEmpty, let cached = NativeSWR.loadBibleBooks(locale: AppLocale.apiCode) {
+                    books = cached
+                    applyFilter()
+                }
+                async let booksTask = NativeAPIClient.fetchBibleBooks(
+                    locale: AppLocale.apiCode,
+                    force: forceNetwork
+                )
                 if NativeAPIClient.hasBearer {
-                    prefs = try? await NativeAPIClient.getPrefs()
+                    prefs = try? await NativeAPIClient.getPrefs(force: forceNetwork)
                     if let prefs {
                         applyBooksCompact(prefs.booksCompact, rebuild: false)
                     }
@@ -385,6 +395,9 @@ final class BooksHomeViewController: UIViewController, UICollectionViewDelegate,
                 refreshCollectionLayoutIfNeeded(force: true)
             } catch {
                 guard token == booksLoadToken else { return }
+                if books.isEmpty, let cached = NativeSWR.loadBibleBooks(locale: AppLocale.apiCode) {
+                    books = cached
+                }
                 applyFilter()
             }
         }

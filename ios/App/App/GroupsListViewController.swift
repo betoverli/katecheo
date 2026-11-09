@@ -117,7 +117,8 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
                 applyFilter()
             }
             do {
-                groups = try await NativeAPIClient.listGroups()
+                let force = refresh.isRefreshing
+                groups = try await NativeAPIClient.listGroups(force: force)
                 // Success: no persistent "sincronizado" banner (was leaking across screens).
                 statusBanner.setStatus(nil)
                 await refreshPendingActivityDots()

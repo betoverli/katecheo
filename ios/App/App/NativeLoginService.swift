@@ -28,15 +28,36 @@ final class NativeLoginService: NSObject {
 
     // MARK: - Providers
 
-    func fetchProviders() async -> Providers {
+    func fetchProviders(force: Bool = false) async -> Providers {
+        let fallback = Providers(ok: true, google: true, apple: false, email: true)
+        if !force,
+           let at = NativeSWR.authProvidersFetchedAt(),
+           Date().timeIntervalSince(at) < NativeSWR.TTL.authProviders,
+           let cached = NativeSWR.loadAuthProvidersJSON(),
+           let decoded = try? JSONDecoder().decode(Providers.self, from: cached)
+        {
+            NativeSWR.recordNetworkHit("cache:auth/providers")
+            return decoded
+        }
         do {
             var request = URLRequest(url: NativeAPIClient.baseURL.appendingPathComponent("api/native/v1/auth/providers"))
             request.httpMethod = "GET"
             request.setValue("application/json", forHTTPHeaderField: "Accept")
-            let (data, _) = try await URLSession.shared.data(for: request)
-            return (try? JSONDecoder().decode(Providers.self, from: data)) ?? Providers(ok: true, google: true, apple: false, email: true)
+            NativeSWR.recordNetworkHit("/api/native/v1/auth/providers")
+            let (data, _) = try await NativeAPIClient.session.data(for: request)
+            if let decoded = try? JSONDecoder().decode(Providers.self, from: data) {
+                NativeSWR.saveAuthProvidersJSON(data)
+                NativeSWR.markFetched(.authProviders, value: decoded)
+                return decoded
+            }
+            return fallback
         } catch {
-            return Providers(ok: true, google: true, apple: false, email: true)
+            if let cached = NativeSWR.loadAuthProvidersJSON(),
+               let decoded = try? JSONDecoder().decode(Providers.self, from: cached)
+            {
+                return decoded
+            }
+            return fallback
         }
     }
 
@@ -166,6 +187,7 @@ final class NativeLoginService: NSObject {
         KeychainStore.deleteBearerToken()
         V2NActivityStore.clearAccount(accountId)
         LocalSessionCache.clearAll()
+        NativeSWR.clearAccountScoped()
         LocalSessionCache.showOfflineHint = false
         UserDefaults.standard.removeObject(forKey: NativeSessionBootstrap.migratedFlagKey)
     }
