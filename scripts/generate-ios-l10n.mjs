@@ -566,15 +566,6 @@ const infoPlistCatalog = {
         es: unit("Verse2Note"),
       },
     },
-    NSUserTrackingUsageDescription: {
-      extractionState: "manual",
-      comment: "Reserved; app does not request tracking. Kept for InfoPlist completeness.",
-      localizations: {
-        "pt-BR": unit("O Verse2Note não rastreia você entre apps ou sites."),
-        en: unit("Verse2Note does not track you across apps or websites."),
-        es: unit("Verse2Note no te rastrea entre apps o sitios."),
-      },
-    },
   },
   version: "1.0",
 };

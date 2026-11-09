@@ -1102,6 +1102,60 @@ if (!project.includes("AppLocale.swift in Sources")) {
   }
 }
 
+// Verse2Note does not track users. PR #72 wrongly added NSUserTrackingUsageDescription
+// to InfoPlist.xcstrings (without Info.plist / without ATT APIs) → ITMS-90683 on upload.
+// Ban ATT symbols and orphaned tracking purpose strings so ASC stays clean.
+{
+  const attNeedle =
+    /AppTrackingTransparency|ATTrackingManager|requestTrackingAuthorization|ASIdentifierManager|advertisingIdentifier|NSUserTrackingUsageDescription/;
+  const scanRoots = [
+    "ios/App/App",
+    "ios/App/AppTests",
+    "ios/App/CapApp-SPM",
+    "ios/App/App.xcodeproj",
+    "scripts",
+  ];
+  const skipName = /(^|\/)(node_modules|\.git|DerivedData|build)(\/|$)/;
+  /** @type {string[]} */
+  const hits = [];
+  const walk = (dir) => {
+    let entries;
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const ent of entries) {
+      const full = join(dir, ent.name);
+      if (skipName.test(full)) continue;
+      if (ent.isDirectory()) {
+        walk(full);
+        continue;
+      }
+      if (!/\.(swift|m|h|mm|plist|pbxproj|xcstrings|xcconfig|mjs|js|json|md)$/i.test(ent.name)) continue;
+      let text;
+      try {
+        text = readFileSync(full, "utf8");
+      } catch {
+        continue;
+      }
+      if (attNeedle.test(text)) {
+        hits.push(full.slice(root.length + 1));
+      }
+    }
+  };
+  for (const rel of scanRoots) walk(join(root, rel));
+  // Allow this guard itself to mention the needles.
+  const allowed = new Set(["scripts/ios-check.mjs"]);
+  const bad = hits.filter((h) => !allowed.has(h));
+  if (bad.length) {
+    errors.push(
+      "App Tracking Transparency / NSUserTrackingUsageDescription proibido (Verse2Note não rastreia). Remova a referência — não adicione purpose string. Hits: " +
+        bad.join(", "),
+    );
+  }
+}
+
 if (notes.length) console.log(notes.join("\n"));
 if (errors.length) {
   console.error(errors.join("\n"));
