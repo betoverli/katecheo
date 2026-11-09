@@ -235,13 +235,14 @@ final class NativeSWRCacheTests: XCTestCase {
 
     // MARK: - Fixtures
 
-    private static let notesPayload = #"{"ok":true,"notes":[{"schemaVersion":1,"id":"n1","title":"A","happenedAt":"2026-01-01","tags":[],"visibility":"private","updatedAt":"2026-01-01T00:00:00Z","body":{"blocks":[]}}]}"#
-    private static let speakersPayload = #"{"ok":true,"speakers":[{"id":"s1","name":"Ana","color":"#111","updatedAt":"2026-01-01T00:00:00Z"}]}"#
-    private static let grantedPayload = #"{"ok":true,"notes":[]}"#
-    private static let singleNotePayload = #"{"ok":true,"note":{"schemaVersion":1,"id":"n1","title":"A","happenedAt":"2026-01-01","tags":[],"visibility":"private","updatedAt":"2026-01-01T00:00:00Z","body":{"blocks":[]}},"speakers":[],"via":"owned"}"#
-    private static let mePayload = #"{"ok":true,"me":{"id":"u1","email":"a@b.c","displayName":"A","prefs":{"locale":"pt","copyLocale":"pt","appId":"youversion","translationId":"NVI","preferNative":false,"copyFormat":"text","citeBook":"name","citeSep":"colon","booksCompact":false,"theme":"system","avatarId":"","avatarUrl":"","handle":"ana","firstName":"Ana","lastName":"","profileEmail":"a@b.c"},"notify":{"reading":true,"friends":true,"shares":true,"groups":true}}}"#
-    private static let prefsPayload = #"{"ok":true,"prefs":{"locale":"pt","copyLocale":"pt","appId":"youversion","translationId":"NVI","preferNative":false,"copyFormat":"text","citeBook":"name","citeSep":"colon","booksCompact":false,"theme":"system","avatarId":"","avatarUrl":"","handle":"ana","firstName":"Ana","lastName":"","profileEmail":"a@b.c"}}"#
-    private static let biblePayload = #"{"ok":true,"locale":"pt","books":[{"id":"GEN","testament":"ot","name":"Gênesis","abbr":"Gn","chapters":1,"verses":[31]}]}"#
+    // Use ##"…"## so hex colors like #111 don't terminate Swift raw strings.
+    private static let notesPayload = ##"{"ok":true,"notes":[{"schemaVersion":1,"id":"n1","title":"A","happenedAt":"2026-01-01","tags":[],"visibility":"private","updatedAt":"2026-01-01T00:00:00Z","body":{"blocks":[]}}]}"##
+    private static let speakersPayload = ##"{"ok":true,"speakers":[{"id":"s1","name":"Ana","color":"#111111","updatedAt":"2026-01-01T00:00:00Z"}]}"##
+    private static let grantedPayload = ##"{"ok":true,"notes":[]}"##
+    private static let singleNotePayload = ##"{"ok":true,"note":{"schemaVersion":1,"id":"n1","title":"A","happenedAt":"2026-01-01","tags":[],"visibility":"private","updatedAt":"2026-01-01T00:00:00Z","body":{"blocks":[]}},"speakers":[],"via":"owned"}"##
+    private static let mePayload = ##"{"ok":true,"me":{"id":"u1","email":"a@b.c","displayName":"A","prefs":{"locale":"pt","copyLocale":"pt","appId":"youversion","translationId":"NVI","preferNative":false,"copyFormat":"text","citeBook":"name","citeSep":"colon","booksCompact":false,"theme":"system","avatarId":"","avatarUrl":"","handle":"ana","firstName":"Ana","lastName":"","profileEmail":"a@b.c"},"notify":{"reading":true,"friends":true,"shares":true,"groups":true}}}"##
+    private static let prefsPayload = ##"{"ok":true,"prefs":{"locale":"pt","copyLocale":"pt","appId":"youversion","translationId":"NVI","preferNative":false,"copyFormat":"text","citeBook":"name","citeSep":"colon","booksCompact":false,"theme":"system","avatarId":"","avatarUrl":"","handle":"ana","firstName":"Ana","lastName":"","profileEmail":"a@b.c"}}"##
+    private static let biblePayload = ##"{"ok":true,"locale":"pt","books":[{"id":"GEN","testament":"ot","name":"Gênesis","abbr":"Gn","chapters":1,"verses":[31]}]}"##
 }
 
 // MARK: - URLProtocol mock
