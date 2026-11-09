@@ -10,7 +10,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
  */
 const config: CapacitorConfig = {
   appId: "com.verse2note.app",
-  appName: "Verse2Note",
+  appName: "Katecheo",
   // Minimal placeholder www — not loaded as the app root.
   webDir: "native/www",
   backgroundColor: "#000000",
