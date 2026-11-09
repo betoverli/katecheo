@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 
 export const Route = createFileRoute("/native-editor")({
   head: () => ({
-    meta: [{ title: "Verse2Note Editor Spike" }],
+    meta: [{ title: "Katecheo Editor Spike" }],
   }),
   component: NativeEditorSpike,
 });

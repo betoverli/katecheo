@@ -315,7 +315,7 @@ export function ProfileView() {
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement("a");
                     a.href = url;
-                    a.download = "verse2note-data.json";
+                    a.download = "Katecheo-data.json";
                     a.click();
                     URL.revokeObjectURL(url);
                   })

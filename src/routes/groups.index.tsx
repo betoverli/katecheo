@@ -11,7 +11,7 @@ export const Route = createFileRoute("/groups/")({
   component: GroupsIndex,
   head: () =>
     pageHead({
-      title: "Verse2Note — Grupos",
+      title: "Katecheo — Grupos",
       description: "Cadernos compartilhados. Crie um grupo, convide e publiquem notas juntos.",
       path: "/groups",
     }),

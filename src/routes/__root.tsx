@@ -50,12 +50,12 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, interactive-widget=resizes-content" },
-      { title: "Verse2Note" },
+      { title: "Katecheo" },
       { name: "theme-color", content: "#000000" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "mobile-web-app-capable", content: "yes" },
-      { name: "apple-mobile-web-app-title", content: "Verse2Note" },
-      { name: "application-name", content: "Verse2Note" },
+      { name: "apple-mobile-web-app-title", content: "Katecheo" },
+      { name: "application-name", content: "Katecheo" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
     ],
     links: [

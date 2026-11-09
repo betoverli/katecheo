@@ -10,11 +10,11 @@
  * stays hidden. Email/password sign-in is unaffected.
  *
  * Full redirect URI registered in Google Cloud Console:
- * `https://verse2note.com/api/auth/callback/google`
+ * `https://katecheo.app/api/auth/callback/google`
  * Better Auth builds it as `{origin}/api/auth/callback/google` from the
  * request host. It is never `/auth/native-done`, `/auth/native-return`,
- * or the `verse2note` scheme. The native app opens
- * `https://verse2note.com/auth/native-start` so a WebView on another host
+ * or the `Katecheo` scheme. The native app opens
+ * `https://katecheo.app/auth/native-start` so a WebView on another host
  * cannot send Google a different callback.
  */
 

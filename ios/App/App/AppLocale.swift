@@ -1,7 +1,7 @@
 import Foundation
 import UIKit
 
-/// Maps the iPhone / per-app language onto Verse2Note API locale codes (`pt` / `en` / `es`).
+/// Maps the iPhone / per-app language onto Katecheo API locale codes (`pt` / `en` / `es`).
 enum AppLocale {
     /// API / prefs locale derived from `Locale.preferredLanguages` (system or per-app).
     static var apiCode: String {

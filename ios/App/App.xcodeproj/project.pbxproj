@@ -38,6 +38,7 @@
 		B8L10N032FED7965001685D0 /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B8L10N022FED7965001685D0 /* InfoPlist.xcstrings */; };
 		V2NBIB12FED7965001685V2 /* BibleBooksData.json in Resources */ = {isa = PBXBuildFile; fileRef = V2NBIB11FED7965001685V2 /* BibleBooksData.json */; };
 		B8L10N052FED7965001685D0 /* AppLocale.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8L10N042FED7965001685D0 /* AppLocale.swift */; };
+		K9SITE12FED7965001685K9 /* AppSite.swift in Sources */ = {isa = PBXBuildFile; fileRef = K9SITE11FED7965001685K9 /* AppSite.swift */; };
 		B8L10N072FED7965001685D0 /* BibleBookCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8L10N062FED7965001685D0 /* BibleBookCatalog.swift */; };
 		T2SPEAK12FED7965001685T2 /* SpeakerSectionEditing.swift in Sources */ = {isa = PBXBuildFile; fileRef = T2SPEAK11FED7965001685T2 /* SpeakerSectionEditing.swift */; };
 		T4HEAD12FED7965001685T4 /* SpeakerHeaderAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = T4HEAD11FED7965001685T4 /* SpeakerHeaderAttachment.swift */; };
@@ -87,6 +88,7 @@
 		B8L10N022FED7965001685D0 /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
 		V2NBIB11FED7965001685V2 /* BibleBooksData.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = BibleBooksData.json; sourceTree = "<group>"; };
 		B8L10N042FED7965001685D0 /* AppLocale.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLocale.swift; sourceTree = "<group>"; };
+		K9SITE11FED7965001685K9 /* AppSite.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSite.swift; sourceTree = "<group>"; };
 		B8L10N062FED7965001685D0 /* BibleBookCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleBookCatalog.swift; sourceTree = "<group>"; };
 		T2SPEAK11FED7965001685T2 /* SpeakerSectionEditing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerSectionEditing.swift; sourceTree = "<group>"; };
 		T4HEAD11FED7965001685T4 /* SpeakerHeaderAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerHeaderAttachment.swift; sourceTree = "<group>"; };
@@ -198,6 +200,7 @@
 			children = (
 				9582B6822FE993A50072D4E8 /* SceneDelegate.swift */,
 				B8L10N042FED7965001685D0 /* AppLocale.swift */,
+				K9SITE11FED7965001685K9 /* AppSite.swift */,
 				B8L10N062FED7965001685D0 /* BibleBookCatalog.swift */,
 				B8L10N002FED7965001685D0 /* Localizable.xcstrings */,
 				B8L10N022FED7965001685D0 /* InfoPlist.xcstrings */,
@@ -412,6 +415,7 @@
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
 				B8L10N052FED7965001685D0 /* AppLocale.swift in Sources */,
+				K9SITE12FED7965001685K9 /* AppSite.swift in Sources */,
 				B8L10N072FED7965001685D0 /* BibleBookCatalog.swift in Sources */,
 				F8B8E0122FED7965001685D0 /* V2NComponents.swift in Sources */,
 				F8B8E0102FED7965001685D0 /* V2NDesign.swift in Sources */,

@@ -3,14 +3,8 @@ import Foundation
 /// URLSession client for `/api/native/v1` using the Keychain bearer.
 /// Payloads are **NoteDocumentV1** (never HTML).
 enum NativeAPIClient {
-    static var baseURL: URL {
-        if let raw = Bundle.main.object(forInfoDictionaryKey: "Verse2NoteAPIBase") as? String,
-           let url = URL(string: raw), !raw.isEmpty
-        {
-            return url
-        }
-        return URL(string: "https://verse2note.com")!
-    }
+    /// Canonical Katecheo origin with automatic fallback to verse2note.com if DNS/TLS fails.
+    static var baseURL: URL { AppSite.baseURL }
 
     enum APIError: Error, LocalizedError {
         case unauthorized
@@ -425,9 +419,25 @@ enum NativeAPIClient {
         if let path = request.url?.path {
             NativeSWR.recordNetworkHit(path)
         }
-        let (data, response) = try await session.data(for: request)
-        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-        return (status, data)
+        do {
+            let (data, response) = try await session.data(for: request)
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            return (status, data)
+        } catch {
+            // Before DNS for katecheo.app propagates, retry once against verse2note.com.
+            guard AppSite.considerFallback(after: error, for: request.url),
+                  let requestURL = request.url,
+                  let fallbackHost = AppSite.fallbackOrigin.host,
+                  var comps = URLComponents(url: requestURL, resolvingAgainstBaseURL: false)
+            else { throw error }
+            comps.host = fallbackHost
+            guard let next = comps.url else { throw error }
+            var second = request
+            second.url = next
+            let (data, response) = try await session.data(for: second)
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            return (status, data)
+        }
     }
 
     static var hasBearer: Bool {

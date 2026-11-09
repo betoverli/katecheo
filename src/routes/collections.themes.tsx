@@ -12,7 +12,7 @@ export const Route = createFileRoute("/collections/themes")({
   component: AllThemesRoute,
   head: () =>
     pageHead({
-      title: "Verse2Note — Todos os temas",
+      title: "Katecheo — Todos os temas",
       description: "Lista A–Z de 160 temas bíblicos. Busque, abra uma lista e copie as referências com deep link.",
       path: "/collections/themes",
     }),

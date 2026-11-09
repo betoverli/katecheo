@@ -17,8 +17,8 @@ export const Route = createFileRoute("/reading/$id")({
     const name = plan?.names.pt ?? "Leitura";
     const lead = plan ? planLead(plan.id, "pt") : "";
     return pageHead({
-      title: `Verse2Note — ${name}`,
-      description: lead || (plan ? `${plan.names.pt}: ${plan.days.length} dias de capítulos completos.` : "Plano de leitura Verse2Note."),
+      title: `Katecheo — ${name}`,
+      description: lead || (plan ? `${plan.names.pt}: ${plan.days.length} dias de capítulos completos.` : "Plano de leitura Katecheo."),
       path: `/reading/${params.id}`,
     });
   },

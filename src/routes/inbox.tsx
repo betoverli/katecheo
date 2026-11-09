@@ -5,7 +5,7 @@ export const Route = createFileRoute("/inbox")({
   component: () => <Navigate to="/app" />,
   head: () => {
     const seo = pageHead({
-      title: "Verse2Note — Avisos",
+      title: "Katecheo — Avisos",
       description: "Avisos de planos, amigos e coleções.",
       path: "/inbox",
     });

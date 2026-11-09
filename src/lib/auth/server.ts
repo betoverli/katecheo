@@ -51,6 +51,7 @@ import {
   PREVIEW_CLIENT_SECRET,
 } from "./preview";
 import { decodeJwtPayload, extractImage, pictureFromJwt } from "@/lib/oauth-photo";
+import { trustedWebOrigins } from "@/lib/site";
 
 // Kick (and share) PGLite bootstrap as soon as the auth server module loads.
 void ensureDbReady();
@@ -115,12 +116,9 @@ const LOCAL_DEV_ORIGINS: string[] = [
   "http://127.0.0.1:8080",
   "http://[::1]:8080",
 ];
-// Custom domain (CNAME to the Grok host). Without these, email/OAuth POSTs from
-// https://verse2note.com get Better Auth "Invalid origin".
-const CUSTOM_ORIGINS: string[] = [
-  "https://verse2note.com",
-  "https://www.verse2note.com",
-];
+// Custom domains (Katecheo + legacy Verse2Note during DNS cutover). Without
+// these, email/OAuth POSTs get Better Auth "Invalid origin".
+const CUSTOM_ORIGINS: string[] = trustedWebOrigins();
 
 function extraTrustedOrigins(): string[] {
   const raw = env("BETTER_AUTH_TRUSTED_ORIGINS");
@@ -154,6 +152,8 @@ const baseURL = {
     "localhost:8080",
     "127.0.0.1:8080",
     "[::1]:8080",
+    "katecheo.app",
+    "www.katecheo.app",
     "verse2note.com",
     "www.verse2note.com",
     "*.grok.me",

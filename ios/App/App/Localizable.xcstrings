@@ -576,25 +576,25 @@
         }
       }
     },
-    "A abrir o Verse2Note…": {
+    "A abrir o Katecheo…": {
       "extractionState": "manual",
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "A abrir o Verse2Note…"
+            "value": "A abrir o Katecheo…"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Opening Verse2Note…"
+            "value": "Opening Katecheo…"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Abriendo Verse2Note…"
+            "value": "Abriendo Katecheo…"
           }
         }
       }
@@ -3336,25 +3336,25 @@
         }
       }
     },
-    "Conta Verse2Note": {
+    "Conta Katecheo": {
       "extractionState": "manual",
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Conta Verse2Note"
+            "value": "Conta Katecheo"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Verse2Note account"
+            "value": "Katecheo account"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Cuenta Verse2Note"
+            "value": "Cuenta Katecheo"
           }
         }
       }
@@ -4624,25 +4624,25 @@
         }
       }
     },
-    "Entre no grupo «%@» no Verse2Note": {
+    "Entre no grupo «%@» no Katecheo": {
       "extractionState": "manual",
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Entre no grupo «%@» no Verse2Note"
+            "value": "Entre no grupo «%@» no Katecheo"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Join the “%@” group on Verse2Note"
+            "value": "Join the “%@” group on Katecheo"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Únete al grupo «%@» en Verse2Note"
+            "value": "Únete al grupo «%@» en Katecheo"
           }
         }
       }
@@ -5038,25 +5038,25 @@
         }
       }
     },
-    "Escolha o livro, o capítulo e os versos — ou uma coleção por tema, ou um plano de leitura. O Verse2Note gera um texto rico que abre no seu app de Bíblia. No iPhone, cola no Notes. No Android, no Google Docs ou no Word.": {
+    "Escolha o livro, o capítulo e os versos — ou uma coleção por tema, ou um plano de leitura. O Katecheo gera um texto rico que abre no seu app de Bíblia. No iPhone, cola no Notes. No Android, no Google Docs ou no Word.": {
       "extractionState": "manual",
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Escolha o livro, o capítulo e os versos — ou uma coleção por tema, ou um plano de leitura. O Verse2Note gera um texto rico que abre no seu app de Bíblia. No iPhone, cola no Notes. No Android, no Google Docs ou no Word."
+            "value": "Escolha o livro, o capítulo e os versos — ou uma coleção por tema, ou um plano de leitura. O Katecheo gera um texto rico que abre no seu app de Bíblia. No iPhone, cola no Notes. No Android, no Google Docs ou no Word."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pick the book, chapter, and verses — or a themed collection, or a reading plan. Verse2Note makes rich text that opens in your Bible app. On iPhone, paste into Notes. On Android, into Google Docs or Word."
+            "value": "Pick the book, chapter, and verses — or a themed collection, or a reading plan. Katecheo makes rich text that opens in your Bible app. On iPhone, paste into Notes. On Android, into Google Docs or Word."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Elige el libro, el capítulo y los versículos — o una colección por tema, o un plan de lectura. Verse2Note genera un texto enriquecido que abre en tu app de Biblia. En el iPhone, pega en Notes. En Android, en Google Docs o Word."
+            "value": "Elige el libro, el capítulo y los versículos — o una colección por tema, o un plan de lectura. Katecheo genera un texto enriquecido que abre en tu app de Biblia. En el iPhone, pega en Notes. En Android, en Google Docs o Word."
           }
         }
       }
@@ -6510,25 +6510,25 @@
         }
       }
     },
-    "JSON-RPC em POST /api/mcp. verse2note_link, verse2note_collection e verse2note_plan.": {
+    "JSON-RPC em POST /api/mcp. Katecheo_link, Katecheo_collection e Katecheo_plan.": {
       "extractionState": "manual",
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "JSON-RPC em POST /api/mcp. verse2note_link, verse2note_collection e verse2note_plan."
+            "value": "JSON-RPC em POST /api/mcp. Katecheo_link, Katecheo_collection e Katecheo_plan."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "JSON-RPC at POST /api/mcp. verse2note_link, verse2note_collection, and verse2note_plan."
+            "value": "JSON-RPC at POST /api/mcp. Katecheo_link, Katecheo_collection, and Katecheo_plan."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "JSON-RPC en POST /api/mcp. verse2note_link, verse2note_collection y verse2note_plan."
+            "value": "JSON-RPC en POST /api/mcp. Katecheo_link, Katecheo_collection y Katecheo_plan."
           }
         }
       }
@@ -7913,25 +7913,25 @@
         }
       }
     },
-    "Nasceu de um gesto chato em reunião: alguém lia as referências, e copiar cada uma com um link que realmente abre a Bíblia era um vai-e-volta. O Verse2Note faz só isso — livro, capítulo e versos. O nome da passagem já vai com o link, pronto para colar no Notes, no WhatsApp ou no documento.": {
+    "Nasceu de um gesto chato em reunião: alguém lia as referências, e copiar cada uma com um link que realmente abre a Bíblia era um vai-e-volta. O Katecheo faz só isso — livro, capítulo e versos. O nome da passagem já vai com o link, pronto para colar no Notes, no WhatsApp ou no documento.": {
       "extractionState": "manual",
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Nasceu de um gesto chato em reunião: alguém lia as referências, e copiar cada uma com um link que realmente abre a Bíblia era um vai-e-volta. O Verse2Note faz só isso — livro, capítulo e versos. O nome da passagem já vai com o link, pronto para colar no Notes, no WhatsApp ou no documento."
+            "value": "Nasceu de um gesto chato em reunião: alguém lia as referências, e copiar cada uma com um link que realmente abre a Bíblia era um vai-e-volta. O Katecheo faz só isso — livro, capítulo e versos. O nome da passagem já vai com o link, pronto para colar no Notes, no WhatsApp ou no documento."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "It started as a tedious meeting habit: someone would read off references, and copying each one as a link that actually opens a Bible was a back-and-forth. Verse2Note does only that — book, chapter, verses. The passage name is already the link, ready to paste into Notes, chat, or a document."
+            "value": "It started as a tedious meeting habit: someone would read off references, and copying each one as a link that actually opens a Bible was a back-and-forth. Katecheo does only that — book, chapter, verses. The passage name is already the link, ready to paste into Notes, chat, or a document."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Nació de un gesto tedioso en una reunión: alguien leía las referencias, y copiar cada una con un enlace que realmente abre la Biblia era un ir y volver. Verse2Note hace solo eso — libro, capítulo y versículos. El nombre del pasaje ya va con el enlace, listo para pegar en Notes, el chat o un documento."
+            "value": "Nació de un gesto tedioso en una reunión: alguien leía las referencias, y copiar cada una con un enlace que realmente abre la Biblia era un ir y volver. Katecheo hace solo eso — libro, capítulo y versículos. El nombre del pasaje ya va con el enlace, listo para pegar en Notes, el chat o un documento."
           }
         }
       }
@@ -8465,48 +8465,48 @@
         }
       }
     },
-    "No Android, com o app na tela inicial: Compartilhar → Verse2Note. No iPhone o sistema ainda não entrega o Compartilhar para PWA — copie o texto ou exporte o arquivo e abra aqui.": {
+    "No Android, com o app na tela inicial: Compartilhar → Katecheo. No iPhone o sistema ainda não entrega o Compartilhar para PWA — copie o texto ou exporte o arquivo e abra aqui.": {
       "extractionState": "manual",
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "No Android, com o app na tela inicial: Compartilhar → Verse2Note. No iPhone o sistema ainda não entrega o Compartilhar para PWA — copie o texto ou exporte o arquivo e abra aqui."
+            "value": "No Android, com o app na tela inicial: Compartilhar → Katecheo. No iPhone o sistema ainda não entrega o Compartilhar para PWA — copie o texto ou exporte o arquivo e abra aqui."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "On Android, with the app on the home screen: Share → Verse2Note. On iPhone, PWAs still do not get Share — copy the text or export the file and open it here."
+            "value": "On Android, with the app on the home screen: Share → Katecheo. On iPhone, PWAs still do not get Share — copy the text or export the file and open it here."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "En Android, con la app en la pantalla de inicio: Compartir → Verse2Note. En iPhone el sistema aún no entrega Compartir a un PWA — copia el texto o exporta el archivo y ábrelo aquí."
+            "value": "En Android, con la app en la pantalla de inicio: Compartir → Katecheo. En iPhone el sistema aún no entrega Compartir a un PWA — copia el texto o exporta el archivo y ábrelo aquí."
           }
         }
       }
     },
-    "No caderno, + → Importar. Cole um texto ou um arquivo (PDF, Word, Markdown). Referências viram pílulas. No Android instalado, Compartilhar → Verse2Note. No iPhone, copie ou envie o arquivo.": {
+    "No caderno, + → Importar. Cole um texto ou um arquivo (PDF, Word, Markdown). Referências viram pílulas. No Android instalado, Compartilhar → Katecheo. No iPhone, copie ou envie o arquivo.": {
       "extractionState": "manual",
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "No caderno, + → Importar. Cole um texto ou um arquivo (PDF, Word, Markdown). Referências viram pílulas. No Android instalado, Compartilhar → Verse2Note. No iPhone, copie ou envie o arquivo."
+            "value": "No caderno, + → Importar. Cole um texto ou um arquivo (PDF, Word, Markdown). Referências viram pílulas. No Android instalado, Compartilhar → Katecheo. No iPhone, copie ou envie o arquivo."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "In the notebook, + → Import. Paste text or a file (PDF, Word, Markdown). References become pills. On installed Android, Share → Verse2Note. On iPhone, copy or send the file."
+            "value": "In the notebook, + → Import. Paste text or a file (PDF, Word, Markdown). References become pills. On installed Android, Share → Katecheo. On iPhone, copy or send the file."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "En el cuaderno, + → Importar. Pega un texto o un archivo (PDF, Word, Markdown). Las referencias se vuelven pastillas. En Android instalado, Compartir → Verse2Note. En iPhone, copia o envía el archivo."
+            "value": "En el cuaderno, + → Importar. Pega un texto o un archivo (PDF, Word, Markdown). Las referencias se vuelven pastillas. En Android instalado, Compartir → Katecheo. En iPhone, copia o envía el archivo."
           }
         }
       }
@@ -8534,25 +8534,25 @@
         }
       }
     },
-    "No iPhone, adicione o Verse2Note à Tela de Início para receber avisos.": {
+    "No iPhone, adicione o Katecheo à Tela de Início para receber avisos.": {
       "extractionState": "manual",
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "No iPhone, adicione o Verse2Note à Tela de Início para receber avisos."
+            "value": "No iPhone, adicione o Katecheo à Tela de Início para receber avisos."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "On iPhone, add Verse2Note to the Home Screen to get alerts."
+            "value": "On iPhone, add Katecheo to the Home Screen to get alerts."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "En el iPhone, añade Verse2Note a la pantalla de inicio para recibir avisos."
+            "value": "En el iPhone, añade Katecheo a la pantalla de inicio para recibir avisos."
           }
         }
       }
@@ -8695,25 +8695,25 @@
         }
       }
     },
-    "No Safari ou Chrome, use Adicionar à Tela de Início. Depois de aberto uma vez, o Verse2Note funciona sem internet.": {
+    "No Safari ou Chrome, use Adicionar à Tela de Início. Depois de aberto uma vez, o Katecheo funciona sem internet.": {
       "extractionState": "manual",
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "No Safari ou Chrome, use Adicionar à Tela de Início. Depois de aberto uma vez, o Verse2Note funciona sem internet."
+            "value": "No Safari ou Chrome, use Adicionar à Tela de Início. Depois de aberto uma vez, o Katecheo funciona sem internet."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "In Safari or Chrome, use Add to Home Screen. Open it once online — after that, Verse2Note works offline."
+            "value": "In Safari or Chrome, use Add to Home Screen. Open it once online — after that, Katecheo works offline."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "En Safari o Chrome, usa Añadir a pantalla de inicio. Ábrelo una vez con internet; después, Verse2Note funciona sin conexión."
+            "value": "En Safari o Chrome, usa Añadir a pantalla de inicio. Ábrelo una vez con internet; después, Katecheo funciona sin conexión."
           }
         }
       }
@@ -9523,48 +9523,48 @@
         }
       }
     },
-    "O Verse2Note é gratuito e sem anúncio. Se ele te serve, um café ajuda a manter o projeto.": {
+    "O Katecheo é gratuito e sem anúncio. Se ele te serve, um café ajuda a manter o projeto.": {
       "extractionState": "manual",
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "O Verse2Note é gratuito e sem anúncio. Se ele te serve, um café ajuda a manter o projeto."
+            "value": "O Katecheo é gratuito e sem anúncio. Se ele te serve, um café ajuda a manter o projeto."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Verse2Note is free and has no ads. If it serves you, a coffee helps keep it going."
+            "value": "Katecheo is free and has no ads. If it serves you, a coffee helps keep it going."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Verse2Note es gratis y sin anuncios. Si te sirve, un café ayuda a mantener el proyecto."
+            "value": "Katecheo es gratis y sin anuncios. Si te sirve, un café ayuda a mantener el proyecto."
           }
         }
       }
     },
-    "O Verse2Note também gera o mesmo link — coleções por tema e o dia de um plano de leitura — para o Grok, o Claude, o Cursor ou qualquer agente. A API é pública, sem login. O modelo chama a API; não inventa a URL.": {
+    "O Katecheo também gera o mesmo link — coleções por tema e o dia de um plano de leitura — para o Grok, o Claude, o Cursor ou qualquer agente. A API é pública, sem login. O modelo chama a API; não inventa a URL.": {
       "extractionState": "manual",
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "O Verse2Note também gera o mesmo link — coleções por tema e o dia de um plano de leitura — para o Grok, o Claude, o Cursor ou qualquer agente. A API é pública, sem login. O modelo chama a API; não inventa a URL."
+            "value": "O Katecheo também gera o mesmo link — coleções por tema e o dia de um plano de leitura — para o Grok, o Claude, o Cursor ou qualquer agente. A API é pública, sem login. O modelo chama a API; não inventa a URL."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Verse2Note can mint the same link — themed collections and a reading-plan day — for Grok, Claude, Cursor, or any agent. The API is public, no login. The model calls the API; it should not invent the URL."
+            "value": "Katecheo can mint the same link — themed collections and a reading-plan day — for Grok, Claude, Cursor, or any agent. The API is public, no login. The model calls the API; it should not invent the URL."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Verse2Note también genera el mismo enlace — colecciones por tema y el día de un plan de lectura — para Grok, Claude, Cursor o cualquier agente. La API es pública, sin login. El modelo llama a la API; no inventa la URL."
+            "value": "Katecheo también genera el mismo enlace — colecciones por tema y el día de un plan de lectura — para Grok, Claude, Cursor o cualquier agente. La API es pública, sin login. El modelo llama a la API; no inventa la URL."
           }
         }
       }
@@ -10489,25 +10489,25 @@
         }
       }
     },
-    "Pode voltar ao Verse2Note.": {
+    "Pode voltar ao Katecheo.": {
       "extractionState": "manual",
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pode voltar ao Verse2Note."
+            "value": "Pode voltar ao Katecheo."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "You can return to Verse2Note."
+            "value": "You can return to Katecheo."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Puedes volver a Verse2Note."
+            "value": "Puedes volver a Katecheo."
           }
         }
       }
@@ -13778,25 +13778,25 @@
         }
       }
     },
-    "Verse2Note": {
+    "Katecheo": {
       "extractionState": "manual",
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Verse2Note"
+            "value": "Katecheo"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Verse2Note"
+            "value": "Katecheo"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Verse2Note"
+            "value": "Katecheo"
           }
         }
       }

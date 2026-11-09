@@ -7,7 +7,7 @@ export const Route = createFileRoute("/auth/native-return")({
     error: search.error === "1" || search.error === 1 || search.error === true,
   }),
   head: () => ({
-    meta: [{ title: "Verse2Note" }, { name: "robots", content: "noindex" }],
+    meta: [{ title: "Katecheo" }, { name: "robots", content: "noindex" }],
   }),
   component: NativeReturn,
 });

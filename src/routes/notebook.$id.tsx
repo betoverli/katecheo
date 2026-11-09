@@ -14,7 +14,7 @@ export const Route = createFileRoute("/notebook/$id")({
   }),
   head: () =>
     pageHead({
-      title: "Verse2Note — Nota",
+      title: "Katecheo — Nota",
       description: "Nota do caderno.",
       path: "/notebook",
     }),

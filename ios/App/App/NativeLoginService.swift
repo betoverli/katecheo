@@ -3,7 +3,7 @@ import CryptoKit
 import Foundation
 import UIKit
 
-/// Native sign-in against verse2note.com Better Auth → Keychain bearer.
+/// Native sign-in against Katecheo Better Auth → Keychain bearer.
 final class NativeLoginService: NSObject {
     static let shared = NativeLoginService()
 

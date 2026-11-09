@@ -15,7 +15,7 @@ export const Route = createFileRoute("/app")({
   component: AppPage,
   head: () =>
     pageHead({
-      title: "Verse2Note — picker",
+      title: "Katecheo — picker",
       description: "Escolha livro, capítulo e versos e copie o link rico para o seu app de Bíblia.",
       path: "/app",
     }),

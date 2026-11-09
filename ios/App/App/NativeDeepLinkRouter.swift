@@ -20,10 +20,11 @@ enum NativeDeepLinkRouter {
 
     static func destination(for url: URL) -> Destination {
         let host = (url.host ?? "").lowercased()
+        let scheme = url.scheme?.lowercased() ?? ""
         let isAppHost = host.isEmpty
-            || host == "verse2note.com"
-            || host == "www.verse2note.com"
-            || url.scheme?.lowercased() == "verse2note"
+            || AppSite.acceptedHosts.contains(host)
+            || scheme == "verse2note"
+            || scheme == "katecheo"
         guard isAppHost else { return .unknown }
 
         var path = url.path
@@ -72,7 +73,7 @@ enum NativeDeepLinkRouter {
         let trimmed = href.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return .unknown }
         if trimmed.hasPrefix("/"), !trimmed.hasPrefix("//") {
-            if let url = URL(string: "https://verse2note.com\(trimmed)") {
+            if let url = URL(string: "\(AppSite.baseURL.absoluteString)\(trimmed)") {
                 return destination(for: url)
             }
         }

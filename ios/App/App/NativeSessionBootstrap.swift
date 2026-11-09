@@ -10,7 +10,7 @@ enum NativeSessionBootstrap {
     static let sessionCookieName = "__Host-grok-auth.session_token"
     static let migratedFlagKey = "verse2note.cookieBearerMigrated.v1"
 
-    /// Read website data-store cookies for verse2note.com and adopt the session token as bearer.
+    /// Read website data-store cookies for katecheo.app / verse2note.com and adopt the session token as bearer.
     static func migrateCookieToKeychainIfNeeded() async -> Bool {
         if NativeAPIClient.hasBearer { return true }
 
@@ -30,7 +30,9 @@ enum NativeSessionBootstrap {
             WKWebsiteDataStore.default().httpCookieStore.getAllCookies { cookies in
                 let candidates = cookies.filter { cookie in
                     cookie.name == sessionCookieName &&
-                        (cookie.domain.contains("verse2note.com") || cookie.domain.hasPrefix("."))
+                        (cookie.domain.contains("katecheo.app")
+                            || cookie.domain.contains("verse2note.com")
+                            || cookie.domain.hasPrefix("."))
                 }
                 // Prefer non-expired, longest value (signed tokens).
                 let best = candidates

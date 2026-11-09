@@ -32,7 +32,7 @@ export const Route = createFileRoute("/login")({
   },
   head: () => {
     const seo = pageHead({
-      title: "Verse2Note — Entrar",
+      title: "Katecheo — Entrar",
       description: "Entre ou crie uma conta para guardar os planos de leitura em todos os aparelhos.",
       path: "/login",
     });

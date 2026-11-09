@@ -39,7 +39,7 @@ describe("return url", () => {
     const code = "a".repeat(43);
     const https = nativeReturnTo("https", { code });
     const scheme = nativeReturnTo("scheme", { code });
-    assert.equal(https, `https://verse2note.com/auth/native-return?code=${code}`);
+    assert.equal(https, `https://katecheo.app/auth/native-return?code=${code}`);
     assert.equal(scheme, `verse2note://auth?code=${code}`);
     assert.equal(https.includes(token), false);
     assert.equal(isAllowedReturn(new URL(https), "https"), true);
@@ -110,28 +110,30 @@ describe("https auth session fallback", () => {
 });
 
 describe("native oauth start host", () => {
-  it("sends Google through verse2note.com, including from another deployment host", () => {
+  it("sends Google through katecheo.app (canonical) or verse2note.com (legacy)", () => {
+    assert.equal(nativeOAuthStartOrigin("https://katecheo.app/login"), "https://katecheo.app");
+    assert.equal(nativeOAuthStartOrigin("https://www.katecheo.app/app"), "https://katecheo.app");
     assert.equal(nativeOAuthStartOrigin("https://verse2note.com/login"), "https://verse2note.com");
     assert.equal(nativeOAuthStartOrigin("https://www.verse2note.com/app"), "https://verse2note.com");
     assert.equal(
       nativeOAuthStartOrigin("https://verse2note.vercel.app/login"),
-      "https://verse2note.com",
+      "https://katecheo.app",
     );
     assert.equal(nativeOAuthStartOrigin("http://localhost:8080/login"), "http://localhost:8080");
     assert.equal(
       nativeOAuthStartOrigin("https://preview.grok-sandbox.com/login"),
       "https://preview.grok-sandbox.com",
     );
-    assert.equal(nativeOAuthStartOrigin("verse2note://localhost/login"), "https://verse2note.com");
+    assert.equal(nativeOAuthStartOrigin("verse2note://localhost/login"), "https://katecheo.app");
   });
 
-  it("bounces a non-canonical native-start to verse2note.com before Google", () => {
+  it("bounces a non-canonical native-start to katecheo.app before Google", () => {
     const query = "?providerId=google&code_challenge=abc&return=scheme";
     assert.equal(canonicalNativeStart(`https://verse2note.com/auth/native-start${query}`), null);
     assert.equal(canonicalNativeStart(`http://localhost:8080/auth/native-start${query}`), null);
     assert.equal(
       canonicalNativeStart(`https://verse2note.vercel.app/auth/native-start${query}`),
-      `https://verse2note.com/auth/native-start${query}`,
+      `https://katecheo.app/auth/native-start${query}`,
     );
     assert.equal(
       canonicalNativeStart(`https://www.verse2note.com/auth/native-start${query}`),
@@ -149,12 +151,12 @@ describe("native done redirect", () => {
     assert.equal(nativeDoneLocation(schemeCookie, { code }), `verse2note://auth?code=${code}`);
     assert.equal(
       nativeDoneLocation(httpsCookie, { code }),
-      `https://verse2note.com/auth/native-return?code=${code}`,
+      `https://katecheo.app/auth/native-return?code=${code}`,
     );
     assert.equal(nativeDoneLocation(schemeCookie, { error: true }), "verse2note://auth?error=1");
     assert.equal(
       nativeDoneLocation(httpsCookie, { error: true }),
-      "https://verse2note.com/auth/native-return?error=1",
+      "https://katecheo.app/auth/native-return?error=1",
     );
     assert.equal(nativeDoneLocation(null, { code }), "verse2note://auth?error=1");
     assert.equal(nativeDoneLocation(`${schemeCookie}; ${NATIVE_SESSION_COOKIE}=secret`, { code }).includes("secret"), false);

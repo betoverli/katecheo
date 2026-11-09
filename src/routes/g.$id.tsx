@@ -15,7 +15,7 @@ export const Route = createFileRoute("/g/$id")({
   component: JoinPlanRoute,
   head: () => {
     const seo = pageHead({
-      title: "Verse2Note — Plano juntos",
+      title: "Katecheo — Plano juntos",
       description: "Convite para ler um plano de leitura junto.",
       path: "/g",
     });

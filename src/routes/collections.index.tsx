@@ -13,7 +13,7 @@ export const Route = createFileRoute("/collections/")({
   component: CollectionsIndexRoute,
   head: () =>
     pageHead({
-      title: "Verse2Note — Coleções por tema",
+      title: "Katecheo — Coleções por tema",
       description:
         "160 listas de referências bíblicas em 14 categorias: doutrina, Jesus, vida pessoal, igreja, família e mais. Copie uma referência ou a lista toda.",
       path: "/collections",

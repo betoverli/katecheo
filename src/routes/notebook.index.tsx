@@ -11,7 +11,7 @@ export const Route = createFileRoute("/notebook/")({
   component: NotebookIndex,
   head: () =>
     pageHead({
-      title: "Verse2Note — Caderno",
+      title: "Katecheo — Caderno",
       description: "Notas de reunião com referências bíblicas em pílulas e blocos de quem falou.",
       path: "/notebook",
     }),

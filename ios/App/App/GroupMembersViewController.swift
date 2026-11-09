@@ -92,7 +92,7 @@ final class GroupMembersViewController: UIViewController, UITableViewDelegate, U
 
     @objc private func invite() {
         let url = NativeAPIClient.baseURL.appendingPathComponent("groups/\(group.id)")
-        let text = String(format: String(localized: "Entre no grupo «%@» no Verse2Note"), group.name)
+        let text = String(format: String(localized: "Entre no grupo «%@» no Katecheo"), group.name)
         let vc = UIActivityViewController(activityItems: [text, url], applicationActivities: nil)
         if let pop = vc.popoverPresentationController {
             pop.barButtonItem = navigationItem.rightBarButtonItem

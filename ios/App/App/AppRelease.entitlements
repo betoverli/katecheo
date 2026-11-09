@@ -6,6 +6,8 @@
 	<string>production</string>
 	<key>com.apple.developer.associated-domains</key>
 	<array>
+		<string>applinks:katecheo.app</string>
+		<string>webcredentials:katecheo.app</string>
 		<string>applinks:verse2note.com</string>
 		<string>webcredentials:verse2note.com</string>
 	</array>

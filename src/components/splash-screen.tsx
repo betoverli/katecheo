@@ -6,7 +6,7 @@ export function SplashScreen() {
       className="fixed inset-0 z-[100] grid place-items-center bg-bg"
       role="status"
       aria-live="polite"
-      aria-label="Verse2Note"
+      aria-label="Katecheo"
     >
       <div className="flex flex-col items-center gap-6">
         <img

@@ -9,8 +9,8 @@ export const Route = createFileRoute("/privacy")({
   component: PrivacyRoute,
   head: () =>
     pageHead({
-      title: "Verse2Note — Privacidade",
-      description: "Como o Verse2Note trata seus dados, perfil público, avisos e o direito de excluir a conta (LGPD).",
+      title: "Katecheo — Privacidade",
+      description: "Como o Katecheo trata seus dados, perfil público, avisos e o direito de excluir a conta (LGPD).",
       path: "/privacy",
     }),
 });

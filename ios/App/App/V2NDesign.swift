@@ -1,6 +1,6 @@
 import UIKit
 
-/// Design tokens for Verse2Note native UI.
+/// Design tokens for Katecheo native UI.
 /// Palette follows the notebook app icon: warm paper, leather spine, blue bookmark.
 enum V2NDesign {
     // MARK: - Colors (light / dark)

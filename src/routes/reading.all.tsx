@@ -12,7 +12,7 @@ export const Route = createFileRoute("/reading/all")({
   component: AllPlansRoute,
   head: () =>
     pageHead({
-      title: "Verse2Note — Todos os planos",
+      title: "Katecheo — Todos os planos",
       description: "Lista de planos de leitura bíblica. Capítulos completos, com progresso no aparelho.",
       path: "/reading/all",
     }),

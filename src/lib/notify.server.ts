@@ -7,6 +7,7 @@ import { getSql, type Sql } from "@/lib/db";
 import { t, type I18nKey } from "@/lib/i18n";
 import { decodeInboxCursor, encodeInboxCursor } from "@/lib/notify-cursor";
 import { allowRequest } from "@/lib/rate-limit";
+import { publicBaseUrl } from "@/lib/site";
 
 export { encodeInboxCursor, decodeInboxCursor } from "@/lib/notify-cursor";
 
@@ -29,7 +30,7 @@ export type InboxItem = {
   createdAt: string;
 };
 
-const VAPID_SUB = "https://verse2note.com";
+const VAPID_SUB = publicBaseUrl();
 /** Retention for *read* rows only — unread are never trimmed (dots/pagination need them). */
 const MAX_READ_RETAINED = 100;
 /** Default page size for cursor inbox (native + web first page). */

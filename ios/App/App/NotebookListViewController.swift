@@ -766,7 +766,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     private func shareGroupInvite() {
         guard let group else { return }
         let url = NativeAPIClient.baseURL.appendingPathComponent("groups/\(group.id)")
-        let text = String(format: String(localized: "Entre no grupo «%@» no Verse2Note"), group.name)
+        let text = String(format: String(localized: "Entre no grupo «%@» no Katecheo"), group.name)
         let vc = UIActivityViewController(activityItems: [text, url], applicationActivities: nil)
         if let pop = vc.popoverPresentationController {
             pop.barButtonItem = navigationItem.rightBarButtonItems?.last

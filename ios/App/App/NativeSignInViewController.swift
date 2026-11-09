@@ -45,7 +45,7 @@ final class NativeSignInViewController: UIViewController {
         ])
 
         let title = UILabel()
-        title.text = String(localized: "Verse2Note")
+        title.text = String(localized: "Katecheo")
         title.font = V2NDesign.displayTitle()
         title.textAlignment = .center
         title.adjustsFontForContentSizeCategory = true

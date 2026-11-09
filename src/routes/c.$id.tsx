@@ -17,7 +17,7 @@ export const Route = createFileRoute("/c/$id")({
   component: UserCollectionRoute,
   head: () => {
     const seo = pageHead({
-      title: "Verse2Note — Coleção",
+      title: "Katecheo — Coleção",
       description: "Lista de referências bíblicas.",
       path: "/c",
     });
