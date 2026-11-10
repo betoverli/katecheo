@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Rebuild SplashBrand.imageset (icon + Katecheo wordmark) for LaunchScreen.
- * Requires Python + Pillow + system fonts (Noto Serif Display Italic, Inter SemiBold).
+ * Rebuild SplashBrand.imageset (new app-icon glyph + uniform Katecheo wordmark)
+ * for LaunchScreen. Requires Python + Pillow + cairosvg + Noto Serif Display.
  *
  * Usage: node scripts/generate-splash-brand.mjs
  */
@@ -12,49 +12,58 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const py = `
 from PIL import Image, ImageDraw, ImageFont
-import numpy as np
 from pathlib import Path
+import io
+import cairosvg
+import re
 
-OUT = Path(${JSON.stringify(join(root, "ios/App/App/Assets.xcassets/SplashBrand.imageset"))})
-SERIF = "/usr/share/fonts/truetype/noto/NotoSerifDisplay-Italic.ttf"
-SANS = "/usr/share/fonts/truetype/macos/Inter-SemiBold.ttf"
+ROOT = Path(${JSON.stringify(root)})
+OUT = ROOT / "ios/App/App/Assets.xcassets/SplashBrand.imageset"
+LIGHT_SVG = ROOT / "design/app-icon/icon.svg"
+DARK_SVG = ROOT / "design/app-icon/icon-dark.svg"
+# Match Wordmark / former Kate half: display family, medium weight, NO italic.
+SERIF = "/usr/share/fonts/truetype/noto/NotoSerifDisplay-Regular.ttf"
 
-src3 = Image.open(OUT / "splash-brand-dark@3x.png").convert("RGBA")
-arr = np.array(src3)
-alpha = arr[:, :, 3]
-rgb = arr[:, :, :3].astype(int)
-content = (alpha > 10) & (rgb.sum(axis=2) > 30)
-icon_mask = content.copy()
-icon_mask[300:, :] = False
-ys, xs = np.where(icon_mask)
-icon3 = src3.crop((xs.min(), ys.min(), xs.max() + 1, ys.max() + 1))
+def glyph_svg(src: Path, stroke: str) -> bytes:
+    """Stroke-only glyph on transparent canvas (no opaque app-icon plate)."""
+    text = src.read_text(encoding="utf-8")
+    text = re.sub(r"<rect\\b[^>]*/>", "", text, count=1)
+    # Keep stroke colour from source; ensure fill none on group already present.
+    return text.encode("utf-8")
 
-src3l = Image.open(OUT / "splash-brand-light@3x.png").convert("RGBA")
-arrl = np.array(src3l)
-icon_mask_l = (arrl[:, :, 3] > 10).copy()
-icon_mask_l[300:, :] = False
-ys, xs = np.where(icon_mask_l)
-icon3l = src3l.crop((xs.min(), ys.min(), xs.max() + 1, ys.max() + 1))
+def render_glyph(svg_path: Path, stroke: str, size: int) -> Image.Image:
+    raw = glyph_svg(svg_path, stroke)
+    png = cairosvg.svg2png(bytestring=raw, output_width=size, output_height=size)
+    return Image.open(io.BytesIO(png)).convert("RGBA")
 
-def render_wordmark(color):
-    serif = ImageFont.truetype(SERIF, 42)
-    sans = ImageFont.truetype(SANS, 40)
-    tmp = Image.new("RGBA", (600, 120), (0, 0, 0, 0))
+def render_wordmark(color, font_size=44):
+    font = ImageFont.truetype(SERIF, font_size)
+    tmp = Image.new("RGBA", (800, 160), (0, 0, 0, 0))
     d = ImageDraw.Draw(tmp)
-    kate, cheo = "Kate", "cheo"
-    kb = d.textbbox((0, 0), kate, font=serif)
-    cb = d.textbbox((0, 0), cheo, font=sans)
-    gap = -2
-    w = (kb[2] - kb[0]) + gap + (cb[2] - cb[0]) + 8
-    h = max(kb[3] - kb[1], cb[3] - cb[1]) + 16
+    text = "Katecheo"
+    bb = d.textbbox((0, 0), text, font=font)
+    w = (bb[2] - bb[0]) + 8
+    h = (bb[3] - bb[1]) + 16
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    d.text((2, 4), kate, font=serif, fill=color)
-    d.text((2 + (kb[2] - kb[0]) + gap, 6), cheo, font=sans, fill=color)
+    d.text((4, 4), text, font=font, fill=color)
     return img
 
+# Master glyphs at 3x canvas scale (~290 px icon area inside 420-wide splash).
+icon3 = render_glyph(LIGHT_SVG, "#1F2328", 512)
+icon3d = render_glyph(DARK_SVG, "#F5F4F0", 512)
+# Crop transparent padding so layout matches previous tight icon mark.
+def crop_alpha(im: Image.Image) -> Image.Image:
+    arr_bbox = im.getbbox()
+    if not arr_bbox:
+        return im
+    return im.crop(arr_bbox)
+
+icon3 = crop_alpha(icon3)
+icon3d = crop_alpha(icon3d)
+
 wm_dark = render_wordmark((255, 255, 255, 255))
-wm_light = render_wordmark((28, 28, 30, 255))
+wm_light = render_wordmark((28, 28, 30, 255))  # ≈ #1C1C1E
 
 def compose(icon, wordmark, canvas_size):
     W, H = canvas_size
@@ -76,31 +85,35 @@ SIZES = {"1x": (140, 156), "2x": (280, 312), "3x": (420, 468)}
 for name, size in SIZES.items():
     scale = int(name[0])
     factor = scale / 3
-    icon_d = icon3 if scale == 3 else icon3.resize(
-        (max(1, int(icon3.width * factor)), max(1, int(icon3.height * factor))),
-        Image.Resampling.LANCZOS,
-    )
-    icon_l = icon3l if scale == 3 else icon3l.resize(
-        (max(1, int(icon3l.width * factor)), max(1, int(icon3l.height * factor))),
-        Image.Resampling.LANCZOS,
-    )
-    wm_d = wm_dark if scale == 3 else wm_dark.resize(
-        (max(1, int(wm_dark.width * factor)), max(1, int(wm_dark.height * factor))),
-        Image.Resampling.LANCZOS,
-    )
-    wm_l = wm_light if scale == 3 else wm_light.resize(
-        (max(1, int(wm_light.width * factor)), max(1, int(wm_light.height * factor))),
-        Image.Resampling.LANCZOS,
-    )
-    dark = compose(icon_d, wm_d, size)
+    if scale == 3:
+        icon_l, icon_d = icon3, icon3d
+        wm_l, wm_d = wm_light, wm_dark
+    else:
+        icon_l = icon3.resize(
+            (max(1, int(icon3.width * factor)), max(1, int(icon3.height * factor))),
+            Image.Resampling.LANCZOS,
+        )
+        icon_d = icon3d.resize(
+            (max(1, int(icon3d.width * factor)), max(1, int(icon3d.height * factor))),
+            Image.Resampling.LANCZOS,
+        )
+        wm_l = wm_light.resize(
+            (max(1, int(wm_light.width * factor)), max(1, int(wm_light.height * factor))),
+            Image.Resampling.LANCZOS,
+        )
+        wm_d = wm_dark.resize(
+            (max(1, int(wm_dark.width * factor)), max(1, int(wm_dark.height * factor))),
+            Image.Resampling.LANCZOS,
+        )
     light = compose(icon_l, wm_l, size)
+    dark = compose(icon_d, wm_d, size)
     if name == "1x":
         dark.save(OUT / "splash-brand-dark.png")
         light.save(OUT / "splash-brand-light.png")
     else:
         dark.save(OUT / f"splash-brand-dark@{name}.png")
         light.save(OUT / f"splash-brand-light@{name}.png")
-    print("wrote", name)
+    print("wrote", name, size)
 `;
 
 const result = spawnSync("python3", ["-c", py], { cwd: root, encoding: "utf8" });
@@ -110,4 +123,4 @@ if (result.status !== 0) {
   process.exit(result.status ?? 1);
 }
 console.log(result.stdout.trim());
-console.log("SplashBrand Katecheo assets regenerated.");
+console.log("SplashBrand Katecheo assets regenerated (uniform wordmark).");
