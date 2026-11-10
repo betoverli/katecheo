@@ -289,8 +289,13 @@ final class MockNativeURLProtocol: URLProtocol {
     static var catalogVersionsJSON: String?
     static var linksJSON: String?
     static var summaryJSON: String?
+    static var notificationsJSON: String?
+    static var notificationsPage2JSON: String?
+    static var notificationsReadJSON: String?
     static var providersJSON: String?
     static var artificialDelayMs: UInt64 = 0
+    private(set) static var readBodies: [[String: Any]] = []
+    private(set) static var notificationsListHits = 0
     private static var registered = false
 
     static func register() {
@@ -321,8 +326,13 @@ final class MockNativeURLProtocol: URLProtocol {
         catalogVersionsJSON = nil
         linksJSON = nil
         summaryJSON = nil
+        notificationsJSON = nil
+        notificationsPage2JSON = nil
+        notificationsReadJSON = nil
         providersJSON = nil
         artificialDelayMs = 0
+        readBodies = []
+        notificationsListHits = 0
     }
 
     static func makeSession() -> URLSession {
@@ -365,6 +375,25 @@ final class MockNativeURLProtocol: URLProtocol {
             body = Self.linksJSON
         } else if path.contains("/notifications/summary") {
             body = Self.summaryJSON
+        } else if path.contains("/notifications/read"), method == "POST" {
+            body = Self.notificationsReadJSON ?? ##"{"ok":true}"##
+            if let httpBody = request.httpBody,
+               let obj = try? JSONSerialization.jsonObject(with: httpBody) as? [String: Any] {
+                Self.readBodies.append(obj)
+            } else {
+                Self.readBodies.append([:])
+            }
+        } else if path.hasSuffix("/notifications") || path.contains("/notifications?") {
+            Self.notificationsListHits += 1
+            let cursor = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?
+                .queryItems?
+                .first(where: { $0.name == "cursor" })?
+                .value
+            if let cursor, !cursor.isEmpty {
+                body = Self.notificationsPage2JSON ?? Self.notificationsJSON
+            } else {
+                body = Self.notificationsJSON
+            }
         } else if path.contains("/auth/providers") {
             body = Self.providersJSON
         }

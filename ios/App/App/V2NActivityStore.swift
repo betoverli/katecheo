@@ -2,7 +2,7 @@ import Foundation
 import UIKit
 
 /// Per-account unread activity for tab/chip dots (build-238).
-/// No notification-center UI — only reachable destinations + server inbox/read_at.
+/// Notification Center reads clear matching items via `notificationIds`.
 ///
 /// Sources of truth after Beto-approved native wraps:
 /// - Friends pending → `GET /links` incoming (clears only on accept/decline)
@@ -401,6 +401,78 @@ enum V2NActivityStore {
 
     static func clearFriendPending(targetId: String) {
         clear(kind: .friendPending, targetId: targetId)
+    }
+
+    // MARK: - Notification Center ↔ dots
+
+    /// Removes inbox notification ids acknowledged in the Notification Center.
+    /// Drops inbox-backed items once their ids are gone; keeps unopened shared grants.
+    static func acknowledgeNotificationIds(_ ids: [String]) {
+        let idSet = Set(ids.filter { !$0.isEmpty })
+        guard !idSet.isEmpty else { return }
+        let account = accountId()
+        var changed = false
+        var next: [Item] = []
+        for var item in loadItems() {
+            let before = item.notificationIds
+            guard !before.isEmpty else {
+                next.append(item)
+                continue
+            }
+            let after = before.filter { !idSet.contains($0) }
+            if after.count == before.count {
+                next.append(item)
+                continue
+            }
+            changed = true
+            item.notificationIds = after
+            if after.isEmpty {
+                if item.kind == .sharedNote,
+                   let account,
+                   !UserDefaults.standard.bool(forKey: openedNoteKey(accountId: account, noteId: item.targetId)) {
+                    item.source = .grants
+                    next.append(item)
+                } else if item.source == .links || item.source == .members || item.source == .local {
+                    next.append(item)
+                } else if item.kind == .friendPending {
+                    next.append(item)
+                }
+                // else: drop inbox-backed friendAccepted / groupActivity / readingDue / opened share
+            } else {
+                next.append(item)
+            }
+        }
+        if changed {
+            saveItems(next)
+        }
+    }
+
+    /// Clears every inbox-backed activity item (mark-all-read in the center).
+    /// Keeps links pending, members pending, and unopened shared grants.
+    static func acknowledgeAllInboxNotifications() {
+        let account = accountId()
+        let next = loadItems().compactMap { item -> Item? in
+            if item.source == .links || item.source == .members || item.source == .local {
+                var copy = item
+                copy.notificationIds = []
+                return copy
+            }
+            if item.kind == .sharedNote,
+               let account,
+               !UserDefaults.standard.bool(forKey: openedNoteKey(accountId: account, noteId: item.targetId)) {
+                var copy = item
+                copy.notificationIds = []
+                copy.source = .grants
+                return copy
+            }
+            if item.kind == .friendPending {
+                var copy = item
+                copy.notificationIds = []
+                return copy
+            }
+            return nil
+        }
+        saveItems(next)
     }
 
     // MARK: - Push
