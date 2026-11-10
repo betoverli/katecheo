@@ -103,6 +103,38 @@ for (const asset of [
   } catch {
     errors.push("Falta scripts/generate-splash-brand.mjs (fonte do wordmark Katecheo na splash).");
   }
+  const markFiles = [
+    "brand-mark-light.png",
+    "brand-mark-light@2x.png",
+    "brand-mark-light@3x.png",
+    "brand-mark-dark.png",
+    "brand-mark-dark@2x.png",
+    "brand-mark-dark@3x.png",
+  ];
+  for (const name of markFiles) {
+    const rel = `ios/App/Katecheo/Assets.xcassets/BrandMark.imageset/${name}`;
+    try {
+      const st = statSync(join(root, rel));
+      if (!st.isFile() || st.size < 500) {
+        errors.push(`${rel} em falta ou demasiado pequeno (regenerar com scripts/generate-brand-mark.mjs).`);
+      }
+    } catch {
+      errors.push(`Falta ${rel} — rode scripts/generate-brand-mark.mjs.`);
+    }
+  }
+  try {
+    const brandMarkContents = read("ios/App/Katecheo/Assets.xcassets/BrandMark.imageset/Contents.json");
+    if (!brandMarkContents.includes('"value" : "dark"') && !brandMarkContents.includes('"value": "dark"')) {
+      errors.push("BrandMark.imageset/Contents.json tem de declarar a variante dark.");
+    }
+  } catch {
+    errors.push("Falta ios/App/Katecheo/Assets.xcassets/BrandMark.imageset/Contents.json");
+  }
+  try {
+    read("scripts/generate-brand-mark.mjs");
+  } catch {
+    errors.push("Falta scripts/generate-brand-mark.mjs (logo Katecheo in-app).");
+  }
   // Capacitor placeholder www (not the product UI, but still user-visible if opened).
   // Match the product wordmark only — not hostnames like verse2note.com.
   const wordmarkNeedle = /Verse2Note|Verse 2 Note|VERSE2NOTE/;
@@ -647,6 +679,12 @@ if (signIn.includes("Abrir site clássico") || signIn.includes("capacitorSite"))
 }
 if (!signIn.includes("Continuar com Google") || !signIn.includes("Entrar com email")) {
   errors.push("Falta o ecrã nativo de login (Google + email).");
+}
+if (!signIn.includes('UIImage(named: "BrandMark")') || signIn.includes("book.closed.fill")) {
+  errors.push('NativeSignInViewController tem de usar UIImage(named: "BrandMark") (não SF Symbol book.closed.fill).');
+}
+if (!signIn.includes('String(localized: "Katecheo")') || /["'`]Kate["'`]/.test(signIn) || /["'`]cheo["'`]/.test(signIn)) {
+  errors.push('NativeSignInViewController: "Katecheo" tem de ser uma só palavra em estilo uniforme.');
 }
 
 const loginService = read("ios/App/Katecheo/NativeLoginService.swift");
