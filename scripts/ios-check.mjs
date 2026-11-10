@@ -1196,7 +1196,7 @@ if (!project.includes("AppSite.swift in Sources")) {
 {
   const brandNeedle = /Verse\s*2\s*Note/i;
   const allowLine =
-    /com\.verse2note|verse2note:\/\/|callbackURLScheme:\s*"verse2note"|scheme == "verse2note"|<string>verse2note<\/string>|CFBundleURLSchemes|Verse2NoteAPIBase|Verse2NoteApns|Verse2NoteUniversal|Verse2NoteNative|verse2note\.(native|legacy|cookie|apns|apiBase)|verse2note-outbox|PRODUCT_BUNDLE_IDENTIFIER|VERSE2NOTE_|Notification\.Name\("verse2note|defaultsKey|statusKey|migratedFlagKey|infoPlistKey|fallbackHost|fallbackOrigin|acceptedHosts|verse2note\.com|www\.verse2note\.com|temporaryDirectory\.appendingPathComponent\("verse2note-|\/\/|\/\*|\* /;
+    /com\.verse2note|verse2note:\/\/|callbackURLScheme:\s*"verse2note"|customScheme\("verse2note"\)|scheme == "verse2note"|<string>verse2note<\/string>|CFBundleURLSchemes|Verse2NoteAPIBase|Verse2NoteApns|Verse2NoteUniversal|Verse2NoteNative|verse2note\.(native|legacy|cookie|apns|apiBase)|verse2note-outbox|PRODUCT_BUNDLE_IDENTIFIER|VERSE2NOTE_|Notification\.Name\("verse2note|defaultsKey|statusKey|migratedFlagKey|infoPlistKey|fallbackHost|fallbackOrigin|acceptedHosts|verse2note\.com|www\.verse2note\.com|temporaryDirectory\.appendingPathComponent\("verse2note-|\/\/|\/\*|\* /;
 
   const scanFiles = (dir, pred) => {
     /** @type {string[]} */
