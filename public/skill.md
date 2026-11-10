@@ -1,11 +1,12 @@
 ---
-name: verse2note
+name: katecheo
 description: >
   Generate rich-text Bible reference deep links for YouVersion, Logos, Tecarta
   and other Bible apps. Also fetch themed collections and reading-plan days
   (whole chapters). Use when the user wants to link verses, copy João 3:16 /
   John 3:16 / Juan 3:16, paste Scripture into notes, get a list by theme, or
-  today's reading in a plan.
+  today's reading in a plan. Product: Katecheo (katecheo.app). MCP tools:
+  katecheo_link / katecheo_collection / katecheo_plan.
 ---
 
 # Katecheo
@@ -87,20 +88,20 @@ Plan category ids: `duration`, `chronological`, `themes`, `gospels`, `new-testam
 JSON-RPC at `POST {origin}/api/mcp`.
 
 Tools:
-- `verse2note_link` — same fields as `/api/link`
-- `verse2note_collection` — `q`, `id`, `category`, plus `app` / `locale` / `translation` / `native`
-- `verse2note_plan` — `q`, `id`, `day`, `category`, plus `app` / `locale` / `translation` / `native`
+- `katecheo_link` — same fields as `/api/link`
+- `katecheo_collection` — `q`, `id`, `category`, plus `app` / `locale` / `translation` / `native`
+- `katecheo_plan` — `q`, `id`, `day`, `category`, plus `app` / `locale` / `translation` / `native`
 
 ```
-{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"verse2note_link","arguments":{"ref":"John 3:16","app":"youversion","locale":"en"}}}
-{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"verse2note_collection","arguments":{"id":"salvation","locale":"pt","app":"youversion"}}}
-{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"verse2note_plan","arguments":{"id":"gospels-30","day":1,"locale":"pt","app":"youversion"}}}
+{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"katecheo_link","arguments":{"ref":"John 3:16","app":"youversion","locale":"en"}}}
+{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"katecheo_collection","arguments":{"id":"salvation","locale":"pt","app":"youversion"}}}
+{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"katecheo_plan","arguments":{"id":"gospels-30","day":1,"locale":"pt","app":"youversion"}}}
 ```
 
 ## Rules
 
 - Never invent a bible.com / Logos URL. Always call the API.
 - Several references in one meeting → one `refs` call, or a collection `id`, then paste `markdown`.
-- A reading-plan day → `verse2note_plan` with `id` + `day`.
+- A reading-plan day → `katecheo_plan` with `id` + `day`.
 - If the user names a Bible app, pass `app`. If they name a translation, pass `translation`.
 - Do not fetch or quote full verse text unless the user already provided it. Collection snippets are beginnings only. Plan links are whole chapters.

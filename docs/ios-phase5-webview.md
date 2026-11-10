@@ -1,6 +1,6 @@
 # Phase 5 — WebView / Capacitor isolation (historical)
 
-**Goal:** the iOS app never loads the Verse2Note website as its root UI.
+**Goal:** the iOS app never loads the Katecheo website as its root UI.
 
 ## What was removed in Phase 5
 

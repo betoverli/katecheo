@@ -82,7 +82,7 @@ export function ForAiPage() {
   "id": 1,
   "method": "tools/call",
   "params": {
-    "name": "verse2note_link",
+    "name": "katecheo_link",
     "arguments": { "ref": "John 3:16", "app": "youversion", "locale": "en" }
   }
 }`;
@@ -92,7 +92,7 @@ export function ForAiPage() {
   "id": 2,
   "method": "tools/call",
   "params": {
-    "name": "verse2note_collection",
+    "name": "katecheo_collection",
     "arguments": { "id": "salvation", "app": "youversion", "locale": "pt" }
   }
 }`;
@@ -123,15 +123,15 @@ export function ForAiPage() {
         <h2 className="text-xs font-medium tracking-wide text-muted uppercase">{t(locale, "forAiMcpTitle")}</h2>
         <p className="max-w-xl text-sm leading-relaxed text-fg">{t(locale, "forAiMcpLead")}</p>
         <CopyBlock label="POST /api/mcp" value={mcpExample} />
-        <CopyBlock label="verse2note_collection" value={mcpCollectionExample} />
+        <CopyBlock label="katecheo_collection" value={mcpCollectionExample} />
         <CopyBlock
-          label="verse2note_plan"
+          label="katecheo_plan"
           value={`{
   "jsonrpc": "2.0",
   "id": 3,
   "method": "tools/call",
   "params": {
-    "name": "verse2note_plan",
+    "name": "katecheo_plan",
     "arguments": { "id": "gospels-30", "day": 1, "app": "youversion", "locale": "pt" }
   }
 }`}

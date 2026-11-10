@@ -1,8 +1,8 @@
-# Verse2Note iOS — native migration plan
+# Katecheo iOS — native migration plan
 
-**Product decision (Beto, 2026-11-01):** In the Verse2Note **iOS app**, ship native UI (Swift / SwiftUI / UIKit) for shell and screens first; the note body / editor (*miolo*) may stay in a WKWebView through mid phases. **Final phase (approved same day):** the note body/editor also becomes fully native — **no WebView at all**. Note content is stored and served in a **platform-neutral, versioned JSON document** (not HTML), so a future Android app can read/write the same format. The public website is out of scope for compatibility — no requirement to keep the Capacitor “full site in a WebView” model. Native screens talk to **verse2note.com** (Better Auth + JSON API) directly.
+**Product decision (Beto, 2026-11-01):** In the Katecheo **iOS app** (then still branded Verse2Note), ship native UI (Swift / SwiftUI / UIKit) for shell and screens first; the note body / editor (*miolo*) may stay in a WKWebView through mid phases. **Final phase (approved same day):** the note body/editor also becomes fully native — **no WebView at all**. Note content is stored and served in a **platform-neutral, versioned JSON document** (not HTML), so a future Android app can read/write the same format. The public website is out of scope for compatibility — no requirement to keep the Capacitor “full site in a WebView” model. At the time, native screens talked to **verse2note.com** (Better Auth + JSON API) directly; the canonical host is now **katecheo.app**.
 
-**Baseline:** `main` after TF88 fixes (PR #34). Current app: Capacitor 8 shell loading `https://verse2note.com`.
+**Baseline:** `main` after TF88 fixes (PR #34). Current app then: Capacitor 8 shell loading `https://verse2note.com`.
 
 ---
 
@@ -32,7 +32,7 @@
 │  Tabs · lists · sheets · note editor        │
 │         │ URLSession + Bearer               │
 │         ▼                                   │
-│  https://verse2note.com                     │
+│  https://katecheo.app (was verse2note.com)  │
 │  Better Auth + /api/native/v1               │
 │  NoteDocumentV1 JSON (schemaVersion)        │
 └─────────────────────────────────────────────┘
@@ -149,7 +149,7 @@ Legend: **Primary** = main tab shell; **Secondary** = pushed / detail; **System*
 
 Almost all app data I/O today is **TanStack Start `createServerFn` RPC** (cookie and/or `Authorization: Bearer`), not a documented public REST JSON API. Capacitor works because the WebView shares origin with those RPCs.
 
-**Native URLSession cannot call `createServerFn` as-is** without reverse-engineering the Start RPC protocol. Therefore the migration **requires a first-class HTTP JSON API** (or an official RPC bridge) on verse2note.com that wraps the same handlers / SQL.
+**Native URLSession cannot call `createServerFn` as-is** without reverse-engineering the Start RPC protocol. Therefore the migration **requires a first-class HTTP JSON API** (or an official RPC bridge) on the API host (then verse2note.com; now katecheo.app) that wraps the same handlers / SQL.
 
 Public HTTP routes that already exist under `src/routes/api`:
 
@@ -207,7 +207,7 @@ No need to expose `/api/mcp` or admin stats to the App Store client.
 - Better Auth at `/api/auth/*` with **bearer plugin** + HttpOnly `__Host-grok-auth.*` cookies.
 - **Native Google:** ASWebAuthenticationSession → handoff → `claimNativeHandoff` → bearer in WebView `localStorage` (`grok-auth.bearer-token`).
 - **Email/password:** sets `__Host-` cookie inside WKWebView; may also copy bearer.
-- Capacitor remote URL keeps cookies on `https://verse2note.com`.
+- Capacitor remote URL kept cookies on `https://verse2note.com` (legacy host; canonical is now katecheo.app).
 
 ### 4.2 Target
 
@@ -221,7 +221,7 @@ No need to expose `/api/mcp` or admin stats to the App Store client.
 
 Recommended approach (phased):
 
-1. **Editor bundle** hosted at e.g. `https://verse2note.com/native-editor/` (minimal HTML/JS: block editor only — extract from `notebook-doc` / `notebook-line`, not full app shell).
+1. **Editor bundle** hosted at e.g. `https://katecheo.app/native-editor/` (historically on verse2note.com; minimal HTML/JS: block editor only — extract from `notebook-doc` / `notebook-line`, not full app shell).
 2. On open note, native:
    - Loads that URL (or `about:blank` + injected bundle later).
    - Calls `POST /api/native/v1/editor/session` with the Keychain bearer → server sets a short-lived HttpOnly cookie **or** returns a one-time code.

@@ -440,7 +440,7 @@ const strings = {
     forAiSkillCta: "Abrir skill.md",
     forAiMcpTitle: "MCP",
     forAiMcpLead:
-      "JSON-RPC em POST /api/mcp. Katecheo_link, Katecheo_collection e Katecheo_plan.",
+      "JSON-RPC em POST /api/mcp. Tools: katecheo_link, katecheo_collection e katecheo_plan.",
     forAiAppsTitle: "Ids dos apps",
     forAiExample: "Resposta",
     helpForAi: "API, skill e MCP para gerar os mesmos links, coleções e planos a partir de um agente.",
@@ -884,7 +884,7 @@ const strings = {
     forAiSkillCta: "Open skill.md",
     forAiMcpTitle: "MCP",
     forAiMcpLead:
-      "JSON-RPC at POST /api/mcp. Katecheo_link, Katecheo_collection, and Katecheo_plan.",
+      "JSON-RPC at POST /api/mcp. Tools: katecheo_link, katecheo_collection, and katecheo_plan.",
     forAiAppsTitle: "App ids",
     forAiExample: "Response",
     helpForAi: "API, skill, and MCP so an agent can generate the same links, collections, and plans.",
@@ -1328,7 +1328,7 @@ const strings = {
     forAiSkillCta: "Abrir skill.md",
     forAiMcpTitle: "MCP",
     forAiMcpLead:
-      "JSON-RPC en POST /api/mcp. Katecheo_link, Katecheo_collection y Katecheo_plan.",
+      "JSON-RPC en POST /api/mcp. Tools: katecheo_link, katecheo_collection y katecheo_plan.",
     forAiAppsTitle: "Ids de las apps",
     forAiExample: "Respuesta",
     helpForAi: "API, skill y MCP para generar los mismos enlaces, colecciones y planes desde un agente.",

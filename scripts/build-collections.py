@@ -174,7 +174,7 @@ def load_book_nums() -> dict[str, int]:
 
 
 def fetch_bytes(url: str) -> bytes:
-    req = urllib.request.Request(url, headers={"User-Agent": "Verse2Note/1.0"})
+    req = urllib.request.Request(url, headers={"User-Agent": "Katecheo/1.0"})
     with urllib.request.urlopen(req, timeout=60) as res:
         return res.read()
 

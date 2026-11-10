@@ -74,7 +74,7 @@ GET /api/link?ref=John+3:16&app=youversion&locale=en
 POST /api/link   { "refs": ["John 3:16", "Romans 8:28"], "app": "youversion" }
 GET /api/collections?id=salvation&app=youversion&locale=pt
 GET /api/plans?id=gospels-30&day=1&app=youversion&locale=pt
-POST /api/mcp    JSON-RPC tools verse2note_link, verse2note_collection, verse2note_plan
+POST /api/mcp    JSON-RPC tools katecheo_link, katecheo_collection, katecheo_plan
 ```
 
 Returns `markdown` ready to paste, e.g. `[John 3:16](https://www.bible.com/bible/111/JHN.3.16)` or `[Mateus 1](…)`.

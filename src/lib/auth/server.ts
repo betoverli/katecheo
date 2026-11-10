@@ -117,7 +117,7 @@ const LOCAL_DEV_ORIGINS: string[] = [
   "http://127.0.0.1:8080",
   "http://[::1]:8080",
 ];
-// Custom domains (Katecheo + legacy Verse2Note during DNS cutover). Without
+// Custom domains (Katecheo + legacy verse2note.com during DNS cutover). Without
 // these, email/OAuth POSTs get Better Auth "Invalid origin".
 const CUSTOM_ORIGINS: string[] = trustedWebOrigins();
 

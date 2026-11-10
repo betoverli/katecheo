@@ -13,7 +13,7 @@ const COPY: Record<Locale, Copy> = {
     sections: [
       {
         title: "Quem somos",
-        body: "Katecheo (katecheo.app; verse2note.com during cutover) é um app web para copiar referências bíblicas com link, caderno de reunião, coleções, planos e grupos. Operado por Beto Verlí. Contato: o repositório github.com/betoverli/verse2note ou a ajuda no app.",
+        body: "Katecheo (katecheo.app; verse2note.com during cutover) é um app web para copiar referências bíblicas com link, caderno de reunião, coleções, planos e grupos. Operado por Beto Verlí. Contato: o repositório github.com/betoverli/katecheo ou a ajuda no app.",
       },
       {
         title: "O que guardamos",
@@ -47,7 +47,7 @@ const COPY: Record<Locale, Copy> = {
     sections: [
       {
         title: "Who we are",
-        body: "Katecheo (katecheo.app; verse2note.com during cutover) is a web app for copying Bible references with a link, a meeting notebook, collections, plans, and groups. Operated by Beto Verlí. Contact: github.com/betoverli/verse2note or Help in the app.",
+        body: "Katecheo (katecheo.app; verse2note.com during cutover) is a web app for copying Bible references with a link, a meeting notebook, collections, plans, and groups. Operated by Beto Verlí. Contact: github.com/betoverli/katecheo or Help in the app.",
       },
       {
         title: "What we store",
@@ -81,7 +81,7 @@ const COPY: Record<Locale, Copy> = {
     sections: [
       {
         title: "Quiénes somos",
-        body: "Katecheo (katecheo.app; verse2note.com during cutover) es una app web para copiar referencias bíblicas con enlace, cuaderno de reunión, colecciones, planes y grupos. Operado por Beto Verlí. Contacto: github.com/betoverli/verse2note o la ayuda en la app.",
+        body: "Katecheo (katecheo.app; verse2note.com during cutover) es una app web para copiar referencias bíblicas con enlace, cuaderno de reunión, colecciones, planes y grupos. Operado por Beto Verlí. Contacto: github.com/betoverli/katecheo o la ayuda en la app.",
       },
       {
         title: "Qué guardamos",
