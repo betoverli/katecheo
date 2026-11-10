@@ -554,7 +554,9 @@ final class ProfileBibleViewController: UIViewController, UICollectionViewDelega
     }
 
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NBibleAppLogoCell.reuseId, for: indexPath) as! V2NBibleAppLogoCell
+        guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NBibleAppLogoCell.reuseId, for: indexPath) as? V2NBibleAppLogoCell else {
+            return UICollectionViewCell()
+        }
         let app = ProfileBibleCatalog.apps[indexPath.item]
         let image = UIImage(named: assetName(for: app.id))
         cell.configure(name: shortName(app.name), image: image, selected: prefs.appId == app.id)

@@ -298,11 +298,13 @@ final class ReadingHomeViewController: UIViewController, UICollectionViewDelegat
         viewForSupplementaryElementOfKind kind: String,
         at indexPath: IndexPath
     ) -> UICollectionReusableView {
-        let header = collectionView.dequeueReusableSupplementaryView(
+        guard let header = collectionView.dequeueReusableSupplementaryView(
             ofKind: kind,
             withReuseIdentifier: V2NReadingSectionHeader.reuseId,
             for: indexPath
-        ) as! V2NReadingSectionHeader
+        ) as? V2NReadingSectionHeader else {
+            return V2NReadingSectionHeader(frame: .zero)
+        }
         switch sectionKind(indexPath.section) {
         case .mine: header.configure(String(localized: "Meus planos"))
         case .browse: header.configure(String(localized: "Explorar"))
@@ -316,16 +318,22 @@ final class ReadingHomeViewController: UIViewController, UICollectionViewDelegat
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         switch sectionKind(indexPath.section) {
         case .mine:
-            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NPlanRowCardCell.reuseId, for: indexPath) as! V2NPlanRowCardCell
+            guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NPlanRowCardCell.reuseId, for: indexPath) as? V2NPlanRowCardCell else {
+                return UICollectionViewCell()
+            }
             let plan = myPlans[indexPath.item]
             cell.configure(plan: plan, progress: prefs?.planProgress?[plan.id] ?? [])
             return cell
         case .browse, .searchCategories:
-            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NPlanCategoryCardCell.reuseId, for: indexPath) as! V2NPlanCategoryCardCell
+            guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NPlanCategoryCardCell.reuseId, for: indexPath) as? V2NPlanCategoryCardCell else {
+                return UICollectionViewCell()
+            }
             cell.configure(categories[indexPath.item])
             return cell
         case .all:
-            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NPlanLinkCardCell.reuseId, for: indexPath) as! V2NPlanLinkCardCell
+            guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NPlanLinkCardCell.reuseId, for: indexPath) as? V2NPlanLinkCardCell else {
+                return UICollectionViewCell()
+            }
             cell.configure(
                 title: String(localized: "Todos os planos"),
                 subtitle: String(localized: "\(planTotal) planos"),
@@ -333,7 +341,9 @@ final class ReadingHomeViewController: UIViewController, UICollectionViewDelegat
             )
             return cell
         case .searchPlans:
-            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NPlanRowCardCell.reuseId, for: indexPath) as! V2NPlanRowCardCell
+            guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NPlanRowCardCell.reuseId, for: indexPath) as? V2NPlanRowCardCell else {
+                return UICollectionViewCell()
+            }
             if plans.isEmpty {
                 cell.configureEmpty(String(localized: "Nenhum plano encontrado"))
             } else {
@@ -453,7 +463,9 @@ final class ReadingPlanListViewController: UITableViewController {
     }
 
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: V2NPlanRowTableCell.reuseId, for: indexPath) as! V2NPlanRowTableCell
+        guard let cell = tableView.dequeueReusableCell(withIdentifier: V2NPlanRowTableCell.reuseId, for: indexPath) as? V2NPlanRowTableCell else {
+            return UITableViewCell()
+        }
         if plans.isEmpty {
             cell.configureEmpty(String(localized: "Nenhum plano nesta categoria"))
         } else {

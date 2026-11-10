@@ -55,7 +55,9 @@ final class VerseChapterViewController: UIViewController, UICollectionViewDelega
     }
 
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NNumberCell.reuseId, for: indexPath) as! V2NNumberCell
+        guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NNumberCell.reuseId, for: indexPath) as? V2NNumberCell else {
+            return UICollectionViewCell()
+        }
         cell.configure(number: indexPath.item + 1, style: .plain)
         return cell
     }
@@ -168,7 +170,9 @@ final class VerseNumberViewController: UIViewController, UICollectionViewDelegat
     }
 
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NNumberCell.reuseId, for: indexPath) as! V2NNumberCell
+        guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NNumberCell.reuseId, for: indexPath) as? V2NNumberCell else {
+            return UICollectionViewCell()
+        }
         let verse = indexPath.item + 1
         cell.configure(number: verse, style: style(for: verse))
         return cell
