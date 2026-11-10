@@ -34,14 +34,12 @@ final class NativeSignInViewController: UIViewController {
         stack.translatesAutoresizingMaskIntoConstraints = false
         scroll.addSubview(stack)
 
-        let brandMark = UIImageView(image: UIImage(systemName: "book.closed.fill"))
-        brandMark.tintColor = KCDesign.accent
+        let brandMark = UIImageView(image: UIImage(named: "BrandMark"))
         brandMark.contentMode = .scaleAspectFit
         brandMark.translatesAutoresizingMaskIntoConstraints = false
-        brandMark.preferredSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: 36, weight: .medium)
         brandMark.isAccessibilityElement = false
         NSLayoutConstraint.activate([
-            brandMark.heightAnchor.constraint(equalToConstant: 44),
+            brandMark.heightAnchor.constraint(equalToConstant: 80),
         ])
 
         let title = UILabel()
