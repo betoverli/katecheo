@@ -30,6 +30,7 @@ import { Route as ApiCollectionsRouteImport } from './routes/api/collections'
 import { Route as ApiLinkRouteImport } from './routes/api/link'
 import { Route as ApiMcpRouteImport } from './routes/api/mcp'
 import { Route as ApiPlansRouteImport } from './routes/api/plans'
+import { Route as ApiInternalCatalogPushRouteImport } from './routes/api/internal/catalog-push'
 import { Route as AuthNativeConfigRouteImport } from './routes/auth/native-config'
 import { Route as AuthNativeDoneRouteImport } from './routes/auth/native-done'
 import { Route as AuthNativeReturnRouteImport } from './routes/auth/native-return'
@@ -169,6 +170,11 @@ const ApiMcpRoute = ApiMcpRouteImport.update({
 const ApiPlansRoute = ApiPlansRouteImport.update({
   id: '/api/plans',
   path: '/api/plans',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiInternalCatalogPushRoute = ApiInternalCatalogPushRouteImport.update({
+  id: '/api/internal/catalog-push',
+  path: '/api/internal/catalog-push',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthNativeConfigRoute = AuthNativeConfigRouteImport.update({
@@ -366,6 +372,7 @@ export interface FileRoutesByFullPath {
   '/api/link': typeof ApiLinkRoute
   '/api/mcp': typeof ApiMcpRoute
   '/api/plans': typeof ApiPlansRoute
+  '/api/internal/catalog-push': typeof ApiInternalCatalogPushRoute
   '/auth/native-config': typeof AuthNativeConfigRoute
   '/auth/native-done': typeof AuthNativeDoneRoute
   '/auth/native-return': typeof AuthNativeReturnRoute
@@ -418,6 +425,7 @@ export interface FileRoutesByTo {
   '/api/link': typeof ApiLinkRoute
   '/api/mcp': typeof ApiMcpRoute
   '/api/plans': typeof ApiPlansRoute
+  '/api/internal/catalog-push': typeof ApiInternalCatalogPushRoute
   '/auth/native-config': typeof AuthNativeConfigRoute
   '/auth/native-done': typeof AuthNativeDoneRoute
   '/auth/native-return': typeof AuthNativeReturnRoute
@@ -476,6 +484,7 @@ export interface FileRoutesById {
   '/api/link': typeof ApiLinkRoute
   '/api/mcp': typeof ApiMcpRoute
   '/api/plans': typeof ApiPlansRoute
+  '/api/internal/catalog-push': typeof ApiInternalCatalogPushRoute
   '/auth/native-config': typeof AuthNativeConfigRoute
   '/auth/native-done': typeof AuthNativeDoneRoute
   '/auth/native-return': typeof AuthNativeReturnRoute
@@ -535,6 +544,7 @@ export interface FileRouteTypes {
     | '/api/link'
     | '/api/mcp'
     | '/api/plans'
+    | '/api/internal/catalog-push'
     | '/auth/native-config'
     | '/auth/native-done'
     | '/auth/native-return'
@@ -587,6 +597,7 @@ export interface FileRouteTypes {
     | '/api/link'
     | '/api/mcp'
     | '/api/plans'
+    | '/api/internal/catalog-push'
     | '/auth/native-config'
     | '/auth/native-done'
     | '/auth/native-return'
@@ -644,6 +655,7 @@ export interface FileRouteTypes {
     | '/api/link'
     | '/api/mcp'
     | '/api/plans'
+    | '/api/internal/catalog-push'
     | '/auth/native-config'
     | '/auth/native-done'
     | '/auth/native-return'
@@ -702,6 +714,7 @@ export interface RootRouteChildren {
   ApiLinkRoute: typeof ApiLinkRoute
   ApiMcpRoute: typeof ApiMcpRoute
   ApiPlansRoute: typeof ApiPlansRoute
+  ApiInternalCatalogPushRoute: typeof ApiInternalCatalogPushRoute
   AuthNativeConfigRoute: typeof AuthNativeConfigRoute
   AuthNativeDoneRoute: typeof AuthNativeDoneRoute
   AuthNativeReturnRoute: typeof AuthNativeReturnRoute
@@ -862,6 +875,13 @@ declare module '@tanstack/react-router' {
       path: '/api/plans'
       fullPath: '/api/plans'
       preLoaderRoute: typeof ApiPlansRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/internal/catalog-push': {
+      id: '/api/internal/catalog-push'
+      path: '/api/internal/catalog-push'
+      fullPath: '/api/internal/catalog-push'
+      preLoaderRoute: typeof ApiInternalCatalogPushRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/native-config': {
@@ -1221,6 +1241,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiLinkRoute: ApiLinkRoute,
   ApiMcpRoute: ApiMcpRoute,
   ApiPlansRoute: ApiPlansRoute,
+  ApiInternalCatalogPushRoute: ApiInternalCatalogPushRoute,
   AuthNativeConfigRoute: AuthNativeConfigRoute,
   AuthNativeDoneRoute: AuthNativeDoneRoute,
   AuthNativeReturnRoute: AuthNativeReturnRoute,

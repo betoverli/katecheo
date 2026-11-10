@@ -104,8 +104,8 @@ describe("https auth session fallback", () => {
     assert.equal(shouldFallBackToScheme("scheme", "Não foi possível abrir o login."), false);
   });
 
-  it("asks the installed app for the custom scheme", () => {
-    assert.equal(preferredNativeReturnMode(), "scheme");
+  it("prefers https Universal Links (custom scheme remains the fallback)", () => {
+    assert.equal(preferredNativeReturnMode(), "https");
   });
 });
 

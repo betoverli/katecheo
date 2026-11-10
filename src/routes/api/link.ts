@@ -4,12 +4,12 @@ import { collectRefs, corsJson, corsPreflight, queryFromSearch, rateLimited, res
 export const Route = createFileRoute("/api/link")({
   server: {
     handlers: {
-      OPTIONS: async () => corsPreflight(),
+      OPTIONS: async ({ request }) => corsPreflight(request),
       GET: async ({ request }) => {
         const limited = await rateLimited(request);
         if (limited) return limited;
         const result = resolveLinks(queryFromSearch(new URL(request.url).searchParams));
-        return corsJson(result, result.ok ? 200 : 400);
+        return corsJson(result, result.ok ? 200 : 400, request);
       },
       POST: async ({ request }) => {
         const limited = await rateLimited(request);
@@ -23,6 +23,7 @@ export const Route = createFileRoute("/api/link")({
             return corsJson(
               { ok: false, error: "Body must be JSON.", usage: "POST { ref, refs, app, translation, locale, native }" },
               400,
+              request,
             );
           }
         }
@@ -43,7 +44,7 @@ export const Route = createFileRoute("/api/link")({
             search.get("native") === "1" ||
             search.get("native") === "true",
         });
-        return corsJson(result, result.ok ? 200 : 400);
+        return corsJson(result, result.ok ? 200 : 400, request);
       },
     },
   },

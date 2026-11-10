@@ -462,6 +462,16 @@ export const listNoteGroups = createServerFn({ method: "GET" })
   .validator((data: { noteId: string }) => data)
   .handler(async ({ context, data }) => {
     const sql = await getSql();
+    // L2: require ownership or grant before revealing which of the caller's groups published the note.
+    const owned = await sql<{ id: string }>`
+      select id from notebook_notes where id = ${data.noteId} and user_id = ${context.userId} limit 1
+    `;
+    if (!owned[0]) {
+      const granted = await sql<{ note_id: string }>`
+        select note_id from note_grants where note_id = ${data.noteId} and user_id = ${context.userId} limit 1
+      `;
+      if (!granted[0]) return [];
+    }
     const rows = await sql<{ group_id: string }>`
       select group_id from notebook_group_notes where note_id = ${data.noteId}
     `;

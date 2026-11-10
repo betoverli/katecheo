@@ -302,6 +302,16 @@ export async function listGroupsForNote(
   noteId: string,
 ): Promise<Array<NativeGroup & { published: boolean }>> {
   const sql = await getSql();
+  // L2: require ownership or an accepted note grant before revealing publish flags.
+  const owned = await sql<{ id: string }>`
+    select id from notebook_notes where id = ${noteId} and user_id = ${userId} limit 1
+  `;
+  if (!owned[0]) {
+    const granted = await sql<{ note_id: string }>`
+      select note_id from note_grants where note_id = ${noteId} and user_id = ${userId} limit 1
+    `;
+    if (!granted[0]) return [];
+  }
   const rows = await sql<{ group_id: string }>`
     select group_id from notebook_group_notes where note_id = ${noteId}
   `;

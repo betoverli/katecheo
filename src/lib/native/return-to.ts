@@ -66,15 +66,13 @@ export function parseReturnMode(value: string | null | undefined): NativeReturnM
 }
 
 /**
- * Mode the website asks the installed app to open.
- *
- * An HTTPS auth callback on the TestFlight build is refused or reported as a
- * cancel when the associated-domain check is missing or stale. The login
- * screen treats that cancel as the user giving up, so it never opens the
- * custom-scheme sheet. That scheme is already registered in the binary.
+ * Prefer HTTPS Universal Links (L4). Custom schemes (`verse2note://`,
+ * `katecheo://`) stay registered and remain the PKCE-bound fallback via
+ * `shouldFallBackToScheme` / native login retry. Server `native-start` still
+ * rejects https when `APPLE_TEAM_ID` is unset so local builds fall back cleanly.
  */
 export function preferredNativeReturnMode(): NativeReturnMode {
-  return "scheme";
+  return "https";
 }
 
 export function nativeReturnTo(

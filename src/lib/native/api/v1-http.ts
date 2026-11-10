@@ -1,12 +1,42 @@
 import { UnauthorizedError } from "@/lib/auth/verify.server";
 import { trustedWebOrigins } from "@/lib/site";
 import { matchNativeV1Route, methodAllowed } from "./v1-router";
+import {
+  MAX_BODY_BYTES,
+  authAppleSchema,
+  authClaimSchema,
+  authEmailSchema,
+  bibleLinkBodySchema,
+  clampNotificationLimit,
+  collectionCreateSchema,
+  collectionSaveSchema,
+  collectionUpdateSchema,
+  devicesApnsDeleteSchema,
+  devicesApnsPostSchema,
+  groupCreateSchema,
+  groupMemberDecideSchema,
+  groupMemberRoleSchema,
+  groupNotePublishSchema,
+  groupUpdateSchema,
+  handleBodySchema,
+  mePatchSchema,
+  notePatchSchema,
+  noteUpsertSchema,
+  notificationsReadSchema,
+  notifyPrefsSchema,
+  parseWithSchema,
+  planIdSchema,
+  planJoinSchema,
+  planMarkSchema,
+  prefsPatchSchema,
+  speakerUpsertSchema,
+  versesAppendSchema,
+  type ParseFail,
+} from "./v1-schemas";
+import type { z } from "zod";
 
 const CORS_METHODS = "GET, POST, PATCH, PUT, DELETE, OPTIONS";
 const CORS_HEADERS = "Authorization, Content-Type, Cookie";
-/** Hard cap on native JSON bodies (notes can be large; keep DoS bounded). */
-const MAX_BODY_BYTES = 512 * 1024;
-const MAX_NOTIFICATION_LIMIT = 100;
 
 function corsHeadersFor(request: Request): Record<string, string> {
   const origin = request.headers.get("origin")?.trim() ?? "";
@@ -73,6 +103,26 @@ async function readBody(request: Request): Promise<unknown> {
   } catch {
     return Symbol.for("invalid-json");
   }
+}
+
+type Respond = (data: unknown, status?: number, extraHeaders?: Record<string, string>) => Response;
+
+async function readAndParse<T>(
+  request: Request,
+  schema: z.ZodType<T>,
+  respond: Respond,
+  opts?: { emptyAs?: unknown },
+): Promise<T | Response> {
+  const body = await readBody(request);
+  if (body === Symbol.for("body-too-large")) return respond({ ok: false, error: "body_too_large" }, 413);
+  if (body === Symbol.for("invalid-json")) return respond({ ok: false, error: "invalid_json" }, 400);
+  const raw = body == null && opts?.emptyAs !== undefined ? opts.emptyAs : body;
+  const parsed = parseWithSchema(schema, raw);
+  if (!parsed.ok) {
+    const fail = parsed as ParseFail;
+    return respond({ ok: false, error: fail.error, issues: fail.issues }, 400);
+  }
+  return parsed.data;
 }
 
 /**
@@ -151,10 +201,8 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
         native?: boolean;
       };
       if (request.method.toUpperCase() === "POST") {
-        const body = await readBody(request);
-        if (body === Symbol.for("body-too-large")) return respond({ ok: false, error: "body_too_large" }, 413);
-      if (body === Symbol.for("invalid-json")) return respond({ ok: false, error: "invalid_json" }, 400);
-        const payload = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+        const payload = await readAndParse(request, bibleLinkBodySchema, respond, { emptyAs: {} });
+        if (payload instanceof Response) return payload;
         const { collectRefs } = await import("@/lib/bible/link-api");
         const refs = collectRefs([
           payload.ref as string | undefined,
@@ -203,20 +251,21 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
       if (route.kind === "auth-providers") {
         return respond(authApi.listNativeAuthProviders());
       }
-      const body = await readBody(request);
-      if (body === Symbol.for("body-too-large")) return respond({ ok: false, error: "body_too_large" }, 413);
-      if (body === Symbol.for("invalid-json")) return respond({ ok: false, error: "invalid_json" }, 400);
-      const payload = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
-
       if (route.kind === "auth-claim") {
+        const payload = await readAndParse(request, authClaimSchema, respond);
+        if (payload instanceof Response) return payload;
         const result = await authApi.claimNativeBearer(request, payload);
         return respond(result, result.ok ? 200 : result.status);
       }
       if (route.kind === "auth-email") {
+        const payload = await readAndParse(request, authEmailSchema, respond);
+        if (payload instanceof Response) return payload;
         const result = await authApi.signInEmailNative(request, payload);
         return respond(result, result.ok ? 200 : result.status);
       }
       if (route.kind === "auth-apple") {
+        const payload = await readAndParse(request, authAppleSchema, respond);
+        if (payload instanceof Response) return payload;
         const result = await authApi.signInAppleNative(request, payload);
         return respond(result, result.ok ? 200 : result.status);
       }
@@ -255,9 +304,8 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
     if (route.kind === "notes") {
       if (!route.noteId) {
         if (method === "GET") return respond({ ok: true, notes: await listNotesForUser(user.id) });
-        const body = await readBody(request);
-        if (body === Symbol.for("body-too-large")) return respond({ ok: false, error: "body_too_large" }, 413);
-      if (body === Symbol.for("invalid-json")) return respond({ ok: false, error: "invalid_json" }, 400);
+        const body = await readAndParse(request, noteUpsertSchema, respond);
+        if (body instanceof Response) return body;
         const result = await upsertNoteForUser(user.id, body);
         if (!result.ok) return respond(result, result.error === "limit" || result.error === "conflict" ? 409 : 400);
         return respond(result, 201);
@@ -272,12 +320,11 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
         return respond(result, result.ok ? 200 : 404);
       }
       // Mutations require ownership — grants are read-only via GET.
-      const body = await readBody(request);
-      if (body === Symbol.for("body-too-large")) return respond({ ok: false, error: "body_too_large" }, 413);
-      if (body === Symbol.for("invalid-json")) return respond({ ok: false, error: "invalid_json" }, 400);
+      const patchBody = await readAndParse(request, notePatchSchema, respond, { emptyAs: {} });
+      if (patchBody instanceof Response) return patchBody;
       const existing = await getNoteForUser(user.id, route.noteId);
       if (!existing) return respond({ ok: false, error: "missing" }, 404);
-      const patch = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+      const patch = patchBody;
       const merged = {
         ...existing,
         ...patch,
@@ -308,12 +355,9 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
     }
 
     if (route.kind === "links-accept" || route.kind === "links-decline" || route.kind === "links-request") {
-      const body = await readBody(request);
-      if (body === Symbol.for("body-too-large")) return respond({ ok: false, error: "body_too_large" }, 413);
-      if (body === Symbol.for("invalid-json")) return respond({ ok: false, error: "invalid_json" }, 400);
-      const payload = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
-      const handle = typeof payload.handle === "string" ? payload.handle : "";
-      if (!handle.trim()) return respond({ ok: false, error: "invalid" }, 400);
+      const payload = await readAndParse(request, handleBodySchema, respond);
+      if (payload instanceof Response) return payload;
+      const handle = payload.handle;
       const social = await import("./v1-social.server");
       if (route.kind === "links-accept") {
         const result = await social.acceptLinkForUser(user.id, handle);
@@ -340,12 +384,7 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
       const social = await import("./v1-social.server");
       const url = new URL(request.url);
       const cursor = url.searchParams.get("cursor");
-      const limitRaw = url.searchParams.get("limit");
-      const limitNum = limitRaw ? Number(limitRaw) : undefined;
-      const limit =
-        Number.isFinite(limitNum) && limitNum != null
-          ? Math.min(Math.max(1, Math.floor(limitNum)), MAX_NOTIFICATION_LIMIT)
-          : undefined;
+      const limit = clampNotificationLimit(url.searchParams.get("limit"));
       const unreadOnly =
         url.searchParams.get("unreadOnly") === "1" || url.searchParams.get("unreadOnly") === "true";
       const payload = await social.listNotificationsForUser(user.id, {
@@ -363,10 +402,8 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
     }
 
     if (route.kind === "notifications-read") {
-      const body = await readBody(request);
-      if (body === Symbol.for("body-too-large")) return respond({ ok: false, error: "body_too_large" }, 413);
-      if (body === Symbol.for("invalid-json")) return respond({ ok: false, error: "invalid_json" }, 400);
-      const payload = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+      const payload = await readAndParse(request, notificationsReadSchema, respond, { emptyAs: {} });
+      if (payload instanceof Response) return payload;
       const id = typeof payload.id === "string" && payload.id.trim() ? payload.id.trim() : undefined;
       const social = await import("./v1-social.server");
       return respond(await social.markNotificationsReadForUser(user.id, id));
@@ -375,9 +412,8 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
     if (route.kind === "speakers") {
       if (!route.speakerId) {
         if (method === "GET") return respond({ ok: true, speakers: await listSpeakersForUser(user.id) });
-        const body = await readBody(request);
-        if (body === Symbol.for("body-too-large")) return respond({ ok: false, error: "body_too_large" }, 413);
-      if (body === Symbol.for("invalid-json")) return respond({ ok: false, error: "invalid_json" }, 400);
+        const body = await readAndParse(request, speakerUpsertSchema, respond);
+        if (body instanceof Response) return body;
         const result = await upsertSpeakerForUser(user.id, body);
         if (!result.ok) return respond(result, 400);
         return respond(result, 201);
@@ -389,20 +425,16 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
     }
 
     if (route.kind === "devices-apns") {
-      const body = await readBody(request);
-      if (body === Symbol.for("body-too-large")) return respond({ ok: false, error: "body_too_large" }, 413);
-      if (body === Symbol.for("invalid-json")) return respond({ ok: false, error: "invalid_json" }, 400);
-      const payload = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
       if (method === "POST") {
-        const result = await saveApnsDevice(
-          user.id,
-          String(payload.token ?? ""),
-          payload.sandbox === true,
-        );
+        const payload = await readAndParse(request, devicesApnsPostSchema, respond);
+        if (payload instanceof Response) return payload;
+        const result = await saveApnsDevice(user.id, payload.token, payload.sandbox === true);
         const status =
           result.ok ? 200 : result.error === "rate" ? 429 : result.error === "conflict" ? 409 : 400;
         return respond(result, status);
       }
+      const payload = await readAndParse(request, devicesApnsDeleteSchema, respond, { emptyAs: {} });
+      if (payload instanceof Response) return payload;
       const result = await dropApnsDevice(user.id, String(payload.token ?? ""), {
         all: payload.all === true,
       });
@@ -414,9 +446,8 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
     if (route.kind === "groups") {
       if (!route.groupId) {
         if (method === "GET") return respond({ ok: true, groups: await groupsApi.listGroupsForUser(user.id) });
-        const body = await readBody(request);
-        if (body === Symbol.for("body-too-large")) return respond({ ok: false, error: "body_too_large" }, 413);
-      if (body === Symbol.for("invalid-json")) return respond({ ok: false, error: "invalid_json" }, 400);
+        const body = await readAndParse(request, groupCreateSchema, respond);
+        if (body instanceof Response) return body;
         const result = await groupsApi.createGroupForUser(user.id, body);
         if (!result.ok) return respond(result, result.error === "limit" ? 409 : 400);
         return respond(result, 201);
@@ -433,9 +464,8 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
         }
         return respond(result);
       }
-      const body = await readBody(request);
-      if (body === Symbol.for("body-too-large")) return respond({ ok: false, error: "body_too_large" }, 413);
-      if (body === Symbol.for("invalid-json")) return respond({ ok: false, error: "invalid_json" }, 400);
+      const body = await readAndParse(request, groupUpdateSchema, respond, { emptyAs: {} });
+      if (body instanceof Response) return body;
       const result = await groupsApi.updateGroupForUser(user.id, route.groupId, body);
       if (!result.ok) {
         const status = result.error === "missing" ? 404 : result.error === "forbidden" ? 403 : 400;
@@ -451,14 +481,9 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
           if (!result.ok) return respond(result, 403);
           return respond(result);
         }
-        const body = await readBody(request);
-        if (body === Symbol.for("body-too-large")) return respond({ ok: false, error: "body_too_large" }, 413);
-      if (body === Symbol.for("invalid-json")) return respond({ ok: false, error: "invalid_json" }, 400);
-        const noteId =
-          body && typeof body === "object" && typeof (body as { noteId?: unknown }).noteId === "string"
-            ? (body as { noteId: string }).noteId.trim()
-            : "";
-        if (!noteId) return respond({ ok: false, error: "invalid" }, 400);
+        const body = await readAndParse(request, groupNotePublishSchema, respond);
+        if (body instanceof Response) return body;
+        const noteId = body.noteId.trim();
         const result = await groupsApi.publishNoteIdToGroup(user.id, route.groupId, noteId);
         if (!result.ok) {
           const status =
@@ -492,14 +517,14 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
     }
 
     if (route.kind === "group-members-decide") {
-      const body = await readBody(request);
-      if (body === Symbol.for("body-too-large")) return respond({ ok: false, error: "body_too_large" }, 413);
-      if (body === Symbol.for("invalid-json")) return respond({ ok: false, error: "invalid_json" }, 400);
-      const payload = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
-      const targetUserId = typeof payload.userId === "string" ? payload.userId.trim() : "";
-      const accept = payload.accept === true;
-      if (!targetUserId) return respond({ ok: false, error: "invalid" }, 400);
-      const result = await groupsApi.decideGroupMemberForUser(user.id, route.groupId, targetUserId, accept);
+      const payload = await readAndParse(request, groupMemberDecideSchema, respond);
+      if (payload instanceof Response) return payload;
+      const result = await groupsApi.decideGroupMemberForUser(
+        user.id,
+        route.groupId,
+        payload.userId.trim(),
+        payload.accept === true,
+      );
       if (!result.ok) {
         return respond(result, result.error === "missing" ? 404 : 403);
       }
@@ -507,18 +532,13 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
     }
 
     if (route.kind === "group-members-role") {
-      const body = await readBody(request);
-      if (body === Symbol.for("body-too-large")) return respond({ ok: false, error: "body_too_large" }, 413);
-      if (body === Symbol.for("invalid-json")) return respond({ ok: false, error: "invalid_json" }, 400);
-      const payload = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
-      const targetUserId = typeof payload.userId === "string" ? payload.userId.trim() : "";
-      const role = payload.role === "admin" ? "admin" : payload.role === "member" ? "member" : "";
-      if (!targetUserId || !role) return respond({ ok: false, error: "invalid" }, 400);
+      const payload = await readAndParse(request, groupMemberRoleSchema, respond);
+      if (payload instanceof Response) return payload;
       const result = await groupsApi.setGroupMemberRoleForUser(
         user.id,
         route.groupId,
-        targetUserId,
-        role,
+        payload.userId.trim(),
+        payload.role,
       );
       if (!result.ok) {
         const status =
@@ -539,9 +559,8 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
       if (method === "GET") {
         return respond({ ok: true, me: await profileApi.getMeForUser(user.id, user.email) });
       }
-      const body = await readBody(request);
-      if (body === Symbol.for("body-too-large")) return respond({ ok: false, error: "body_too_large" }, 413);
-      if (body === Symbol.for("invalid-json")) return respond({ ok: false, error: "invalid_json" }, 400);
+      const body = await readAndParse(request, mePatchSchema, respond, { emptyAs: {} });
+      if (body instanceof Response) return body;
       const result = await profileApi.patchMeForUser(user.id, body);
       if (!result.ok) return respond(result, result.error === "handle" ? 409 : 400);
       return respond(result);
@@ -551,9 +570,8 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
       if (method === "GET") {
         return respond({ ok: true, prefs: await profileApi.getPrefsForUser(user.id) });
       }
-      const body = await readBody(request);
-      if (body === Symbol.for("body-too-large")) return respond({ ok: false, error: "body_too_large" }, 413);
-      if (body === Symbol.for("invalid-json")) return respond({ ok: false, error: "invalid_json" }, 400);
+      const body = await readAndParse(request, prefsPatchSchema, respond, { emptyAs: {} });
+      if (body instanceof Response) return body;
       const result = await profileApi.savePrefsForUser(user.id, body);
       if (!result.ok) return respond(result, result.error === "handle" ? 409 : 400);
       return respond(result);
@@ -563,9 +581,8 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
       if (method === "GET") {
         return respond({ ok: true, notify: await profileApi.getNotifyPrefsForUser(user.id) });
       }
-      const body = await readBody(request);
-      if (body === Symbol.for("body-too-large")) return respond({ ok: false, error: "body_too_large" }, 413);
-      if (body === Symbol.for("invalid-json")) return respond({ ok: false, error: "invalid_json" }, 400);
+      const body = await readAndParse(request, notifyPrefsSchema, respond, { emptyAs: {} });
+      if (body instanceof Response) return body;
       const result = await profileApi.saveNotifyPrefsForUser(user.id, body);
       if (!result.ok) return respond(result, 400);
       return respond(result);
@@ -584,9 +601,8 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
     const versesApi = await import("./v1-verses.server");
 
     if (route.kind === "verses-append") {
-      const body = await readBody(request);
-      if (body === Symbol.for("body-too-large")) return respond({ ok: false, error: "body_too_large" }, 413);
-      if (body === Symbol.for("invalid-json")) return respond({ ok: false, error: "invalid_json" }, 400);
+      const body = await readAndParse(request, versesAppendSchema, respond);
+      if (body instanceof Response) return body;
       const result = await versesApi.appendVerseForUser(user.id, body);
       if (!result.ok) {
         const status =
@@ -601,9 +617,8 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
     }
 
     if (route.kind === "my-collections-save") {
-      const body = await readBody(request);
-      if (body === Symbol.for("body-too-large")) return respond({ ok: false, error: "body_too_large" }, 413);
-      if (body === Symbol.for("invalid-json")) return respond({ ok: false, error: "invalid_json" }, 400);
+      const body = await readAndParse(request, collectionSaveSchema, respond);
+      if (body instanceof Response) return body;
       const result = await versesApi.savePassageToCollectionForUser(user.id, body);
       if (!result.ok) {
         const status = result.error === "missing" ? 404 : result.error === "limit" ? 409 : 400;
@@ -618,9 +633,8 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
         if (method === "GET") {
           return respond({ ok: true, collections: await versesApi.listMyCollectionsForUser(user.id) });
         }
-        const body = await readBody(request);
-        if (body === Symbol.for("body-too-large")) return respond({ ok: false, error: "body_too_large" }, 413);
-      if (body === Symbol.for("invalid-json")) return respond({ ok: false, error: "invalid_json" }, 400);
+        const body = await readAndParse(request, collectionCreateSchema, respond);
+        if (body instanceof Response) return body;
         const result = await versesApi.createMyCollectionForUser(user.id, body);
         if (!result.ok) {
           const status =
@@ -642,9 +656,8 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
         }
         return respond(result, result.ok ? 200 : 404);
       }
-      const body = await readBody(request);
-      if (body === Symbol.for("body-too-large")) return respond({ ok: false, error: "body_too_large" }, 413);
-      if (body === Symbol.for("invalid-json")) return respond({ ok: false, error: "invalid_json" }, 400);
+      const body = await readAndParse(request, collectionUpdateSchema, respond, { emptyAs: {} });
+      if (body instanceof Response) return body;
       const result = await versesApi.updateMyCollectionForUser(user.id, route.collectionId, body);
       if (!result.ok) return respond(result, result.error === "missing" ? 404 : 400);
       void import("@/lib/catalog-push.server").then((m) => m.pushCatalogHintToUser(user.id, "themes_updated"));
@@ -653,45 +666,39 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
 
     const plansApi = await import("./v1-plans.server");
 
-    if (
-      route.kind === "plans-mark" ||
-      route.kind === "plans-reset" ||
-      route.kind === "plans-start" ||
-      route.kind === "plans-stop" ||
-      route.kind === "plans-invite" ||
-      route.kind === "plans-join"
-    ) {
-      const body = await readBody(request);
-      if (body === Symbol.for("body-too-large")) return respond({ ok: false, error: "body_too_large" }, 413);
-      if (body === Symbol.for("invalid-json")) return respond({ ok: false, error: "invalid_json" }, 400);
-      const payload = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
-      if (route.kind === "plans-mark") {
-        const planId = typeof payload.planId === "string" ? payload.planId : "";
-        const day = typeof payload.day === "number" ? payload.day : Number(payload.day);
-        const on = payload.on !== false;
-        const result = await plansApi.markPlanDayForUser(user.id, planId, day, on);
-        return respond(result, result.ok ? 200 : result.error === "pace" ? 429 : 400);
-      }
+    if (route.kind === "plans-mark") {
+      const payload = await readAndParse(request, planMarkSchema, respond);
+      if (payload instanceof Response) return payload;
+      const day = typeof payload.day === "number" ? payload.day : Number(payload.day);
+      const result = await plansApi.markPlanDayForUser(user.id, payload.planId, day, payload.on !== false);
+      return respond(result, result.ok ? 200 : result.error === "pace" ? 429 : 400);
+    }
+    if (route.kind === "plans-reset" || route.kind === "plans-start" || route.kind === "plans-stop" || route.kind === "plans-invite") {
+      const payload = await readAndParse(request, planIdSchema, respond);
+      if (payload instanceof Response) return payload;
       if (route.kind === "plans-reset") {
-        const planId = typeof payload.planId === "string" ? payload.planId : "";
-        return respond(await plansApi.resetPlanMarksForUser(user.id, planId));
+        return respond(await plansApi.resetPlanMarksForUser(user.id, payload.planId));
       }
       if (route.kind === "plans-start") {
-        const planId = typeof payload.planId === "string" ? payload.planId : "";
-        const result = await plansApi.startPlanForUser(user.id, planId);
+        const result = await plansApi.startPlanForUser(user.id, payload.planId);
         return respond(result, result.ok ? 200 : 404);
       }
       if (route.kind === "plans-stop") {
-        const planId = typeof payload.planId === "string" ? payload.planId : "";
-        const result = await plansApi.stopPlanForUser(user.id, planId);
+        const result = await plansApi.stopPlanForUser(user.id, payload.planId);
         return respond(result, result.ok ? 200 : 404);
       }
-      if (route.kind === "plans-invite") {
-        const planId = typeof payload.planId === "string" ? payload.planId : "";
-        const result = await plansApi.createPlanInviteForUser(user.id, planId);
-        return respond(result, result.ok ? 200 : 404);
-      }
-      const groupId = typeof payload.id === "string" ? payload.id : typeof payload.groupId === "string" ? payload.groupId : "";
+      const result = await plansApi.createPlanInviteForUser(user.id, payload.planId);
+      return respond(result, result.ok ? 200 : 404);
+    }
+    if (route.kind === "plans-join") {
+      const payload = await readAndParse(request, planJoinSchema, respond);
+      if (payload instanceof Response) return payload;
+      const groupId =
+        typeof payload.id === "string" && payload.id.trim()
+          ? payload.id.trim()
+          : typeof payload.groupId === "string"
+            ? payload.groupId.trim()
+            : "";
       const result = await plansApi.joinPlanGroupForUser(user.id, groupId);
       return respond(result, result.ok ? 200 : 404);
     }

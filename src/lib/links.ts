@@ -133,7 +133,8 @@ export const searchPeople = createServerFn({ method: "POST" })
       left join user_links l
         on (l.requester_id = ${context.userId} and l.addressee_id = p.user_id)
         or (l.requester_id = p.user_id and l.addressee_id = ${context.userId})
-      where p.handle <> ''
+      where p.handle is not null
+        and length(trim(p.handle)) > 0
         and p.user_id <> ${context.userId}
         and (p.handle like ${like} or p.first_name ilike ${name} or p.last_name ilike ${name})
       order by p.handle
