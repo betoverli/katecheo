@@ -1,10 +1,13 @@
 name: Catalog push
 
-# After a successful Vercel Production deploy (GitHub deployment_status), or manually.
-# POSTs to the idempotent /api/internal/catalog-push endpoint so devices get
-# themes_updated / reading_updated silent pushes exactly once per content change.
+# Primary: cron every 15 minutes (idempotent endpoint — safe if nothing changed).
+# Also: manual workflow_dispatch (optional force), and best-effort deployment_status
+# on any successful GitHub deployment (environment name not required — Vercel often
+# never emits deployment_status to this repo).
 
 on:
+  schedule:
+    - cron: "*/15 * * * *"
   deployment_status:
   workflow_dispatch:
     inputs:
@@ -13,15 +16,20 @@ on:
         type: boolean
         default: false
 
+concurrency:
+  group: catalog-push
+  cancel-in-progress: true
+
 jobs:
   catalog-push:
     name: Broadcast catalog hints
     runs-on: ubuntu-latest
-    # Vercel GitHub integration reports environment as "Production" on success.
+    timeout-minutes: 5
     if: >
+      github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch' ||
-      (github.event.deployment_status.state == 'success' &&
-       github.event.deployment.environment == 'Production')
+      (github.event_name == 'deployment_status' &&
+       github.event.deployment_status.state == 'success')
     steps:
       - name: Check secret
         id: secret
@@ -52,7 +60,6 @@ jobs:
           sleep_s=3
           while true; do
             echo "Attempt ${attempt}/${max} → ${URL} body=${BODY}"
-            # Capture body + status without failing the step on HTTP errors yet.
             response_file="$(mktemp)"
             http_code="$(curl -sS -o "${response_file}" -w "%{http_code}" \
               -X POST "${URL}" \
