@@ -680,6 +680,12 @@ if (signIn.includes("Abrir site clássico") || signIn.includes("capacitorSite"))
 if (!signIn.includes("Continuar com Google") || !signIn.includes("Entrar com email")) {
   errors.push("Falta o ecrã nativo de login (Google + email).");
 }
+if (!signIn.includes("ASAuthorizationAppleIDButton") || !signIn.includes("makeAppleButton")) {
+  errors.push("NativeSignInViewController tem de renderizar ASAuthorizationAppleIDButton (Sign in with Apple).");
+}
+if (!signIn.includes("appleButtonStyle") || !signIn.includes("userInterfaceStyle")) {
+  errors.push("O botão Apple tem de adaptar light/dark (appleButtonStyle).");
+}
 if (!signIn.includes('UIImage(named: "BrandMark")') || signIn.includes("book.closed.fill")) {
   errors.push('NativeSignInViewController tem de usar UIImage(named: "BrandMark") (não SF Symbol book.closed.fill).');
 }
@@ -690,6 +696,16 @@ if (!signIn.includes('String(localized: "Katecheo")') || /["'`]Kate["'`]/.test(s
 const loginService = read("ios/App/Katecheo/NativeLoginService.swift");
 if (!loginService.includes("ASWebAuthenticationSession") || !loginService.includes("auth/claim")) {
   errors.push("NativeLoginService tem de fazer Google via ASWebAuthenticationSession + claim.");
+}
+if (
+  !loginService.includes("signInWithApple") ||
+  !loginService.includes("auth/apple") ||
+  !loginService.includes("authorizationCode") ||
+  !loginService.includes("requestedScopes")
+) {
+  errors.push(
+    "NativeLoginService tem de enviar identityToken + authorizationCode + nonce (scopes fullName/email) a /auth/apple.",
+  );
 }
 if (!loginService.includes("signOut") || !loginService.includes("deleteBearerToken")) {
   errors.push("Sign-out nativo tem de limpar o Keychain.");

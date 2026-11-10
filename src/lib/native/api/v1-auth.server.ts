@@ -2,7 +2,18 @@
  * Native auth endpoints for `/api/native/v1/auth/*`.
  * Returns Better Auth session tokens as bearers for Keychain storage.
  */
-import { appleOAuthFromEnv, APPLE_PROVIDER_ID } from "@/lib/auth/apple";
+import { APPLE_PROVIDER_ID, appleNativeFromEnv } from "@/lib/auth/apple";
+import {
+  createAppleSessionToken,
+  findOrCreateAppleUser,
+  storeAppleRefreshToken,
+  type AppleFullName,
+} from "@/lib/auth/apple-native.server";
+import { exchangeAppleAuthorizationCode } from "@/lib/auth/apple-token.server";
+import {
+  AppleTokenVerifyError,
+  verifyAppleIdentityToken,
+} from "@/lib/auth/apple-verify.server";
 import { emailAndPasswordEnabled } from "@/lib/auth/email-password";
 import { GOOGLE_PROVIDER_ID, googleOAuthFromEnv } from "@/lib/auth/google";
 import { auth, authConfigured, SESSION_TOKEN_COOKIE } from "@/lib/auth/server";
@@ -33,12 +44,13 @@ function tokenFromSetCookie(headers: Headers): string | null {
 
 export function listNativeAuthProviders() {
   const google = googleOAuthFromEnv(process.env);
-  const apple = appleOAuthFromEnv(process.env);
+  // Native Apple only needs APPLE_CLIENT_ID (JWKS verify).
+  const apple = appleNativeFromEnv(process.env);
   return {
     ok: true as const,
     authConfigured,
     google: google.configured,
-    apple: apple.configured,
+    apple: apple.configured && authConfigured,
     email: emailAndPasswordEnabled && authConfigured,
     googleProviderId: GOOGLE_PROVIDER_ID,
     appleProviderId: APPLE_PROVIDER_ID,
@@ -131,11 +143,36 @@ export async function signInEmailNative(
   }
 }
 
+function parseAppleFullName(raw: unknown): AppleFullName | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const obj = raw as Record<string, unknown>;
+  const givenName =
+    typeof obj.givenName === "string"
+      ? obj.givenName
+      : typeof obj.firstName === "string"
+        ? obj.firstName
+        : undefined;
+  const familyName =
+    typeof obj.familyName === "string"
+      ? obj.familyName
+      : typeof obj.lastName === "string"
+        ? obj.lastName
+        : undefined;
+  if (!givenName && !familyName) return null;
+  return { givenName, familyName };
+}
+
 export async function signInAppleNative(
   request: Request,
-  body: { identityToken?: unknown; nonce?: unknown; fullName?: unknown },
+  body: {
+    identityToken?: unknown;
+    authorizationCode?: unknown;
+    nonce?: unknown;
+    fullName?: unknown;
+    name?: unknown;
+  },
 ): Promise<{ ok: true; token: string } | { ok: false; error: string; status: number }> {
-  const apple = appleOAuthFromEnv(process.env);
+  const apple = appleNativeFromEnv(process.env);
   if (!apple.configured || !authConfigured) {
     return { ok: false, error: "apple_disabled", status: 501 };
   }
@@ -146,29 +183,31 @@ export async function signInAppleNative(
   const identityToken = typeof body.identityToken === "string" ? body.identityToken.trim() : "";
   if (!identityToken) return { ok: false, error: "invalid", status: 400 };
   const nonce = typeof body.nonce === "string" ? body.nonce : undefined;
+  const authorizationCode =
+    typeof body.authorizationCode === "string" ? body.authorizationCode.trim() : "";
+  const fullName = parseAppleFullName(body.fullName) ?? parseAppleFullName(body.name);
+
   try {
-    const res = await auth.api.signInSocial({
-      body: {
-        provider: APPLE_PROVIDER_ID,
-        idToken: { token: identityToken, ...(nonce ? { nonce } : {}) },
-        disableRedirect: true,
-      },
-      headers: request.headers,
-      asResponse: true,
+    const claims = await verifyAppleIdentityToken(identityToken, {
+      audience: apple.audience,
+      nonce: nonce ?? null,
     });
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      console.error("[native/v1/auth/apple]", res.status, text.slice(0, 200));
-      return { ok: false, error: "apple_failed", status: 401 };
+    const user = await findOrCreateAppleUser(claims, fullName);
+
+    if (authorizationCode) {
+      const exchanged = await exchangeAppleAuthorizationCode(authorizationCode);
+      if (exchanged.refreshToken) {
+        await storeAppleRefreshToken(user.id, claims.sub, exchanged.refreshToken);
+      }
     }
-    const token = tokenFromSetCookie(res.headers);
-    if (!token) {
-      const json = (await res.clone().json().catch(() => null)) as { token?: string } | null;
-      if (json?.token) return { ok: true, token: json.token };
-      return { ok: false, error: "no_token", status: 500 };
-    }
+
+    const token = await createAppleSessionToken(user.id);
     return { ok: true, token };
   } catch (error) {
+    if (error instanceof AppleTokenVerifyError) {
+      console.error("[native/v1/auth/apple]", error.code, error.message);
+      return { ok: false, error: "apple_failed", status: 401 };
+    }
     console.error("[native/v1/auth/apple]", error);
     return { ok: false, error: "apple_failed", status: 401 };
   }

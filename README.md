@@ -139,7 +139,10 @@ O envio do aviso fica no site. Na Vercel, acrescente:
 | `APNS_PRIVATE_KEY` | Conteúdo do `.p8` de avisos. Se a quebra de linha desaparecer, troque cada quebra por `\n` |
 | `APNS_TOPIC` | Opcional. Por omissão `com.verse2note.app` |
 | `APNS_ENVIRONMENT` | Opcional. `production` para TestFlight e App Store. `sandbox` só para um app instalado pelo Xcode em modo de desenvolvimento |
-| `APPLE_TEAM_ID` | Opcional até a conta existir. Os mesmos 10 caracteres do Team ID. Publica `applinks` e `webcredentials` no ficheiro da Apple |
+| `APPLE_TEAM_ID` | Opcional até a conta existir. Os mesmos 10 caracteres do Team ID. Publica `applinks` e `webcredentials` no ficheiro da Apple. Também usado no Sign in with Apple (exchange/revoke) |
+| `APPLE_CLIENT_ID` | App ID (`com.verse2note.app`). Liga o botão nativo Sign in with Apple |
+| `APPLE_SIGNIN_KEY_ID` | Key ID da chave Sign in with Apple (não a de APNs). Opcional — sem ela o login verifica o JWT e salta o exchange |
+| `APPLE_SIGNIN_PRIVATE_KEY` | `.p8` da chave Sign in with Apple (ou Base64). Opcional — ver `docs/sign-in-with-apple.md` |
 | `NATIVE_AUTH_HANDOFF_KEY` | Opcional. 32 bytes em Base64 ou 64 caracteres hex. Cifra a sessão guardada por 90 segundos. Se faltar, o servidor usa `BETTER_AUTH_SECRET` |
 
 Sem as variáveis de avisos o site continua igual e os avisos do navegador continuam. Os avisos do iPhone só passam a sair depois disto **e** de publicar esta versão do site.
