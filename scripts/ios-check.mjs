@@ -119,6 +119,44 @@ for (const asset of [
   if (!read("capacitor.config.ts").includes('appName: "Katecheo"')) {
     errors.push('capacitor.config.ts appName tem de ser "Katecheo".');
   }
+  // Katecheo must be one uniform word — ban Kate/cheo dual-style splits.
+  try {
+    const wordmark = read("src/components/wordmark.tsx");
+    if (
+      /["'`]Kate["'`]/.test(wordmark) ||
+      /["'`]cheo["'`]/.test(wordmark) ||
+      /(?<![\w-])italic(?![\w-])/.test(wordmark) ||
+      wordmark.includes(">Kate<") ||
+      wordmark.includes(">cheo<")
+    ) {
+      errors.push(
+        "src/components/wordmark.tsx: Katecheo tem de ser uma só palavra em estilo uniforme (sem Kate/cheo nem italic).",
+      );
+    }
+    if (!/\bKatecheo\b/.test(wordmark)) {
+      errors.push('src/components/wordmark.tsx tem de renderizar "Katecheo" completo.');
+    }
+  } catch {
+    errors.push("Falta src/components/wordmark.tsx");
+  }
+  try {
+    const splashGen = read("scripts/generate-splash-brand.mjs");
+    if (
+      splashGen.includes('"Kate"') ||
+      splashGen.includes('"cheo"') ||
+      splashGen.includes("NotoSerifDisplay-Italic") ||
+      /kate,\s*cheo\s*=/.test(splashGen)
+    ) {
+      errors.push(
+        "scripts/generate-splash-brand.mjs: wordmark da splash tem de ser Katecheo inteiro (sem Kate/cheo nem italic).",
+      );
+    }
+    if (!splashGen.includes('"Katecheo"') && !splashGen.includes("'Katecheo'")) {
+      errors.push('scripts/generate-splash-brand.mjs tem de desenhar "Katecheo" completo.');
+    }
+  } catch {
+    errors.push("Falta scripts/generate-splash-brand.mjs");
+  }
 }
 
 const plist = read("ios/App/App/Info.plist");

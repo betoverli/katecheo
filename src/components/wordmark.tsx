@@ -6,6 +6,7 @@ const SIZE = {
   lg: "text-4xl sm:text-5xl",
 } as const;
 
+/** Product name as one word — single font/weight/style (no Kate/cheo split). */
 export function Wordmark({
   className,
   size = "md",
@@ -16,14 +17,12 @@ export function Wordmark({
   return (
     <span
       className={cn(
-        "inline-flex items-baseline whitespace-nowrap text-fg",
+        "inline-block whitespace-nowrap font-display font-medium tracking-tight text-fg",
         SIZE[size],
         className,
       )}
-      aria-label="Katecheo"
     >
-      <span className="font-display font-medium tracking-tight italic">Kate</span>
-      <span className="font-sans font-semibold tracking-tight not-italic">cheo</span>
+      Katecheo
     </span>
   );
 }
