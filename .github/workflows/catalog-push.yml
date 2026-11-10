@@ -1,0 +1,77 @@
+name: Catalog push
+
+# After a successful Vercel Production deploy (GitHub deployment_status), or manually.
+# POSTs to the idempotent /api/internal/catalog-push endpoint so devices get
+# themes_updated / reading_updated silent pushes exactly once per content change.
+
+on:
+  deployment_status:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Force broadcast even when catalog versions are unchanged
+        type: boolean
+        default: false
+
+jobs:
+  catalog-push:
+    name: Broadcast catalog hints
+    runs-on: ubuntu-latest
+    # Vercel GitHub integration reports environment as "Production" on success.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.deployment_status.state == 'success' &&
+       github.event.deployment.environment == 'Production')
+    steps:
+      - name: Check secret
+        id: secret
+        env:
+          CATALOG_PUSH_SECRET: ${{ secrets.CATALOG_PUSH_SECRET }}
+        run: |
+          if [ -z "${CATALOG_PUSH_SECRET}" ]; then
+            echo "::warning::CATALOG_PUSH_SECRET is empty — skipping catalog push (set the GitHub secret to match the Vercel env)."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: POST catalog-push
+        if: steps.secret.outputs.skip != 'true'
+        env:
+          CATALOG_PUSH_SECRET: ${{ secrets.CATALOG_PUSH_SECRET }}
+          FORCE: ${{ github.event_name == 'workflow_dispatch' && inputs.force || false }}
+        run: |
+          set -euo pipefail
+          BODY='{}'
+          if [ "${FORCE}" = "true" ]; then
+            BODY='{"force":true}'
+          fi
+          URL="https://katecheo.app/api/internal/catalog-push"
+          attempt=1
+          max=4
+          sleep_s=3
+          while true; do
+            echo "Attempt ${attempt}/${max} → ${URL} body=${BODY}"
+            # Capture body + status without failing the step on HTTP errors yet.
+            response_file="$(mktemp)"
+            http_code="$(curl -sS -o "${response_file}" -w "%{http_code}" \
+              -X POST "${URL}" \
+              -H "content-type: application/json; charset=utf-8" \
+              -H "x-catalog-push-secret: ${CATALOG_PUSH_SECRET}" \
+              -d "${BODY}" || true)"
+            echo "HTTP ${http_code}"
+            cat "${response_file}" || true
+            echo
+            if [[ "${http_code}" =~ ^2[0-9][0-9]$ ]]; then
+              exit 0
+            fi
+            if [[ "${http_code}" =~ ^5[0-9][0-9]$ ]] && [ "${attempt}" -lt "${max}" ]; then
+              echo "5xx — retrying in ${sleep_s}s…"
+              sleep "${sleep_s}"
+              attempt=$((attempt + 1))
+              sleep_s=$((sleep_s * 2))
+              continue
+            fi
+            echo "::error::catalog-push failed with HTTP ${http_code}"
+            exit 1
+          done

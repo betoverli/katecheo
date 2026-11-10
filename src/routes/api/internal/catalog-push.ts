@@ -1,12 +1,13 @@
 /**
- * Deploy-only silent catalog APNs broadcast.
+ * Deploy-only silent catalog APNs broadcast (idempotent).
  * Auth: `Authorization: Bearer <CATALOG_PUSH_SECRET>` or header `x-catalog-push-secret`.
- * Not a public route — refused without the secret (M7).
+ * Body: `{ "force"?: boolean, "kind"?: "themes_updated" | "reading_updated" }`
+ * Omitting `kind` syncs both Themes and Reading. Not a public route (M7).
  */
 import { createFileRoute } from "@tanstack/react-router";
 import {
   authorizeCatalogBroadcast,
-  broadcastCatalogHint,
+  syncCatalogPush,
   type CatalogPushKind,
 } from "@/lib/catalog-push.server";
 
@@ -41,21 +42,28 @@ export const Route = createFileRoute("/api/internal/catalog-push")({
             headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
           });
         }
-        const kind = parseKind(body.kind);
-        if (!kind) {
-          return new Response(
-            JSON.stringify({
-              ok: false,
-              error: "invalid_kind",
-              usage: '{ "kind": "themes_updated" | "reading_updated" }',
-            }),
-            {
-              status: 400,
-              headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
-            },
-          );
+
+        const force = body.force === true || body.force === "true" || body.force === 1;
+        let kinds: CatalogPushKind[] | undefined;
+        if (body.kind !== undefined && body.kind !== null && body.kind !== "") {
+          const kind = parseKind(body.kind);
+          if (!kind) {
+            return new Response(
+              JSON.stringify({
+                ok: false,
+                error: "invalid_kind",
+                usage: '{ "kind"?: "themes_updated" | "reading_updated", "force"?: boolean }',
+              }),
+              {
+                status: 400,
+                headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
+              },
+            );
+          }
+          kinds = [kind];
         }
-        const result = await broadcastCatalogHint(kind, secret);
+
+        const result = await syncCatalogPush({ secret, force, kinds });
         return new Response(JSON.stringify(result), {
           status: result.ok ? 200 : result.error === "unauthorized" ? 401 : 500,
           headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },

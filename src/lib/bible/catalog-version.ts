@@ -1,36 +1,31 @@
 /**
- * Lightweight content versions for native Themes / Reading / Bible catalogs.
- * Bump when static catalog files change (or rely on derived fingerprints).
+ * Content versions for native Themes / Reading / Bible catalogs.
+ * Themes + Reading are sha256 of the full serialized catalog payload so any
+ * content edit (not just id/count changes) bumps the version iOS polls.
  */
 import { COLLECTIONS } from "@/lib/bible/collections";
-import { PLAN_TOTAL, READING_PLANS } from "@/lib/bible/reading-plans";
+import { READING_PLANS } from "@/lib/bible/reading-plans";
+import {
+  readingVersionFromContent,
+  themesVersionFromContent,
+} from "@/lib/bible/catalog-content-hash";
+
+export {
+  contentHash,
+  readingVersionFromContent,
+  stableSerialize,
+  themesVersionFromContent,
+} from "@/lib/bible/catalog-content-hash";
 
 /** Keep aligned with `scripts/generate-bible-books-bundle.mjs` / iOS NativeSWR.bibleBooksBundleVersion. */
 export const BIBLE_BOOKS_VERSION = "bible-books-v1";
 
-function fingerprint(parts: string[]): string {
-  // Stable, short, no crypto dependency — good enough for cache busting.
-  let h = 2166136261;
-  const joined = parts.join("|");
-  for (let i = 0; i < joined.length; i++) {
-    h ^= joined.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return (h >>> 0).toString(16);
-}
-
 export function themesCatalogVersion(): string {
-  return `themes-${fingerprint([
-    String(COLLECTIONS.length),
-    COLLECTIONS.map((c) => c.id).join(","),
-  ])}`;
+  return themesVersionFromContent(COLLECTIONS);
 }
 
 export function readingCatalogVersion(): string {
-  return `reading-${fingerprint([
-    String(PLAN_TOTAL),
-    READING_PLANS.map((p) => p.id).join(","),
-  ])}`;
+  return readingVersionFromContent(READING_PLANS);
 }
 
 export function nativeCatalogVersions() {
