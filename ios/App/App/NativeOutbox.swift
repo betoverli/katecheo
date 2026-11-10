@@ -20,6 +20,8 @@ enum NativeOutbox {
         var attempts: Int
         var nextAttemptAt: Date
         var createdAt: Date
+        /// Account that enqueued the job. Nil on legacy jobs decoded from disk.
+        var accountId: String? = nil
     }
 
     private static let fileName = "native-outbox-v1.json"
@@ -148,7 +150,15 @@ enum NativeOutbox {
     }
 
     static func makeJob(type: JobType, payload: Data, id: String = UUID().uuidString) -> Job {
-        Job(id: id, type: type, payload: payload, attempts: 0, nextAttemptAt: Date(), createdAt: Date())
+        Job(
+            id: id,
+            type: type,
+            payload: payload,
+            attempts: 0,
+            nextAttemptAt: Date(),
+            createdAt: Date(),
+            accountId: LocalSessionCache.loadMe()?.id
+        )
     }
 
     // MARK: - Flush
@@ -162,6 +172,21 @@ enum NativeOutbox {
 
         var jobs = load()
         guard !jobs.isEmpty else { return 0 }
+
+        // Drop jobs stamped for another account (or stamped while we have no me cache).
+        // Legacy nil-accountId jobs still flush under the current bearer session.
+        let currentAccountId = LocalSessionCache.loadMe()?.id
+        let beforeFilter = jobs.count
+        jobs = jobs.filter { job in
+            guard let jobAccountId = job.accountId else { return true }
+            guard let currentAccountId else { return false }
+            return jobAccountId == currentAccountId
+        }
+        if jobs.count != beforeFilter {
+            save(jobs)
+        }
+        guard !jobs.isEmpty else { return 0 }
+
         let now = Date()
         var remaining: [Job] = []
         var completed = 0

@@ -5,6 +5,12 @@ import { formatPassageById, type Passage } from "@/lib/bible/passage";
 import { DEFAULT_TRANSLATION, TRANSLATIONS, translationById } from "@/lib/bible/translations";
 import { buildCopyPayload, buildListPayload } from "@/lib/copy-rich";
 import { allowRequest, clientKey } from "@/lib/rate-limit";
+import {
+  publicApiCorsHeaders,
+  type PublicApiCorsMode,
+} from "@/lib/bible/public-api-cors";
+
+export { publicApiCorsHeaders, type PublicApiCorsMode } from "@/lib/bible/public-api-cors";
 
 const LOCALES: Locale[] = ["pt", "en", "es"];
 const MAX_REFS = 30;
@@ -154,33 +160,39 @@ export function resolveLinks(query: LinkQuery): LinkResult {
   };
 }
 
-export async function rateLimited(request: Request) {
+export async function rateLimited(
+  request: Request,
+  mode: PublicApiCorsMode = "trusted",
+) {
+  // Shared Neon rate_limit_buckets (migration 0022) — not process-local.
   if (!(await allowRequest(`api:${clientKey(request)}`, 90, 60_000))) {
-    return corsJson({ ok: false, error: "Too many requests." }, 429);
+    return corsJson({ ok: false, error: "Too many requests." }, 429, request, mode);
   }
   return null;
 }
 
-export function corsJson(data: unknown, status = 200): Response {
+export function corsJson(
+  data: unknown,
+  status = 200,
+  request?: Request,
+  mode: PublicApiCorsMode = "trusted",
+): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       "content-type": "application/json; charset=utf-8",
-      "access-control-allow-origin": "*",
-      "access-control-allow-methods": "GET, POST, OPTIONS",
-      "access-control-allow-headers": "Content-Type, Accept, MCP-Protocol-Version",
       "cache-control": "no-store",
+      ...publicApiCorsHeaders(request, mode),
     },
   });
 }
 
-export function corsPreflight(): Response {
+export function corsPreflight(
+  request?: Request,
+  mode: PublicApiCorsMode = "trusted",
+): Response {
   return new Response(null, {
     status: 204,
-    headers: {
-      "access-control-allow-origin": "*",
-      "access-control-allow-methods": "GET, POST, OPTIONS",
-      "access-control-allow-headers": "Content-Type, Accept, MCP-Protocol-Version",
-    },
+    headers: publicApiCorsHeaders(request, mode),
   });
 }

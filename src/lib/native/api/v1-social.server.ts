@@ -207,7 +207,7 @@ export type NativePeopleHit = NativeLinkPerson & {
   status: "none" | "self" | "incoming" | "outgoing" | "accepted";
 };
 
-/** Same as web `searchPeople` (handle/name, min 2 chars, rate-limited). */
+/** Same as web `searchPeople` (handle/name, min 2 chars, shared Neon rate limit). Hides users without a handle (L1). */
 export async function searchPeopleForUser(userId: string, qRaw: string): Promise<NativePeopleHit[]> {
   if (!(await allowRequest(`people:${userId}`, 30, 60_000))) return [];
   const q = qRaw.trim().replace(/^@+/, "").replace(/[%_\\]/g, "").slice(0, 24);
@@ -224,7 +224,8 @@ export async function searchPeopleForUser(userId: string, qRaw: string): Promise
     left join user_links l
       on (l.requester_id = ${userId} and l.addressee_id = p.user_id)
       or (l.requester_id = p.user_id and l.addressee_id = ${userId})
-    where p.handle <> ''
+    where p.handle is not null
+      and length(trim(p.handle)) > 0
       and p.user_id <> ${userId}
       and (p.handle like ${like} or p.first_name ilike ${name} or p.last_name ilike ${name})
     order by p.handle

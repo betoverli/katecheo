@@ -57,7 +57,18 @@ function fill(template: string, vars: Record<string, string>) {
   return template.replace(/\{(\w+)\}/g, (_, key: string) => vars[key] ?? "");
 }
 
-async function loadKeys(sql: Sql) {
+function isProductionRuntime() {
+  const vercel = process.env.VERCEL_ENV;
+  if (vercel === "production") return true;
+  if (vercel === "preview" || vercel === "development") return false;
+  return process.env.NODE_ENV === "production";
+}
+
+/**
+ * Resolve VAPID keys. Production requires `VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY`
+ * and never generates/stores new keys. Existing `push_config` rows are left intact.
+ */
+async function loadKeys(sql: Sql): Promise<{ publicKey: string; privateKey: string } | null> {
   const envPub = process.env.VAPID_PUBLIC_KEY?.trim();
   const envPriv = process.env.VAPID_PRIVATE_KEY?.trim();
   if (envPub && envPriv) {
@@ -67,6 +78,12 @@ async function loadKeys(sql: Sql) {
       on conflict (id) do nothing
     `;
     return { publicKey: envPub, privateKey: envPriv };
+  }
+  if (isProductionRuntime()) {
+    console.warn(
+      "[notify] VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY unset in production — refusing web push (not generating keys)",
+    );
+    return null;
   }
   const rows = await sql<{ public_key: string; private_key: string }>`
     select public_key, private_key from push_config where id = 1
@@ -90,7 +107,7 @@ async function loadKeys(sql: Sql) {
 export async function vapidPublicKey() {
   const sql = await getSql();
   const keys = await loadKeys(sql);
-  return keys.publicKey;
+  return keys?.publicKey ?? null;
 }
 
 async function trimInbox(sql: Sql, userId: string) {
@@ -114,22 +131,24 @@ async function pushToUser(
   payload: { title: string; body: string; href: string },
 ) {
   const keys = await loadKeys(sql);
-  webpush.setVapidDetails(VAPID_SUB, keys.publicKey, keys.privateKey);
-  const subs = await sql<{ endpoint: string; p256dh: string; auth: string }>`
-    select endpoint, p256dh, auth from push_subscriptions where user_id = ${userId}
-  `;
-  const body = JSON.stringify(payload);
-  for (const sub of subs) {
-    try {
-      await webpush.sendNotification(
-        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-        body,
-        { TTL: 86_400 },
-      );
-    } catch (err) {
-      const status = (err as { statusCode?: number }).statusCode;
-      if (status === 404 || status === 410) {
-        await sql`delete from push_subscriptions where endpoint = ${sub.endpoint}`;
+  if (keys) {
+    webpush.setVapidDetails(VAPID_SUB, keys.publicKey, keys.privateKey);
+    const subs = await sql<{ endpoint: string; p256dh: string; auth: string }>`
+      select endpoint, p256dh, auth from push_subscriptions where user_id = ${userId}
+    `;
+    const body = JSON.stringify(payload);
+    for (const sub of subs) {
+      try {
+        await webpush.sendNotification(
+          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+          body,
+          { TTL: 86_400 },
+        );
+      } catch (err) {
+        const status = (err as { statusCode?: number }).statusCode;
+        if (status === 404 || status === 410) {
+          await sql`delete from push_subscriptions where endpoint = ${sub.endpoint}`;
+        }
       }
     }
   }

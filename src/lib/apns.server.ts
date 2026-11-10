@@ -125,7 +125,11 @@ export async function sendApnsSilentToUser(sql: Sql, userId: string, hint: ApnsS
   });
 }
 
-/** Broadcast a silent catalog hint to every registered iOS device (static catalog deploys). */
+/**
+ * Broadcast a silent catalog hint to every registered iOS device (static catalog deploys).
+ * Callers MUST authorize via `CATALOG_PUSH_SECRET` (see `broadcastCatalogHint`) —
+ * never wire this to a public HTTP route.
+ */
 export async function broadcastApnsSilent(sql: Sql, hint: ApnsSilentHint): Promise<void> {
   const devices = await sql<{ token: string; sandbox: boolean }>`
     select token, sandbox from apns_devices

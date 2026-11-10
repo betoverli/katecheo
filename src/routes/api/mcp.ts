@@ -85,11 +85,12 @@ const PLAN_TOOL = {
 const TOOLS = [LINK_TOOL, COLLECTION_TOOL, PLAN_TOOL];
 
 function rpcResult(id: Rpc["id"], result: unknown) {
-  return corsJson({ jsonrpc: "2.0", id: id ?? null, result });
+  // MCP keeps ACAO * — clients are not same-origin web pages (see PublicApiCorsMode).
+  return corsJson({ jsonrpc: "2.0", id: id ?? null, result }, 200, undefined, "mcp");
 }
 
 function rpcError(id: Rpc["id"], message: string, code = -32600) {
-  return corsJson({ jsonrpc: "2.0", id: id ?? null, error: { code, message } }, 400);
+  return corsJson({ jsonrpc: "2.0", id: id ?? null, error: { code, message } }, 400, undefined, "mcp");
 }
 
 function asArgs(params: Record<string, unknown>): Record<string, unknown> {
@@ -198,20 +199,25 @@ async function handleRpc(msg: Rpc): Promise<Response> {
 export const Route = createFileRoute("/api/mcp")({
   server: {
     handlers: {
-      OPTIONS: async () => corsPreflight(),
+      OPTIONS: async ({ request }) => corsPreflight(request, "mcp"),
       GET: async ({ request }) => {
-        const limited = await rateLimited(request);
+        const limited = await rateLimited(request, "mcp");
         if (limited) return limited;
-        return corsJson({
-          name: "Katecheo",
-          transport: "json-rpc",
-          protocolVersion: "2024-11-05",
-          endpoint: "/api/mcp",
-          tools: TOOLS.map((tool) => tool.name),
-        });
+        return corsJson(
+          {
+            name: "Katecheo",
+            transport: "json-rpc",
+            protocolVersion: "2024-11-05",
+            endpoint: "/api/mcp",
+            tools: TOOLS.map((tool) => tool.name),
+          },
+          200,
+          request,
+          "mcp",
+        );
       },
       POST: async ({ request }) => {
-        const limited = await rateLimited(request);
+        const limited = await rateLimited(request, "mcp");
         if (limited) return limited;
         let body: Rpc;
         try {

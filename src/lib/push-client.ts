@@ -41,6 +41,7 @@ export async function enablePush() {
   const permission = await Notification.requestPermission();
   if (permission !== "granted") return { ok: false as const, error: "denied" as const };
   const key = await getVapidPublicKey();
+  if (!key) return { ok: false as const, error: "unsupported" as const };
   const worker = await registration();
   await navigator.serviceWorker.ready;
   const sub = await worker.pushManager.subscribe({

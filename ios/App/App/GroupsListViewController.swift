@@ -187,7 +187,9 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: V2NGroupRowCell.reuseId, for: indexPath) as! V2NGroupRowCell
+        guard let cell = tableView.dequeueReusableCell(withIdentifier: V2NGroupRowCell.reuseId, for: indexPath) as? V2NGroupRowCell else {
+            return UITableViewCell()
+        }
         let group = filtered[indexPath.row]
         let unread = V2NActivityStore.targetIds(kind: .groupActivity).contains(group.id)
             || V2NActivityStore.targetIds(kind: .groupPending).contains(group.id)

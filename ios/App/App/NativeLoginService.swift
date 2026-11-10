@@ -63,21 +63,73 @@ final class NativeLoginService: NSObject {
 
     // MARK: - Google (ASWebAuthenticationSession + PKCE claim)
 
+    private enum GoogleReturnMode {
+        case https
+        case scheme
+
+        var queryValue: String {
+            switch self {
+            case .https: return "https"
+            case .scheme: return "scheme"
+            }
+        }
+    }
+
+    /// Prefer HTTPS Universal Links on iOS 17.4+; fall back once to the custom scheme
+    /// when the HTTPS session fails for a non-cancel reason (missing webcredentials, etc.).
     @MainActor
     func signInWithGoogle(from presenter: UIViewController) async throws {
+        anchor.windowProvider = { presenter.view.window }
+
+        if #available(iOS 17.4, *) {
+            do {
+                try await completeGoogleSignIn(returnMode: .https)
+            } catch {
+                if Self.shouldFallBackToScheme(error) {
+                    // Fresh PKCE for the scheme retry — previous verifier is bound to the failed https attempt.
+                    try await completeGoogleSignIn(returnMode: .scheme)
+                } else {
+                    throw error
+                }
+            }
+        } else {
+            try await completeGoogleSignIn(returnMode: .scheme)
+        }
+    }
+
+    @MainActor
+    private func completeGoogleSignIn(returnMode: GoogleReturnMode) async throws {
         let verifier = Self.newPkceVerifier()
         let challenge = Self.pkceChallenge(verifier)
-        var components = URLComponents(url: NativeAPIClient.baseURL.appendingPathComponent("auth/native-start"), resolvingAgainstBaseURL: false)!
+        var components = URLComponents(
+            url: NativeAPIClient.baseURL.appendingPathComponent("auth/native-start"),
+            resolvingAgainstBaseURL: false
+        )!
         components.queryItems = [
             URLQueryItem(name: "providerId", value: "google"),
             URLQueryItem(name: "code_challenge", value: challenge),
-            URLQueryItem(name: "return", value: "scheme"),
+            URLQueryItem(name: "return", value: returnMode.queryValue),
         ]
         guard let startURL = components.url else { throw LoginError.invalidURL }
 
-        anchor.windowProvider = { presenter.view.window }
-        let callbackURL: URL = try await withCheckedThrowingContinuation { continuation in
-            let session = ASWebAuthenticationSession(url: startURL, callbackURLScheme: "verse2note") { url, error in
+        let callbackURL = try await runAuthSession(url: startURL, returnMode: returnMode)
+
+        let comps = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false)
+        if comps?.queryItems?.contains(where: { $0.name == "error" }) == true {
+            throw LoginError.failed(String(localized: "Login Google cancelado ou falhou."))
+        }
+        guard let code = comps?.queryItems?.first(where: { $0.name == "code" })?.value, !code.isEmpty else {
+            throw LoginError.failed(String(localized: "Código de login em falta."))
+        }
+        let token = try await claim(code: code, verifier: verifier)
+        _ = KeychainStore.setBearerToken(token)
+    }
+
+    /// Runs `ASWebAuthenticationSession` for either HTTPS Universal Link or custom-scheme return.
+    @MainActor
+    private func runAuthSession(url: URL, returnMode: GoogleReturnMode) async throws -> URL {
+        try await withCheckedThrowingContinuation { continuation in
+            let finish: ASWebAuthenticationSession.CompletionHandler = { callbackURL, error in
                 self.authSession = nil
                 if let error {
                     let ns = error as NSError
@@ -90,11 +142,25 @@ final class NativeLoginService: NSObject {
                     }
                     return
                 }
-                guard let url else {
+                guard let callbackURL else {
                     continuation.resume(throwing: LoginError.cancelled)
                     return
                 }
-                continuation.resume(returning: url)
+                continuation.resume(returning: callbackURL)
+            }
+
+            let session: ASWebAuthenticationSession
+            if #available(iOS 17.4, *) {
+                let callback: ASWebAuthenticationSession.Callback
+                switch returnMode {
+                case .https:
+                    callback = .https(host: AppSite.primaryHost, path: "/auth/native-return")
+                case .scheme:
+                    callback = .customScheme("verse2note")
+                }
+                session = ASWebAuthenticationSession(url: url, callback: callback, completionHandler: finish)
+            } else {
+                session = ASWebAuthenticationSession(url: url, callbackURLScheme: "verse2note", completionHandler: finish)
             }
             session.presentationContextProvider = self.anchor
             session.prefersEphemeralWebBrowserSession = false
@@ -104,16 +170,19 @@ final class NativeLoginService: NSObject {
                 continuation.resume(throwing: LoginError.failed(String(localized: "Não foi possível abrir o login Google.")))
             }
         }
+    }
 
-        let comps = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false)
-        if comps?.queryItems?.contains(where: { $0.name == "error" }) == true {
-            throw LoginError.failed(String(localized: "Login Google cancelado ou falhou."))
+    /// Mirror of server `shouldFallBackToScheme`: retry scheme only when the HTTPS attempt
+    /// failed for a reason that is not a user cancel.
+    private static func shouldFallBackToScheme(_ error: Error) -> Bool {
+        if case LoginError.cancelled = error { return false }
+        let message: String
+        if let localized = error as? LocalizedError, let desc = localized.errorDescription {
+            message = desc
+        } else {
+            message = error.localizedDescription
         }
-        guard let code = comps?.queryItems?.first(where: { $0.name == "code" })?.value, !code.isEmpty else {
-            throw LoginError.failed(String(localized: "Código de login em falta."))
-        }
-        let token = try await claim(code: code, verifier: verifier)
-        _ = KeychainStore.setBearerToken(token)
+        return message.range(of: "cancel", options: .caseInsensitive) == nil
     }
 
     private func claim(code: String, verifier: String) async throws -> String {
