@@ -1350,8 +1350,7 @@ if (!project.includes("AppSite.swift in Sources")) {
     lines.forEach((line, idx) => {
       if (!brandNeedle.test(line)) return;
       if (allowLine.test(line)) return;
-      // xcstrings keys that are only internal MCP tool docs may still mention verse2note_link —
-      // brandNeedle is Verse2Note specifically.
+      // brandNeedle is Verse2Note specifically (MCP tools are katecheo_*).
       brandHits.push(`${rel}:${idx + 1}:${line.trim().slice(0, 120)}`);
     });
   }

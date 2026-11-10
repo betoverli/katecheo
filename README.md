@@ -166,6 +166,6 @@ npm run ios:sync
 - `GET /api/collections?id=salvation`
 - `GET /api/plans?id=gospels-30&day=1`
 - Skill: [/skill.md](https://katecheo.app/skill.md)
-- MCP: `POST /api/mcp` (`verse2note_link`, `verse2note_collection`, `verse2note_plan`)
+- MCP: `POST /api/mcp` (`katecheo_link`, `katecheo_collection`, `katecheo_plan`)
 - LLMs: [/llms.txt](https://katecheo.app/llms.txt)
 - Sitemap: [/sitemap.xml](https://katecheo.app/sitemap.xml)

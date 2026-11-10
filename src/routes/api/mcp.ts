@@ -14,7 +14,7 @@ type Rpc = {
 const APPS = BIBLE_APPS.map((app) => app.id).join(", ");
 
 const LINK_TOOL = {
-  name: "verse2note_link",
+  name: "katecheo_link",
   description:
     "Turn Bible references into deep links for YouVersion, Logos, Tecarta and other Bible apps. Returns markdown ready to paste.",
   inputSchema: {
@@ -35,7 +35,7 @@ const LINK_TOOL = {
 };
 
 const COLLECTION_TOOL = {
-  name: "verse2note_collection",
+  name: "katecheo_collection",
   description:
     "Browse Katecheo themed collections (160 lists of references). List categories, search themes, or return a theme as paste-ready markdown links. Does not return full verse text.",
   inputSchema: {
@@ -57,7 +57,7 @@ const COLLECTION_TOOL = {
 };
 
 const PLAN_TOOL = {
-  name: "verse2note_plan",
+  name: "katecheo_plan",
   description:
     "Browse Katecheo Bible reading plans (whole chapters). List or search plans, or fetch one day's chapters as paste-ready markdown links. Does not return verse text. Does not read a user account; progress lives only in the web app.",
   inputSchema: {
@@ -105,7 +105,7 @@ async function handleRpc(msg: Rpc): Promise<Response> {
       capabilities: { tools: {} },
       serverInfo: { name: "Katecheo", version: "1.2.0" },
       instructions:
-        "Use verse2note_link for a specific reference. Use verse2note_collection for a themed list. Use verse2note_plan for a reading-plan day (whole chapters). Default app is youversion. Do not invent URLs.",
+        "Use katecheo_link for a specific reference. Use katecheo_collection for a themed list. Use katecheo_plan for a reading-plan day (whole chapters). Default app is youversion. Do not invent URLs.",
     });
   }
   if (method === "notifications/initialized" || method === "initialized") {
