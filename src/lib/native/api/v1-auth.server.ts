@@ -9,6 +9,7 @@ import { auth, authConfigured, SESSION_TOKEN_COOKIE } from "@/lib/auth/server";
 import { allowRequest, clientKey } from "@/lib/rate-limit";
 import { claimHandoff } from "@/lib/native/handoff.server";
 import { NATIVE_SESSION_COOKIE, sessionTokenFromCookie } from "@/lib/native/session-cookie";
+import { isAllowedPublicHost, trustedWebOrigins } from "@/lib/site";
 
 function tokenFromSetCookie(headers: Headers): string | null {
   const bags = typeof headers.getSetCookie === "function" ? headers.getSetCookie() : [];
@@ -51,7 +52,7 @@ export async function claimNativeBearer(
   body: { code?: unknown; verifier?: unknown },
 ): Promise<{ ok: true; token: string } | { ok: false; error: string; status: number }> {
   const ip = clientKey(request);
-  if (!allowRequest(`native-v1-claim:${ip}`, 30, 60_000)) {
+  if (!(await allowRequest(`native-v1-claim:${ip}`, 30, 60_000))) {
     return { ok: false, error: "rate_limited", status: 429 };
   }
   const code = typeof body.code === "string" ? body.code : "";
@@ -73,7 +74,7 @@ async function claimHandoffForApi(
   const { currentHandoffKey, openSessionToken } = await import("@/lib/native/handoff-seal.server");
   const { hashHandoffCode, isHandoffCode } = await import("@/lib/native/handoff-code");
   const { isPkceMaterial, pkceChallenge } = await import("@/lib/native/pkce");
-  if (!allowRequest(`native-claim-api:${ip}`, 20, 60_000)) return { ok: false };
+  if (!(await allowRequest(`native-claim-api:${ip}`, 20, 60_000))) return { ok: false };
   if (!isHandoffCode(code) || !isPkceMaterial(verifier)) return { ok: false };
   const challenge = await pkceChallenge(verifier);
   const resolved = currentHandoffKey();
@@ -102,7 +103,7 @@ export async function signInEmailNative(
     return { ok: false, error: "email_disabled", status: 501 };
   }
   const ip = clientKey(request);
-  if (!allowRequest(`native-v1-email:${ip}`, 20, 60_000)) {
+  if (!(await allowRequest(`native-v1-email:${ip}`, 20, 60_000))) {
     return { ok: false, error: "rate_limited", status: 429 };
   }
   const email = typeof body.email === "string" ? body.email.trim() : "";
@@ -139,7 +140,7 @@ export async function signInAppleNative(
     return { ok: false, error: "apple_disabled", status: 501 };
   }
   const ip = clientKey(request);
-  if (!allowRequest(`native-v1-apple:${ip}`, 20, 60_000)) {
+  if (!(await allowRequest(`native-v1-apple:${ip}`, 20, 60_000))) {
     return { ok: false, error: "rate_limited", status: 429 };
   }
   const identityToken = typeof body.identityToken === "string" ? body.identityToken.trim() : "";
@@ -173,10 +174,42 @@ export async function signInAppleNative(
   }
 }
 
+function isTrustedBrowserOrigin(request: Request): boolean {
+  // Prefer Sec-Fetch-Site when present (modern browsers).
+  const site = request.headers.get("sec-fetch-site")?.toLowerCase();
+  if (site === "cross-site" || site === "same-site") return false;
+  const origin = request.headers.get("origin")?.trim();
+  if (origin) {
+    try {
+      const url = new URL(origin);
+      return isAllowedPublicHost(url.hostname) || trustedWebOrigins().includes(origin);
+    } catch {
+      return false;
+    }
+  }
+  // No Origin: allow only when Referer is our host, or Sec-Fetch-Site is same-origin.
+  const referer = request.headers.get("referer")?.trim();
+  if (referer) {
+    try {
+      return isAllowedPublicHost(new URL(referer).hostname);
+    } catch {
+      return false;
+    }
+  }
+  return site === "same-origin";
+}
+
 /** Upgrade a cookie session (classic Cap) into an explicit bearer token body. */
 export async function bearerFromCookie(
   request: Request,
 ): Promise<{ ok: true; token: string } | { ok: false; error: string; status: number }> {
+  const ip = clientKey(request);
+  if (!(await allowRequest(`native-v1-from-cookie:${ip}`, 30, 60_000))) {
+    return { ok: false, error: "rate_limited", status: 429 };
+  }
+  if (!isTrustedBrowserOrigin(request)) {
+    return { ok: false, error: "forbidden_origin", status: 403 };
+  }
   const token = sessionTokenFromCookie(request.headers.get("cookie"));
   if (!token) return { ok: false, error: "no_cookie", status: 401 };
   try {

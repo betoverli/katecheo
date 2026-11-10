@@ -150,6 +150,9 @@ export async function listGroupsForUser(userId: string): Promise<NativeGroup[]> 
 
 export async function getGroupForUser(userId: string, groupId: string): Promise<NativeGroup | null> {
   const sql = await getSql();
+  const mine = await memberOf(sql, groupId, userId);
+  // Private metadata must not leak to non-members (IDOR). Accepted membership required.
+  if (!mine || mine.status !== "accepted") return null;
   return loadGroup(sql, groupId, userId);
 }
 
@@ -163,7 +166,7 @@ export async function createGroupForUser(
   const body = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   const name = cleanName(typeof body.name === "string" ? body.name : "");
   if (name.length < 2) return { ok: false, error: "invalid" };
-  if (!allowRequest(`gcreate:${userId}`, 20, 86_400_000)) {
+  if (!(await allowRequest(`gcreate:${userId}`, 20, 86_400_000))) {
     return { ok: false, error: "limit" };
   }
   const sql = await getSql();

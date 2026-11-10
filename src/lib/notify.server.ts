@@ -217,7 +217,7 @@ export async function notifyGroupNote(actorId: string, groupId: string, groupNam
   if (!members.length) return;
   const locale = await userLocale(sql, members[0]!.user_id);
   const name = await actorName(sql, actorId, locale);
-  const push = allowRequest(`gnote-push:${groupId}`, 1, 15 * 60 * 1000);
+  const push = await allowRequest(`gnote-push:${groupId}`, 1, 15 * 60 * 1000);
   for (const member of members) {
     const loc = await userLocale(sql, member.user_id);
     const who = loc === locale ? name : await actorName(sql, actorId, loc);

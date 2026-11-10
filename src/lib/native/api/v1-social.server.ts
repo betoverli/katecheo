@@ -157,7 +157,7 @@ export async function requestLinkForUser(
   | { ok: true; error: null; status: "accepted" | "outgoing" | "incoming" | "none" }
   | { ok: false; error: "missing" | "limit" | "rate"; status: "none" }
 > {
-  if (!allowRequest(`link-req:${userId}`, 20, 86_400_000)) {
+  if (!(await allowRequest(`link-req:${userId}`, 20, 86_400_000))) {
     return { ok: false, error: "rate", status: "none" };
   }
   const handle = cleanHandle(handleRaw);
@@ -209,7 +209,7 @@ export type NativePeopleHit = NativeLinkPerson & {
 
 /** Same as web `searchPeople` (handle/name, min 2 chars, rate-limited). */
 export async function searchPeopleForUser(userId: string, qRaw: string): Promise<NativePeopleHit[]> {
-  if (!allowRequest(`people:${userId}`, 30, 60_000)) return [];
+  if (!(await allowRequest(`people:${userId}`, 30, 60_000))) return [];
   const q = qRaw.trim().replace(/^@+/, "").replace(/[%_\\]/g, "").slice(0, 24);
   if (q.length < 2) return [];
   const sql = await getSql();
@@ -244,7 +244,7 @@ export async function acceptLinkForUser(
   userId: string,
   handleRaw: string,
 ): Promise<{ ok: true } | { ok: false; error: "missing" | "limit" | "rate" }> {
-  if (!allowRequest(`link-acc:${userId}`, 30, 86_400_000)) {
+  if (!(await allowRequest(`link-acc:${userId}`, 30, 86_400_000))) {
     return { ok: false, error: "rate" };
   }
   const handle = cleanHandle(handleRaw);

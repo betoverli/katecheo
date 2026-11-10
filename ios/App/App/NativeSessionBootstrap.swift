@@ -19,7 +19,9 @@ enum NativeSessionBootstrap {
         let ok = KeychainStore.setBearerToken(token)
         if ok {
             UserDefaults.standard.set(true, forKey: migratedFlagKey)
+            #if DEBUG
             print("[NativeAuth] migrated web session cookie → Keychain bearer")
+            #endif
         }
         return ok
     }

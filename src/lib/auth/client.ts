@@ -1,7 +1,5 @@
-import { genericOAuthClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 import { runPreSignInSignOut, runSignOut } from "../../../scripts/sign-out-plan.mjs";
-import { GOOGLE_PROVIDER_ID } from "./google";
 import { GROK_PROVIDERS } from "./providers";
 import { BEARER_KEY, bearerFromStores, sanitizeBearerToken } from "./bearer-store";
 import { clearSessionUser } from "./session-cache";
@@ -21,12 +19,14 @@ import { useAppStore } from "@/lib/store";
  * never lands in the WebView cookie jar, and that jar can be empty after a
  * kill, so the same bearer is kept in localStorage.
  *
+ * Better Auth 1.7 dropped `genericOAuthClient`; broker ids and built-in social
+ * providers both use `signIn.social`.
+ *
  * To sign out call `signOut()` below, NOT `authClient.signOut()`: the raw call
  * leaves the bearer token in place, and `onRequest` keeps re-attaching it, so
  * the visitor stays signed in.
  */
 export const authClient = createAuthClient({
-  plugins: [genericOAuthClient()],
   fetchOptions: {
     onRequest(ctx) {
       const token = getBearerToken();
@@ -116,8 +116,8 @@ type PopupMessage = { source: "grok-auth-popup"; token: string | null; error?: s
 /**
  * Start sign-in with one provider.
  *
- * `google` is Better Auth's native Google social provider (callback
- * `/api/auth/callback/google`). Any other id must be a broker provider in
+ * Provider ids use Better Auth's social sign-in (`signIn.social`): native
+ * Google (`google`, callback `/api/auth/callback/google`) or a broker id in
  * `GROK_PROVIDERS` (legacy `grok-google` only; X is not registered).
  *
  * - **Live preview** (`*.grok-sandbox.com` iframe): opens a POPUP to
@@ -186,25 +186,11 @@ export async function signIn(
     return;
   }
 
-  if (providerId === GOOGLE_PROVIDER_ID) {
-    const { data, error } = await authClient.signIn.social({
-      provider: GOOGLE_PROVIDER_ID,
-      callbackURL,
-      errorCallbackURL,
-      disableRedirect: true,
-    });
-    if (error) throw new Error(error.message ?? "Sign-in failed");
-    if (data?.url) {
-      window.location.assign(data.url);
-      return;
-    }
-    throw new Error("Sign-in did not return a redirect URL");
-  }
-
-  const { data, error } = await authClient.signIn.oauth2({
-    providerId,
+  const { data, error } = await authClient.signIn.social({
+    provider: providerId,
     callbackURL,
     errorCallbackURL,
+    disableRedirect: true,
   });
   if (error) throw new Error(error.message ?? "Sign-in failed");
   if (data?.url) {

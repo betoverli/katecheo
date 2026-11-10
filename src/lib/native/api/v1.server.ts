@@ -247,7 +247,7 @@ export async function getNoteForUser(userId: string, noteId: string): Promise<No
 export async function upsertNoteForUser(
   userId: string,
   raw: unknown,
-): Promise<{ ok: true; note: NoteDocumentV1 } | { ok: false; error: "invalid" | "limit" }> {
+): Promise<{ ok: true; note: NoteDocumentV1 } | { ok: false; error: "invalid" | "limit" | "conflict" }> {
   const coerced = coerceIncomingNote(raw);
   if (!coerced) return { ok: false, error: "invalid" };
   const { note, document } = coerced;
@@ -260,7 +260,12 @@ export async function upsertNoteForUser(
   `;
   if (!existing[0] && Number(count[0]?.n ?? 0) >= 200) return { ok: false, error: "limit" };
   const encodedBlocks = encodeDocumentStorage(document.body.blocks);
-  await sql`
+  const foreign = await sql<{ id: string }>`
+    select id from notebook_notes where id = ${note.id} and user_id <> ${userId} limit 1
+  `;
+  if (foreign[0]) return { ok: false, error: "conflict" };
+
+  const written = await sql<{ id: string }>`
     insert into notebook_notes (id, user_id, title, happened_at, tags, blocks, visibility, updated_at, speaker_id)
     values (
       ${note.id}, ${userId}, ${note.title}, ${note.happenedAt}::date,
@@ -277,7 +282,10 @@ export async function upsertNoteForUser(
       speaker_id = excluded.speaker_id
     where notebook_notes.user_id = ${userId}
       and notebook_notes.updated_at <= excluded.updated_at
+    returning id
   `;
+  // Conflict owned by us but stale updatedAt → no row returned; still treat as ok (idempotent older write).
+  if (!written[0] && !existing[0]) return { ok: false, error: "invalid" };
   return { ok: true, note: document };
 }
 

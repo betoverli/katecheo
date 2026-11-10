@@ -120,7 +120,7 @@ export const searchPeople = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((data: { q: string }) => data)
   .handler(async ({ context, data }) => {
-    if (!allowRequest(`people:${context.userId}`, 30, 60_000)) return [] as PeopleHit[];
+    if (!(await allowRequest(`people:${context.userId}`, 30, 60_000))) return [] as PeopleHit[];
     const q = cleanQuery(data.q);
     if (q.length < 2) return [] as PeopleHit[];
     const sql = await getSql();
@@ -189,7 +189,7 @@ export const requestLink = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((data: { handle: string }) => data)
   .handler(async ({ context, data }) => {
-    if (!allowRequest(`link-req:${context.userId}`, 20, 86_400_000)) {
+    if (!(await allowRequest(`link-req:${context.userId}`, 20, 86_400_000))) {
       return { ok: false as const, error: "limit" as const, status: "none" as const };
     }
     const handle = cleanHandle(data.handle);
@@ -239,7 +239,7 @@ export const acceptLink = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((data: { handle: string }) => data)
   .handler(async ({ context, data }) => {
-    if (!allowRequest(`link-acc:${context.userId}`, 30, 86_400_000)) {
+    if (!(await allowRequest(`link-acc:${context.userId}`, 30, 86_400_000))) {
       return { ok: false as const };
     }
     const handle = cleanHandle(data.handle);
@@ -291,7 +291,7 @@ export const sendPlanToFriend = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((data: { handle: string; planId: string }) => data)
   .handler(async ({ context, data }) => {
-    if (!allowRequest(`send:${context.userId}`, 40, 86_400_000)) {
+    if (!(await allowRequest(`send:${context.userId}`, 40, 86_400_000))) {
       return { ok: false as const, error: "limit" as const };
     }
     const plan = planById(data.planId);
@@ -318,7 +318,7 @@ export const sendCollectionToFriend = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((data: { handle: string; collectionId: string }) => data)
   .handler(async ({ context, data }) => {
-    if (!allowRequest(`send:${context.userId}`, 40, 86_400_000)) {
+    if (!(await allowRequest(`send:${context.userId}`, 40, 86_400_000))) {
       return { ok: false as const, error: "limit" as const };
     }
     const handle = cleanHandle(data.handle);

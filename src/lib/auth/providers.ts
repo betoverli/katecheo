@@ -14,9 +14,10 @@
  * Existing account rows may still name that provider; new sign-in is not
  * offered. To bring a broker upstream back, add one entry here
  * (`{ providerId: "grok-x", idp: "twitter", label: "X" }`).
- * The `providerId` is this app's local id and the OAuth callback path segment
- * (`/api/auth/oauth2/callback/<providerId>`); `idp` is the hint the broker reads
- * to pick the upstream.
+ * The `providerId` is this app's local id. Better Auth 1.7 serves social
+ * callbacks at `/api/auth/callback/<providerId>`; `legacyGrokOAuthCallback`
+ * keeps the broker allowlist path `/api/auth/oauth2/callback/<providerId>`.
+ * `idp` is the hint the broker reads to pick the upstream.
  */
 export type GrokProvider = {
   /** This app's local provider id; also the callback path segment. */

@@ -14,10 +14,11 @@ export const saveApnsDevice = createServerFn({ method: "POST" })
 
 export const dropApnsDevice = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((data: { token?: string }) => ({
+  .validator((data: { token?: string; all?: boolean }) => ({
     token: typeof data?.token === "string" ? data.token : "",
+    all: data?.all === true,
   }))
   .handler(async ({ context, data }) => {
     const { dropApnsDevice: drop } = await import("./devices.server");
-    return drop(context.userId, data.token);
+    return drop(context.userId, data.token, { all: data.all });
   });

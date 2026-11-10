@@ -3,18 +3,27 @@ import Foundation
 /// On-device mirror of `NoteDocumentV1` lists for offline read / quick paint.
 enum LocalNoteCache {
     private static var directory: URL {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
         let dir = base.appendingPathComponent("NativeNotes", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try? FileManager.default.createDirectory(
+            at: dir,
+            withIntermediateDirectories: true,
+            attributes: [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication]
+        )
         return dir
     }
 
     private static var notesURL: URL { directory.appendingPathComponent("notes-v1.json") }
     private static var speakersURL: URL { directory.appendingPathComponent("speakers-v1.json") }
 
+    private static func writeProtected(_ data: Data, to url: URL) {
+        try? data.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+    }
+
     static func saveNotes(_ notes: [NativeAPIClient.NoteDocument]) {
         guard let data = try? JSONEncoder().encode(notes) else { return }
-        try? data.write(to: notesURL, options: .atomic)
+        writeProtected(data, to: notesURL)
     }
 
     static func loadNotes() -> [NativeAPIClient.NoteDocument] {
@@ -46,7 +55,7 @@ enum LocalNoteCache {
 
     static func saveSpeakers(_ speakers: [NativeAPIClient.SpeakerDTO]) {
         guard let data = try? JSONEncoder().encode(speakers) else { return }
-        try? data.write(to: speakersURL, options: .atomic)
+        writeProtected(data, to: speakersURL)
     }
 
     /// Merge into the on-device catalog without wiping unrelated speakers.

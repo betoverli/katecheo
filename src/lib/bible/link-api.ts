@@ -154,8 +154,8 @@ export function resolveLinks(query: LinkQuery): LinkResult {
   };
 }
 
-export function rateLimited(request: Request) {
-  if (!allowRequest(`api:${clientKey(request)}`, 90, 60_000)) {
+export async function rateLimited(request: Request) {
+  if (!(await allowRequest(`api:${clientKey(request)}`, 90, 60_000))) {
     return corsJson({ ok: false, error: "Too many requests." }, 429);
   }
   return null;

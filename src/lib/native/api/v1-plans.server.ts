@@ -147,6 +147,15 @@ export async function getPlanGroupPreviewForUser(groupId: string, userId?: strin
   `;
   const group = groups[0];
   if (!group) return null;
+  // Membership required — invite UUID alone must not leak everyone's reading progress.
+  if (userId) {
+    const mine = await sql<{ user_id: string }>`
+      select user_id from plan_group_members where group_id = ${groupId} and user_id = ${userId} limit 1
+    `;
+    if (!mine[0] && group.host_id !== userId) return null;
+  } else {
+    return null;
+  }
   const memberRows = await sql<{ user_id: string }>`
     select user_id from plan_group_members where group_id = ${groupId} order by joined_at
   `;

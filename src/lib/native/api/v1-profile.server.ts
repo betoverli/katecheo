@@ -7,7 +7,7 @@ import { appById } from "@/lib/bible/apps";
 import type { Locale } from "@/lib/bible/books";
 import type { CiteBook, CiteSep } from "@/lib/bible/passage";
 import type { CopyFormat } from "@/lib/copy-rich";
-import { getSql } from "@/lib/db";
+import { getSql, withTransaction } from "@/lib/db";
 import { pictureFromJwt } from "@/lib/oauth-photo";
 import { progressFromMarks } from "@/lib/plan-marks";
 import { planById } from "@/lib/bible/reading-plans";
@@ -495,36 +495,37 @@ export async function exportAccountForUser(userId: string) {
 export async function deleteAccountForUser(
   userId: string,
 ): Promise<{ ok: true } | { ok: false; error: "limit" }> {
-  if (!allowRequest(`adel:${userId}`, 3, 86_400_000)) {
+  if (!(await allowRequest(`adel:${userId}`, 3, 86_400_000))) {
     return { ok: false, error: "limit" };
   }
-  const sql = await getSql();
   const id = userId;
-  await sql`delete from note_grants where user_id = ${id} or from_id = ${id}`;
-  await sql`delete from notebook_group_notes where note_id in (select id from notebook_notes where user_id = ${id})`;
-  await sql`delete from notebook_notes where user_id = ${id}`;
-  await sql`delete from notebook_speakers where user_id = ${id}`;
-  await sql`delete from notebook_group_members where user_id = ${id}`;
-  await sql`
-    delete from notebook_groups g
-    where created_by = ${id}
-      and not exists (
-        select 1 from notebook_group_members m where m.group_id = g.id and m.status = 'accepted'
-      )
-  `;
-  await sql`delete from collection_grants where user_id = ${id} or from_id = ${id}`;
-  await sql`delete from user_collections where user_id = ${id}`;
-  await sql`delete from user_links where requester_id = ${id} or addressee_id = ${id}`;
-  await sql`delete from plan_group_members where user_id = ${id}`;
-  await sql`delete from plan_marks where user_id = ${id}`;
-  await sql`delete from notifications where user_id = ${id}`;
-  await sql`delete from push_subscriptions where user_id = ${id}`;
-  await sql`delete from apns_devices where user_id = ${id}`;
-  await sql`delete from native_auth_handoff where user_id = ${id}`;
-  await sql`delete from user_prefs where user_id = ${id}`;
-  await sql`delete from verification where identifier in (select email from "user" where id = ${id})`;
-  await sql`delete from session where "userId" = ${id}`;
-  await sql`delete from account where "userId" = ${id}`;
-  await sql`delete from "user" where id = ${id}`;
+  await withTransaction(async (sql) => {
+    await sql`delete from note_grants where user_id = ${id} or from_id = ${id}`;
+    await sql`delete from notebook_group_notes where note_id in (select id from notebook_notes where user_id = ${id})`;
+    await sql`delete from notebook_notes where user_id = ${id}`;
+    await sql`delete from notebook_speakers where user_id = ${id}`;
+    await sql`delete from notebook_group_members where user_id = ${id}`;
+    await sql`
+      delete from notebook_groups g
+      where created_by = ${id}
+        and not exists (
+          select 1 from notebook_group_members m where m.group_id = g.id and m.status = 'accepted'
+        )
+    `;
+    await sql`delete from collection_grants where user_id = ${id} or from_id = ${id}`;
+    await sql`delete from user_collections where user_id = ${id}`;
+    await sql`delete from user_links where requester_id = ${id} or addressee_id = ${id}`;
+    await sql`delete from plan_group_members where user_id = ${id}`;
+    await sql`delete from plan_marks where user_id = ${id}`;
+    await sql`delete from notifications where user_id = ${id}`;
+    await sql`delete from push_subscriptions where user_id = ${id}`;
+    await sql`delete from apns_devices where user_id = ${id}`;
+    await sql`delete from native_auth_handoff where user_id = ${id}`;
+    await sql`delete from user_prefs where user_id = ${id}`;
+    await sql`delete from verification where identifier in (select email from "user" where id = ${id})`;
+    await sql`delete from session where "userId" = ${id}`;
+    await sql`delete from account where "userId" = ${id}`;
+    await sql`delete from "user" where id = ${id}`;
+  });
   return { ok: true };
 }
