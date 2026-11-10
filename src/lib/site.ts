@@ -1,8 +1,10 @@
 /**
  * Public site identity for Katecheo.
  * `PUBLIC_BASE_URL` (e.g. https://katecheo.app) is the canonical origin.
- * verse2note.com remains accepted during DNS cutover; later it will 308 to
- * katecheo.app except `/api/native/*` for old iOS builds (not implemented yet).
+ * verse2note.com / www.verse2note.com 308 to katecheo.app (same path+query)
+ * except native API, well-known, and auth paths for old iOS builds — see
+ * `domain-cutover.ts` and `docs/domain-cutover.md`. Both hosts stay in
+ * Better Auth trusted origins until those builds are gone.
  */
 
 export const BRAND_NAME = "Katecheo";

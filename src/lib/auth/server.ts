@@ -139,7 +139,8 @@ function hostOf(url: string | undefined): string | undefined {
 }
 
 // Always derive baseURL from the request Host so OAuth redirect_uri and
-// __Host- cookies land on verse2note.com (not only the grok.me publish URL).
+// __Host- cookies land on the request host (katecheo.app or verse2note.com
+// during cutover — not only the grok.me publish URL).
 const deployedHost = hostOf(explicitBaseURL);
 const baseURL = {
   allowedHosts: [
