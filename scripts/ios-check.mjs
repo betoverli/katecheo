@@ -950,6 +950,24 @@ if (!project.includes("Build238FeedbackTests.swift in Sources")) {
 if (!project.includes("NotificationsCenterViewModel.swift in Sources") || !project.includes("NotificationsCenterViewController.swift in Sources")) {
   errors.push("Notifications Center (ViewModel + ViewController) tem de estar no target App.");
 }
+
+{
+  const testsDir = join(root, "ios/App/KatecheoTests");
+  for (const name of readdirSync(testsDir)) {
+    if (!name.endsWith(".swift")) continue;
+    const body = readFileSync(join(testsDir, name), "utf8");
+    if (body.includes("@testable import App") || !body.includes("@testable import Katecheo")) {
+      // Allow files that don't import the app module (none today) only if no testable import.
+      if (/@testable\s+import\s+\w+/.test(body) && !body.includes("@testable import Katecheo")) {
+        errors.push(`${name}: use @testable import Katecheo (módulo = PRODUCT_NAME).`);
+      }
+      if (body.includes("@testable import App")) {
+        errors.push(`${name}: @testable import App inválido após rename — use Katecheo.`);
+      }
+    }
+  }
+}
+
 if (!project.includes("NotificationsCenterTests.swift in Sources")) {
   errors.push("AppTests NotificationsCenterTests têm de estar no target.");
 }

@@ -1,5 +1,5 @@
 import XCTest
-@testable import App
+@testable import Katecheo
 
 /// Notification Center: view-model paging / mark-read / badge, plus Caderno UI path.
 @MainActor

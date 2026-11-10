@@ -1,5 +1,5 @@
 import XCTest
-@testable import App
+@testable import Katecheo
 
 /// Counts native GETs along the same call paths Caderno / Perfil / Versos / foreground use.
 final class NativeSWRCacheTests: XCTestCase {

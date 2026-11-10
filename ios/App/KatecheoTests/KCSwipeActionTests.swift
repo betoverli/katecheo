@@ -1,5 +1,5 @@
 import XCTest
-@testable import App
+@testable import Katecheo
 
 /// Icon-only swipe actions (Mail/Notes style) — title nil, localized a11y label.
 @MainActor

@@ -1,5 +1,5 @@
 import XCTest
-@testable import App
+@testable import Katecheo
 
 /// Drives real `NativeNoteEditorView` against web-parity speaker behavior
 /// (`docs/editor-behavior-spec.md`). Covers Beto's build-189 bugs.

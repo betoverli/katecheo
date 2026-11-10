@@ -1,5 +1,5 @@
 import XCTest
-@testable import App
+@testable import Katecheo
 
 final class SpeakerEnterDecisionTests: XCTestCase {
     func testEnterOnHeaderInsertsBody() {

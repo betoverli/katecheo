@@ -1,5 +1,5 @@
 import XCTest
-@testable import App
+@testable import Katecheo
 
 /// Real `NativeNoteEditorView` / UITextView coverage for TestFlight 194 bugs.
 @MainActor

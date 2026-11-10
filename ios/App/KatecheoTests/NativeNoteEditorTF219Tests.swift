@@ -1,5 +1,5 @@
 import XCTest
-@testable import App
+@testable import Katecheo
 
 /// Real UITextView coverage for TestFlight 219 (Appearance at launch + speaker name light palette).
 @MainActor

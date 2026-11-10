@@ -1,5 +1,5 @@
 import XCTest
-@testable import App
+@testable import Katecheo
 
 /// Real UITextView coverage for TestFlight 214 (tab-bar scroll + speaker header appearance).
 @MainActor

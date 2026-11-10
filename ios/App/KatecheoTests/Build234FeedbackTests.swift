@@ -1,5 +1,5 @@
 import XCTest
-@testable import App
+@testable import Katecheo
 
 /// Build 234: note canvas nav, bible-pill ambient-Dark rebake, Profile sub-page theming.
 @MainActor

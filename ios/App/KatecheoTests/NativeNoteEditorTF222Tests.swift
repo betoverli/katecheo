@@ -1,5 +1,5 @@
 import XCTest
-@testable import App
+@testable import Katecheo
 
 /// TestFlight 222 — speaker header must stay dark in Light mode even when TextKit layout
 /// runs under ambient system-Dark traits (the device bug after #66/#67).

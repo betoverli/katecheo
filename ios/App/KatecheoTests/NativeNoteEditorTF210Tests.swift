@@ -1,5 +1,5 @@
 import XCTest
-@testable import App
+@testable import Katecheo
 
 /// Real `NativeNoteEditorView` coverage for TestFlight 210 feedback.
 @MainActor

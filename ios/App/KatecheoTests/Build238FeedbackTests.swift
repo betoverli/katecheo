@@ -1,5 +1,5 @@
 import XCTest
-@testable import App
+@testable import Katecheo
 
 /// Build 238: editor Light pref, tags save path, delete anchors, Lists empty, search hide, activity dots.
 @MainActor

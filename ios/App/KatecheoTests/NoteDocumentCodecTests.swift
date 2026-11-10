@@ -1,5 +1,5 @@
 import XCTest
-@testable import App
+@testable import Katecheo
 
 @MainActor
 final class NoteDocumentCodecTests: XCTestCase {

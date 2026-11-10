@@ -1,5 +1,5 @@
 import XCTest
-@testable import App
+@testable import Katecheo
 
 /// Root tabs must share one Profile-matched fill (nav + content) in light and dark.
 @MainActor

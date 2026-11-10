@@ -1,5 +1,5 @@
 import XCTest
-@testable import App
+@testable import Katecheo
 
 final class KCScrollChromeTests: XCTestCase {
     func testTabBarClearance_whenFloatingBarTallerThanSafeArea() {
