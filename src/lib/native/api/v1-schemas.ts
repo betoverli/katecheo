@@ -171,8 +171,10 @@ export const authEmailSchema = z
 export const authAppleSchema = z
   .object({
     identityToken: z.string().min(1).max(8000),
+    authorizationCode: z.string().max(4000).optional(),
     nonce: z.string().max(200).optional(),
     fullName: z.unknown().optional(),
+    name: z.unknown().optional(),
   })
   .passthrough();
 

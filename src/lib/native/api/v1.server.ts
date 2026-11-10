@@ -373,7 +373,12 @@ export function nativeV1Catalog() {
       { method: "GET", path: "/auth/providers", auth: false },
       { method: "POST", path: "/auth/claim", auth: false, body: "{ code, verifier }" },
       { method: "POST", path: "/auth/email", auth: false, body: "{ email, password }" },
-      { method: "POST", path: "/auth/apple", auth: false, body: "{ identityToken, nonce? }" },
+      {
+        method: "POST",
+        path: "/auth/apple",
+        auth: false,
+        body: "{ identityToken, authorizationCode?, nonce?, fullName? }",
+      },
       { method: "POST", path: "/auth/from-cookie", auth: false, note: "Cookie session → bearer" },
       { method: "POST", path: "/auth/sign-out", auth: true },
       { method: "GET", path: "/session", auth: true },

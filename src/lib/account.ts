@@ -75,6 +75,16 @@ export const deleteMyAccount = createServerFn({ method: "POST" })
       return { ok: false as const, error: "limit" as const };
     }
     const id = context.userId;
+    try {
+      const { loadAppleRevokeMaterial } = await import("@/lib/auth/apple-native.server");
+      const { revokeAppleToken } = await import("@/lib/auth/apple-token.server");
+      const material = await loadAppleRevokeMaterial(id);
+      if (material.appleSub && material.refreshToken) {
+        await revokeAppleToken(material.refreshToken);
+      }
+    } catch (error) {
+      console.warn("[account/delete] Apple revoke skipped", error);
+    }
     await withTransaction(async (sql) => {
       await sql`delete from note_grants where user_id = ${id} or from_id = ${id}`;
       await sql`delete from notebook_group_notes where note_id in (select id from notebook_notes where user_id = ${id})`;

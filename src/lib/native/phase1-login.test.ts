@@ -25,10 +25,16 @@ describe("Phase 1 native login", () => {
     const signIn = read("ios/App/Katecheo/NativeSignInViewController.swift");
     assert.match(signIn, /Continuar com Google/);
     assert.match(signIn, /ASAuthorizationAppleIDButton/);
+    assert.match(signIn, /makeAppleButton|appleButtonStyle/);
     assert.match(signIn, /Entrar com email/);
+    assert.match(signIn, /BrandMark/);
     const login = read("ios/App/Katecheo/NativeLoginService.swift");
     assert.match(login, /ASWebAuthenticationSession/);
     assert.match(login, /auth\/claim/);
+    assert.match(login, /auth\/apple/);
+    assert.match(login, /authorizationCode/);
+    assert.match(login, /fullName|givenName/);
+    assert.match(login, /requestedScopes = \[\.fullName, \.email\]/);
     assert.match(login, /func signOut/);
     assert.match(login, /KeychainStore\.deleteBearerToken|KeychainStore\.setBearerToken/);
     const boot = read("ios/App/Katecheo/NativeSessionBootstrap.swift");
@@ -51,8 +57,19 @@ describe("Phase 1 native login", () => {
   it("optionally wires Apple into Better Auth when env is set", () => {
     const apple = read("src/lib/auth/apple.ts");
     assert.match(apple, /APPLE_CLIENT_ID/);
+    assert.match(apple, /APPLE_SIGNIN_KEY_ID|APPLE_SIGNIN_PRIVATE_KEY/);
+    assert.match(apple, /appleNativeFromEnv/);
     const server = read("src/lib/auth/server.ts");
     assert.match(server, /appleOAuthFromEnv/);
     assert.match(server, /APPLE_PROVIDER_ID|apple:/);
+    const auth = read("src/lib/native/api/v1-auth.server.ts");
+    assert.match(auth, /verifyAppleIdentityToken/);
+    assert.match(auth, /findOrCreateAppleUser/);
+    assert.match(auth, /exchangeAppleAuthorizationCode/);
+    const migration = read("migrations/0024_apple_signin.sql");
+    assert.match(migration, /apple_sub/);
+    assert.match(migration, /apple_refresh_token/);
+    const profile = read("src/lib/native/api/v1-profile.server.ts");
+    assert.match(profile, /revokeAppleToken/);
   });
 });

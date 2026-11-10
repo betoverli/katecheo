@@ -29,7 +29,9 @@ final class NativeLoginService: NSObject {
     // MARK: - Providers
 
     func fetchProviders(force: Bool = false) async -> Providers {
-        let fallback = Providers(ok: true, google: true, apple: false, email: true)
+        // Apple defaults on so App Store 4.8 always shows the button next to Google
+        // even if /auth/providers is unreachable; the server still gates the exchange.
+        let fallback = Providers(ok: true, google: true, apple: true, email: true)
         if !force,
            let at = NativeSWR.authProvidersFetchedAt(),
            Date().timeIntervalSince(at) < NativeSWR.TTL.authProviders,
@@ -281,9 +283,11 @@ final class NativeLoginService: NSObject {
         return Data(bytes).base64URLEncodedString()
     }
 
+    /// Apple expects the SHA-256 digest of the raw nonce (hex) on the request;
+    /// the identity token echoes that digest in its `nonce` claim.
     private static func sha256(_ input: String) -> String {
         let hash = SHA256.hash(data: Data(input.utf8))
-        return Data(hash).base64URLEncodedString()
+        return hash.map { String(format: "%02x", $0) }.joined()
     }
 
     enum LoginError: LocalizedError {
@@ -323,6 +327,19 @@ extension NativeLoginService: ASAuthorizationControllerDelegate, ASAuthorization
                 request.setValue("application/json", forHTTPHeaderField: "Content-Type")
                 var body: [String: Any] = ["identityToken": identityToken]
                 if let nonce { body["nonce"] = nonce }
+                if let codeData = credential.authorizationCode,
+                   let code = String(data: codeData, encoding: .utf8),
+                   !code.isEmpty
+                {
+                    body["authorizationCode"] = code
+                }
+                // Apple only returns the person's name on the first authorization.
+                if let fullName = credential.fullName {
+                    var name: [String: String] = [:]
+                    if let given = fullName.givenName, !given.isEmpty { name["givenName"] = given }
+                    if let family = fullName.familyName, !family.isEmpty { name["familyName"] = family }
+                    if !name.isEmpty { body["fullName"] = name }
+                }
                 request.httpBody = try JSONSerialization.data(withJSONObject: body)
                 let (data, response) = try await URLSession.shared.data(for: request)
                 let status = (response as? HTTPURLResponse)?.statusCode ?? 0

@@ -62,11 +62,7 @@ final class NativeSignInViewController: UIViewController {
         googleButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 50).isActive = true
         googleButton.addTarget(self, action: #selector(tapGoogle), for: .touchUpInside)
 
-        appleButton = ASAuthorizationAppleIDButton(type: .signIn, style: .black)
-        appleButton.cornerRadius = KCDesign.Radius.md
-        appleButton.heightAnchor.constraint(equalToConstant: 50).isActive = true
-        appleButton.addTarget(self, action: #selector(tapApple), for: .touchUpInside)
-        appleButton.accessibilityLabel = String(localized: "Entrar com Apple")
+        appleButton = makeAppleButton()
 
         styleField(emailField, placeholder: String(localized: "Email"), contentType: .username)
         emailField.keyboardType = .emailAddress
@@ -116,6 +112,38 @@ final class NativeSignInViewController: UIViewController {
         Task { await loadProviders() }
     }
 
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        guard previousTraitCollection?.userInterfaceStyle != traitCollection.userInterfaceStyle else { return }
+        rebuildAppleButtonForCurrentStyle()
+    }
+
+    private func appleButtonStyle() -> ASAuthorizationAppleIDButton.Style {
+        traitCollection.userInterfaceStyle == .dark ? .white : .black
+    }
+
+    private func makeAppleButton() -> ASAuthorizationAppleIDButton {
+        let button = ASAuthorizationAppleIDButton(type: .signIn, style: appleButtonStyle())
+        button.cornerRadius = KCDesign.Radius.md
+        button.heightAnchor.constraint(equalToConstant: 50).isActive = true
+        button.addTarget(self, action: #selector(tapApple), for: .touchUpInside)
+        button.accessibilityLabel = String(localized: "Entrar com Apple")
+        return button
+    }
+
+    private func rebuildAppleButtonForCurrentStyle() {
+        guard let current = appleButton, let index = stack.arrangedSubviews.firstIndex(of: current) else { return }
+        let wasHidden = current.isHidden
+        let wasEnabled = current.isEnabled
+        stack.removeArrangedSubview(current)
+        current.removeFromSuperview()
+        let next = makeAppleButton()
+        next.isHidden = wasHidden
+        next.isEnabled = wasEnabled
+        appleButton = next
+        stack.insertArrangedSubview(next, at: index)
+    }
+
     private func styleField(_ field: UITextField, placeholder: String, contentType: UITextContentType) {
         field.placeholder = placeholder
         field.borderStyle = .none
@@ -139,7 +167,10 @@ final class NativeSignInViewController: UIViewController {
         let providers = await NativeLoginService.shared.fetchProviders()
         await MainActor.run {
             googleButton.isHidden = !(providers.google ?? true)
-            appleButton.isHidden = !(providers.apple ?? false)
+            // Keep Sign in with Apple visible whenever Google is (Guideline 4.8).
+            let googleOn = providers.google ?? true
+            let appleOn = providers.apple ?? true
+            appleButton.isHidden = !(appleOn || googleOn)
             let emailOn = providers.email ?? true
             emailField.isHidden = !emailOn
             passwordField.isHidden = !emailOn
