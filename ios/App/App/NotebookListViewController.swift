@@ -397,7 +397,9 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: V2NNoteRowCell.reuseId, for: indexPath) as! V2NNoteRowCell
+        guard let cell = tableView.dequeueReusableCell(withIdentifier: V2NNoteRowCell.reuseId, for: indexPath) as? V2NNoteRowCell else {
+            return UITableViewCell()
+        }
         if isGroupMode {
             let card = filteredCards[indexPath.row]
             let title = card.note.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? String(localized: "Reunião") : card.note.title

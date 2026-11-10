@@ -430,11 +430,15 @@ final class BooksHomeViewController: UIViewController, UICollectionViewDelegate,
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let book = (indexPath.section == 0 ? otBooks : ntBooks)[indexPath.item]
         if booksCompact {
-            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NBookAbbrCell.reuseId, for: indexPath) as! V2NBookAbbrCell
+            guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NBookAbbrCell.reuseId, for: indexPath) as? V2NBookAbbrCell else {
+                return UICollectionViewCell()
+            }
             cell.configure(abbr: book.abbr, accessibilityName: book.name)
             return cell
         }
-        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NBookNameCell.reuseId, for: indexPath) as! V2NBookNameCell
+        guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NBookNameCell.reuseId, for: indexPath) as? V2NBookNameCell else {
+            return UICollectionViewCell()
+        }
         cell.configure(name: book.name, abbr: book.abbr)
         return cell
     }
@@ -444,11 +448,13 @@ final class BooksHomeViewController: UIViewController, UICollectionViewDelegate,
         viewForSupplementaryElementOfKind kind: String,
         at indexPath: IndexPath
     ) -> UICollectionReusableView {
-        let header = collectionView.dequeueReusableSupplementaryView(
+        guard let header = collectionView.dequeueReusableSupplementaryView(
             ofKind: kind,
             withReuseIdentifier: V2NBookSectionHeaderView.reuseId,
             for: indexPath
-        ) as! V2NBookSectionHeaderView
+        ) as? V2NBookSectionHeaderView else {
+            return V2NBookSectionHeaderView(frame: .zero)
+        }
         header.configure(
             title: indexPath.section == 0
                 ? String(localized: "Antigo Testamento")

@@ -121,7 +121,9 @@ final class BibleRefInsertPicker: UIViewController, UICollectionViewDelegate, UI
 
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let book = (indexPath.section == 0 ? otBooks : ntBooks)[indexPath.item]
-        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NBookAbbrCell.reuseId, for: indexPath) as! V2NBookAbbrCell
+        guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NBookAbbrCell.reuseId, for: indexPath) as? V2NBookAbbrCell else {
+            return UICollectionViewCell()
+        }
         cell.configure(abbr: book.abbr, accessibilityName: book.name)
         return cell
     }
@@ -131,11 +133,13 @@ final class BibleRefInsertPicker: UIViewController, UICollectionViewDelegate, UI
         viewForSupplementaryElementOfKind kind: String,
         at indexPath: IndexPath
     ) -> UICollectionReusableView {
-        let header = collectionView.dequeueReusableSupplementaryView(
+        guard let header = collectionView.dequeueReusableSupplementaryView(
             ofKind: kind,
             withReuseIdentifier: V2NBookSectionHeaderView.reuseId,
             for: indexPath
-        ) as! V2NBookSectionHeaderView
+        ) as? V2NBookSectionHeaderView else {
+            return V2NBookSectionHeaderView(frame: .zero)
+        }
         header.configure(
             title: indexPath.section == 0
                 ? String(localized: "Antigo Testamento")
@@ -211,7 +215,9 @@ private final class BibleRefChapterPicker: UIViewController, UICollectionViewDel
     }
 
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NNumberCell.reuseId, for: indexPath) as! V2NNumberCell
+        guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NNumberCell.reuseId, for: indexPath) as? V2NNumberCell else {
+            return UICollectionViewCell()
+        }
         cell.configure(number: indexPath.item + 1, style: .plain)
         return cell
     }
@@ -318,7 +324,9 @@ private final class BibleRefVersePicker: UIViewController, UICollectionViewDeleg
     }
 
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NNumberCell.reuseId, for: indexPath) as! V2NNumberCell
+        guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: V2NNumberCell.reuseId, for: indexPath) as? V2NNumberCell else {
+            return UICollectionViewCell()
+        }
         let verse = indexPath.item + 1
         cell.configure(number: verse, style: style(for: verse))
         return cell
