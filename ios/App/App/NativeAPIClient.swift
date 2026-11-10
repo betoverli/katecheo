@@ -675,8 +675,14 @@ enum NativeAPIClient {
     }
 
     static func markNotificationsRead(id: String? = nil) async throws {
-        struct Body: Encodable { let id: String? }
-        let body = try JSONEncoder().encode(Body(id: id))
+        // Zod `id.optional()` rejects JSON null — omit the key for mark-all.
+        let body: Data
+        if let id, !id.isEmpty {
+            struct Body: Encodable { let id: String }
+            body = try JSONEncoder().encode(Body(id: id))
+        } else {
+            body = Data("{}".utf8)
+        }
         let request = try authorizedRequest(path: "api/native/v1/notifications/read", method: "POST", body: body)
         let (status, data) = try await perform(request)
         try throwIfUnauthorized(status)

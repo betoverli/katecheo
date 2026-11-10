@@ -289,8 +289,13 @@ final class MockNativeURLProtocol: URLProtocol {
     static var catalogVersionsJSON: String?
     static var linksJSON: String?
     static var summaryJSON: String?
+    static var notificationsJSON: String?
+    static var notificationsPage2JSON: String?
+    static var notificationsReadJSON: String?
     static var providersJSON: String?
     static var artificialDelayMs: UInt64 = 0
+    private(set) static var readBodies: [[String: Any]] = []
+    private(set) static var notificationsListHits = 0
     private static var registered = false
 
     static func register() {
@@ -321,8 +326,13 @@ final class MockNativeURLProtocol: URLProtocol {
         catalogVersionsJSON = nil
         linksJSON = nil
         summaryJSON = nil
+        notificationsJSON = nil
+        notificationsPage2JSON = nil
+        notificationsReadJSON = nil
         providersJSON = nil
         artificialDelayMs = 0
+        readBodies = []
+        notificationsListHits = 0
     }
 
     static func makeSession() -> URLSession {
@@ -365,6 +375,26 @@ final class MockNativeURLProtocol: URLProtocol {
             body = Self.linksJSON
         } else if path.contains("/notifications/summary") {
             body = Self.summaryJSON
+        } else if path.contains("/notifications/read"), method == "POST" {
+            body = Self.notificationsReadJSON ?? ##"{"ok":true}"##
+            let payload = Self.requestBodyData(from: request)
+            if let payload,
+               let obj = try? JSONSerialization.jsonObject(with: payload) as? [String: Any] {
+                Self.readBodies.append(obj)
+            } else {
+                Self.readBodies.append([:])
+            }
+        } else if path.hasSuffix("/notifications") || path.contains("/notifications?") {
+            Self.notificationsListHits += 1
+            let cursor = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?
+                .queryItems?
+                .first(where: { $0.name == "cursor" })?
+                .value
+            if let cursor, !cursor.isEmpty {
+                body = Self.notificationsPage2JSON ?? Self.notificationsJSON
+            } else {
+                body = Self.notificationsJSON
+            }
         } else if path.contains("/auth/providers") {
             body = Self.providersJSON
         }
@@ -393,4 +423,22 @@ final class MockNativeURLProtocol: URLProtocol {
     }
 
     override func stopLoading() {}
+
+    /// URLSession often exposes POST bodies via `httpBodyStream` instead of `httpBody`.
+    private static func requestBodyData(from request: URLRequest) -> Data? {
+        if let body = request.httpBody { return body }
+        guard let stream = request.httpBodyStream else { return nil }
+        stream.open()
+        defer { stream.close() }
+        var data = Data()
+        let bufferSize = 1024
+        let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
+        defer { buffer.deallocate() }
+        while stream.hasBytesAvailable {
+            let read = stream.read(buffer, maxLength: bufferSize)
+            if read <= 0 { break }
+            data.append(buffer, count: read)
+        }
+        return data.isEmpty ? nil : data
+    }
 }

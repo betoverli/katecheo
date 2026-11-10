@@ -14,6 +14,9 @@
 		V2NFRN12FED7965001685V2 /* FriendsActivityViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = V2NFRN11FED7965001685V2 /* FriendsActivityViewController.swift */; };
 		V2NACT12FED7965001685V2 /* V2NActivityStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = V2NACT11FED7965001685V2 /* V2NActivityStore.swift */; };
 		V2NSYNC2FED7965001685V2 /* V2NActivitySync.swift in Sources */ = {isa = PBXBuildFile; fileRef = V2NSYNC1FED7965001685V2 /* V2NActivitySync.swift */; };
+		V2NNTC12FED7965001685V2 /* NotificationsCenterViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = V2NNTC11FED7965001685V2 /* NotificationsCenterViewModel.swift */; };
+		V2NNTC22FED7965001685V2 /* NotificationsCenterViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = V2NNTC21FED7965001685V2 /* NotificationsCenterViewController.swift */; };
+		TBNTC12FED7965001685TB /* NotificationsCenterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TBNTC11FED7965001685TB /* NotificationsCenterTests.swift */; };
 		T8SCROLL2FED7965001685T8 /* V2NScrollChromeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T8SCROLL1FED7965001685T8 /* V2NScrollChromeTests.swift */; };
 		TBSWIPE2FED7965001685TB /* V2NSwipeActionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TBSWIPE1FED7965001685TB /* V2NSwipeActionTests.swift */; };
 		TCTABBG2FED7965001685TC /* TabBackgroundConsistencyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TCTABBG1FED7965001685TC /* TabBackgroundConsistencyTests.swift */; };
@@ -98,6 +101,9 @@
 		V2NFRN11FED7965001685V2 /* FriendsActivityViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendsActivityViewController.swift; sourceTree = "<group>"; };
 		V2NACT11FED7965001685V2 /* V2NActivityStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2NActivityStore.swift; sourceTree = "<group>"; };
 		V2NSYNC1FED7965001685V2 /* V2NActivitySync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2NActivitySync.swift; sourceTree = "<group>"; };
+		V2NNTC11FED7965001685V2 /* NotificationsCenterViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsCenterViewModel.swift; sourceTree = "<group>"; };
+		V2NNTC21FED7965001685V2 /* NotificationsCenterViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsCenterViewController.swift; sourceTree = "<group>"; };
+		TBNTC11FED7965001685TB /* NotificationsCenterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsCenterTests.swift; sourceTree = "<group>"; };
 		T9TF21921FED7965001685T9 /* NativeNoteEditorTF219Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeNoteEditorTF219Tests.swift; sourceTree = "<group>"; };
 		TATF22221FED7965001685TA /* NativeNoteEditorTF222Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeNoteEditorTF222Tests.swift; sourceTree = "<group>"; };
 		T5SHEET11FED7965001685T5 /* V2NSheetPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2NSheetPresenter.swift; sourceTree = "<group>"; };
@@ -217,6 +223,8 @@
 				V2NFRN11FED7965001685V2 /* FriendsActivityViewController.swift */,
 				V2NACT11FED7965001685V2 /* V2NActivityStore.swift */,
 				V2NSYNC1FED7965001685V2 /* V2NActivitySync.swift */,
+				V2NNTC11FED7965001685V2 /* NotificationsCenterViewModel.swift */,
+				V2NNTC21FED7965001685V2 /* NotificationsCenterViewController.swift */,
 				V2NSWR11FED7965001685V2 /* NativeSWR.swift */,
 				V2NCAT11FED7965001685V2 /* NativeCatalogSync.swift */,
 				T5SHEET11FED7965001685T5 /* V2NSheetPresenter.swift */,
@@ -281,6 +289,7 @@
 				TB234FB1FED7965001685TB /* Build234FeedbackTests.swift */,
 				TB238FB1FED7965001685TB /* Build238FeedbackTests.swift */,
 				V2NSWR21FED7965001685V2 /* NativeSWRCacheTests.swift */,
+				TBNTC11FED7965001685TB /* NotificationsCenterTests.swift */,
 			);
 			path = AppTests;
 			sourceTree = "<group>";
@@ -430,6 +439,8 @@
 				V2NFRN12FED7965001685V2 /* FriendsActivityViewController.swift in Sources */,
 				V2NACT12FED7965001685V2 /* V2NActivityStore.swift in Sources */,
 				V2NSYNC2FED7965001685V2 /* V2NActivitySync.swift in Sources */,
+				V2NNTC12FED7965001685V2 /* NotificationsCenterViewModel.swift in Sources */,
+				V2NNTC22FED7965001685V2 /* NotificationsCenterViewController.swift in Sources */,
 				V2NSWR12FED7965001685V2 /* NativeSWR.swift in Sources */,
 				V2NCAT12FED7965001685V2 /* NativeCatalogSync.swift in Sources */,
 				T5SHEET12FED7965001685T5 /* V2NSheetPresenter.swift in Sources */,
@@ -487,6 +498,7 @@
 				TB234FB2FED7965001685TB /* Build234FeedbackTests.swift in Sources */,
 				TB238FB2FED7965001685TB /* Build238FeedbackTests.swift in Sources */,
 				V2NSWR22FED7965001685V2 /* NativeSWRCacheTests.swift in Sources */,
+				TBNTC12FED7965001685TB /* NotificationsCenterTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

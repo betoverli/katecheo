@@ -951,6 +951,12 @@ if (!project.includes("Build234FeedbackTests.swift in Sources")) {
 if (!project.includes("Build238FeedbackTests.swift in Sources")) {
   errors.push("AppTests Build238 (Build238FeedbackTests) têm de estar no target.");
 }
+if (!project.includes("NotificationsCenterViewModel.swift in Sources") || !project.includes("NotificationsCenterViewController.swift in Sources")) {
+  errors.push("Notifications Center (ViewModel + ViewController) tem de estar no target App.");
+}
+if (!project.includes("NotificationsCenterTests.swift in Sources")) {
+  errors.push("AppTests NotificationsCenterTests têm de estar no target.");
+}
 if (!project.includes("V2NActivityStore.swift in Sources")) {
   errors.push("V2NActivityStore tem de estar no target App (build-238 dots).");
 }
@@ -1012,6 +1018,17 @@ try {
   }
   if (!activity.includes("reconcileServer") || !activity.includes("markSharedNoteOpened")) {
     errors.push("V2NActivityStore tem de reconciliar via servidor (links/grants/inbox) (build-238).");
+  }
+  if (!activity.includes("acknowledgeNotificationIds") || !activity.includes("acknowledgeAllInboxNotifications")) {
+    errors.push("V2NActivityStore tem de limpar dots ao ler na Central de notificações (notificationIds).");
+  }
+  const notebookNotify = read("ios/App/App/NotebookListViewController.swift");
+  if (!notebookNotify.includes("V2NNotificationsBellButton") || !notebookNotify.includes("openNotificationsCenter")) {
+    errors.push("Caderno tem de ter o botão de avisos (bell) só no tab pessoal.");
+  }
+  const notifyVm = read("ios/App/App/NotificationsCenterViewModel.swift");
+  if (!notifyVm.includes("badgeText") || !notifyVm.includes("99+")) {
+    errors.push("Badge de avisos tem de esconder em 0 e limitar a 99+.");
   }
   if (activity.includes("visibility == \"shared\"") || activity.includes("visibility == \"link\"")) {
     errors.push("V2NActivityStore não pode inventar Shared a partir de visibility (build-238).");

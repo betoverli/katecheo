@@ -21,6 +21,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     private var grantedNotes: [NativeAPIClient.NoteDocument] = []
     /// When set, this list shows notes published to the group (Phase 2).
     private var group: NativeAPIClient.GroupDTO?
+    private var notificationsBell: V2NNotificationsBellButton?
 
     convenience init(group: NativeAPIClient.GroupDTO) {
         self.init(nibName: nil, bundle: nil)
@@ -40,12 +41,22 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
         var trailing: [UIBarButtonItem] = [
             UIBarButtonItem(image: UIImage(systemName: "ellipsis.circle"), style: .plain, target: self, action: #selector(moreMenu)),
         ]
+        // Bell only on the personal Caderno tab — never on a group's notes list.
+        if group == nil {
+            let bell = V2NNotificationsBellButton()
+            bell.addTarget(self, action: #selector(openNotificationsCenter), for: .touchUpInside)
+            notificationsBell = bell
+            trailing.insert(UIBarButtonItem(customView: bell), at: 0)
+        }
         if group == nil || group?.canPost == true {
             trailing.insert(UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(composeNote)), at: 0)
         }
         navigationItem.rightBarButtonItems = trailing
-        navigationItem.rightBarButtonItems?.first?.accessibilityLabel = String(localized: "Nova nota")
+        if group == nil || group?.canPost == true {
+            navigationItem.rightBarButtonItems?.first?.accessibilityLabel = String(localized: "Nova nota")
+        }
         navigationItem.rightBarButtonItems?.last?.accessibilityLabel = String(localized: "Mais opções")
+        refreshNotificationsBadge()
 
         search.searchResultsUpdater = self
         search.obscuresBackgroundDuringPresentation = false
@@ -125,17 +136,47 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             name: V2NActivityStore.didChangeNotification,
             object: nil
         )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(refreshNotificationsBadge),
+            name: V2NNotificationsBadge.didChangeNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appDidBecomeActive),
+            name: UIApplication.didBecomeActiveNotification,
+            object: nil
+        )
     }
 
     @objc private func refreshSharedChipDot() {
         filterChips.setBadgedIds(V2NActivityStore.sharedChipDot ? [NoteFilter.shared.rawValue] : [])
     }
 
+    @objc private func refreshNotificationsBadge() {
+        notificationsBell?.updateBadge(V2NNotificationsBadge.displayText)
+    }
+
+    @objc private func appDidBecomeActive() {
+        guard group == nil else { return }
+        Task { await V2NNotificationsBadge.refreshFromServer() }
+    }
+
+    @objc private func openNotificationsCenter() {
+        V2NHaptics.selection()
+        navigationController?.pushViewController(NotificationsCenterViewController(), animated: true)
+    }
+
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        refreshNotificationsBadge()
         Task { @MainActor in
             if !NativeAPIClient.hasBearer {
                 _ = await NativeSessionBootstrap.migrateCookieToKeychainIfNeeded()
+            }
+            if group == nil {
+                await V2NNotificationsBadge.refreshFromServer()
             }
             reload()
         }

@@ -52,6 +52,8 @@ enum V2NActivitySync {
                         granted: grants,
                         inbox: unreadItems
                     )
+                    // Badge tracks server unread (summary), independent of tab dots.
+                    V2NNotificationsBadge.setUnreadCount(sum.unread)
                 }
                 NativeSWR.markActivitySyncSuccess()
                 return .updated
