@@ -377,8 +377,9 @@ final class MockNativeURLProtocol: URLProtocol {
             body = Self.summaryJSON
         } else if path.contains("/notifications/read"), method == "POST" {
             body = Self.notificationsReadJSON ?? ##"{"ok":true}"##
-            if let httpBody = request.httpBody,
-               let obj = try? JSONSerialization.jsonObject(with: httpBody) as? [String: Any] {
+            let payload = Self.requestBodyData(from: request)
+            if let payload,
+               let obj = try? JSONSerialization.jsonObject(with: payload) as? [String: Any] {
                 Self.readBodies.append(obj)
             } else {
                 Self.readBodies.append([:])
@@ -422,4 +423,22 @@ final class MockNativeURLProtocol: URLProtocol {
     }
 
     override func stopLoading() {}
+
+    /// URLSession often exposes POST bodies via `httpBodyStream` instead of `httpBody`.
+    private static func requestBodyData(from request: URLRequest) -> Data? {
+        if let body = request.httpBody { return body }
+        guard let stream = request.httpBodyStream else { return nil }
+        stream.open()
+        defer { stream.close() }
+        var data = Data()
+        let bufferSize = 1024
+        let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
+        defer { buffer.deallocate() }
+        while stream.hasBytesAvailable {
+            let read = stream.read(buffer, maxLength: bufferSize)
+            if read <= 0 { break }
+            data.append(buffer, count: read)
+        }
+        return data.isEmpty ? nil : data
+    }
 }

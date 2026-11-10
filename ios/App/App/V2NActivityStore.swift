@@ -410,7 +410,6 @@ enum V2NActivityStore {
     static func acknowledgeNotificationIds(_ ids: [String]) {
         let idSet = Set(ids.filter { !$0.isEmpty })
         guard !idSet.isEmpty else { return }
-        let account = accountId()
         var changed = false
         var next: [Item] = []
         for var item in loadItems() {
@@ -427,17 +426,15 @@ enum V2NActivityStore {
             changed = true
             item.notificationIds = after
             if after.isEmpty {
-                if item.kind == .sharedNote,
-                   let account,
-                   !UserDefaults.standard.bool(forKey: openedNoteKey(accountId: account, noteId: item.targetId)) {
-                    item.source = .grants
-                    next.append(item)
-                } else if item.source == .links || item.source == .members || item.source == .local {
+                // Keep non-inbox sources. Do **not** promote inbox-only shares to `.grants`
+                // (that would leave the Caderno dot lit after reading in the center).
+                // Unopened grants are restored on the next server reconcile if still unseen.
+                if item.source == .links || item.source == .members || item.source == .local || item.source == .grants {
                     next.append(item)
                 } else if item.kind == .friendPending {
                     next.append(item)
                 }
-                // else: drop inbox-backed friendAccepted / groupActivity / readingDue / opened share
+                // else: drop inbox-backed friendAccepted / groupActivity / readingDue / share
             } else {
                 next.append(item)
             }
