@@ -47,10 +47,10 @@ describe("Phase 3 native profile API", () => {
 
 describe("Phase 3 native Profile UI", () => {
   it("replaces Perfil Em breve with ProfileViewController", () => {
-    const tabs = read("ios/App/App/NativeRootTabBarController.swift");
+    const tabs = read("ios/App/Katecheo/NativeRootTabBarController.swift");
     assert.match(tabs, /ProfileViewController/);
     assert.doesNotMatch(tabs, /titleText:\s*"Perfil"/);
-    const profile = read("ios/App/App/ProfileViewController.swift");
+    const profile = read("ios/App/Katecheo/ProfileViewController.swift");
     assert.match(profile, /Sair da conta/);
     assert.match(profile, /Apagar conta|Excluir conta/);
     assert.match(profile, /Baixar meus dados/);
@@ -61,7 +61,7 @@ describe("Phase 3 native Profile UI", () => {
   });
 
   it("ships edit + theme + language + bible + notify screens", () => {
-    const settings = read("ios/App/App/ProfileSettingsScreens.swift");
+    const settings = read("ios/App/Katecheo/ProfileSettingsScreens.swift");
     assert.match(settings, /ProfileEditViewController/);
     assert.match(settings, /ProfileThemeViewController/);
     assert.match(settings, /ProfileLanguageViewController/);
@@ -79,23 +79,23 @@ describe("Phase 3 native Profile UI", () => {
   });
 
   it("localizes UI via String Catalog (pt-BR / en / es) following the iPhone language", () => {
-    const catalog = read("ios/App/App/Localizable.xcstrings");
+    const catalog = read("ios/App/Katecheo/Localizable.xcstrings");
     assert.match(catalog, /"sourceLanguage"\s*:\s*"pt-BR"/);
     assert.match(catalog, /"en"/);
     assert.match(catalog, /"es"/);
-    const locale = read("ios/App/App/AppLocale.swift");
+    const locale = read("ios/App/Katecheo/AppLocale.swift");
     assert.match(locale, /preferredLanguages/);
     assert.match(locale, /apiCode/);
-    const project = read("ios/App/App.xcodeproj/project.pbxproj");
+    const project = read("ios/App/Katecheo.xcodeproj/project.pbxproj");
     assert.match(project, /Localizable\.xcstrings in Resources/);
     assert.match(project, /pt-BR/);
-    const profile = read("ios/App/App/ProfileViewController.swift");
+    const profile = read("ios/App/Katecheo/ProfileViewController.swift");
     assert.match(profile, /String\(localized:/);
     assert.match(profile, /Segue o idioma do iPhone/);
   });
 
   it("exposes profile methods on NativeAPIClient", () => {
-    const client = read("ios/App/App/NativeAPIClient.swift");
+    const client = read("ios/App/Katecheo/NativeAPIClient.swift");
     assert.match(client, /func getMe\(/);
     assert.match(client, /func patchMe\(/);
     assert.match(client, /func patchPrefs\(/);
@@ -105,13 +105,13 @@ describe("Phase 3 native Profile UI", () => {
   });
 
   it("registers Profile screens in the Xcode target", () => {
-    const project = read("ios/App/App.xcodeproj/project.pbxproj");
+    const project = read("ios/App/Katecheo.xcodeproj/project.pbxproj");
     assert.match(project, /ProfileViewController\.swift in Sources/);
     assert.match(project, /ProfileSettingsScreens\.swift in Sources/);
   });
 
   it("keeps WebKit session bootstrap on the main actor", () => {
-    const boot = read("ios/App/App/NativeSessionBootstrap.swift");
+    const boot = read("ios/App/Katecheo/NativeSessionBootstrap.swift");
     assert.match(boot, /@MainActor/);
     assert.match(boot, /Thread\.isMainThread/);
     assert.match(boot, /WKWebsiteDataStore/);

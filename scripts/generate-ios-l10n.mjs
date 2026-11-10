@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Generates ios/App/App/Localizable.xcstrings (+ InfoPlist.xcstrings) and
+ * Generates ios/App/Katecheo/Localizable.xcstrings (+ InfoPlist.xcstrings) and
  * optionally rewrites Swift sources to wrap known UI strings in String(localized:).
  *
  * Usage:
@@ -11,7 +11,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
-const appDir = path.join(root, "ios/App/App");
+const appDir = path.join(root, "ios/App/Katecheo");
 const rewrite = process.argv.includes("--rewrite");
 
 function extractI18n() {
@@ -461,7 +461,7 @@ const SKIP_FILES = new Set([
   "NativeDeepLinkRouter.swift",
   "NativeSessionBootstrap.swift",
   "NativePushService.swift",
-  "V2NDesign.swift",
+  "KCDesign.swift",
   "AppDelegate.swift",
   "SceneDelegate.swift",
 ]);
@@ -471,8 +471,8 @@ const NEVER_WRAP = new Set([
   "Default Configuration",
   "spin",
   "transform.rotation.z",
-  "V2NNoteRowCell",
-  "V2NGroupRowCell",
+  "KCNoteRowCell",
+  "KCGroupRowCell",
   "GroupCell",
   "SubtitleNoteCell",
   "field",

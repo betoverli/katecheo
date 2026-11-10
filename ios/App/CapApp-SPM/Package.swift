@@ -1,7 +1,7 @@
 // swift-tools-version: 5.9
 import PackageDescription
 
-// Phase 5: Capacitor is no longer linked into the App target.
+// Phase 5: Capacitor is no longer linked into the Katecheo target.
 // This local package is kept as an empty stub so leftover paths do not break
 // tooling; the Xcode project does not depend on CapApp-SPM anymore.
 let package = Package(

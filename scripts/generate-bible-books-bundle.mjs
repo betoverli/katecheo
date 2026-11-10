@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Emits ios/App/App/BibleBooksData.json from src/lib/bible/books.ts.
+ * Emits ios/App/Katecheo/BibleBooksData.json from src/lib/bible/books.ts.
  * Static catalog — ship in the app so Livros works offline from first launch.
  *
  * Bump BUNDLE_VERSION when verse counts / book metadata change.
@@ -38,6 +38,6 @@ const out = {
   version: BIBLE_BOOKS_BUNDLE_VERSION,
   books,
 };
-const dest = path.join(root, "ios/App/App/BibleBooksData.json");
+const dest = path.join(root, "ios/App/Katecheo/BibleBooksData.json");
 fs.writeFileSync(dest, `${JSON.stringify(out)}\n`);
 console.log(`Wrote ${path.relative(root, dest)} (${books.length} books, v${BIBLE_BOOKS_BUNDLE_VERSION})`);

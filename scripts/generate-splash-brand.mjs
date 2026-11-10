@@ -18,7 +18,7 @@ import cairosvg
 import re
 
 ROOT = Path(${JSON.stringify(root)})
-OUT = ROOT / "ios/App/App/Assets.xcassets/SplashBrand.imageset"
+OUT = ROOT / "ios/App/Katecheo/Assets.xcassets/SplashBrand.imageset"
 LIGHT_SVG = ROOT / "design/app-icon/icon.svg"
 DARK_SVG = ROOT / "design/app-icon/icon-dark.svg"
 # Match Wordmark / former Kate half: display family, medium weight, NO italic.

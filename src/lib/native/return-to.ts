@@ -66,10 +66,10 @@ export function parseReturnMode(value: string | null | undefined): NativeReturnM
 }
 
 /**
- * Prefer HTTPS Universal Links (L4). Custom schemes (`verse2note://`,
- * `katecheo://`) stay registered and remain the PKCE-bound fallback via
- * `shouldFallBackToScheme` / native login retry. Server `native-start` still
- * rejects https when `APPLE_TEAM_ID` is unset so local builds fall back cleanly.
+ * Prefer HTTPS Universal Links (L4). Custom scheme `katecheo://` remains the
+ * PKCE-bound fallback via `shouldFallBackToScheme` / native login retry.
+ * Server `native-start` still rejects https when `APPLE_TEAM_ID` is unset so
+ * local builds fall back cleanly.
  */
 export function preferredNativeReturnMode(): NativeReturnMode {
   return "https";
@@ -86,7 +86,7 @@ export function nativeReturnTo(
   if (mode === "https") {
     return `${UNIVERSAL_RETURN_ORIGIN}${UNIVERSAL_RETURN_PATH}${qs ? `?${qs}` : ""}`;
   }
-  return `verse2note://auth${qs ? `?${qs}` : ""}`;
+  return `katecheo://auth${qs ? `?${qs}` : ""}`;
 }
 
 /**
@@ -112,8 +112,5 @@ export function isAllowedReturn(url: URL, mode: NativeReturnMode): boolean {
       url.pathname === UNIVERSAL_RETURN_PATH
     );
   }
-  // Existing installs use verse2note://; katecheo:// is registered as an extra scheme.
-  return (
-    (url.protocol === "verse2note:" || url.protocol === "katecheo:") && url.hostname === "auth"
-  );
+  return url.protocol === "katecheo:" && url.hostname === "auth";
 }

@@ -22,7 +22,7 @@ export function resolveHandoffKey(env: {
   }
   const auth = env.auth?.trim() ?? "";
   if (!auth) return { ok: false, reason: "missing" };
-  const key = createHash("sha256").update(`verse2note.native-handoff.v1\0${auth}`).digest();
+  const key = createHash("sha256").update(`katecheo.native-handoff.v1\0${auth}`).digest();
   return { ok: true, key, source: "auth" };
 }
 

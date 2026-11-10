@@ -480,7 +480,7 @@ Principles: **small**, **user-visible or foundational**, **reversible feature fl
 ## 11. References (code)
 
 - Tabs: `src/lib/tabs.ts`
-- Capacitor host: `capacitor.config.ts`, `ios/App/App/NativeShell.swift`
+- Capacitor host: `capacitor.config.ts`, `ios/App/Katecheo/NativeShell.swift`
 - Chrome / menus: `LiquidChrome.swift`, `NativeMenus.swift`
 - Notes legacy: `src/lib/notebook.ts`, `notebook-cloud.ts`, `outbox.ts`
 - **Native document:** `src/lib/native/api/note-document.ts`

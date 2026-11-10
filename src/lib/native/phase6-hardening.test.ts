@@ -10,21 +10,21 @@ function read(rel: string) {
 
 describe("Phase 6 — hardening + legacy WebView import", () => {
   it("ships one-time localStorage importer on the main thread", () => {
-    assert.equal(existsSync(new URL("ios/App/App/LegacyWebStorageImporter.swift", root)), true);
-    const importer = read("ios/App/App/LegacyWebStorageImporter.swift");
+    assert.equal(existsSync(new URL("ios/App/Katecheo/LegacyWebStorageImporter.swift", root)), true);
+    const importer = read("ios/App/Katecheo/LegacyWebStorageImporter.swift");
     assert.match(importer, /@MainActor/);
     assert.match(importer, /Thread\.isMainThread/);
     assert.match(importer, /cita-settings/);
     assert.match(importer, /verse2note-outbox/);
     assert.match(importer, /grok-auth\.bearer-token/);
     assert.match(importer, /LegacyNoteConverter/);
-    assert.match(importer, /verse2note\.legacyWebImport\.v1/);
+    assert.match(importer, /katecheo\.legacyWebImport\.v1/);
     // Import must not enqueue deletes against the server.
     assert.match(importer, /Intentionally skipped|never enqueue deletes|Skips deletes/i);
   });
 
   it("converts legacy Note blocks into NoteDocumentV1", () => {
-    const converter = read("ios/App/App/LegacyNoteConverter.swift");
+    const converter = read("ios/App/Katecheo/LegacyNoteConverter.swift");
     assert.match(converter, /schemaVersion:\s*1/);
     assert.match(converter, /speakerSection/);
     assert.match(converter, /bibleRef/);
@@ -32,16 +32,16 @@ describe("Phase 6 — hardening + legacy WebView import", () => {
   });
 
   it("has a durable outbox with backoff and 401 handling", () => {
-    const outbox = read("ios/App/App/NativeOutbox.swift");
+    const outbox = read("ios/App/Katecheo/NativeOutbox.swift");
     assert.match(outbox, /enqueueNoteUpsert/);
     assert.match(outbox, /flushIfPossible/);
     assert.match(outbox, /nextAttemptAt/);
     assert.match(outbox, /pow\(2/);
-    const client = read("ios/App/App/NativeAPIClient.swift");
+    const client = read("ios/App/Katecheo/NativeAPIClient.swift");
     assert.match(client, /handleUnauthorized/);
     assert.match(client, /nativeSessionDidExpire/);
     assert.match(client, /upsertMyCollection/);
-    const scene = read("ios/App/App/SceneDelegate.swift");
+    const scene = read("ios/App/Katecheo/SceneDelegate.swift");
     assert.match(scene, /LegacyWebStorageImporter\.runIfNeeded/);
     assert.match(scene, /NativeOutbox\.flushIfPossible/);
     assert.match(scene, /nativeSessionDidExpire/);

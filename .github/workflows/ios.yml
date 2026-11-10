@@ -32,18 +32,18 @@ jobs:
         run: |
           set -euo pipefail
           xcodebuild \
-            -project ios/App/App.xcodeproj \
-            -scheme App \
+            -project ios/App/Katecheo.xcodeproj \
+            -scheme Katecheo \
             -configuration Debug \
             -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath "${RUNNER_TEMP}/verse2note-ios" \
+            -derivedDataPath "${RUNNER_TEMP}/katecheo-ios" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             DEVELOPMENT_TEAM="" \
             build
-      - name: Testes do editor (AppTests)
+      - name: Testes do editor (KatecheoTests)
         run: |
           set -euo pipefail
           DEST="$(node -e '
@@ -65,12 +65,12 @@ jobs:
           mkdir -p artifacts
           set +e
           xcodebuild \
-            -project ios/App/App.xcodeproj \
-            -scheme App \
+            -project ios/App/Katecheo.xcodeproj \
+            -scheme Katecheo \
             -configuration Debug \
             -sdk iphonesimulator \
             -destination "$DEST" \
-            -derivedDataPath "${RUNNER_TEMP}/verse2note-ios" \
+            -derivedDataPath "${RUNNER_TEMP}/katecheo-ios" \
             -parallel-testing-enabled NO \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
@@ -79,12 +79,12 @@ jobs:
             test
           TEST_STATUS=$?
           set -e
-          # AppTests write PNGs inside the Simulator app sandbox — harvest even on failure.
+          # KatecheoTests write PNGs inside the Simulator app sandbox — harvest even on failure.
           # Per-pattern finds (no shared head) so b238 is not crowded out by older tf/b234 PNGs.
           for pat in 'tf222-*.png' 'tab-bg-*.png' 'b234-*.png' 'b238-*.png'; do
             find \
               "${HOME}/Library/Developer/CoreSimulator" \
-              "${RUNNER_TEMP}/verse2note-ios" \
+              "${RUNNER_TEMP}/katecheo-ios" \
               /tmp \
               "${GITHUB_WORKSPACE}" \
               -name "$pat" 2>/dev/null \
@@ -167,7 +167,7 @@ jobs:
           IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
         run: |
           set -euo pipefail
-          KEYCHAIN="$RUNNER_TEMP/verse2note.keychain-db"
+          KEYCHAIN="$RUNNER_TEMP/katecheo.keychain-db"
           KEYCHAIN_PASSWORD="$(openssl rand -base64 24)"
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
           security set-keychain-settings -lut 21600 "$KEYCHAIN"
@@ -190,11 +190,11 @@ jobs:
         run: |
           set -euo pipefail
           xcodebuild \
-            -project ios/App/App.xcodeproj \
-            -scheme App \
+            -project ios/App/Katecheo.xcodeproj \
+            -scheme Katecheo \
             -configuration Release \
             -destination 'generic/platform=iOS' \
-            -archivePath "$RUNNER_TEMP/Verse2Note.xcarchive" \
+            -archivePath "$RUNNER_TEMP/Katecheo.xcarchive" \
             -allowProvisioningUpdates \
             CODE_SIGN_STYLE=Manual \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
@@ -231,7 +231,7 @@ jobs:
           </plist>
           EOF
           xcodebuild -exportArchive \
-            -archivePath "$RUNNER_TEMP/Verse2Note.xcarchive" \
+            -archivePath "$RUNNER_TEMP/Katecheo.xcarchive" \
             -exportPath "$RUNNER_TEMP/ipa" \
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
       - name: Enviar ao TestFlight

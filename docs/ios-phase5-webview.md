@@ -6,7 +6,7 @@
 
 | Surface | Before | After |
 | --- | --- | --- |
-| `CAPBridgeViewController` / `Verse2NoteBridgeViewController` | Full SPA at `https://verse2note.com` | Deleted |
+| `CAPBridgeViewController` / `KatecheoBridgeViewController` | Full SPA at `https://verse2note.com` | Deleted |
 | LiquidChrome + NativeMenus Cap plugins | Web-driven chrome over Cap WebView | Deleted (native UIKit chrome only) |
 | `NativeShellMode.capacitorSite` | Hidden “Site clássico” fallback | Forced `nativePrimary` |
 | Cap Push / Share / Splash / StatusBar | Used from JS | Native APNs + `UIActivityViewController` + LaunchScreen |

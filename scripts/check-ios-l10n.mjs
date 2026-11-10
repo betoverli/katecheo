@@ -18,8 +18,8 @@ function readJson(rel) {
   return JSON.parse(fs.readFileSync(full, "utf8"));
 }
 
-const catalog = readJson("ios/App/App/Localizable.xcstrings");
-const infoCatalog = readJson("ios/App/App/InfoPlist.xcstrings");
+const catalog = readJson("ios/App/Katecheo/Localizable.xcstrings");
+const infoCatalog = readJson("ios/App/Katecheo/InfoPlist.xcstrings");
 
 if (catalog) {
   if (catalog.sourceLanguage !== "pt-BR") {
@@ -59,7 +59,7 @@ if (infoCatalog) {
   }
 }
 
-const project = fs.readFileSync(path.join(root, "ios/App/App.xcodeproj/project.pbxproj"), "utf8");
+const project = fs.readFileSync(path.join(root, "ios/App/Katecheo.xcodeproj/project.pbxproj"), "utf8");
 if (!project.includes("Localizable.xcstrings in Resources")) {
   errors.push("Localizable.xcstrings tem de estar nos Resources do target.");
 }
@@ -75,12 +75,12 @@ if (!project.includes('"pt-BR"') || !/\bes,\s*$/m.test(project) && !project.incl
   }
 }
 
-const infoPlist = fs.readFileSync(path.join(root, "ios/App/App/Info.plist"), "utf8");
+const infoPlist = fs.readFileSync(path.join(root, "ios/App/Katecheo/Info.plist"), "utf8");
 if (!infoPlist.includes("CFBundleLocalizations") || !infoPlist.includes("pt-BR")) {
   errors.push("Info.plist tem de declarar CFBundleLocalizations com pt-BR, en, es.");
 }
 
-const languageScreen = fs.readFileSync(path.join(root, "ios/App/App/ProfileSettingsScreens.swift"), "utf8");
+const languageScreen = fs.readFileSync(path.join(root, "ios/App/Katecheo/ProfileSettingsScreens.swift"), "utf8");
 if (!languageScreen.includes("openSettingsURLString") && !languageScreen.includes("AppLocale.openSystemSettings")) {
   errors.push("ProfileLanguageViewController tem de abrir as Configurações do iOS para o idioma da interface.");
 }
@@ -91,17 +91,17 @@ if (languageScreen.includes('prefs.locale = option.id') && languageScreen.includ
   errors.push("Não volte o seletor de idioma de interface — use o idioma do iPhone.");
 }
 
-const appLocale = fs.readFileSync(path.join(root, "ios/App/App/AppLocale.swift"), "utf8");
+const appLocale = fs.readFileSync(path.join(root, "ios/App/Katecheo/AppLocale.swift"), "utf8");
 if (!appLocale.includes("preferredLanguages") || !appLocale.includes("apiCode")) {
   errors.push("AppLocale tem de derivar o locale da interface de Locale.preferredLanguages.");
 }
 
 // Spot-check that key UI files localize strings.
 for (const rel of [
-  "ios/App/App/ProfileViewController.swift",
-  "ios/App/App/NativeRootTabBarController.swift",
-  "ios/App/App/NotebookListViewController.swift",
-  "ios/App/App/VersesScreens.swift",
+  "ios/App/Katecheo/ProfileViewController.swift",
+  "ios/App/Katecheo/NativeRootTabBarController.swift",
+  "ios/App/Katecheo/NotebookListViewController.swift",
+  "ios/App/Katecheo/VersesScreens.swift",
 ]) {
   const src = fs.readFileSync(path.join(root, rel), "utf8");
   if (!src.includes("String(localized:")) {

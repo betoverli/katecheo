@@ -28,7 +28,7 @@ if (!config.includes("NativeNoteEditorView") && !config.includes("Phase 7")) {
   errors.push("capacitor.config.ts tem de documentar o editor nativo (Phase 7 / NativeNoteEditorView).");
 }
 
-const launchScreen = read("ios/App/App/Base.lproj/LaunchScreen.storyboard");
+const launchScreen = read("ios/App/Katecheo/Base.lproj/LaunchScreen.storyboard");
 if (!launchScreen.includes("SplashBrand") || !launchScreen.includes("SplashBackground")) {
   errors.push("LaunchScreen tem de centrar SplashBrand sobre SplashBackground.");
 }
@@ -39,8 +39,8 @@ if (/Verse2Note|Verse 2 Note|VERSE2NOTE/.test(launchScreen)) {
   errors.push("LaunchScreen.storyboard não pode conter o wordmark Verse2Note.");
 }
 for (const asset of [
-  "ios/App/App/Assets.xcassets/SplashBrand.imageset/Contents.json",
-  "ios/App/App/Assets.xcassets/SplashBackground.colorset/Contents.json",
+  "ios/App/Katecheo/Assets.xcassets/SplashBrand.imageset/Contents.json",
+  "ios/App/Katecheo/Assets.xcassets/SplashBackground.colorset/Contents.json",
 ]) {
   try {
     const json = read(asset);
@@ -54,7 +54,7 @@ for (const asset of [
 
 // Katecheo splash: asset filenames + LaunchScreen must not keep Verse2Note wordmarks.
 {
-  const assetsRoot = join(root, "ios/App/App/Assets.xcassets");
+  const assetsRoot = join(root, "ios/App/Katecheo/Assets.xcassets");
   /** @type {string[]} */
   const badNames = [];
   const walkAssets = (dir) => {
@@ -88,7 +88,7 @@ for (const asset of [
     "splash-brand-dark@3x.png",
   ];
   for (const name of brandFiles) {
-    const rel = `ios/App/App/Assets.xcassets/SplashBrand.imageset/${name}`;
+    const rel = `ios/App/Katecheo/Assets.xcassets/SplashBrand.imageset/${name}`;
     try {
       const st = statSync(join(root, rel));
       if (!st.isFile() || st.size < 500) {
@@ -159,8 +159,8 @@ for (const asset of [
   }
 }
 
-const plist = read("ios/App/App/Info.plist");
-if (!plist.includes("<string>verse2note</string>")) {
+const plist = read("ios/App/Katecheo/Info.plist");
+if (!plist.includes("<string>katecheo</string>")) {
   errors.push("Falta o esquema verse2note no Info.plist.");
 }
 if (plist.includes("<key>NSAllowsArbitraryLoads</key>") || plist.includes("<key>NSExceptionAllowsInsecureHTTPLoads</key>")) {
@@ -169,11 +169,11 @@ if (plist.includes("<key>NSAllowsArbitraryLoads</key>") || plist.includes("<key>
 if (!plist.includes("remote-notification")) {
   errors.push("Falta UIBackgroundModes remote-notification.");
 }
-if (!plist.includes("Verse2NoteUniversalLinks")) {
-  errors.push("Falta a flag Verse2NoteUniversalLinks no Info.plist.");
+if (!plist.includes("KatecheoUniversalLinks")) {
+  errors.push("Falta a flag KatecheoUniversalLinks no Info.plist.");
 }
 
-const releaseEntitlements = read("ios/App/App/AppRelease.entitlements");
+const releaseEntitlements = read("ios/App/Katecheo/AppRelease.entitlements");
 if (!releaseEntitlements.includes("<string>production</string>")) {
   errors.push("O arquivo de Release tem de pedir APNs de produção (TestFlight).");
 }
@@ -183,30 +183,26 @@ if (!releaseEntitlements.includes("applinks:katecheo.app")) {
 if (!releaseEntitlements.includes("webcredentials:katecheo.app")) {
   errors.push("O Release tem de declarar webcredentials:katecheo.app (ASWebAuthenticationSession).");
 }
-// Keep legacy domain during DNS cutover so existing installs keep working.
-if (!releaseEntitlements.includes("applinks:verse2note.com")) {
-  errors.push("O Release tem de manter applinks:verse2note.com durante o cutover.");
-}
-if (!releaseEntitlements.includes("webcredentials:verse2note.com")) {
-  errors.push("O Release tem de manter webcredentials:verse2note.com durante o cutover.");
+if (releaseEntitlements.includes("applinks:verse2note.com") || releaseEntitlements.includes("webcredentials:verse2note.com")) {
+  errors.push("Associated Domains: remova verse2note.com — só katecheo.app.");
 }
 if (!releaseEntitlements.includes("com.apple.developer.applesignin")) {
   errors.push("AppRelease.entitlements tem de incluir Sign in with Apple.");
 }
 
-const project = read("ios/App/App.xcodeproj/project.pbxproj");
-if (project.includes("CODE_SIGN_ENTITLEMENTS = App/AppDebug")) {
+const project = read("ios/App/Katecheo.xcodeproj/project.pbxproj");
+if (project.includes("CODE_SIGN_ENTITLEMENTS = Katecheo/AppDebug")) {
   errors.push("A configuração Debug não deve exigir entitlements, para o build sem assinatura passar.");
 }
-if (!project.includes("CODE_SIGN_ENTITLEMENTS = App/AppRelease.entitlements")) {
+if (!project.includes("CODE_SIGN_ENTITLEMENTS = Katecheo/AppRelease.entitlements")) {
   errors.push("Falta o entitlement de push na configuração Release.");
 }
 const debugTarget = project.split("504EC3171FED79650016851F /* Debug */")[1]?.split("name = Debug;")[0] ?? "";
 const releaseTarget = project.split("504EC3181FED79650016851F /* Release */")[1]?.split("name = Release;")[0] ?? "";
-if (debugTarget.includes("CODE_SIGN_ENTITLEMENTS") || !debugTarget.includes("VERSE2NOTE_UNIVERSAL_LINKS = NO")) {
+if (debugTarget.includes("CODE_SIGN_ENTITLEMENTS") || !debugTarget.includes("KATECHEO_UNIVERSAL_LINKS = NO")) {
   errors.push("A configuração Debug não deve pedir Universal Links nem entitlements.");
 }
-if (!releaseTarget.includes("VERSE2NOTE_UNIVERSAL_LINKS = YES") || !releaseTarget.includes("App/AppRelease.entitlements")) {
+if (!releaseTarget.includes("KATECHEO_UNIVERSAL_LINKS = YES") || !releaseTarget.includes("Katecheo/AppRelease.entitlements")) {
   errors.push("A configuração Release tem de ativar Universal Links e os entitlements.");
 }
 if (project.includes("CapApp-SPM") || project.includes("NativeShell.swift") || project.includes("LiquidChrome.swift")) {
@@ -218,8 +214,8 @@ if (project.includes("NoteMioloEditorView.swift")) {
 if (!project.includes("NativeNoteEditorView.swift in Sources") || !project.includes("NoteDocumentCodec.swift in Sources")) {
   errors.push("NativeNoteEditorView / NoteDocumentCodec têm de estar no target Xcode.");
 }
-if (!project.includes("V2NDesign.swift in Sources") || !project.includes("V2NComponents.swift in Sources")) {
-  errors.push("V2NDesign / V2NComponents (design system) têm de estar no target Xcode.");
+if (!project.includes("KCDesign.swift in Sources") || !project.includes("KCComponents.swift in Sources")) {
+  errors.push("KCDesign / KCComponents (design system) têm de estar no target Xcode.");
 }
 if (!project.includes("BibleRefInsertPicker.swift in Sources")) {
   errors.push("BibleRefInsertPicker tem de estar no target Xcode.");
@@ -230,7 +226,7 @@ if (!project.includes("NativePushService.swift in Sources") || !project.includes
 if (!project.includes("LiquidGlassMaterial.m in Sources")) {
   errors.push("LiquidGlassMaterial tem de permanecer no target (vidro nativo).");
 }
-if (!project.includes('SWIFT_OBJC_BRIDGING_HEADER = "App/App-Bridging-Header.h"')) {
+if (!project.includes('SWIFT_OBJC_BRIDGING_HEADER = "Katecheo/App-Bridging-Header.h"')) {
   errors.push("Falta o bridging header do material de vidro.");
 }
 
@@ -250,11 +246,11 @@ if (!selector.includes("export function chooseXcode") || !selector.includes("sdk
   errors.push("O selector de Xcode tem de exigir o SDK do iOS 26 com runtime de simulador instalado.");
 }
 
-const scene = read("ios/App/App/SceneDelegate.swift");
+const scene = read("ios/App/Katecheo/SceneDelegate.swift");
 if (!scene.includes("AppRoot.makeRootViewController")) {
   errors.push("SceneDelegate tem de montar a root via AppRoot.");
 }
-if (scene.includes("import Capacitor") || scene.includes("SceneDelegateProxy") || scene.includes("Verse2NoteBridge")) {
+if (scene.includes("import Capacitor") || scene.includes("SceneDelegateProxy") || scene.includes("KatecheoBridge")) {
   errors.push("SceneDelegate não pode importar Capacitor nem montar o bridge Cap.");
 }
 if (!scene.includes("NativeDeepLinkRouter") || !scene.includes("NSUserActivityTypeBrowsingWeb")) {
@@ -264,7 +260,7 @@ if (!scene.includes("AppAppearance") || scene.includes("overrideUserInterfaceSty
   errors.push("SceneDelegate tem de aplicar AppAppearance no connect (não forçar .unspecified) — TF219.");
 }
 try {
-  const appearance = read("ios/App/App/AppAppearance.swift");
+  const appearance = read("ios/App/Katecheo/AppAppearance.swift");
   if (!appearance.includes("overrideUserInterfaceStyle") || !appearance.includes("storedTheme") || !appearance.includes("syncFromCacheAndApply")) {
     errors.push("AppAppearance tem de persistir o tema e pintar todos os UIWindow (TF219).");
   }
@@ -275,20 +271,20 @@ if (!project.includes("AppAppearance.swift in Sources")) {
   errors.push("AppAppearance.swift tem de estar no target Xcode.");
 }
 
-const appRoot = read("ios/App/App/AppRoot.swift");
-if (!appRoot.includes("NativeRootTabBarController") || appRoot.includes("Verse2NoteBridge") || appRoot.includes("capacitorSite")) {
+const appRoot = read("ios/App/Katecheo/AppRoot.swift");
+if (!appRoot.includes("NativeRootTabBarController") || appRoot.includes("KatecheoBridge") || appRoot.includes("capacitorSite")) {
   errors.push("AppRoot tem de montar só NativeRootTabBarController (sem Cap).");
 }
 
-const mainStoryboard = read("ios/App/App/Base.lproj/Main.storyboard");
+const mainStoryboard = read("ios/App/Katecheo/Base.lproj/Main.storyboard");
 if (!mainStoryboard.includes('customClass="NativeRootTabBarController"')) {
   errors.push("Main.storyboard tem de apontar para NativeRootTabBarController.");
 }
-if (mainStoryboard.includes("Verse2NoteBridge") || mainStoryboard.includes("CAPBridgeViewController")) {
+if (mainStoryboard.includes("KatecheoBridge") || mainStoryboard.includes("CAPBridgeViewController")) {
   errors.push("Main.storyboard não pode referenciar o Cap bridge.");
 }
 
-const appDelegate = read("ios/App/App/AppDelegate.swift");
+const appDelegate = read("ios/App/Katecheo/AppDelegate.swift");
 if (appDelegate.includes("import Capacitor") || appDelegate.includes("capacitorDidRegister")) {
   errors.push("AppDelegate tem de usar APNs nativo (sem Capacitor).");
 }
@@ -296,12 +292,12 @@ if (!appDelegate.includes("NativePushService") || !appDelegate.includes("didRegi
   errors.push("AppDelegate tem de registar o token APNs via NativePushService.");
 }
 
-const shellMode = read("ios/App/App/NativeShellMode.swift");
+const shellMode = read("ios/App/Katecheo/NativeShellMode.swift");
 if (!shellMode.includes("nativePrimary") || !shellMode.includes("return .nativePrimary")) {
   errors.push("NativeShellMode tem de defaultar / forçar nativePrimary.");
 }
 
-const editor = read("ios/App/App/NativeNoteEditorView.swift");
+const editor = read("ios/App/Katecheo/NativeNoteEditorView.swift");
 if (!editor.includes("UITextView") || editor.includes("WKWebView") || editor.includes("import WebKit")) {
   errors.push("NativeNoteEditorView tem de ser UITextView nativo (sem WebKit).");
 }
@@ -345,7 +341,7 @@ if (!editor.includes("@MainActor") && !editor.includes("Thread.isMainThread")) {
   errors.push("NativeNoteEditorView tem de exigir main thread / @MainActor.");
 }
 
-const codec = read("ios/App/App/NoteDocumentCodec.swift");
+const codec = read("ios/App/Katecheo/NoteDocumentCodec.swift");
 if (!codec.includes("attributedString(from") || !codec.includes("func document(") || !codec.includes("bibleRef")) {
   errors.push("NoteDocumentCodec tem de round-trip NoteDocument ↔ attributed string com bibleRef.");
 }
@@ -380,7 +376,7 @@ if (!editor.includes("continueInSection") || !editor.includes("insertContinuingS
   errors.push("Enter no corpo do orador tem de continuar dentro da secção (continueInSection).");
 }
 try {
-  const speakerEdit = read("ios/App/App/SpeakerSectionEditing.swift");
+  const speakerEdit = read("ios/App/Katecheo/SpeakerSectionEditing.swift");
   if (!speakerEdit.includes("insertContinuingBodyParagraph") || !speakerEdit.includes("\\u{200B}") || !speakerEdit.includes("speakerBodyKey")) {
     errors.push("SpeakerSectionEditing tem de inserir corpo com ZWSP + speakerBodyKey.");
   }
@@ -394,7 +390,7 @@ if (!project.includes("SpeakerSectionEditing.swift in Sources") || !project.incl
   errors.push("SpeakerSectionEditing (+ tests) têm de estar no target Xcode.");
 }
 try {
-  const header = read("ios/App/App/SpeakerHeaderAttachment.swift");
+  const header = read("ios/App/Katecheo/SpeakerHeaderAttachment.swift");
   if (!header.includes("NSTextAttachment") || !header.includes("Hit") || !header.includes("remove")) {
     errors.push("SpeakerHeaderAttachment tem de ser NSTextAttachment não editável (chevron / nome / ×).");
   }
@@ -411,7 +407,7 @@ if (!editor.includes("paragraphBlockType") || !editor.includes("normalizeSpeaker
   errors.push("Enter do orador tem de usar o tipo do início do parágrafo + normalizar o corpo (não só helpers puros).");
 }
 if (!editor.includes("testing_insertText") || !editor.includes("testing_prepare") || !project.includes("NativeNoteEditorSpeakerPathTests.swift in Sources")) {
-  errors.push("AppTests têm de exercer o caminho real NativeNoteEditorView/UITextView (NativeNoteEditorSpeakerPathTests).");
+  errors.push("KatecheoTests têm de exercer o caminho real NativeNoteEditorView/UITextView (NativeNoteEditorSpeakerPathTests).");
 }
 if (!project.includes("NativeNoteEditorTF194Tests.swift in Sources")) {
   errors.push("AppTests TF194 (NativeNoteEditorTF194Tests) têm de estar no target.");
@@ -426,7 +422,7 @@ if (!project.includes("NoteEditorTagsStrip.swift in Sources")) {
   errors.push("NoteEditorTagsStrip tem de estar no target App.");
 }
 try {
-  const settings = read("ios/App/App/NoteSettingsViewController.swift");
+  const settings = read("ios/App/Katecheo/NoteSettingsViewController.swift");
   if (settings.includes('String(localized: "Tags")') || settings.includes("tagField") || settings.includes("addTag")) {
     errors.push("TF210: tags saíram das Configurações (ficam sob o título no editor).");
   }
@@ -437,7 +433,7 @@ if (!codec.includes("listMarkerWidth") || !codec.includes("titleTagsReservedSpac
   errors.push("NoteDocumentCodec tem de medir a largura do marcador da lista e reservar espaço para tags.");
 }
 try {
-  const api = read("ios/App/App/NativeAPIClient.swift");
+  const api = read("ios/App/Katecheo/NativeAPIClient.swift");
   const spanIdx = api.indexOf("private func spanText");
   const spanText = spanIdx >= 0 ? api.slice(spanIdx, spanIdx + 450) : "";
   if (!spanText.includes('span.type == "bibleRef"') || !spanText.includes("return nil")) {
@@ -447,26 +443,26 @@ try {
   errors.push("Falta NativeAPIClient.swift");
 }
 try {
-  const cache = read("ios/App/App/LocalNoteCache.swift");
+  const cache = read("ios/App/Katecheo/LocalNoteCache.swift");
   if (!cache.includes("mergeSpeakers") || !cache.includes("removeSpeaker")) {
     errors.push("LocalNoteCache tem de mergeSpeakers (não apagar o catálogo com speakers note-scoped).");
   }
 } catch {
-  errors.push("Ficheiro em falta: ios/App/App/LocalNoteCache.swift");
+  errors.push("Ficheiro em falta: ios/App/Katecheo/LocalNoteCache.swift");
 }
 if (!editor.includes("confirmRemoveSpeakerSection") || !editor.includes("Remover seção do speaker?")) {
   errors.push("× do speaker tem de pedir confirmação localizada antes de apagar.");
 }
-if (!project.includes("V2NSheetPresenter.swift in Sources")) {
-  errors.push("V2NSheetPresenter tem de estar no target (dismiss por backdrop).");
+if (!project.includes("KCSheetPresenter.swift in Sources")) {
+  errors.push("KCSheetPresenter tem de estar no target (dismiss por backdrop).");
 }
 try {
-  const sheet = read("ios/App/App/V2NSheetPresenter.swift");
+  const sheet = read("ios/App/Katecheo/KCSheetPresenter.swift");
   if (!sheet.includes("isModalInPresentation = false") || !sheet.includes(".medium()")) {
-    errors.push("V2NSheetPresenter tem de permitir dismiss por fora (medium detent + não modal-in-presentation).");
+    errors.push("KCSheetPresenter tem de permitir dismiss por fora (medium detent + não modal-in-presentation).");
   }
 } catch {
-  errors.push("Falta V2NSheetPresenter.swift");
+  errors.push("Falta KCSheetPresenter.swift");
 }
 if (!editor.includes("from: textView.textStorage")) {
   errors.push("currentDocument tem de ler textStorage (attributedText pode perder speakerBodyKey).");
@@ -485,18 +481,18 @@ if (!editor.includes("typingAttributesForCaret") || !codec.includes("\\u{200B}")
 if (!editor.includes("class NoteEditorTextView") || !editor.includes("override func caretRect(for")) {
   errors.push("Caret do editor tem de limitar a altura à lineHeight da fonte (NoteEditorTextView.caretRect).");
 }
-if (!project.includes("AppTests") || !project.includes("NoteDocumentCodecTests.swift in Sources")) {
-  errors.push("Target AppTests com round-trip do codec tem de existir no Xcode project.");
+if (!project.includes("KatecheoTests") || !project.includes("NoteDocumentCodecTests.swift in Sources")) {
+  errors.push("Target KatecheoTests com round-trip do codec tem de existir no Xcode project.");
 }
 if (!codec.includes("BibleBookCatalog.formatPassage") || !project.includes("BibleBookCatalog.swift in Sources")) {
   errors.push("Referências nas notas têm de formatar nomes via BibleBookCatalog (idioma de referências).");
 }
-const biblePicker = read("ios/App/App/BibleRefInsertPicker.swift");
-if (!biblePicker.includes("V2NNumberCell") || !biblePicker.includes("V2NNumberGridLayout") || biblePicker.includes("UITableViewController")) {
-  errors.push("Picker de referência na nota tem de usar grelha (V2NNumberCell), não lista.");
+const biblePicker = read("ios/App/Katecheo/BibleRefInsertPicker.swift");
+if (!biblePicker.includes("KCNumberCell") || !biblePicker.includes("KCNumberGridLayout") || biblePicker.includes("UITableViewController")) {
+  errors.push("Picker de referência na nota tem de usar grelha (KCNumberCell), não lista.");
 }
 
-const noteDetail = read("ios/App/App/NoteDetailViewController.swift");
+const noteDetail = read("ios/App/Katecheo/NoteDetailViewController.swift");
 if (noteDetail.includes("WKWebView") || noteDetail.includes("import WebKit") || noteDetail.includes("NoteMioloEditorView")) {
   errors.push("NoteDetailViewController não pode usar WebView / NoteMioloEditorView.");
 }
@@ -514,14 +510,14 @@ if (!noteDetail.includes("checkmark.icloud") && !noteDetail.includes("icloud.and
 }
 
 try {
-  read("ios/App/App/NoteMioloEditorView.swift");
+  read("ios/App/Katecheo/NoteMioloEditorView.swift");
   errors.push("Phase 7: NoteMioloEditorView.swift ainda existe — remover.");
 } catch {
   /* expected missing */
 }
 
 // Guard: no Cap / product WKWebView surfaces (bootstrap + Phase 6 import only).
-const appDir = join(root, "ios/App/App");
+const appDir = join(root, "ios/App/Katecheo");
 const allowedWebKit = new Set([
   "NativeSessionBootstrap.swift",
   "SceneDelegate.swift",
@@ -555,7 +551,7 @@ for (const name of readdirSync(appDir)) {
   }
 }
 
-const legacyImport = read("ios/App/App/LegacyWebStorageImporter.swift");
+const legacyImport = read("ios/App/Katecheo/LegacyWebStorageImporter.swift");
 if (!legacyImport.includes("@MainActor") || !legacyImport.includes("Thread.isMainThread")) {
   errors.push("LegacyWebStorageImporter tem de ser @MainActor e exigir Thread.isMainThread.");
 }
@@ -566,18 +562,18 @@ if (!legacyImport.includes("NoteDocument") && !legacyImport.includes("LegacyNote
   errors.push("LegacyWebStorageImporter tem de converter para NoteDocumentV1.");
 }
 
-const outbox = read("ios/App/App/NativeOutbox.swift");
+const outbox = read("ios/App/Katecheo/NativeOutbox.swift");
 if (!outbox.includes("enqueueNoteUpsert") || !outbox.includes("flushIfPossible") || !outbox.includes("nextAttemptAt")) {
   errors.push("NativeOutbox tem de ter enqueue + flush com backoff (nextAttemptAt).");
 }
 
 for (const dead of [
-  "ios/App/App/NativeShell.swift",
-  "ios/App/App/LiquidChrome.swift",
-  "ios/App/App/NativeMenus.swift",
-  "ios/App/App/NativePhase0Plugin.swift",
-  "ios/App/App/NoteEditorSpikeViewController.swift",
-  "ios/App/App/NoteMioloEditorView.swift",
+  "ios/App/Katecheo/NativeShell.swift",
+  "ios/App/Katecheo/LiquidChrome.swift",
+  "ios/App/Katecheo/NativeMenus.swift",
+  "ios/App/Katecheo/NativePhase0Plugin.swift",
+  "ios/App/Katecheo/NoteEditorSpikeViewController.swift",
+  "ios/App/Katecheo/NoteMioloEditorView.swift",
 ]) {
   try {
     read(dead);
@@ -595,7 +591,7 @@ try {
   errors.push(`Falta doc Phase 5/7: ${e.message || e}`);
 }
 
-const material = read("ios/App/App/LiquidGlassMaterial.m");
+const material = read("ios/App/Katecheo/LiquidGlassMaterial.m");
 if (!material.includes("UIGlassEffect") || !material.includes("UIBlurEffectStyleSystemChromeMaterial")) {
   errors.push("O material tem de ter UIGlassEffect e o desfoque clássico.");
 }
@@ -603,49 +599,49 @@ if (!material.includes("__IPHONE_26_0") || !material.includes("prominentGlassBut
   errors.push("Liquid Glass tem de compilar só com o SDK do iOS 26.");
 }
 
-const sessionBoot = read("ios/App/App/NativeSessionBootstrap.swift");
+const sessionBoot = read("ios/App/Katecheo/NativeSessionBootstrap.swift");
 if (!sessionBoot.includes("@MainActor") || !sessionBoot.includes("Thread.isMainThread")) {
   errors.push("NativeSessionBootstrap tem de ser @MainActor e guardar Thread.isMainThread antes de WKWebsiteDataStore.");
 }
 
-const push = read("ios/App/App/NativePushService.swift");
+const push = read("ios/App/Katecheo/NativePushService.swift");
 if (!push.includes("UNUserNotificationCenter") || !push.includes("saveApnsDevice") || !push.includes("NativeDeepLinkRouter")) {
   errors.push("NativePushService tem de registar APNs e abrir href via NativeDeepLinkRouter.");
 }
 
-const deep = read("ios/App/App/NativeDeepLinkRouter.swift");
+const deep = read("ios/App/Katecheo/NativeDeepLinkRouter.swift");
 if (!deep.includes("destination(for") || !deep.includes("notebook") || !deep.includes("NoteDetailViewController")) {
   errors.push("NativeDeepLinkRouter tem de mapear paths para ecrãs nativos.");
 }
 
-const comingSoon = read("ios/App/App/ComingSoonTabViewController.swift");
-if (comingSoon.includes("capacitorSite") || comingSoon.includes("Verse2NoteBridge") || comingSoon.includes("Usar app clássico")) {
+const comingSoon = read("ios/App/Katecheo/ComingSoonTabViewController.swift");
+if (comingSoon.includes("capacitorSite") || comingSoon.includes("KatecheoBridge") || comingSoon.includes("Usar app clássico")) {
   errors.push("ComingSoon não pode oferecer o host Capacitor.");
 }
 
-const design = read("ios/App/App/V2NDesign.swift");
-if (!design.includes("static let accent") || !design.includes("static let canvas") || !design.includes("enum V2NChrome") || !design.includes("static func applyAppWide")) {
-  errors.push("V2NDesign tem de expor accent/canvas e V2NChrome.applyAppWide.");
+const design = read("ios/App/Katecheo/KCDesign.swift");
+if (!design.includes("static let accent") || !design.includes("static let canvas") || !design.includes("enum KCChrome") || !design.includes("static func applyAppWide")) {
+  errors.push("KCDesign tem de expor accent/canvas e KCChrome.applyAppWide.");
 }
 if (!design.includes("userInterfaceStyle == .dark")) {
-  errors.push("V2NDesign tem de declarar cores com suporte a Dark Mode.");
+  errors.push("KCDesign tem de declarar cores com suporte a Dark Mode.");
 }
-const components = read("ios/App/App/V2NComponents.swift");
-if (!components.includes("V2NEmptyStateView") || !components.includes("V2NNoteRowCell") || !components.includes("V2NHaptics")) {
-  errors.push("V2NComponents tem de incluir empty state, note row e haptics.");
+const components = read("ios/App/Katecheo/KCComponents.swift");
+if (!components.includes("KCEmptyStateView") || !components.includes("KCNoteRowCell") || !components.includes("KCHaptics")) {
+  errors.push("KCComponents tem de incluir empty state, note row e haptics.");
 }
-if (!appDelegate.includes("V2NChrome.applyAppWide")) {
-  errors.push("AppDelegate tem de aplicar V2NChrome.applyAppWide no launch.");
+if (!appDelegate.includes("KCChrome.applyAppWide")) {
+  errors.push("AppDelegate tem de aplicar KCChrome.applyAppWide no launch.");
 }
-const rootTabsChrome = read("ios/App/App/NativeRootTabBarController.swift");
-if (!rootTabsChrome.includes("V2NDesign.accent") || !rootTabsChrome.includes("V2NChrome.style")) {
+const rootTabsChrome = read("ios/App/Katecheo/NativeRootTabBarController.swift");
+if (!rootTabsChrome.includes("KCDesign.accent") || !rootTabsChrome.includes("KCChrome.style")) {
   errors.push("NativeRootTabBarController tem de usar o design system (accent + chrome).");
 }
 if (/Partilhar|Guardar|utilizador|Definições/.test(design) || /Partilhar|Guardar|utilizador|Definições/.test(components)) {
   errors.push("Design system: strings têm de ser pt-BR (não Partilhar/Guardar/utilizador/Definições).");
 }
 
-const signIn = read("ios/App/App/NativeSignInViewController.swift");
+const signIn = read("ios/App/Katecheo/NativeSignInViewController.swift");
 if (signIn.includes("Abrir site clássico") || signIn.includes("capacitorSite")) {
   errors.push("O login nativo não pode abrir o site clássico.");
 }
@@ -653,7 +649,7 @@ if (!signIn.includes("Continuar com Google") || !signIn.includes("Entrar com ema
   errors.push("Falta o ecrã nativo de login (Google + email).");
 }
 
-const loginService = read("ios/App/App/NativeLoginService.swift");
+const loginService = read("ios/App/Katecheo/NativeLoginService.swift");
 if (!loginService.includes("ASWebAuthenticationSession") || !loginService.includes("auth/claim")) {
   errors.push("NativeLoginService tem de fazer Google via ASWebAuthenticationSession + claim.");
 }
@@ -661,15 +657,15 @@ if (!loginService.includes("signOut") || !loginService.includes("deleteBearerTok
   errors.push("Sign-out nativo tem de limpar o Keychain.");
 }
 
-const notebookList = read("ios/App/App/NotebookListViewController.swift");
+const notebookList = read("ios/App/Katecheo/NotebookListViewController.swift");
 if (notebookList.includes("Site clássico") || notebookList.includes("capacitorSite")) {
   errors.push("O Caderno não pode oferecer Site clássico (Cap).");
 }
 if (!notebookList.includes("UIActivityViewController") || !notebookList.includes("trailingSwipeActions")) {
   errors.push("A lista nativa tem de ter swipe e partilha nativa.");
 }
-if (!notebookList.includes("v2nIconOnly") || !notebookList.includes("leadingSwipeActions")) {
-  errors.push("Swipe do Caderno tem de ser só ícone (v2nIconOnly) em leading/trailing.");
+if (!notebookList.includes("kcIconOnly") || !notebookList.includes("leadingSwipeActions")) {
+  errors.push("Swipe do Caderno tem de ser só ícone (kcIconOnly) em leading/trailing.");
 }
 if (/UIContextualAction\(style:.*title:\s*String\(localized:/.test(notebookList)) {
   errors.push("Swipe do Caderno não pode mostrar título de texto (usar title nil + ícone).");
@@ -687,7 +683,7 @@ if (!notebookList.includes("convenience init(group:") || !notebookList.includes(
   errors.push("O Caderno nativo tem de reutilizar a lista para notas de um grupo.");
 }
 
-const rootTabs = read("ios/App/App/NativeRootTabBarController.swift");
+const rootTabs = read("ios/App/Katecheo/NativeRootTabBarController.swift");
 if (!rootTabs.includes("GroupsListViewController") || rootTabs.includes('titleText: "Grupos"')) {
   errors.push("Phase 2: o separador Grupos tem de usar GroupsListViewController.");
 }
@@ -711,8 +707,8 @@ if (!project.includes("ReadingScreens.swift in Sources")) {
   errors.push("ReadingScreens.swift tem de estar no target Xcode.");
 }
 if (
-  /V2NFilterChip\(id:\s*"themes"/.test(notebookList) ||
-  /V2NFilterChip\(id:\s*"lists"/.test(notebookList)
+  /KCFilterChip\(id:\s*"themes"/.test(notebookList) ||
+  /KCFilterChip\(id:\s*"lists"/.test(notebookList)
 ) {
   errors.push("Caderno não pode mostrar chips Temas/Listas (só filtros de notas).");
 }
@@ -726,16 +722,16 @@ if (!notebookList.includes("Membros") || !notebookList.includes("GroupMembersVie
   errors.push("Menu … do grupo tem de incluir Membros (GroupMembersViewController).");
 }
 if (!components.includes("allowsDeselect") || !components.includes("config.title = selected ? chip.title")) {
-  errors.push("V2NFilterChipsView: ícone só quando não selecionado; ícone+nome quando selecionado.");
+  errors.push("KCFilterChipsView: ícone só quando não selecionado; ícone+nome quando selecionado.");
 }
 if (!components.includes("leading: horizontal") || !/selected \? 16 : 24/.test(components) || !components.includes("greaterThanOrEqualToConstant: 72")) {
   errors.push("Pills não selecionadas têm de ser cápsulas largas (padding ≥24 / min width 72).");
 }
-if (!components.includes("v2nApplyBrandListStyle") || !components.includes("v2nApplyBrandChrome")) {
+if (!components.includes("kcApplyBrandListStyle") || !components.includes("kcApplyBrandChrome")) {
   errors.push("Temas/Listas têm de usar helpers de marca (sem tint azul de sistema).");
 }
-const versesScreens = read("ios/App/App/VersesScreens.swift");
-if (!versesScreens.includes("v2nApplyBrandListStyle") || !versesScreens.includes("V2NEmptyStateView") || !versesScreens.includes("V2NDesign.accent")) {
+const versesScreens = read("ios/App/Katecheo/VersesScreens.swift");
+if (!versesScreens.includes("kcApplyBrandListStyle") || !versesScreens.includes("KCEmptyStateView") || !versesScreens.includes("KCDesign.accent")) {
   errors.push("Temas e Listas têm de usar empty states e tint de marca.");
 }
 if (!project.includes("LocalSessionCache.swift in Sources") || !project.includes("GroupMembersViewController.swift in Sources")) {
@@ -743,7 +739,7 @@ if (!project.includes("LocalSessionCache.swift in Sources") || !project.includes
 }
 
 try {
-  const groupsList = read("ios/App/App/GroupsListViewController.swift");
+  const groupsList = read("ios/App/Katecheo/GroupsListViewController.swift");
   if (!groupsList.includes("Novo grupo") || !groupsList.includes("listGroups")) {
     errors.push("GroupsListViewController tem de listar e criar grupos.");
   }
@@ -758,18 +754,18 @@ if (!noteDetail.includes("Mover para grupo") || !noteDetail.includes("listGroups
 }
 
 try {
-  const versesHome = read("ios/App/App/VersesHomeViewController.swift");
+  const versesHome = read("ios/App/Katecheo/VersesHomeViewController.swift");
   if (!versesHome.includes("Ferramentas") || !versesHome.includes("BooksHomeViewController")) {
     errors.push("Ferramentas: home com pills + BooksHomeViewController.");
   }
-  if (versesHome.includes("V2NToolCardCell") || versesHome.includes("cardsPanel")) {
+  if (versesHome.includes("KCToolCardCell") || versesHome.includes("cardsPanel")) {
     errors.push("Remova o hub de cards legado da Ferramentas — abrir direto na pill.");
   }
   if (!versesHome.includes("ThemesHomeViewController") || !versesHome.includes("ReadingHomeViewController") || !versesHome.includes("MyCollectionsViewController")) {
     errors.push("Ferramentas tem de abrir Temas, Listas e Leitura.");
   }
-  if (!versesHome.includes("V2NFilterChipsView") || !versesHome.includes("chips.configure")) {
-    errors.push("Ferramentas tem de ter pills (V2NFilterChipsView) Livros/Temas/Listas/Leitura.");
+  if (!versesHome.includes("KCFilterChipsView") || !versesHome.includes("chips.configure")) {
+    errors.push("Ferramentas tem de ter pills (KCFilterChipsView) Livros/Temas/Listas/Leitura.");
   }
   if (!versesHome.includes("selectTool") || !versesHome.includes("embedded: true") || !versesHome.includes("lastToolKey") || !versesHome.includes("allowsDeselect = false")) {
     errors.push("Ferramentas: abrir na última pill (persistida) ou Livros; sem cards.");
@@ -797,17 +793,17 @@ try {
     errors.push("Siglas/Nomes (modeToggle) tem de ficar na header do Antigo Testamento (scroll).");
   }
   if (!components.includes("trailing:") || !components.includes("trailingHost")) {
-    errors.push("V2NBookSectionHeaderView tem de aceitar trailing (Siglas/Nomes no scroll).");
+    errors.push("KCBookSectionHeaderView tem de aceitar trailing (Siglas/Nomes no scroll).");
   }
-  if (!components.includes("V2NNamedCreateViewController") || !components.includes("V2NNumberCell") || !components.includes("V2NBibleAppLogoCell")) {
+  if (!components.includes("KCNamedCreateViewController") || !components.includes("KCNumberCell") || !components.includes("KCBibleAppLogoCell")) {
     errors.push("Faltam componentes: create form, number grid, bible logo tiles.");
   }
-  const groupsListSync = read("ios/App/App/GroupsListViewController.swift");
+  const groupsListSync = read("ios/App/Katecheo/GroupsListViewController.swift");
   if (groupsListSync.includes("grupos · sincronizado")) {
     errors.push("Remova o banner persistente «grupos · sincronizado».");
   }
-  const readingHome = read("ios/App/App/ReadingScreens.swift");
-  if (!readingHome.includes("V2NPlanCategoryCardCell") || !readingHome.includes("UICollectionView")) {
+  const readingHome = read("ios/App/Katecheo/ReadingScreens.swift");
+  if (!readingHome.includes("KCPlanCategoryCardCell") || !readingHome.includes("UICollectionView")) {
     errors.push("Leitura home tem de usar cards (UICollectionView) como a web original.");
   }
   if (!readingHome.includes("init(embedded:") || !readingHome.includes("reloadFromParent")) {
@@ -819,7 +815,7 @@ try {
   if (!deep.includes("Tab.tools") && !deep.includes("selectedIndex = Tab.tools") && !/selectedIndex = 2/.test(deep)) {
     errors.push("Deep links: Ferramentas é o índice 2 (Caderno=0, Grupos=1).");
   }
-  const versesScreens = read("ios/App/App/VersesScreens.swift");
+  const versesScreens = read("ios/App/Katecheo/VersesScreens.swift");
   if (
     !versesScreens.includes("VerseActionsViewController") ||
     !versesScreens.includes("appendVerse") ||
@@ -827,27 +823,27 @@ try {
   ) {
     errors.push("Faltam telas nativas de ações de versículo / adicionar à nota.");
   }
-  if (!versesScreens.includes("V2NNumberCell") || !versesScreens.includes("V2NNumberGridLayout")) {
+  if (!versesScreens.includes("KCNumberCell") || !versesScreens.includes("KCNumberGridLayout")) {
     errors.push("Picker de capítulo/versículo tem de usar grelha numérica.");
   }
-  if (!versesScreens.includes("V2NNamedCreateViewController")) {
-    errors.push("Criar lista/tema tem de usar o formulário V2NNamedCreateViewController (sem alerta azul).");
+  if (!versesScreens.includes("KCNamedCreateViewController")) {
+    errors.push("Criar lista/tema tem de usar o formulário KCNamedCreateViewController (sem alerta azul).");
   }
   if (/Partilhar|Guardar|utilizador|Definições/.test(versesScreens) || /Partilhar|Guardar|utilizador|Definições/.test(versesHome)) {
     errors.push("Strings de Ferramentas têm de ser pt-BR (não Partilhar/Guardar/utilizador/Definições).");
   }
-  const bibleSettings = read("ios/App/App/ProfileSettingsScreens.swift");
-  if (!bibleSettings.includes("V2NBibleAppLogoCell") || !bibleSettings.includes("BibleApp_")) {
-    errors.push("App de Bíblia: grelha de logos (V2NBibleAppLogoCell + assets).");
+  const bibleSettings = read("ios/App/Katecheo/ProfileSettingsScreens.swift");
+  if (!bibleSettings.includes("KCBibleAppLogoCell") || !bibleSettings.includes("BibleApp_")) {
+    errors.push("App de Bíblia: grelha de logos (KCBibleAppLogoCell + assets).");
   }
-  if (!bibleSettings.includes("v2nApplyTabBarScrollClearance") || !bibleSettings.includes("tableHeaderView")) {
+  if (!bibleSettings.includes("kcApplyTabBarScrollClearance") || !bibleSettings.includes("tableHeaderView")) {
     errors.push("App de Bíblia: scroll único + clearance da tab bar (TF214).");
   }
-  const design = read("ios/App/App/V2NDesign.swift");
-  if (!design.includes("V2NScrollChrome") || !design.includes("tabBarClearance")) {
-    errors.push("V2NScrollChrome tem de calcular inset inferior sob a tab bar flutuante.");
+  const design = read("ios/App/Katecheo/KCDesign.swift");
+  if (!design.includes("KCScrollChrome") || !design.includes("tabBarClearance")) {
+    errors.push("KCScrollChrome tem de calcular inset inferior sob a tab bar flutuante.");
   }
-  const speakerHeader = read("ios/App/App/SpeakerHeaderAttachment.swift");
+  const speakerHeader = read("ios/App/Katecheo/SpeakerHeaderAttachment.swift");
   if (!speakerHeader.includes("renderedInterfaceStyle") || !speakerHeader.includes("alwaysOriginal")) {
     errors.push("SpeakerHeaderAttachment tem de bakear imagem alwaysOriginal com renderedInterfaceStyle (TF214/TF222).");
   }
@@ -869,7 +865,7 @@ try {
   if (!editor.includes("speakerBakeTraits") || !editor.includes("didMoveToWindow") || !editor.includes("textView.traitCollection")) {
     errors.push("NativeNoteEditorView tem de bakear headers com traits do UITextView + Appearance (TF219).");
   }
-  const codec = read("ios/App/App/NoteDocumentCodec.swift");
+  const codec = read("ios/App/Katecheo/NoteDocumentCodec.swift");
   if (!codec.includes("speakerSectionHeader") || !codec.includes("UIColor.clear")) {
     errors.push("speakerSectionHeader tem de usar foregroundColor clear no attachment (TF222).");
   }
@@ -881,11 +877,11 @@ if (!project.includes("VersesHomeViewController.swift in Sources") || !project.i
 }
 
 try {
-  const profile = read("ios/App/App/ProfileViewController.swift");
+  const profile = read("ios/App/Katecheo/ProfileViewController.swift");
   if (!profile.includes("Sair da conta") || !(profile.includes("Apagar conta") || profile.includes("Excluir conta")) || !profile.includes("getMe")) {
     errors.push("ProfileViewController tem de mostrar perfil, sair da conta e excluir conta.");
   }
-  const settings = read("ios/App/App/ProfileSettingsScreens.swift");
+  const settings = read("ios/App/Katecheo/ProfileSettingsScreens.swift");
   if (
     !settings.includes("ProfileEditViewController") ||
     !settings.includes("ProfileThemeViewController") ||
@@ -902,27 +898,27 @@ try {
 if (!project.includes("ProfileViewController.swift in Sources") || !project.includes("ProfileSettingsScreens.swift in Sources")) {
   errors.push("ProfileViewController / ProfileSettingsScreens têm de estar no target Xcode.");
 }
-if (!project.includes("V2NScrollChromeTests.swift in Sources")) {
-  errors.push("AppTests V2NScrollChromeTests têm de estar no target.");
+if (!project.includes("KCScrollChromeTests.swift in Sources")) {
+  errors.push("AppTests KCScrollChromeTests têm de estar no target.");
 }
-if (!project.includes("V2NSwipeActionTests.swift in Sources")) {
-  errors.push("AppTests V2NSwipeActionTests têm de estar no target.");
+if (!project.includes("KCSwipeActionTests.swift in Sources")) {
+  errors.push("AppTests KCSwipeActionTests têm de estar no target.");
 }
 if (!project.includes("TabBackgroundConsistencyTests.swift in Sources")) {
   errors.push("AppTests TabBackgroundConsistencyTests têm de estar no target.");
 }
 try {
-  const design = read("ios/App/App/V2NDesign.swift");
+  const design = read("ios/App/Katecheo/KCDesign.swift");
   if (!design.includes("screenBackground") || !design.includes("styleScreen") || !design.includes("makeNavigationBarAppearance")) {
-    errors.push("V2NChrome tem de unificar screenBackground no nav + tabs (Profile-matched).");
+    errors.push("KCChrome tem de unificar screenBackground no nav + tabs (Profile-matched).");
   }
   if (design.includes("surface.withAlphaComponent(0.94)")) {
     errors.push("Nav bar não pode usar surface semi-opaco (banda mais clara que o conteúdo).");
   }
-  const notebook = read("ios/App/App/NotebookListViewController.swift");
-  const groups = read("ios/App/App/GroupsListViewController.swift");
-  const tools = read("ios/App/App/VersesHomeViewController.swift");
-  const profile = read("ios/App/App/ProfileViewController.swift");
+  const notebook = read("ios/App/Katecheo/NotebookListViewController.swift");
+  const groups = read("ios/App/Katecheo/GroupsListViewController.swift");
+  const tools = read("ios/App/Katecheo/VersesHomeViewController.swift");
+  const profile = read("ios/App/Katecheo/ProfileViewController.swift");
   for (const [name, src] of [
     ["Notebook", notebook],
     ["Groups", groups],
@@ -930,7 +926,7 @@ try {
     ["Profile", profile],
   ]) {
     if (!src.includes("styleScreen")) {
-      errors.push(`${name} tem de usar V2NChrome.styleScreen (fundo único como Perfil).`);
+      errors.push(`${name} tem de usar KCChrome.styleScreen (fundo único como Perfil).`);
     }
   }
 } catch {
@@ -957,26 +953,26 @@ if (!project.includes("NotificationsCenterViewModel.swift in Sources") || !proje
 if (!project.includes("NotificationsCenterTests.swift in Sources")) {
   errors.push("AppTests NotificationsCenterTests têm de estar no target.");
 }
-if (!project.includes("V2NActivityStore.swift in Sources")) {
-  errors.push("V2NActivityStore tem de estar no target App (build-238 dots).");
+if (!project.includes("KCActivityStore.swift in Sources")) {
+  errors.push("KCActivityStore tem de estar no target App (build-238 dots).");
 }
-if (!project.includes("V2NActivitySync.swift in Sources")) {
-  errors.push("V2NActivitySync tem de estar no target App (build-238 inbox sync).");
+if (!project.includes("KCActivitySync.swift in Sources")) {
+  errors.push("KCActivitySync tem de estar no target App (build-238 inbox sync).");
 }
 if (!project.includes("NativeSWR.swift in Sources")) {
   errors.push("NativeSWR tem de estar no target App (SWR cache / load reduction).");
 }
 try {
-  const swr = read("ios/App/App/NativeSWR.swift");
-  const api = read("ios/App/App/NativeAPIClient.swift");
+  const swr = read("ios/App/Katecheo/NativeSWR.swift");
+  const api = read("ios/App/Katecheo/NativeAPIClient.swift");
   if (!swr.includes("stale-while-revalidate") && !swr.includes("TTL")) {
     errors.push("NativeSWR precisa de TTLs SWR.");
   }
   if (!api.includes("listNotes(force: Bool = false)") || !api.includes("getPrefs(force: Bool = false)")) {
     errors.push("NativeAPIClient GETs precisam de force/SWR (listNotes/getPrefs/…).");
   }
-  if (!read("ios/App/App/V2NActivitySync.swift").includes("skippedFresh")) {
-    errors.push("V2NActivitySync tem de debouncear refresh (skippedFresh).");
+  if (!read("ios/App/Katecheo/KCActivitySync.swift").includes("skippedFresh")) {
+    errors.push("KCActivitySync tem de debouncear refresh (skippedFresh).");
   }
 } catch {
   errors.push("Falha ao validar NativeSWR / activity debounce.");
@@ -985,71 +981,71 @@ if (!project.includes("FriendsActivityViewController.swift in Sources")) {
   errors.push("FriendsActivityViewController tem de estar no target App (build-238).");
 }
 try {
-  const detail = read("ios/App/App/NoteDetailViewController.swift");
+  const detail = read("ios/App/Katecheo/NoteDetailViewController.swift");
   if (detail.includes("next.tags = note.tags")) {
     errors.push("NoteDetail não pode sobrescrever tags do editor com note.tags (build-238).");
   }
-  if (!detail.includes("keepEditorInLightMode") && !read("ios/App/App/AppAppearance.swift").includes("keepEditorInLightMode")) {
+  if (!detail.includes("keepEditorInLightMode") && !read("ios/App/Katecheo/AppAppearance.swift").includes("keepEditorInLightMode")) {
     errors.push("Falta preferência keepEditorInLightMode (build-238).");
   }
-  const appearance = read("ios/App/App/AppAppearance.swift");
+  const appearance = read("ios/App/Katecheo/AppAppearance.swift");
   if (!appearance.includes("keepEditorLightKey") || !appearance.includes("keepEditorInLightMode")) {
     errors.push("AppAppearance tem de persistir keepEditorInLightMode (build-238).");
   }
-  const notebook = read("ios/App/App/NotebookListViewController.swift");
+  const notebook = read("ios/App/Katecheo/NotebookListViewController.swift");
   if (!notebook.includes("anchorActionSheet") || !notebook.includes("rectForRow")) {
     errors.push("Confirmação de exclusão de nota tem de ancorar no row/swipe (build-238).");
   }
-  const groups = read("ios/App/App/GroupsListViewController.swift");
+  const groups = read("ios/App/Katecheo/GroupsListViewController.swift");
   if (!groups.includes("rectForRow") && !groups.includes("source.bounds")) {
     errors.push("Confirmação de exclusão de grupo tem de ancorar no row/swipe (build-238).");
   }
-  const lists = read("ios/App/App/VersesScreens.swift");
+  const lists = read("ios/App/Katecheo/VersesScreens.swift");
   if (!lists.includes("translatesAutoresizingMaskIntoConstraints = true") || !lists.includes("MyCollectionsViewController")) {
     errors.push("Listas empty state tem de usar autoresizing backgroundView (build-238).");
   }
-  const tools = read("ios/App/App/VersesHomeViewController.swift");
+  const tools = read("ios/App/Katecheo/VersesHomeViewController.swift");
   if (!tools.includes("hidesSearchBarWhenScrolling") || !tools.includes("installSearchController")) {
     errors.push("Ferramentas Temas/Leitura: search no parent com hidesSearchBarWhenScrolling (build-238).");
   }
-  const activity = read("ios/App/App/V2NActivityStore.swift");
+  const activity = read("ios/App/Katecheo/KCActivityStore.swift");
   if (!activity.includes("sharedNote") || !activity.includes("Compartilhadas") && !activity.includes("shared")) {
     // soft — shared kind exists
   }
   if (!activity.includes("reconcileServer") || !activity.includes("markSharedNoteOpened")) {
-    errors.push("V2NActivityStore tem de reconciliar via servidor (links/grants/inbox) (build-238).");
+    errors.push("KCActivityStore tem de reconciliar via servidor (links/grants/inbox) (build-238).");
   }
   if (!activity.includes("acknowledgeNotificationIds") || !activity.includes("acknowledgeAllInboxNotifications")) {
-    errors.push("V2NActivityStore tem de limpar dots ao ler na Central de notificações (notificationIds).");
+    errors.push("KCActivityStore tem de limpar dots ao ler na Central de notificações (notificationIds).");
   }
-  const notebookNotify = read("ios/App/App/NotebookListViewController.swift");
-  if (!notebookNotify.includes("V2NNotificationsBellButton") || !notebookNotify.includes("openNotificationsCenter")) {
+  const notebookNotify = read("ios/App/Katecheo/NotebookListViewController.swift");
+  if (!notebookNotify.includes("KCNotificationsBellButton") || !notebookNotify.includes("openNotificationsCenter")) {
     errors.push("Caderno tem de ter o botão de avisos (bell) só no tab pessoal.");
   }
-  const notifyVm = read("ios/App/App/NotificationsCenterViewModel.swift");
+  const notifyVm = read("ios/App/Katecheo/NotificationsCenterViewModel.swift");
   if (!notifyVm.includes("badgeText") || !notifyVm.includes("99+")) {
     errors.push("Badge de avisos tem de esconder em 0 e limitar a 99+.");
   }
   if (activity.includes("visibility == \"shared\"") || activity.includes("visibility == \"link\"")) {
-    errors.push("V2NActivityStore não pode inventar Shared a partir de visibility (build-238).");
+    errors.push("KCActivityStore não pode inventar Shared a partir de visibility (build-238).");
   }
-  const api = read("ios/App/App/NativeAPIClient.swift");
+  const api = read("ios/App/Katecheo/NativeAPIClient.swift");
   if (!api.includes("notes/granted") || !api.includes("links/accept") || !api.includes("notifications/read")) {
     errors.push("NativeAPIClient tem de chamar notes/granted, links accept/decline e notifications/read (build-238).");
   }
   if (!api.includes("links/request") || !api.includes("links/search") || !api.includes("notifications/summary")) {
     errors.push("NativeAPIClient tem de chamar links/request, links/search e notifications/summary (build-238 limits).");
   }
-  const friends = read("ios/App/App/FriendsActivityViewController.swift");
+  const friends = read("ios/App/Katecheo/FriendsActivityViewController.swift");
   if (!friends.includes("acceptLink") || !friends.includes("declineLink") || !friends.includes("requestLink")) {
     errors.push("Amigos tem de pedir/aceitar/recusar via API nativa (build-238).");
   }
-  const push = read("ios/App/App/NativePushService.swift");
+  const push = read("ios/App/Katecheo/NativePushService.swift");
   if (push.includes("ingestPush") && !push.includes("handlePushHint") && !push.includes("refreshFromServer")) {
     errors.push("Push não pode acender bolinha sem reconciliar servidor (build-238).");
   }
-  if (!read("ios/App/App/V2NActivitySync.swift").includes("handlePushHint")) {
-    errors.push("V2NActivitySync.handlePushHint obrigatório (build-238).");
+  if (!read("ios/App/Katecheo/KCActivitySync.swift").includes("handlePushHint")) {
+    errors.push("KCActivitySync.handlePushHint obrigatório (build-238).");
   }
   if (friends.includes("markFriendsAcceptedSeen") && friends.includes("clearKind(.friendPending)")) {
     // pending must not clear on appear — only accepted signals
@@ -1057,7 +1053,7 @@ try {
       errors.push("Amigos não pode limpar pedidos pendentes só por abrir a tela (build-238).");
     }
   }
-  const notebookShared = read("ios/App/App/NotebookListViewController.swift");
+  const notebookShared = read("ios/App/Katecheo/NotebookListViewController.swift");
   if (notebookShared.includes("visibility == \"shared\"") || notebookShared.includes("visibility == \"link\"")) {
     errors.push("Compartilhadas tem de usar listGrantedNotes, não visibility heuristic (build-238).");
   }
@@ -1068,11 +1064,11 @@ try {
   errors.push("Falha ao validar checks build-238.");
 }
 try {
-  const noteDetail = read("ios/App/App/NoteDetailViewController.swift");
-  if (!noteDetail.includes("applyEditorChrome") || !noteDetail.includes("background: V2NDesign.canvas")) {
-    errors.push("NoteDetail tem de pintar nav standard/scrollEdge/compact com V2NDesign.canvas (build-234).");
+  const noteDetail = read("ios/App/Katecheo/NoteDetailViewController.swift");
+  if (!noteDetail.includes("applyEditorChrome") || !noteDetail.includes("background: KCDesign.canvas")) {
+    errors.push("NoteDetail tem de pintar nav standard/scrollEdge/compact com KCDesign.canvas (build-234).");
   }
-  const codec = read("ios/App/App/NoteDocumentCodec.swift");
+  const codec = read("ios/App/Katecheo/NoteDocumentCodec.swift");
   if (!codec.includes("final class BibleRefPillAttachment") || !codec.includes("renderedInterfaceStyle")) {
     errors.push("BibleRefPillAttachment tem de existir com renderedInterfaceStyle (build-234).");
   }
@@ -1086,15 +1082,15 @@ try {
       errors.push("BibleRefPillAttachment tem de bakear alwaysOriginal com palette RGB fixa (build-234).");
     }
   }
-  const editor = read("ios/App/App/NativeNoteEditorView.swift");
+  const editor = read("ios/App/Katecheo/NativeNoteEditorView.swift");
   if (!editor.includes("refreshBibleRefPillAppearances")) {
     errors.push("NativeNoteEditorView tem de refreshBibleRefPillAppearances (build-234).");
   }
-  const chrome = read("ios/App/App/V2NComponents.swift");
-  if (!chrome.includes("v2nApplyThemedGroupedCell") || !chrome.includes("v2nApplyGroupedChrome")) {
-    errors.push("Profile/settings cells têm de usar v2nApplyThemedGroupedCell + v2nApplyGroupedChrome (build-234).");
+  const chrome = read("ios/App/Katecheo/KCComponents.swift");
+  if (!chrome.includes("kcApplyThemedGroupedCell") || !chrome.includes("kcApplyGroupedChrome")) {
+    errors.push("Profile/settings cells têm de usar kcApplyThemedGroupedCell + kcApplyGroupedChrome (build-234).");
   }
-  const settings = read("ios/App/App/ProfileSettingsScreens.swift");
+  const settings = read("ios/App/Katecheo/ProfileSettingsScreens.swift");
   for (const cls of [
     "ProfileEditViewController",
     "ProfileThemeViewController",
@@ -1106,7 +1102,7 @@ try {
       errors.push(`Falta ${cls} (build-234 Profile audit).`);
     }
   }
-  if (!settings.includes("v2nApplyGroupedChrome") || !settings.includes("v2nApplyThemedGroupedCell")) {
+  if (!settings.includes("kcApplyGroupedChrome") || !settings.includes("kcApplyThemedGroupedCell")) {
     errors.push("ProfileSettingsScreens têm de aplicar chrome/células themed (build-234).");
   }
 } catch {
@@ -1136,7 +1132,7 @@ if (!authRouter.includes("plans-mark") || !authRouter.includes("plans-start")) {
   errors.push("Faltam rotas /api/native/v1/plans* no router nativo.");
 }
 
-const apiClient = read("ios/App/App/NativeAPIClient.swift");
+const apiClient = read("ios/App/Katecheo/NativeAPIClient.swift");
 if (!apiClient.includes("func getMe(") || !apiClient.includes("func deleteAccount(")) {
   errors.push("NativeAPIClient tem de expor getMe e deleteAccount.");
 }
@@ -1189,28 +1185,28 @@ if (!aasaSource.includes("webcredentials")) {
 }
 
 for (const path of [
-  "ios/App/App.xcodeproj/xcshareddata/xcschemes/App.xcscheme",
+  "ios/App/Katecheo.xcodeproj/xcshareddata/xcschemes/Katecheo.xcscheme",
   "docs/ios-native-migration.md",
   "docs/ios-phase5-webview.md",
   "docs/ios-phase7-native-editor.md",
   "docs/note-document-v1.md",
   "migrations/0021_note_blocks_backup.sql",
-  "ios/App/App/NotebookListViewController.swift",
-  "ios/App/App/NoteDetailViewController.swift",
-  "ios/App/App/NativeNoteEditorView.swift",
-  "ios/App/App/NoteDocumentCodec.swift",
-  "ios/App/App/BibleRefInsertPicker.swift",
-  "ios/App/App/AppRoot.swift",
-  "ios/App/App/NativeSignInViewController.swift",
-  "ios/App/App/NativeLoginService.swift",
-  "ios/App/App/NativeSessionBootstrap.swift",
-  "ios/App/App/NativePushService.swift",
-  "ios/App/App/NativeDeepLinkRouter.swift",
-  "ios/App/App/ProfileViewController.swift",
-  "ios/App/App/ProfileSettingsScreens.swift",
-  "ios/App/App/VersesHomeViewController.swift",
-  "ios/App/App/VersesScreens.swift",
-  "ios/App/App/ReadingScreens.swift",
+  "ios/App/Katecheo/NotebookListViewController.swift",
+  "ios/App/Katecheo/NoteDetailViewController.swift",
+  "ios/App/Katecheo/NativeNoteEditorView.swift",
+  "ios/App/Katecheo/NoteDocumentCodec.swift",
+  "ios/App/Katecheo/BibleRefInsertPicker.swift",
+  "ios/App/Katecheo/AppRoot.swift",
+  "ios/App/Katecheo/NativeSignInViewController.swift",
+  "ios/App/Katecheo/NativeLoginService.swift",
+  "ios/App/Katecheo/NativeSessionBootstrap.swift",
+  "ios/App/Katecheo/NativePushService.swift",
+  "ios/App/Katecheo/NativeDeepLinkRouter.swift",
+  "ios/App/Katecheo/ProfileViewController.swift",
+  "ios/App/Katecheo/ProfileSettingsScreens.swift",
+  "ios/App/Katecheo/VersesHomeViewController.swift",
+  "ios/App/Katecheo/VersesScreens.swift",
+  "ios/App/Katecheo/ReadingScreens.swift",
   "src/lib/native/api/v1-profile.server.ts",
   "src/lib/native/api/v1-verses.server.ts",
   "src/lib/native/api/html-to-document.ts",
@@ -1223,9 +1219,9 @@ for (const path of [
 }
 
 for (const path of [
-  "ios/App/App/Localizable.xcstrings",
-  "ios/App/App/InfoPlist.xcstrings",
-  "ios/App/App/AppLocale.swift",
+  "ios/App/Katecheo/Localizable.xcstrings",
+  "ios/App/Katecheo/InfoPlist.xcstrings",
+  "ios/App/Katecheo/AppLocale.swift",
   "scripts/check-ios-l10n.mjs",
 ]) {
   try {
@@ -1246,12 +1242,12 @@ if (!project.includes("AppSite.swift in Sources")) {
 }
 
 // Katecheo rebrand: no user-visible "Verse2Note" / "Verse 2 Note" remains in iOS UI surfaces.
-// Allowed: bundle id com.verse2note.*, URL scheme verse2note, Info.plist keys Verse2Note*,
-// internal UserDefaults / Notification.Name prefixes, legacy outbox keys, comments, tests.
+// Allowed: bundle id com.verse2note.*, Info.plist Katecheo* keys, katecheo.* internals,
+// legacy web outbox key verse2note-outbox, comments/tests.
 {
   const brandNeedle = /Verse\s*2\s*Note/i;
   const allowLine =
-    /com\.verse2note|verse2note:\/\/|callbackURLScheme:\s*"verse2note"|customScheme\("verse2note"\)|scheme == "verse2note"|<string>verse2note<\/string>|CFBundleURLSchemes|Verse2NoteAPIBase|Verse2NoteApns|Verse2NoteUniversal|Verse2NoteNative|verse2note\.(native|legacy|cookie|apns|apiBase)|verse2note-outbox|PRODUCT_BUNDLE_IDENTIFIER|VERSE2NOTE_|Notification\.Name\("verse2note|defaultsKey|statusKey|migratedFlagKey|infoPlistKey|fallbackHost|fallbackOrigin|acceptedHosts|verse2note\.com|www\.verse2note\.com|temporaryDirectory\.appendingPathComponent\("verse2note-|\/\/|\/\*|\* /;
+    /com\.verse2note|katecheo:\/\/|callbackURLScheme:\s*"katecheo"|customScheme\("katecheo"\)|scheme == "katecheo"|<string>katecheo<\/string>|CFBundleURLSchemes|KatecheoAPIBase|KatecheoApns|KatecheoUniversal|KatecheoNative|katecheo\.(native|legacy|cookie|apns|apiBase|activity|notifications|appearance|swr|catalog|session|ferramentas|booksCompact|copyLocale|cite)|verse2note-outbox|PRODUCT_BUNDLE_IDENTIFIER|KATECHEO_|Notification\.Name\("katecheo|defaultsKey|statusKey|migratedFlagKey|infoPlistKey|acceptedHosts|verse2note\.com|www\.verse2note\.com|temporaryDirectory\.appendingPathComponent\("katecheo-|\/\/|\/\*|\* /;
 
   const scanFiles = (dir, pred) => {
     /** @type {string[]} */
@@ -1278,7 +1274,7 @@ if (!project.includes("AppSite.swift in Sources")) {
     return out;
   };
 
-  const appRoot = join(root, "ios/App/App");
+  const appRoot = join(root, "ios/App/Katecheo");
   const uiFiles = scanFiles(
     appRoot,
     (name) => /\.(swift|plist|xcstrings|storyboard|strings|intentdefinition|json)$/i.test(name),
@@ -1306,7 +1302,7 @@ if (!project.includes("AppSite.swift in Sources")) {
 
   // Display name must be Katecheo in InfoPlist catalog + Info.plist.
   try {
-    const infoCatalog = JSON.parse(read("ios/App/App/InfoPlist.xcstrings"));
+    const infoCatalog = JSON.parse(read("ios/App/Katecheo/InfoPlist.xcstrings"));
     for (const key of ["CFBundleDisplayName", "CFBundleName"]) {
       for (const lang of ["pt-BR", "en", "es"]) {
         const value = infoCatalog.strings?.[key]?.localizations?.[lang]?.stringUnit?.value;
@@ -1318,21 +1314,30 @@ if (!project.includes("AppSite.swift in Sources")) {
   } catch {
     errors.push("InfoPlist.xcstrings ilegível para o rebrand Katecheo.");
   }
-  const infoPlist = read("ios/App/App/Info.plist");
+  const infoPlist = read("ios/App/Katecheo/Info.plist");
   if (!infoPlist.includes("<string>Katecheo</string>")) {
     errors.push('Info.plist CFBundleDisplayName tem de ser "Katecheo".');
   }
   if (!infoPlist.includes("<string>katecheo</string>")) {
-    errors.push("Info.plist tem de registar o URL scheme katecheo (além de verse2note).");
+    errors.push('Info.plist tem de registar o URL scheme katecheo.');
+  }
+  if (infoPlist.includes("<string>verse2note</string>")) {
+    errors.push("Info.plist não pode manter o URL scheme verse2note.");
   }
 
-  const site = read("ios/App/App/AppSite.swift");
-  if (!site.includes("katecheo.app") || !site.includes("verse2note.com") || !site.includes("considerFallback")) {
-    errors.push("AppSite.swift: primary katecheo.app + fallback verse2note.com + considerFallback.");
+  const site = read("ios/App/Katecheo/AppSite.swift");
+  if (!site.includes("katecheo.app") || site.includes("verse2note.com") || !site.includes('primaryHost = "katecheo.app"')) {
+    errors.push("AppSite.swift: só katecheo.app (sem fallback verse2note.com).");
   }
-  const api = read("ios/App/App/NativeAPIClient.swift");
-  if (!api.includes("AppSite.baseURL") || !api.includes("considerFallback")) {
-    errors.push("NativeAPIClient tem de usar AppSite.baseURL com fallback DNS/TLS.");
+  if (site.includes("fallbackHost") || site.includes("fallbackOrigin")) {
+    errors.push("AppSite.swift: remova fallbackHost/fallbackOrigin.");
+  }
+  const api = read("ios/App/Katecheo/NativeAPIClient.swift");
+  if (!api.includes("AppSite.baseURL")) {
+    errors.push("NativeAPIClient tem de usar AppSite.baseURL.");
+  }
+  if (api.includes("fallbackOrigin") || api.includes("comps.host = fallbackHost")) {
+    errors.push("NativeAPIClient não pode retry em verse2note.com.");
   }
 
   if (brandHits.length) {
@@ -1347,8 +1352,8 @@ if (!project.includes("AppSite.swift in Sources")) {
 // Build 256: Tools tab must localize via String(localized:) + Localizable en/es (not raw PT titleText).
 {
   const toolsFiles = [
-    "ios/App/App/NativeRootTabBarController.swift",
-    "ios/App/App/VersesHomeViewController.swift",
+    "ios/App/Katecheo/NativeRootTabBarController.swift",
+    "ios/App/Katecheo/VersesHomeViewController.swift",
   ];
   for (const rel of toolsFiles) {
     const src = read(rel);
@@ -1360,7 +1365,7 @@ if (!project.includes("AppSite.swift in Sources")) {
     }
   }
   try {
-    const catalog = JSON.parse(read("ios/App/App/Localizable.xcstrings"));
+    const catalog = JSON.parse(read("ios/App/Katecheo/Localizable.xcstrings"));
     const ferr = catalog.strings?.Ferramentas?.localizations || {};
     for (const lang of ["pt-BR", "en", "es"]) {
       const value = ferr[lang]?.stringUnit?.value;
@@ -1380,11 +1385,11 @@ if (!project.includes("AppSite.swift in Sources")) {
   if (!project.includes("NativeCatalogSync.swift in Sources")) {
     errors.push("NativeCatalogSync.swift tem de estar no target (Themes/Reading version + silent push).");
   }
-  const apiClient = read("ios/App/App/NativeAPIClient.swift");
+  const apiClient = read("ios/App/Katecheo/NativeAPIClient.swift");
   if (!apiClient.includes("catalog/versions") || !apiClient.includes("loadBundledBibleBooks")) {
     errors.push("NativeAPIClient: catalog/versions + bundled bible books são obrigatórios (build 256).");
   }
-  const swr = read("ios/App/App/NativeSWR.swift");
+  const swr = read("ios/App/Katecheo/NativeSWR.swift");
   if (
     !swr.includes("bibleBooksBundleVersion") ||
     !/static let bibleBooks:\s*TimeInterval\s*=\s*\.greatestFiniteMagnitude/.test(swr)
@@ -1416,10 +1421,10 @@ if (!project.includes("AppSite.swift in Sources")) {
   const attNeedle =
     /AppTrackingTransparency|ATTrackingManager|requestTrackingAuthorization|ASIdentifierManager|advertisingIdentifier|NSUserTrackingUsageDescription/;
   const scanRoots = [
-    "ios/App/App",
-    "ios/App/AppTests",
+    "ios/App/Katecheo",
+    "ios/App/KatecheoTests",
     "ios/App/CapApp-SPM",
-    "ios/App/App.xcodeproj",
+    "ios/App/Katecheo.xcodeproj",
     "scripts",
   ];
   const skipName = /(^|\/)(node_modules|\.git|DerivedData|build)(\/|$)/;

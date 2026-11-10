@@ -87,7 +87,7 @@ describe("native underlap (website CSS; Cap LiquidChrome removed in Phase 5)", (
   });
 
   it("Phase 5: LiquidChrome.swift is gone from the iOS target", () => {
-    const pbx = readFileSync(new URL("../../../ios/App/App.xcodeproj/project.pbxproj", import.meta.url), "utf8");
+    const pbx = readFileSync(new URL("../../../ios/App/Katecheo.xcodeproj/project.pbxproj", import.meta.url), "utf8");
     assert.doesNotMatch(pbx, /LiquidChrome\.swift/);
   });
 });

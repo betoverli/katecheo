@@ -81,7 +81,7 @@ Isto exige **as duas coisas** outra vez, depois do merge: um **binário novo no 
 - Site novo + app do build 43: as placas opacas continuam por cima da página.
 - App novo + site do build 43: as placas somem, mas o desfoque de cima e o encaixe da grelha debaixo do título ainda não estão.
 
-O salto da lista continua só no miolo (`.screen-body`). As barras nativas são irmãs da web view, não andam com o puxão. O login com Google, o cookie de sessão e o regresso `verse2note://` não mudam.
+O salto da lista continua só no miolo (`.screen-body`). As barras nativas são irmãs da web view, não andam com o puxão. O login com Google, o cookie de sessão e o regresso `katecheo://` não mudam.
 
 Para ver: instale o build novo **e** o site novo. Em Versículos, a grelha entra debaixo do título (já no repouso, um pouco) e debaixo da pílula das abas. Não há uma faixa branca de ponta a ponta por baixo da pílula. Role a grelha: os livros passam desfocados atrás do título, e o título não anda com o puxão. Caderno, Planos e Grupos: a busca só depois da lupa. O sino, voltar, as cinco abas, o + de nota e o + de grupo continuam. Uma nota abre com a barra HTML. Entre com Google e confirme a sessão. No Safari e no Android a busca continua visível no cabeçalho.
 
@@ -97,9 +97,9 @@ Não há exceção de rede insegura no app, de propósito. A Apple bloqueia site
 
 O navegador do sistema volta para o app com um código de uso único. Outro app poderia tentar registrar o mesmo nome `verse2note`. Por isso o código sozinho não entra na conta: o app gerou um segredo, mandou só a impressão digital dele, e apresenta o segredo na hora de trocar o código pela sessão. Quem copiar o código não consegue usá-lo.
 
-Com esta versão do site, o app que está no TestFlight pede o regresso `verse2note://`. O binário já abre essa folha. Não pede `https://verse2note.com/auth/native-return`: nessa folha o iPhone recusa ou cancela o login quando a associação de domínio falta ou está velha, e o ecrã trata o cancelamento como desistência — não tenta o esquema a seguir. `/auth/native-config` responde `universalLinks: false` para o script que já está no iPhone pedir o esquema, mesmo que ainda não tenha carregado o script novo. Publicar o site chega. Não é preciso um TestFlight novo.
+Com esta versão do site, o app que está no TestFlight pede o regresso `katecheo://`. O binário já abre essa folha. Não pede `https://verse2note.com/auth/native-return`: nessa folha o iPhone recusa ou cancela o login quando a associação de domínio falta ou está velha, e o ecrã trata o cancelamento como desistência — não tenta o esquema a seguir. `/auth/native-config` responde `universalLinks: false` para o script que já está no iPhone pedir o esquema, mesmo que ainda não tenha carregado o script novo. Publicar o site chega. Não é preciso um TestFlight novo.
 
-`https://verse2note.com/auth/native-return` continua no servidor para um app que o peça de propósito. Isso exige iOS 17.4 e os dois serviços no ficheiro da Apple: `applinks:verse2note.com` e `webcredentials:verse2note.com`. Com só o `applinks`, essa folha não abre. `APPLE_TEAM_ID` publica os dois. Não apague a variável.
+`https://verse2note.com/auth/native-return` continua no servidor para um app que o peça de propósito. Isso exige iOS 17.4 e os dois serviços no ficheiro da Apple: `applinks:katecheo.app` e `webcredentials:katecheo.app`. Com só o `applinks`, essa folha não abre. `APPLE_TEAM_ID` publica os dois. Não apague a variável.
 
 Se um dia o esquema `verse2note` deixar de voltar ao app — é o mesmo nome que a capa Capacitor usa — aí será preciso um binário novo com outro esquema. O site só pode passar a usá-lo depois desse binário existir.
 
@@ -113,7 +113,7 @@ Em cada pull request, o fluxo **iOS** compila o app para o simulador **sem assin
 
 A conta custa cerca de 99 dólares por ano, em [developer.apple.com](https://developer.apple.com). Sem ela não há TestFlight nem App Store, e os avisos nativos não saem do aparelho.
 
-O identificador do app é `com.verse2note.app`. Use esse nome em todo o lado. A versão visível está em `ios/App/App.xcodeproj/project.pbxproj` (`MARKETING_VERSION`, hoje `1.0`). O número de build do TestFlight sobe sozinho a cada envio.
+O identificador do app é `com.verse2note.app`. Use esse nome em todo o lado. A versão visível está em `ios/App/Katecheo.xcodeproj/project.pbxproj` (`MARKETING_VERSION`, hoje `1.0`). O número de build do TestFlight sobe sozinho a cada envio.
 
 #### 1. No site da Apple
 
@@ -152,12 +152,12 @@ O envio do aviso fica no site, ao lado dos avisos que o navegador já recebe. Na
 | `APNS_PRIVATE_KEY` | Conteúdo do `.p8` de avisos. Se a quebra de linha desaparecer, troque cada quebra por `\n` |
 | `APNS_TOPIC` | Opcional. Por omissão `com.verse2note.app` |
 | `APNS_ENVIRONMENT` | Opcional. `production` para TestFlight e App Store. `sandbox` só para um app instalado pelo Xcode em modo de desenvolvimento |
-| `APPLE_TEAM_ID` | Opcional até a conta existir. Os mesmos 10 caracteres do Team ID. Publica `applinks` e `webcredentials` no ficheiro da Apple. O login do app no TestFlight volta por `verse2note://` mesmo com esta variável definida. Não a apague: o site já pede o esquema |
+| `APPLE_TEAM_ID` | Opcional até a conta existir. Os mesmos 10 caracteres do Team ID. Publica `applinks` e `webcredentials` no ficheiro da Apple. O login do app no TestFlight volta por `katecheo://` mesmo com esta variável definida. Não a apague: o site já pede o esquema |
 | `NATIVE_AUTH_HANDOFF_KEY` | Opcional. 32 bytes em Base64 ou 64 caracteres hex. Cifra a sessão guardada por 90 segundos. Se faltar, o servidor usa `BETTER_AUTH_SECRET`, que o site já tem. Se as duas faltarem, o login do app para e o banco não recebe o token |
 
 Sem as variáveis de avisos o site continua igual e os avisos do navegador continuam. Os avisos do iPhone só passam a sair depois disto **e** de publicar esta versão do site.
 
-Depois de gravar `APPLE_TEAM_ID`, publique o site. O ficheiro `https://verse2note.com/.well-known/apple-app-site-association` tem de listar `TEAMID.com.verse2note.app` em `applinks` e em `webcredentials`. A Apple guarda uma cópia e pode demorar algumas horas a vê-la. O login do TestFlight não espera por essa cópia: publica-se o site e o botão Continuar com Google do build já instalado passa a abrir a folha `verse2note://` e a voltar com a sessão. Não é preciso um binário novo, nem alterar o Google Cloud, o `Info.plist` ou o `capacitor.config.ts`. No Google Cloud o redirect autorizado continua a ser `https://verse2note.com/api/auth/callback/google` — não se acrescenta o esquema `verse2note`. O `Info.plist` já tem esse esquema, e o `capacitor.config.ts` não deve passar a abrir `accounts.google.com` dentro da janela do app. O perfil de provisionamento tem de incluir Associated Domains (cobre `applinks` e `webcredentials`).
+Depois de gravar `APPLE_TEAM_ID`, publique o site. O ficheiro `https://verse2note.com/.well-known/apple-app-site-association` tem de listar `TEAMID.com.verse2note.app` em `applinks` e em `webcredentials`. A Apple guarda uma cópia e pode demorar algumas horas a vê-la. O login do TestFlight não espera por essa cópia: publica-se o site e o botão Continuar com Google do build já instalado passa a abrir a folha `katecheo://` e a voltar com a sessão. Não é preciso um binário novo, nem alterar o Google Cloud, o `Info.plist` ou o `capacitor.config.ts`. No Google Cloud o redirect autorizado continua a ser `https://verse2note.com/api/auth/callback/google` — não se acrescenta o esquema `verse2note`. O `Info.plist` já tem esse esquema, e o `capacitor.config.ts` não deve passar a abrir `accounts.google.com` dentro da janela do app. O perfil de provisionamento tem de incluir Associated Domains (cobre `applinks` e `webcredentials`).
 
 #### 4. Publicar o site
 
