@@ -200,7 +200,7 @@ export const Route = createFileRoute("/api/mcp")({
     handlers: {
       OPTIONS: async () => corsPreflight(),
       GET: async ({ request }) => {
-        const limited = rateLimited(request);
+        const limited = await rateLimited(request);
         if (limited) return limited;
         return corsJson({
           name: "Katecheo",
@@ -211,7 +211,7 @@ export const Route = createFileRoute("/api/mcp")({
         });
       },
       POST: async ({ request }) => {
-        const limited = rateLimited(request);
+        const limited = await rateLimited(request);
         if (limited) return limited;
         let body: Rpc;
         try {

@@ -65,7 +65,7 @@ export async function mintHandoff(userId: string, source?: HandoffRequest) {
   if (!token || token.length > 4000) return fail;
   const resolved = currentHandoffKey();
   if (!resolved.ok) return refuseKey(resolved.reason, mode);
-  if (!allowRequest(`native-mint:${userId}`, 12, 60 * 60_000)) return fail;
+  if (!(await allowRequest(`native-mint:${userId}`, 12, 60 * 60_000))) return fail;
   const code = newHandoffCode();
   const sealed = sealSessionToken(token, resolved.key);
   const sql = await getSql();
@@ -89,7 +89,7 @@ export async function claimHandoff(code: string, verifier: string) {
   assertSameSiteRequest();
   const request = getRequest();
   const ip = request ? clientKey(request) : "local";
-  if (!allowRequest(`native-claim:${ip}`, 20, 60_000)) return { ok: false as const };
+  if (!(await allowRequest(`native-claim:${ip}`, 20, 60_000))) return { ok: false as const };
   if (!isHandoffCode(code) || !isPkceMaterial(verifier)) return { ok: false as const };
   const challenge = await pkceChallenge(verifier);
   const resolved = currentHandoffKey();

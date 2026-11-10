@@ -6,13 +6,13 @@ export const Route = createFileRoute("/api/link")({
     handlers: {
       OPTIONS: async () => corsPreflight(),
       GET: async ({ request }) => {
-        const limited = rateLimited(request);
+        const limited = await rateLimited(request);
         if (limited) return limited;
         const result = resolveLinks(queryFromSearch(new URL(request.url).searchParams));
         return corsJson(result, result.ok ? 200 : 400);
       },
       POST: async ({ request }) => {
-        const limited = rateLimited(request);
+        const limited = await rateLimited(request);
         if (limited) return limited;
         let body: Record<string, unknown> = {};
         const text = await request.text();

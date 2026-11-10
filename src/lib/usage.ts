@@ -56,7 +56,7 @@ export const pingVisit = createServerFn({ method: "POST" })
     const { getRequest } = await import("@tanstack/react-start/server");
     const { allowRequest, clientKey } = await import("@/lib/rate-limit");
     const request = getRequest();
-    if (request && !allowRequest(`visit:${clientKey(request)}`, 40, 60_000)) {
+    if (request && !(await allowRequest(`visit:${clientKey(request)}`, 40, 60_000))) {
       return { ok: true as const };
     }
     let signed = 0;

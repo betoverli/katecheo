@@ -193,6 +193,9 @@ export const getNotebookGroup = createServerFn({ method: "GET" })
   .validator((data: { id: string }) => data)
   .handler(async ({ context, data }) => {
     const sql = await getSql();
+    const mine = await memberOf(sql, data.id, context.userId);
+    // Same rule as native GET /groups/:id — accepted members only (no private metadata IDOR).
+    if (!mine || mine.status !== "accepted") return null;
     const group = await loadGroup(sql, data.id, context.userId);
     if (!group) return null;
     return group;
@@ -204,7 +207,7 @@ export const createNotebookGroup = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const name = cleanName(data.name);
     if (name.length < 2) return { ok: false as const, error: "invalid" as const };
-    if (!allowRequest(`gcreate:${context.userId}`, 20, 86_400_000)) {
+    if (!(await allowRequest(`gcreate:${context.userId}`, 20, 86_400_000))) {
       return { ok: false as const, error: "limit" as const };
     }
     const sql = await getSql();
@@ -265,7 +268,7 @@ export const requestGroupJoin = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((data: { id: string }) => data)
   .handler(async ({ context, data }) => {
-    if (!allowRequest(`gjoin:${context.userId}`, 30, 86_400_000)) {
+    if (!(await allowRequest(`gjoin:${context.userId}`, 30, 86_400_000))) {
       return { ok: false as const, error: "limit" as const };
     }
     const sql = await getSql();

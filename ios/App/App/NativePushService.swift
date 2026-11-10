@@ -4,24 +4,32 @@ import UserNotifications
 
 /// Pure-native APNs (no Capacitor PushNotifications plugin).
 /// Registers the device token with `/api/native/v1/devices/apns` using the Keychain bearer.
+/// Device token itself is stored in the Keychain (not UserDefaults).
 @MainActor
 final class NativePushService: NSObject, UNUserNotificationCenterDelegate {
     static let shared = NativePushService()
 
-    private static let tokenKey = "verse2note.apns-token.v1"
+    private static let legacyTokenKey = "verse2note.apns-token.v1"
     private static let enabledKey = "verse2note.apns-enabled.v1"
 
     private(set) var lastTokenHex: String? {
         didSet {
-            if let lastTokenHex {
-                UserDefaults.standard.set(lastTokenHex, forKey: Self.tokenKey)
-            }
+            _ = KeychainStore.setApnsToken(lastTokenHex)
+            // Clear any leftover plaintext token from older builds.
+            UserDefaults.standard.removeObject(forKey: Self.legacyTokenKey)
         }
     }
 
     private override init() {
         super.init()
-        lastTokenHex = UserDefaults.standard.string(forKey: Self.tokenKey)
+        if let keyed = KeychainStore.apnsToken(), !keyed.isEmpty {
+            lastTokenHex = keyed
+        } else if let legacy = UserDefaults.standard.string(forKey: Self.legacyTokenKey), !legacy.isEmpty {
+            // One-time migrate UserDefaults → Keychain.
+            _ = KeychainStore.setApnsToken(legacy)
+            UserDefaults.standard.removeObject(forKey: Self.legacyTokenKey)
+            lastTokenHex = legacy
+        }
     }
 
     func configure() {
@@ -58,17 +66,20 @@ final class NativePushService: NSObject, UNUserNotificationCenterDelegate {
     }
 
     func handleRegistrationError(_ error: Error) {
+        #if DEBUG
         print("[NativePush] registration failed: \(error.localizedDescription)")
+        #endif
     }
 
     func disable() async {
         UserDefaults.standard.set(false, forKey: Self.enabledKey)
-        let token = lastTokenHex ?? UserDefaults.standard.string(forKey: Self.tokenKey) ?? ""
+        let token = lastTokenHex ?? KeychainStore.apnsToken() ?? ""
         UIApplication.shared.unregisterForRemoteNotifications()
         if !token.isEmpty, NativeAPIClient.hasBearer {
             try? await NativeAPIClient.dropApnsDevice(token: token)
         }
-        UserDefaults.standard.removeObject(forKey: Self.tokenKey)
+        UserDefaults.standard.removeObject(forKey: Self.legacyTokenKey)
+        _ = KeychainStore.deleteApnsToken()
         lastTokenHex = nil
     }
 
@@ -76,9 +87,13 @@ final class NativePushService: NSObject, UNUserNotificationCenterDelegate {
         guard NativeAPIClient.hasBearer else { return }
         do {
             try await NativeAPIClient.saveApnsDevice(token: token, sandbox: Self.apnsSandbox)
+            #if DEBUG
             print("[NativePush] token saved sandbox=\(Self.apnsSandbox)")
+            #endif
         } catch {
+            #if DEBUG
             print("[NativePush] save failed: \(error.localizedDescription)")
+            #endif
         }
     }
 

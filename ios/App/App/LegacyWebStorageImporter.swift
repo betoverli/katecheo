@@ -216,10 +216,14 @@ enum LegacyWebStorageImporter {
 
         if empty {
             setStatus(.empty)
+            #if DEBUG
             print("[LegacyImport] no WebView localStorage payload to import")
+            #endif
         } else {
             setStatus(.extracted)
+            #if DEBUG
             print("[LegacyImport] extracted notes=\(summary.notes) speakers=\(summary.speakers) collections=\(summary.collections) outbox=\(summary.outboxJobs)")
+            #endif
             NotificationCenter.default.post(name: .nativeNoteDidChange, object: nil)
             Task { @MainActor in
                 await NativeOutbox.flushIfPossible()

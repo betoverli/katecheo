@@ -42,6 +42,7 @@ import { emailAndPasswordEnabled } from "./email-password";
 import { GATE_PROVIDER_ID, gateIdentitySessions } from "./gate-session.server";
 import { APPLE_PROVIDER_ID, appleOAuthFromEnv } from "./apple";
 import { GOOGLE_PROVIDER_ID, googleOAuthFromEnv } from "./google";
+import { legacyGrokOAuthCallback } from "./legacy-oauth-callback";
 import { GROK_PROVIDERS } from "./providers";
 import { pgliteDialect } from "./pglite-dialect";
 import {
@@ -367,6 +368,8 @@ export const auth = betterAuth({
     // One genericOAuth provider per remaining broker identity (when auth is on).
     // X is not in `GROK_PROVIDERS`, so Better Auth does not register it.
     ...(grokOAuthPlugin ? [grokOAuthPlugin] : []),
+    // Keep broker allowlisted `/oauth2/callback/<id>` paths on Better Auth 1.7.
+    ...(grokOAuthPlugin ? [legacyGrokOAuthCallback()] : []),
 
     // Accept `Authorization: Bearer <session-token>` as an alternative to the
     // cookie. Needed for the LIVE PREVIEW: the app runs in an embedded iframe

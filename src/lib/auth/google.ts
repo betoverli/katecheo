@@ -2,7 +2,7 @@
  * Native Google sign-in (Better Auth social provider).
  *
  * This is not the Grok auth broker. The broker provider id is `grok-google`
- * and its callback is `/api/auth/oauth2/callback/grok-google`. Native Google
+ * (compat callback `/api/auth/oauth2/callback/grok-google`). Native Google
  * uses Better Auth's built-in provider id `google` and callback path below.
  *
  * Both `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` must be set on the server.

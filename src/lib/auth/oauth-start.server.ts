@@ -1,35 +1,25 @@
-import { GOOGLE_PROVIDER_ID } from "./google";
 import { auth } from "./server";
 
 /**
  * Start the OAuth redirect for a sign-in button.
  *
- * Native Google uses Better Auth's social endpoint (`/api/auth/callback/google`).
- * The legacy `grok-google` broker id stays on generic OAuth. X is not registered.
+ * Better Auth 1.7 routes both built-in social providers (Google, Apple) and
+ * `genericOAuth` broker ids (`grok-google`) through `signInSocial`. Legacy
+ * broker callbacks stay on `/api/auth/oauth2/callback/<id>` via
+ * `legacyGrokOAuthCallback`. X is not registered.
  */
 export function beginOAuthSignIn(
   request: Request,
   body: { providerId: string; callbackURL: string; errorCallbackURL: string },
 ): Promise<Response> {
-  if (body.providerId === GOOGLE_PROVIDER_ID) {
-    return auth.api.signInSocial({
-      body: {
-        provider: GOOGLE_PROVIDER_ID,
-        callbackURL: body.callbackURL,
-        errorCallbackURL: body.errorCallbackURL,
-        // Keep a JSON `{ url }` body. The default sets a Location header, and the
-        // popup / native-app callers read the URL themselves.
-        disableRedirect: true,
-      },
-      headers: request.headers,
-      asResponse: true,
-    });
-  }
-  return auth.api.signInWithOAuth2({
+  return auth.api.signInSocial({
     body: {
-      providerId: body.providerId,
+      provider: body.providerId,
       callbackURL: body.callbackURL,
       errorCallbackURL: body.errorCallbackURL,
+      // Keep a JSON `{ url }` body. The default sets a Location header, and the
+      // popup / native-app callers read the URL themselves.
+      disableRedirect: true,
     },
     headers: request.headers,
     asResponse: true,

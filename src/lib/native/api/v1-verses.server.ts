@@ -183,7 +183,7 @@ export async function appendVerseForUser(
   raw: unknown,
 ): Promise<
   | { ok: true; note: NoteDocumentV1; label: string }
-  | { ok: false; error: "invalid" | "limit" | "missing" }
+  | { ok: false; error: "invalid" | "limit" | "missing" | "conflict" }
 > {
   if (!raw || typeof raw !== "object") return { ok: false, error: "invalid" };
   const body = raw as Record<string, unknown>;
@@ -284,7 +284,7 @@ export async function createMyCollectionForUser(
   raw: unknown,
 ): Promise<
   | { ok: true; collection: UserCollection }
-  | { ok: false; error: "invalid" | "limit" }
+  | { ok: false; error: "invalid" | "limit" | "missing" }
 > {
   if (!raw || typeof raw !== "object") return { ok: false, error: "invalid" };
   const body = raw as Record<string, unknown>;

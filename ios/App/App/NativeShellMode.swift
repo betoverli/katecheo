@@ -25,7 +25,9 @@ enum NativeShellMode: String {
         // Ignore attempts to re-enable Cap site — force native.
         let resolved: NativeShellMode = .nativePrimary
         UserDefaults.standard.set(resolved.rawValue, forKey: defaultsKey)
+        #if DEBUG
         print("[NativeShellMode] \(resolved.rawValue) (requested \(mode.rawValue))")
+        #endif
         if notify {
             NotificationCenter.default.post(name: didChangeNotification, object: resolved.rawValue)
         }

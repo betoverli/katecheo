@@ -243,7 +243,7 @@ export const sendNoteToFriend = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((data: { handle: string; noteId: string }) => data)
   .handler(async ({ context, data }) => {
-    if (!allowRequest(`send:${context.userId}`, 40, 86_400_000)) {
+    if (!(await allowRequest(`send:${context.userId}`, 40, 86_400_000))) {
       return { ok: false as const, error: "limit" as const };
     }
     const handle = data.handle.trim().replace(/^@+/, "").toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 20);
