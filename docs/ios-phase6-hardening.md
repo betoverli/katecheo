@@ -23,7 +23,7 @@ para o caderno — tudo era `localStorage`:
 4. Faz merge no `LocalNoteCache` (mesmo `id` → fica o `updatedAt` mais novo).
 5. Enfileira upserts no `NativeOutbox` (prefs / speakers / collections).
 6. **Nunca** enfileira deletes — importação não apaga dados do servidor.
-7. Marca `UserDefaults` `verse2note.legacyWebImport.v1` (`empty` / `extracted` / `completed`).
+7. Marca `UserDefaults` `katecheo.legacyWebImport.v1` (`empty` / `extracted` / `completed`).
 8. Seguro para retry: reextrair WebKit só em `pending`; depois só faz flush da outbox.
 
 Coleções: `POST /api/native/v1/my-collections` aceita `id` do cliente (upsert idempotente).

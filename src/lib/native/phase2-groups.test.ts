@@ -46,10 +46,10 @@ describe("Phase 2 native groups API", () => {
 
 describe("Phase 2 native Groups UI", () => {
   it("replaces Grupos Em breve with GroupsListViewController", () => {
-    const tabs = read("ios/App/App/NativeRootTabBarController.swift");
+    const tabs = read("ios/App/Katecheo/NativeRootTabBarController.swift");
     assert.match(tabs, /GroupsListViewController/);
     assert.doesNotMatch(tabs, /titleText:\s*"Grupos"/);
-    const list = read("ios/App/App/GroupsListViewController.swift");
+    const list = read("ios/App/Katecheo/GroupsListViewController.swift");
     assert.match(list, /Novo grupo/);
     assert.match(list, /createGroup/);
     assert.match(list, /confirmDelete/);
@@ -58,7 +58,7 @@ describe("Phase 2 native Groups UI", () => {
   });
 
   it("reuses Caderno list for group notes + rename/delete", () => {
-    const notebook = read("ios/App/App/NotebookListViewController.swift");
+    const notebook = read("ios/App/Katecheo/NotebookListViewController.swift");
     assert.match(notebook, /convenience init\(group:/);
     assert.match(notebook, /listGroupNotes/);
     assert.match(notebook, /Renomear grupo/);
@@ -67,11 +67,11 @@ describe("Phase 2 native Groups UI", () => {
   });
 
   it("moves a note to a group from the note ⋯ menu", () => {
-    const detail = read("ios/App/App/NoteDetailViewController.swift");
+    const detail = read("ios/App/Katecheo/NoteDetailViewController.swift");
     assert.match(detail, /Mover para grupo/);
     assert.match(detail, /listGroupsForNote/);
     assert.match(detail, /publishNote/);
-    const client = read("ios/App/App/NativeAPIClient.swift");
+    const client = read("ios/App/Katecheo/NativeAPIClient.swift");
     assert.match(client, /func listGroups\(/);
     assert.match(client, /func createGroup\(/);
     assert.match(client, /func publishNote\(/);
@@ -79,12 +79,12 @@ describe("Phase 2 native Groups UI", () => {
   });
 
   it("registers GroupsListViewController in the Xcode target", () => {
-    const project = read("ios/App/App.xcodeproj/project.pbxproj");
+    const project = read("ios/App/Katecheo.xcodeproj/project.pbxproj");
     assert.match(project, /GroupsListViewController\.swift in Sources/);
   });
 
   it("keeps WebKit session bootstrap on the main actor", () => {
-    const boot = read("ios/App/App/NativeSessionBootstrap.swift");
+    const boot = read("ios/App/Katecheo/NativeSessionBootstrap.swift");
     assert.match(boot, /@MainActor/);
     assert.match(boot, /Thread\.isMainThread/);
     assert.match(boot, /WKWebsiteDataStore/);

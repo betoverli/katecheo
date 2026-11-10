@@ -18,25 +18,25 @@ function read(rel: string) {
 
 describe("Phase 7 — native note editor", () => {
   it("removes NoteMioloEditorView and ships NativeNoteEditorView + codec", () => {
-    assert.equal(existsSync(new URL("ios/App/App/NoteMioloEditorView.swift", root)), false);
-    assert.equal(existsSync(new URL("ios/App/App/NativeNoteEditorView.swift", root)), true);
-    assert.equal(existsSync(new URL("ios/App/App/NoteDocumentCodec.swift", root)), true);
-    assert.equal(existsSync(new URL("ios/App/App/BibleRefInsertPicker.swift", root)), true);
-    const editor = read("ios/App/App/NativeNoteEditorView.swift");
+    assert.equal(existsSync(new URL("ios/App/Katecheo/NoteMioloEditorView.swift", root)), false);
+    assert.equal(existsSync(new URL("ios/App/Katecheo/NativeNoteEditorView.swift", root)), true);
+    assert.equal(existsSync(new URL("ios/App/Katecheo/NoteDocumentCodec.swift", root)), true);
+    assert.equal(existsSync(new URL("ios/App/Katecheo/BibleRefInsertPicker.swift", root)), true);
+    const editor = read("ios/App/Katecheo/NativeNoteEditorView.swift");
     assert.match(editor, /UITextView/);
     assert.doesNotMatch(editor, /WKWebView|import WebKit/);
     assert.match(editor, /Referência bíblica/);
-    const codec = read("ios/App/App/NoteDocumentCodec.swift");
+    const codec = read("ios/App/Katecheo/NoteDocumentCodec.swift");
     assert.match(codec, /attributedString\(from/);
     assert.match(codec, /func document\(/);
     assert.match(codec, /bibleRef/);
-    const detail = read("ios/App/App/NoteDetailViewController.swift");
+    const detail = read("ios/App/Katecheo/NoteDetailViewController.swift");
     assert.match(detail, /NativeNoteEditorView/);
     assert.doesNotMatch(detail, /NoteMioloEditorView|WKWebView/);
   });
 
-  it("forbids product WKWebView under ios/App/App (import only for migration)", () => {
-    const appDir = new URL("ios/App/App/", root);
+  it("forbids product WKWebView under ios/App/Katecheo (import only for migration)", () => {
+    const appDir = new URL("ios/App/Katecheo/", root);
     const allowedWebKit = new Set([
       "NativeSessionBootstrap.swift",
       "SceneDelegate.swift",
@@ -47,7 +47,7 @@ describe("Phase 7 — native note editor", () => {
       source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
     for (const name of readdirSync(appDir)) {
       if (!/\.(swift|m|h)$/.test(name)) continue;
-      const body = stripComments(read(`ios/App/App/${name}`));
+      const body = stripComments(read(`ios/App/Katecheo/${name}`));
       if (/\bWKWebView\b/.test(body)) {
         assert.ok(allowedWkWebView.has(name), `WKWebView in ${name}`);
       }
@@ -130,7 +130,7 @@ describe("Phase 7 — native note editor", () => {
   });
 
   it("Xcode target lists Phase 7 sources and drops miolo WebView", () => {
-    const pbx = read("ios/App/App.xcodeproj/project.pbxproj");
+    const pbx = read("ios/App/Katecheo.xcodeproj/project.pbxproj");
     assert.match(pbx, /NativeNoteEditorView\.swift in Sources/);
     assert.match(pbx, /NoteDocumentCodec\.swift in Sources/);
     assert.match(pbx, /BibleRefInsertPicker\.swift in Sources/);

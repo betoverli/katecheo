@@ -70,12 +70,12 @@ describe("Phase 4 native verses API", () => {
 
 describe("Phase 4 native Versículos / Ferramentas UI", () => {
   it("hosts Tools tab with VersesHomeViewController and Books grid", () => {
-    const tabs = read("ios/App/App/NativeRootTabBarController.swift");
+    const tabs = read("ios/App/Katecheo/NativeRootTabBarController.swift");
     assert.match(tabs, /VersesHomeViewController/);
     assert.match(tabs, /Ferramentas/);
     assert.doesNotMatch(tabs, /titleText:\s*"Versículos"/);
     assert.match(tabs, /selectedIndex = 0/);
-    const home = read("ios/App/App/VersesHomeViewController.swift");
+    const home = read("ios/App/Katecheo/VersesHomeViewController.swift");
     assert.match(home, /Ferramentas/);
     assert.match(home, /BooksHomeViewController/);
     assert.match(home, /Temas/);
@@ -84,13 +84,13 @@ describe("Phase 4 native Versículos / Ferramentas UI", () => {
   });
 
   it("ships picker + actions + themes screens", () => {
-    const screens = read("ios/App/App/VersesScreens.swift");
+    const screens = read("ios/App/Katecheo/VersesScreens.swift");
     assert.match(screens, /VerseChapterViewController/);
     assert.match(screens, /VerseNumberViewController/);
-    assert.match(screens, /V2NNumberCell|V2NNumberGridLayout/);
+    assert.match(screens, /KCNumberCell|KCNumberGridLayout/);
     assert.match(screens, /VerseActionsViewController/);
     assert.match(screens, /ThemesHomeViewController/);
-    assert.match(screens, /V2NNamedCreateViewController/);
+    assert.match(screens, /KCNamedCreateViewController/);
     assert.match(screens, /appendVerse/);
     assert.match(screens, /Compartilhar|openBible|UIActivityViewController/);
     assert.match(screens, /Adicionar à nota/);
@@ -98,7 +98,7 @@ describe("Phase 4 native Versículos / Ferramentas UI", () => {
   });
 
   it("exposes verse methods on NativeAPIClient", () => {
-    const client = read("ios/App/App/NativeAPIClient.swift");
+    const client = read("ios/App/Katecheo/NativeAPIClient.swift");
     assert.match(client, /func fetchBibleBooks\(/);
     assert.match(client, /func resolveBibleLink\(/);
     assert.match(client, /func appendVerse\(/);
@@ -108,13 +108,13 @@ describe("Phase 4 native Versículos / Ferramentas UI", () => {
   });
 
   it("registers Verses screens in the Xcode target", () => {
-    const project = read("ios/App/App.xcodeproj/project.pbxproj");
+    const project = read("ios/App/Katecheo.xcodeproj/project.pbxproj");
     assert.match(project, /VersesHomeViewController\.swift in Sources/);
     assert.match(project, /VersesScreens\.swift in Sources/);
   });
 
   it("keeps WebKit session bootstrap on the main actor", () => {
-    const boot = read("ios/App/App/NativeSessionBootstrap.swift");
+    const boot = read("ios/App/Katecheo/NativeSessionBootstrap.swift");
     assert.match(boot, /@MainActor/);
     assert.match(boot, /Thread\.isMainThread/);
     assert.match(boot, /WKWebsiteDataStore/);

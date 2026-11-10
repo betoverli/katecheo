@@ -81,8 +81,8 @@ describe("classifyPresentOutcome (web fallback logic)", () => {
 });
 
 describe("native menus wiring (Phase 5: Cap plugins removed from iOS)", () => {
-  const storyboard = readFileSync(new URL("../../../ios/App/App/Base.lproj/Main.storyboard", import.meta.url), "utf8");
-  const pbx = readFileSync(new URL("../../../ios/App/App.xcodeproj/project.pbxproj", import.meta.url), "utf8");
+  const storyboard = readFileSync(new URL("../../../ios/App/Katecheo/Base.lproj/Main.storyboard", import.meta.url), "utf8");
+  const pbx = readFileSync(new URL("../../../ios/App/Katecheo.xcodeproj/project.pbxproj", import.meta.url), "utf8");
   const wrapper = readFileSync(new URL("./menus.ts", import.meta.url), "utf8");
   const sheet = readFileSync(new URL("../../components/viewport-sheet.tsx", import.meta.url), "utf8");
 
@@ -91,7 +91,7 @@ describe("native menus wiring (Phase 5: Cap plugins removed from iOS)", () => {
     assert.doesNotMatch(pbx, /NativeShell\.swift/);
     assert.doesNotMatch(pbx, /CapApp-SPM/);
     assert.match(storyboard, /customClass="NativeRootTabBarController"/);
-    assert.doesNotMatch(storyboard, /Verse2NoteBridge|CAPBridgeViewController/);
+    assert.doesNotMatch(storyboard, /KatecheoBridge|CAPBridgeViewController/);
   });
 
   it("TS wrapper still marks failures so website ActionSheet can fall back", () => {

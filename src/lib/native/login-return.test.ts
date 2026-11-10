@@ -40,7 +40,7 @@ describe("return url", () => {
     const https = nativeReturnTo("https", { code });
     const scheme = nativeReturnTo("scheme", { code });
     assert.equal(https, `https://katecheo.app/auth/native-return?code=${code}`);
-    assert.equal(scheme, `verse2note://auth?code=${code}`);
+    assert.equal(scheme, `katecheo://auth?code=${code}`);
     assert.equal(https.includes(token), false);
     assert.equal(isAllowedReturn(new URL(https), "https"), true);
     assert.equal(isAllowedReturn(new URL(https), "scheme"), false);
@@ -116,7 +116,7 @@ describe("native oauth start host", () => {
     assert.equal(nativeOAuthStartOrigin("https://verse2note.com/login"), "https://verse2note.com");
     assert.equal(nativeOAuthStartOrigin("https://www.verse2note.com/app"), "https://verse2note.com");
     assert.equal(
-      nativeOAuthStartOrigin("https://verse2note.vercel.app/login"),
+      nativeOAuthStartOrigin("https://katecheo.vercel.app/login"),
       "https://katecheo.app",
     );
     assert.equal(nativeOAuthStartOrigin("http://localhost:8080/login"), "http://localhost:8080");
@@ -124,7 +124,7 @@ describe("native oauth start host", () => {
       nativeOAuthStartOrigin("https://preview.grok-sandbox.com/login"),
       "https://preview.grok-sandbox.com",
     );
-    assert.equal(nativeOAuthStartOrigin("verse2note://localhost/login"), "https://katecheo.app");
+    assert.equal(nativeOAuthStartOrigin("katecheo://localhost/login"), "https://katecheo.app");
   });
 
   it("bounces a non-canonical native-start to katecheo.app before Google", () => {
@@ -132,7 +132,7 @@ describe("native oauth start host", () => {
     assert.equal(canonicalNativeStart(`https://verse2note.com/auth/native-start${query}`), null);
     assert.equal(canonicalNativeStart(`http://localhost:8080/auth/native-start${query}`), null);
     assert.equal(
-      canonicalNativeStart(`https://verse2note.vercel.app/auth/native-start${query}`),
+      canonicalNativeStart(`https://katecheo.vercel.app/auth/native-start${query}`),
       `https://katecheo.app/auth/native-start${query}`,
     );
     assert.equal(
@@ -148,17 +148,17 @@ describe("native done redirect", () => {
     const schemeCookie = pkceCookieHeader(challenge, "scheme").split(";")[0];
     const httpsCookie = pkceCookieHeader(challenge, "https").split(";")[0];
     const code = "d".repeat(43);
-    assert.equal(nativeDoneLocation(schemeCookie, { code }), `verse2note://auth?code=${code}`);
+    assert.equal(nativeDoneLocation(schemeCookie, { code }), `katecheo://auth?code=${code}`);
     assert.equal(
       nativeDoneLocation(httpsCookie, { code }),
       `https://katecheo.app/auth/native-return?code=${code}`,
     );
-    assert.equal(nativeDoneLocation(schemeCookie, { error: true }), "verse2note://auth?error=1");
+    assert.equal(nativeDoneLocation(schemeCookie, { error: true }), "katecheo://auth?error=1");
     assert.equal(
       nativeDoneLocation(httpsCookie, { error: true }),
       "https://katecheo.app/auth/native-return?error=1",
     );
-    assert.equal(nativeDoneLocation(null, { code }), "verse2note://auth?error=1");
+    assert.equal(nativeDoneLocation(null, { code }), "katecheo://auth?error=1");
     assert.equal(nativeDoneLocation(`${schemeCookie}; ${NATIVE_SESSION_COOKIE}=secret`, { code }).includes("secret"), false);
   });
 });

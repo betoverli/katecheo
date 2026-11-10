@@ -22,19 +22,19 @@ describe("Phase 1 native login", () => {
   });
 
   it("ships Swift sign-in + cookie bootstrap + Keychain sign-out", () => {
-    const signIn = read("ios/App/App/NativeSignInViewController.swift");
+    const signIn = read("ios/App/Katecheo/NativeSignInViewController.swift");
     assert.match(signIn, /Continuar com Google/);
     assert.match(signIn, /ASAuthorizationAppleIDButton/);
     assert.match(signIn, /Entrar com email/);
-    const login = read("ios/App/App/NativeLoginService.swift");
+    const login = read("ios/App/Katecheo/NativeLoginService.swift");
     assert.match(login, /ASWebAuthenticationSession/);
     assert.match(login, /auth\/claim/);
     assert.match(login, /func signOut/);
     assert.match(login, /KeychainStore\.deleteBearerToken|KeychainStore\.setBearerToken/);
-    const boot = read("ios/App/App/NativeSessionBootstrap.swift");
+    const boot = read("ios/App/Katecheo/NativeSessionBootstrap.swift");
     assert.match(boot, /__Host-grok-auth\.session_token/);
     assert.match(boot, /migrateCookieToKeychainIfNeeded/);
-    const list = read("ios/App/App/NotebookListViewController.swift");
+    const list = read("ios/App/Katecheo/NotebookListViewController.swift");
     assert.match(list, /NativeSignInViewController/);
     assert.match(list, /Sair|Terminar sessão/);
     // Avoid #selector(presentSignIn) ambiguity with presentSignIn(auto:) overloads.
@@ -44,7 +44,7 @@ describe("Phase 1 native login", () => {
   });
 
   it("registers Sign in with Apple entitlement", () => {
-    const ents = read("ios/App/App/AppRelease.entitlements");
+    const ents = read("ios/App/Katecheo/AppRelease.entitlements");
     assert.match(ents, /com\.apple\.developer\.applesignin/);
   });
 

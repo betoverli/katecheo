@@ -1,7 +1,7 @@
 import { isNativeApp } from "@/lib/native/runtime";
 
-const TOKEN_KEY = "verse2note.apns-token";
-const FLAG_KEY = "verse2note.apns";
+const TOKEN_KEY = "katecheo.apns-token";
+const FLAG_KEY = "katecheo.apns";
 
 type PushResult =
   | { ok: true; error: null }

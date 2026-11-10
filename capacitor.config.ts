@@ -17,7 +17,7 @@ const config: CapacitorConfig = {
   ios: {
     contentInset: "never",
     backgroundColor: "#000000",
-    scheme: "verse2note",
+    scheme: "katecheo",
   },
   // Intentionally no `server.url` — the native app must not host the site.
   plugins: {},

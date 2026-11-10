@@ -35,7 +35,7 @@ Everything else on the legacy host (marketing pages, `/login`, `/app`,
 Better Auth **`allowedHosts` / `trustedOrigins`** still list both brands
 (`src/lib/auth/server.ts` via `trustedWebOrigins()` in `src/lib/site.ts`).
 
-iOS `AppSite.swift` uses **katecheo.app** as primary and **verse2note.com**
+iOS `AppSite.swift` uses **katecheo.app** only (no **verse2note.com** fallback). Historically it used **katecheo.app** as primary and **verse2note.com**
 only as a DNS/TLS fallback.
 
 ## OAuth redirect URIs — keep both domains for now
@@ -102,6 +102,5 @@ paths:
    `allowedHosts` / `trustedOrigins` and from `trustedWebOrigins()`.
 3. Remove Google redirect URIs and JS origins for verse2note.com (both apex and www).
 4. Remove Apple Services ID domains / return URLs for verse2note.com.
-5. Remove iOS Associated Domains `applinks:verse2note.com` /
-   `webcredentials:verse2note.com` and `AppSite` fallback (ship a new binary).
+5. ~~Remove iOS Associated Domains `applinks:verse2note.com` / `webcredentials:verse2note.com` and `AppSite` fallback~~ — done in the Katecheo iOS rename (bundle id unchanged).
 6. Update privacy / marketing copy that still mentions the legacy host.

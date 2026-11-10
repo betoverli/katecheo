@@ -10,29 +10,29 @@ function read(rel: string) {
 
 describe("Phase 5 — remove Capacitor site host", () => {
   it("forces nativePrimary and never mounts Cap bridge", () => {
-    const mode = read("ios/App/App/NativeShellMode.swift");
+    const mode = read("ios/App/Katecheo/NativeShellMode.swift");
     assert.match(mode, /nativePrimary/);
     assert.match(mode, /return \.nativePrimary/);
-    const rootVc = read("ios/App/App/AppRoot.swift");
+    const rootVc = read("ios/App/Katecheo/AppRoot.swift");
     assert.match(rootVc, /NativeRootTabBarController/);
-    assert.doesNotMatch(rootVc, /Verse2NoteBridge|capacitorSite|CAPBridge/);
-    const scene = read("ios/App/App/SceneDelegate.swift");
+    assert.doesNotMatch(rootVc, /KatecheoBridge|capacitorSite|CAPBridge/);
+    const scene = read("ios/App/Katecheo/SceneDelegate.swift");
     assert.match(scene, /AppRoot\.makeRootViewController/);
     assert.doesNotMatch(scene, /import Capacitor|SceneDelegateProxy/);
   });
 
   it("uses native note editor (Phase 7) without product WKWebView", () => {
-    assert.equal(existsSync(new URL("ios/App/App/NoteMioloEditorView.swift", root)), false);
-    const editor = read("ios/App/App/NativeNoteEditorView.swift");
+    assert.equal(existsSync(new URL("ios/App/Katecheo/NoteMioloEditorView.swift", root)), false);
+    const editor = read("ios/App/Katecheo/NativeNoteEditorView.swift");
     assert.match(editor, /UITextView/);
     assert.doesNotMatch(editor, /WKWebView|import WebKit/);
-    const detail = read("ios/App/App/NoteDetailViewController.swift");
+    const detail = read("ios/App/Katecheo/NoteDetailViewController.swift");
     assert.match(detail, /NativeNoteEditorView/);
     assert.doesNotMatch(detail, /WKWebView|import WebKit|NoteMioloEditorView/);
   });
 
-  it("forbids Cap / product WKWebView surfaces under ios/App/App", () => {
-    const appDir = new URL("ios/App/App/", root);
+  it("forbids Cap / product WKWebView surfaces under ios/App/Katecheo", () => {
+    const appDir = new URL("ios/App/Katecheo/", root);
     const allowedWebKit = new Set([
       "NativeSessionBootstrap.swift",
       "SceneDelegate.swift",
@@ -43,7 +43,7 @@ describe("Phase 5 — remove Capacitor site host", () => {
       source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
     for (const name of readdirSync(appDir)) {
       if (!/\.(swift|m|h)$/.test(name)) continue;
-      const body = stripComments(read(`ios/App/App/${name}`));
+      const body = stripComments(read(`ios/App/Katecheo/${name}`));
       assert.doesNotMatch(body, /\bimport\s+Capacitor\b/, name);
       assert.doesNotMatch(body, /\bCAPPlugin\b|\bCAPBridgeViewController\b/, name);
       if (/\bWKWebView\b/.test(body)) {
@@ -54,23 +54,23 @@ describe("Phase 5 — remove Capacitor site host", () => {
       }
     }
     for (const dead of [
-      "ios/App/App/NativeShell.swift",
-      "ios/App/App/LiquidChrome.swift",
-      "ios/App/App/NativeMenus.swift",
-      "ios/App/App/NativePhase0Plugin.swift",
-      "ios/App/App/NoteEditorSpikeViewController.swift",
-      "ios/App/App/NoteMioloEditorView.swift",
+      "ios/App/Katecheo/NativeShell.swift",
+      "ios/App/Katecheo/LiquidChrome.swift",
+      "ios/App/Katecheo/NativeMenus.swift",
+      "ios/App/Katecheo/NativePhase0Plugin.swift",
+      "ios/App/Katecheo/NoteEditorSpikeViewController.swift",
+      "ios/App/Katecheo/NoteMioloEditorView.swift",
     ]) {
       assert.equal(existsSync(new URL(dead, root)), false, dead);
     }
   });
 
   it("ships native push + deep link routing (no Cap plugins)", () => {
-    const push = read("ios/App/App/NativePushService.swift");
+    const push = read("ios/App/Katecheo/NativePushService.swift");
     assert.match(push, /UNUserNotificationCenter/);
     assert.match(push, /saveApnsDevice/);
     assert.match(push, /NativeDeepLinkRouter/);
-    const deep = read("ios/App/App/NativeDeepLinkRouter.swift");
+    const deep = read("ios/App/Katecheo/NativeDeepLinkRouter.swift");
     assert.match(deep, /destination\(for/);
     assert.match(deep, /case note/);
     assert.match(deep, /NoteDetailViewController/);
@@ -79,23 +79,23 @@ describe("Phase 5 — remove Capacitor site host", () => {
     assert.equal(NativeDeepLinkRouterShim("/app"), "verses");
     assert.equal(NativeDeepLinkRouterShim("/reading"), "reading");
     assert.equal(NativeDeepLinkRouterShim("/profile"), "profile");
-    const client = read("ios/App/App/NativeAPIClient.swift");
+    const client = read("ios/App/Katecheo/NativeAPIClient.swift");
     assert.match(client, /func saveApnsDevice/);
     assert.match(client, /func dropApnsDevice/);
   });
 
   it("removes classic Cap fallbacks from login / Caderno / ComingSoon", () => {
-    assert.doesNotMatch(read("ios/App/App/NativeSignInViewController.swift"), /site clássico|capacitorSite/i);
-    assert.doesNotMatch(read("ios/App/App/NotebookListViewController.swift"), /Site clássico|capacitorSite/);
-    const coming = read("ios/App/App/ComingSoonTabViewController.swift");
-    assert.doesNotMatch(coming, /sitePath|Usar app clássico|Verse2NoteBridge|capacitorSite/);
+    assert.doesNotMatch(read("ios/App/Katecheo/NativeSignInViewController.swift"), /site clássico|capacitorSite/i);
+    assert.doesNotMatch(read("ios/App/Katecheo/NotebookListViewController.swift"), /Site clássico|capacitorSite/);
+    const coming = read("ios/App/Katecheo/ComingSoonTabViewController.swift");
+    assert.doesNotMatch(coming, /sitePath|Usar app clássico|KatecheoBridge|capacitorSite/);
     assert.match(coming, /Em breve nativo/);
   });
 
   it("drops Cap server.url and CapApp-SPM from the Xcode target", () => {
     const cap = read("capacitor.config.ts");
     assert.doesNotMatch(cap, /server\s*:\s*\{[\s\S]*?url\s*:/);
-    const pbx = read("ios/App/App.xcodeproj/project.pbxproj");
+    const pbx = read("ios/App/Katecheo.xcodeproj/project.pbxproj");
     assert.doesNotMatch(pbx, /CapApp-SPM/);
     assert.match(pbx, /NativeNoteEditorView\.swift in Sources/);
     assert.doesNotMatch(pbx, /NoteMioloEditorView/);

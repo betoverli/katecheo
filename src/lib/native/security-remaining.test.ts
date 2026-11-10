@@ -32,7 +32,7 @@ describe("security audit remaining (M7/L2/L4/L5/L6)", () => {
     const ret = read("src/lib/native/return-to.ts");
     assert.match(ret, /preferredNativeReturnMode[\s\S]*return "https"/);
     assert.match(ret, /shouldFallBackToScheme/);
-    const login = read("ios/App/App/NativeLoginService.swift");
+    const login = read("ios/App/Katecheo/NativeLoginService.swift");
     assert.match(login, /returnMode: \.https/);
     assert.match(login, /shouldFallBackToScheme/);
     assert.match(login, /newPkceVerifier|pkceChallenge/);
@@ -40,13 +40,13 @@ describe("security audit remaining (M7/L2/L4/L5/L6)", () => {
 
   it("guards UIKit dequeue casts in hot list paths (L5)", () => {
     for (const file of [
-      "ios/App/App/NotebookListViewController.swift",
-      "ios/App/App/GroupsListViewController.swift",
-      "ios/App/App/VersesScreens.swift",
-      "ios/App/App/VersesHomeViewController.swift",
-      "ios/App/App/ReadingScreens.swift",
-      "ios/App/App/BibleRefInsertPicker.swift",
-      "ios/App/App/ProfileSettingsScreens.swift",
+      "ios/App/Katecheo/NotebookListViewController.swift",
+      "ios/App/Katecheo/GroupsListViewController.swift",
+      "ios/App/Katecheo/VersesScreens.swift",
+      "ios/App/Katecheo/VersesHomeViewController.swift",
+      "ios/App/Katecheo/ReadingScreens.swift",
+      "ios/App/Katecheo/BibleRefInsertPicker.swift",
+      "ios/App/Katecheo/ProfileSettingsScreens.swift",
     ]) {
       const src = read(file);
       assert.equal(
@@ -58,7 +58,7 @@ describe("security audit remaining (M7/L2/L4/L5/L6)", () => {
   });
 
   it("stamps NativeOutbox jobs with accountId and drops mismatches (L6)", () => {
-    const outbox = read("ios/App/App/NativeOutbox.swift");
+    const outbox = read("ios/App/Katecheo/NativeOutbox.swift");
     assert.match(outbox, /var accountId: String\?/);
     assert.match(outbox, /LocalSessionCache\.loadMe\(\)\?\.id/);
     assert.match(outbox, /accountId != currentAccountId|job\.accountId/);
