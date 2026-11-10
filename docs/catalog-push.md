@@ -22,9 +22,13 @@ iOS already handles these in `AppDelegate`, `NativePushService`, and
    - **Unchanged**: skips (unless `force`).
    - Response lists each kind’s `action`: `broadcast` |
      `skipped_baseline` | `skipped_unchanged`.
-3. **GitHub Action** — `.github/workflows/catalog-push.yml` runs on
-   `deployment_status` when state is `success` and environment is
-   `Production` (Vercel GitHub integration), and on `workflow_dispatch`.
+3. **GitHub Action** — `.github/workflows/catalog-push.yml`:
+   - **Cron every 15 minutes** (primary; safe because the endpoint is idempotent).
+   - **`workflow_dispatch`** with optional `force`.
+   - **`deployment_status`** best-effort on any `success` (no environment-name
+     filter — Vercel often does not emit this event to the repo).
+   - Concurrency group `catalog-push` (no overlapping runs); job timeout 5 min;
+     curl-only (no checkout).
 
 ## Secrets
 
