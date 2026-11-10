@@ -21,7 +21,7 @@ const JSON_LD = {
   description:
     "Rich-text Bible reference deep links, 160 themed collections, and 34 reading plans of whole chapters for YouVersion, Logos, and other Bible apps. Portuguese, English, Spanish. Offline PWA. API and MCP for agents.",
   inLanguage: ["pt", "en", "es"],
-  sameAs: ["https://github.com/betoverli/verse2note"],
+  sameAs: ["https://github.com/betoverli/katecheo"],
   featureList: [
     "Book, chapter and verse picker",
     "Rich-text copy with a deep link",

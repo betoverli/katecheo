@@ -1,11 +1,12 @@
 ---
-name: verse2note
+name: katecheo
 description: >
   Generate rich-text Bible reference deep links for YouVersion, Logos, Tecarta
   and other Bible apps. Also fetch themed collections and reading-plan days
   (whole chapters). Use when the user wants to link verses, copy João 3:16 /
   John 3:16 / Juan 3:16, paste Scripture into notes, get a list by theme, or
-  today's reading in a plan.
+  today's reading in a plan. Product: Katecheo (katecheo.app); MCP tool ids
+  remain verse2note_link / verse2note_collection / verse2note_plan.
 ---
 
 # Katecheo

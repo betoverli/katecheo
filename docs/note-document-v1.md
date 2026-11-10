@@ -1,6 +1,6 @@
 # NoteDocumentV1 — platform-neutral note body
 
-Canonical wire format for Verse2Note native clients (iOS now, Android later).
+Canonical wire format for Katecheo native clients (iOS now, Android later).
 Served and accepted by `/api/native/v1` notes endpoints. **Never HTML** as the
 source of truth.
 

@@ -1470,7 +1470,7 @@ if (!project.includes("AppSite.swift in Sources")) {
   }
 }
 
-// Verse2Note does not track users. PR #72 wrongly added NSUserTrackingUsageDescription
+// Katecheo does not track users. PR #72 wrongly added NSUserTrackingUsageDescription
 // to InfoPlist.xcstrings (without Info.plist / without ATT APIs) → ITMS-90683 on upload.
 // Ban ATT symbols and orphaned tracking purpose strings so ASC stays clean.
 {
@@ -1518,7 +1518,7 @@ if (!project.includes("AppSite.swift in Sources")) {
   const bad = hits.filter((h) => !allowed.has(h));
   if (bad.length) {
     errors.push(
-      "App Tracking Transparency / NSUserTrackingUsageDescription proibido (Verse2Note não rastreia). Remova a referência — não adicione purpose string. Hits: " +
+      "App Tracking Transparency / NSUserTrackingUsageDescription proibido (Katecheo não rastreia). Remova a referência — não adicione purpose string. Hits: " +
         bad.join(", "),
     );
   }
