@@ -680,8 +680,17 @@ if (signIn.includes("Abrir site clássico") || signIn.includes("capacitorSite"))
 if (!signIn.includes("Continuar com Google") || !signIn.includes("Entrar com email")) {
   errors.push("Falta o ecrã nativo de login (Google + email).");
 }
+if (!signIn.includes("Entrar ou criar conta") || !signIn.includes("Criar conta")) {
+  errors.push("O ecrã de auth tem de deixar claro Entrar ou criar conta (segmento Criar conta).");
+}
+if (!signIn.includes("UISegmentedControl") || !signIn.includes("Confirmar senha")) {
+  errors.push("Create-account mode precisa de UISegmentedControl + confirmação de senha.");
+}
 if (!signIn.includes("ASAuthorizationAppleIDButton") || !signIn.includes("makeAppleButton")) {
   errors.push("NativeSignInViewController tem de renderizar ASAuthorizationAppleIDButton (Sign in with Apple).");
+}
+if (!signIn.includes("type: .continue") && !signIn.includes("type:.continue")) {
+  errors.push("ASAuthorizationAppleIDButton tem de usar type .continue (HIG).");
 }
 if (!signIn.includes("appleButtonStyle") || !signIn.includes("userInterfaceStyle")) {
   errors.push("O botão Apple tem de adaptar light/dark (appleButtonStyle).");
@@ -691,6 +700,9 @@ if (!signIn.includes('UIImage(named: "BrandMark")') || signIn.includes("book.clo
 }
 if (!signIn.includes('String(localized: "Katecheo")') || /["'`]Kate["'`]/.test(signIn) || /["'`]cheo["'`]/.test(signIn)) {
   errors.push('NativeSignInViewController: "Katecheo" tem de ser uma só palavra em estilo uniforme.');
+}
+if (signIn.includes("Esqueci minha senha") || signIn.includes("Forgot password")) {
+  errors.push("Não adicionar 'Esqueci minha senha' sem mailer/password-reset no Better Auth.");
 }
 
 const loginService = read("ios/App/Katecheo/NativeLoginService.swift");
@@ -709,6 +721,12 @@ if (
 }
 if (!loginService.includes("signOut") || !loginService.includes("deleteBearerToken")) {
   errors.push("Sign-out nativo tem de limpar o Keychain.");
+}
+if (!loginService.includes("signUpWithEmail") || !loginService.includes("auth/email/sign-up")) {
+  errors.push("NativeLoginService tem de chamar /api/native/v1/auth/email/sign-up.");
+}
+if (!loginService.includes("email_exists")) {
+  errors.push("Sign-up nativo tem de tratar email_exists com mensagem amigável.");
 }
 
 const notebookList = read("ios/App/Katecheo/NotebookListViewController.swift");

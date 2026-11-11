@@ -37,6 +37,7 @@ describe("matchNativeV1Route", () => {
     assert.deepEqual(matchNativeV1Route("auth/providers"), { kind: "auth-providers" });
     assert.deepEqual(matchNativeV1Route("auth/claim"), { kind: "auth-claim" });
     assert.deepEqual(matchNativeV1Route("auth/email"), { kind: "auth-email" });
+    assert.deepEqual(matchNativeV1Route("auth/email/sign-up"), { kind: "auth-email-sign-up" });
     assert.deepEqual(matchNativeV1Route("auth/apple"), { kind: "auth-apple" });
     assert.deepEqual(matchNativeV1Route("auth/from-cookie"), { kind: "auth-from-cookie" });
     assert.deepEqual(matchNativeV1Route("auth/sign-out"), { kind: "auth-sign-out" });
@@ -141,6 +142,7 @@ describe("methodAllowed", () => {
     assert.equal(methodAllowed({ kind: "auth-providers" }, "GET"), true);
     assert.equal(methodAllowed({ kind: "auth-claim" }, "POST"), true);
     assert.equal(methodAllowed({ kind: "auth-email" }, "POST"), true);
+    assert.equal(methodAllowed({ kind: "auth-email-sign-up" }, "POST"), true);
     assert.equal(methodAllowed({ kind: "auth-apple" }, "POST"), true);
     assert.equal(methodAllowed({ kind: "auth-from-cookie" }, "POST"), true);
     assert.equal(methodAllowed({ kind: "auth-sign-out" }, "POST"), true);
@@ -190,6 +192,7 @@ describe("isPublicNativeAuthRoute", () => {
   it("marks sign-in routes public and notes private", () => {
     assert.equal(isPublicNativeAuthRoute({ kind: "auth-claim" }), true);
     assert.equal(isPublicNativeAuthRoute({ kind: "auth-email" }), true);
+    assert.equal(isPublicNativeAuthRoute({ kind: "auth-email-sign-up" }), true);
     assert.equal(isPublicNativeAuthRoute({ kind: "catalog" }), true);
     assert.equal(isPublicNativeAuthRoute({ kind: "notes" }), false);
     assert.equal(isPublicNativeAuthRoute({ kind: "auth-sign-out" }), false);

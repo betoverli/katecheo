@@ -168,6 +168,14 @@ export const authEmailSchema = z
   })
   .passthrough();
 
+export const authEmailSignUpSchema = z
+  .object({
+    name: z.string().min(1).max(120),
+    email: z.string().min(1).max(320),
+    password: z.string().min(1).max(200),
+  })
+  .passthrough();
+
 export const authAppleSchema = z
   .object({
     identityToken: z.string().min(1).max(8000),

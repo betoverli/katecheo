@@ -14,7 +14,10 @@ import {
   AppleTokenVerifyError,
   verifyAppleIdentityToken,
 } from "@/lib/auth/apple-verify.server";
-import { emailAndPasswordEnabled } from "@/lib/auth/email-password";
+import {
+  emailAndPasswordEnabled,
+  emailPasswordMinLength,
+} from "@/lib/auth/email-password";
 import { GOOGLE_PROVIDER_ID, googleOAuthFromEnv } from "@/lib/auth/google";
 import { auth, authConfigured, SESSION_TOKEN_COOKIE } from "@/lib/auth/server";
 import { allowRequest, clientKey } from "@/lib/rate-limit";
@@ -52,6 +55,7 @@ export function listNativeAuthProviders() {
     google: google.configured,
     apple: apple.configured && authConfigured,
     email: emailAndPasswordEnabled && authConfigured,
+    minPasswordLength: emailPasswordMinLength,
     googleProviderId: GOOGLE_PROVIDER_ID,
     appleProviderId: APPLE_PROVIDER_ID,
     sessionCookie: SESSION_TOKEN_COOKIE,
@@ -140,6 +144,86 @@ export async function signInEmailNative(
     return { ok: true, token };
   } catch {
     return { ok: false, error: "credentials", status: 401 };
+  }
+}
+
+function betterAuthErrorCode(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  const obj = payload as Record<string, unknown>;
+  if (typeof obj.code === "string" && obj.code) return obj.code;
+  const err = obj.error;
+  if (err && typeof err === "object" && !Array.isArray(err)) {
+    const nested = err as Record<string, unknown>;
+    if (typeof nested.code === "string" && nested.code) return nested.code;
+  }
+  return null;
+}
+
+async function tokenFromAuthResponse(
+  res: Response,
+  request: Request,
+): Promise<{ ok: true; token: string } | { ok: false; error: string; status: number }> {
+  const token = tokenFromSetCookie(res.headers) ?? sessionTokenFromCookie(request.headers.get("cookie"));
+  if (token) return { ok: true, token };
+  const json = (await res.clone().json().catch(() => null)) as { token?: string } | null;
+  if (json?.token) return { ok: true, token: json.token };
+  return { ok: false, error: "no_token", status: 500 };
+}
+
+/** Native email sign-up → Better Auth `signUpEmail` → bearer for Keychain. */
+export async function signUpEmailNative(
+  request: Request,
+  body: { name?: unknown; email?: unknown; password?: unknown },
+): Promise<{ ok: true; token: string } | { ok: false; error: string; status: number }> {
+  if (!emailAndPasswordEnabled || !authConfigured) {
+    return { ok: false, error: "email_disabled", status: 501 };
+  }
+  const ip = clientKey(request);
+  if (!(await allowRequest(`native-v1-email-signup:${ip}`, 15, 60_000))) {
+    return { ok: false, error: "rate_limited", status: 429 };
+  }
+  const name = typeof body.name === "string" ? body.name.trim() : "";
+  const email = typeof body.email === "string" ? body.email.trim() : "";
+  const password = typeof body.password === "string" ? body.password : "";
+  if (!name || !email || !password) return { ok: false, error: "invalid", status: 400 };
+  if (password.length < emailPasswordMinLength) {
+    return { ok: false, error: "password_short", status: 400 };
+  }
+  try {
+    const res = await auth.api.signUpEmail({
+      body: { name, email, password },
+      headers: request.headers,
+      asResponse: true,
+    });
+    if (!res.ok) {
+      const json = await res.clone().json().catch(() => null);
+      const code = betterAuthErrorCode(json)?.toUpperCase() ?? "";
+      if (code.includes("USER_ALREADY_EXISTS")) {
+        return { ok: false, error: "email_exists", status: 409 };
+      }
+      if (code.includes("PASSWORD_TOO_SHORT")) {
+        return { ok: false, error: "password_short", status: 400 };
+      }
+      if (code.includes("INVALID_EMAIL")) {
+        return { ok: false, error: "invalid_email", status: 400 };
+      }
+      return { ok: false, error: "signup_failed", status: res.status >= 400 && res.status < 600 ? res.status : 400 };
+    }
+    return tokenFromAuthResponse(res, request);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error ?? "");
+    const upper = message.toUpperCase();
+    if (upper.includes("USER_ALREADY_EXISTS") || /already exists/i.test(message)) {
+      return { ok: false, error: "email_exists", status: 409 };
+    }
+    if (upper.includes("PASSWORD_TOO_SHORT") || /password too short/i.test(message)) {
+      return { ok: false, error: "password_short", status: 400 };
+    }
+    if (upper.includes("INVALID_EMAIL") || /invalid email/i.test(message)) {
+      return { ok: false, error: "invalid_email", status: 400 };
+    }
+    console.error("[native/v1/auth/email/sign-up]", error);
+    return { ok: false, error: "signup_failed", status: 400 };
   }
 }
 
