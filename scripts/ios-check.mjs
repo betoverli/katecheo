@@ -1540,6 +1540,31 @@ if (!project.includes("AppSite.swift in Sources")) {
   }
   try {
     const catalog = JSON.parse(read("ios/App/Katecheo/Localizable.xcstrings"));
+    const allKeys = Object.keys(catalog.strings || {});
+    if (allKeys.length < 700) {
+      errors.push(
+        `Localizable.xcstrings encolheu (${allKeys.length} chaves); o gerador/ios-check não podem apagar strings existentes.`,
+      );
+    }
+    for (const key of [
+      "Aceitar ou recusar este pedido de amizade?",
+      "Cancelar pedido",
+      "Buscar por @usuário",
+      "Copiar",
+      "Comece a escrever…",
+      "ARC — Almeida Revista e Corrigida",
+      "Sair",
+      "Esqueci minha senha",
+      "Enviar código",
+      "Reenviar código",
+    ]) {
+      if (!catalog.strings?.[key]) {
+        errors.push(`Localizable.xcstrings tem de manter a chave ${JSON.stringify(key)}.`);
+      }
+    }
+    if (catalog.strings?.Sair?.localizations?.en?.stringUnit?.value !== "Sign out") {
+      errors.push('Localizable.xcstrings «Sair»/en tem de continuar "Sign out".');
+    }
     const ferr = catalog.strings?.Ferramentas?.localizations || {};
     for (const lang of ["pt-BR", "en", "es"]) {
       const value = ferr[lang]?.stringUnit?.value;
@@ -1552,6 +1577,10 @@ if (!project.includes("AppSite.swift in Sources")) {
     }
   } catch {
     errors.push("Não foi possível ler Localizable.xcstrings para a chave Ferramentas.");
+  }
+  const genL10n = read("scripts/generate-ios-l10n.mjs");
+  if (!genL10n.includes("mergeCatalog") || !genL10n.includes("refused to shrink")) {
+    errors.push("generate-ios-l10n.mjs tem de fazer merge-only (nunca apagar chaves do Localizable).");
   }
   if (!project.includes("BibleBooksData.json in Resources")) {
     errors.push("BibleBooksData.json tem de estar nos Resources (catálogo bíblico permanente).");
