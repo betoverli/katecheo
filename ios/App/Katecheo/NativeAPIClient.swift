@@ -1234,7 +1234,7 @@ enum NativeAPIClient {
     static func listIdentities() async throws -> ConnectedIdentitiesResponse {
         let request = try authorizedRequest(path: "api/native/v1/auth/identities", method: "GET")
         let (status, data) = try await perform(request)
-        throwIfUnauthorized(status)
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
@@ -1251,7 +1251,7 @@ enum NativeAPIClient {
             body: try JSONSerialization.data(withJSONObject: body)
         )
         let (status, data) = try await perform(request)
-        throwIfUnauthorized(status)
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
@@ -1264,7 +1264,7 @@ enum NativeAPIClient {
             body: try JSONSerialization.data(withJSONObject: ["code": code, "verifier": verifier])
         )
         let (status, data) = try await perform(request)
-        throwIfUnauthorized(status)
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
@@ -1281,7 +1281,7 @@ enum NativeAPIClient {
             body: try JSONSerialization.data(withJSONObject: body)
         )
         let (status, data) = try await perform(request)
-        throwIfUnauthorized(status)
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
@@ -1293,7 +1293,7 @@ enum NativeAPIClient {
             method: "DELETE"
         )
         let (status, data) = try await perform(request)
-        throwIfUnauthorized(status)
+        try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
