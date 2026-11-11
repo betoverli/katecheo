@@ -52,11 +52,10 @@ enum KeychainStore {
 
     @discardableResult
     static func setDeviceId(_ deviceId: String?) -> Bool {
-        deleteDeviceId()
         guard let deviceId, !deviceId.isEmpty, let data = deviceId.data(using: .utf8) else {
-            return deviceId == nil || deviceId?.isEmpty == true
+            return deleteDeviceId()
         }
-        return add(service: deviceIdService, account: deviceIdAccount, data: data)
+        return upsert(service: deviceIdService, account: deviceIdAccount, data: data)
     }
 
     static func deviceId() -> String? {
@@ -69,6 +68,21 @@ enum KeychainStore {
     }
 
     // MARK: - Internals
+
+    private static func upsert(service: String, account: String, data: Data) -> Bool {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+        ]
+        let attrs: [String: Any] = [kSecValueData as String: data]
+        let updated = SecItemUpdate(query as CFDictionary, attrs as CFDictionary)
+        if updated == errSecSuccess { return true }
+        if updated != errSecItemNotFound {
+            _ = delete(service: service, account: account)
+        }
+        return add(service: service, account: account, data: data)
+    }
 
     private static func add(service: String, account: String, data: Data) -> Bool {
         let query: [String: Any] = [
