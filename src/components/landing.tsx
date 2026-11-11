@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import type { Locale } from "@/lib/bible/books";
-import { APP_STORE_LIVE, APP_STORE_URL, INSTAGRAM_URL } from "@/lib/app-store";
+import { APP_STORE_LIVE, APP_STORE_URL, CONTACT_EMAIL, CONTACT_MAILTO, INSTAGRAM_URL } from "@/lib/app-store";
 import { FEATURE_ORDER, MARKETING } from "@/lib/marketing-copy";
 import { writeLocaleCookie } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
@@ -157,6 +157,9 @@ export function Landing({ initialLocale }: { initialLocale?: Locale }) {
               className="underline-offset-2 hover:text-fg hover:underline"
             >
               {copy.instagram}
+            </a>
+            <a href={CONTACT_MAILTO} className="underline-offset-2 hover:text-fg hover:underline">
+              {CONTACT_EMAIL}
             </a>
             <Link to="/privacy" className="underline-offset-2 hover:text-fg hover:underline">
               {copy.footerPrivacy}

@@ -8,3 +8,7 @@ export const APP_STORE_URL: string | null = null;
 export const APP_STORE_LIVE = Boolean(APP_STORE_URL);
 
 export const INSTAGRAM_URL = "https://www.instagram.com/katecheo.app";
+
+/** General public contact email (mailto on the marketing site). */
+export const CONTACT_EMAIL = "contato@katecheo.app";
+export const CONTACT_MAILTO = `mailto:${CONTACT_EMAIL}`;

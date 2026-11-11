@@ -1,4 +1,5 @@
 import type { Locale } from "@/lib/bible/books";
+import { CONTACT_EMAIL } from "@/lib/app-store";
 
 type Copy = {
   title: string;
@@ -13,7 +14,11 @@ const COPY: Record<Locale, Copy> = {
     sections: [
       {
         title: "Quem somos",
-        body: "Katecheo (katecheo.app; verse2note.com redireciona para katecheo.app) é um app nativo para iPhone e um site de marketing com APIs públicas. Ajuda a organizar estudo bíblico: notas com referências que abrem no seu app de Bíblia, temas, planos, grupos e amigos. O Katecheo não exibe o texto bíblico. Operado por Beto Verlí. Contato: katecheo.app/contact ou github.com/betoverli/katecheo.",
+        body: `Katecheo (katecheo.app; verse2note.com redireciona para katecheo.app) é um app nativo para iPhone e um site de marketing com APIs públicas. Ajuda a organizar estudo bíblico: notas com referências que abrem no seu app de Bíblia, temas, planos, grupos e amigos. O Katecheo não exibe o texto bíblico. Operado por Beto Verlí.`,
+      },
+      {
+        title: "Contato",
+        body: `E-mail geral: ${CONTACT_EMAIL}. Também: katecheo.app/contact ou github.com/betoverli/katecheo.`,
       },
       {
         title: "O que guardamos",
@@ -37,7 +42,7 @@ const COPY: Record<Locale, Copy> = {
       },
       {
         title: "Seus direitos (LGPD)",
-        body: "Acesso, correção (editar perfil), portabilidade (exportar), exclusão da conta, e informação sobre o uso. Para exercer: Perfil no app, ou Contato em katecheo.app/contact. Você pode desligar cada tipo de aviso.",
+        body: `Acesso, correção (editar perfil), portabilidade (exportar), exclusão da conta, e informação sobre o uso. Para exercer: Perfil no app, ou escreva para ${CONTACT_EMAIL}. Você pode desligar cada tipo de aviso.`,
       },
     ],
   },
@@ -47,7 +52,11 @@ const COPY: Record<Locale, Copy> = {
     sections: [
       {
         title: "Who we are",
-        body: "Katecheo (katecheo.app; verse2note.com redirects to katecheo.app) is a native iPhone app plus a marketing site with public APIs. It helps organize Bible study: notes with references that open in your Bible app, themes, plans, groups and friends. Katecheo does not display Bible text. Operated by Beto Verlí. Contact: katecheo.app/contact or github.com/betoverli/katecheo.",
+        body: "Katecheo (katecheo.app; verse2note.com redirects to katecheo.app) is a native iPhone app plus a marketing site with public APIs. It helps organize Bible study: notes with references that open in your Bible app, themes, plans, groups and friends. Katecheo does not display Bible text. Operated by Beto Verlí.",
+      },
+      {
+        title: "Contact",
+        body: `General email: ${CONTACT_EMAIL}. Also: katecheo.app/contact or github.com/betoverli/katecheo.`,
       },
       {
         title: "What we store",
@@ -71,7 +80,7 @@ const COPY: Record<Locale, Copy> = {
       },
       {
         title: "Your rights (LGPD)",
-        body: "Access, correction (edit profile), portability (export), account deletion, and information about use. Use Profile in the app, or Contact at katecheo.app/contact. You can turn each alert type off.",
+        body: `Access, correction (edit profile), portability (export), account deletion, and information about use. Use Profile in the app, or email ${CONTACT_EMAIL}. You can turn each alert type off.`,
       },
     ],
   },
@@ -81,7 +90,11 @@ const COPY: Record<Locale, Copy> = {
     sections: [
       {
         title: "Quiénes somos",
-        body: "Katecheo (katecheo.app; verse2note.com redirige a katecheo.app) es una app nativa para iPhone y un sitio de marketing con APIs públicas. Ayuda a organizar el estudio bíblico: notas con referencias que abren en tu app de Biblia, temas, planes, grupos y amigos. Katecheo no muestra el texto bíblico. Operado por Beto Verlí. Contacto: katecheo.app/contact o github.com/betoverli/katecheo.",
+        body: "Katecheo (katecheo.app; verse2note.com redirige a katecheo.app) es una app nativa para iPhone y un sitio de marketing con APIs públicas. Ayuda a organizar el estudio bíblico: notas con referencias que abren en tu app de Biblia, temas, planes, grupos y amigos. Katecheo no muestra el texto bíblico. Operado por Beto Verlí.",
+      },
+      {
+        title: "Contacto",
+        body: `Correo general: ${CONTACT_EMAIL}. También: katecheo.app/contact o github.com/betoverli/katecheo.`,
       },
       {
         title: "Qué guardamos",
@@ -105,7 +118,7 @@ const COPY: Record<Locale, Copy> = {
       },
       {
         title: "Tus derechos (LGPD)",
-        body: "Acceso, corrección (editar perfil), portabilidad (exportar), eliminación de la cuenta e información sobre el uso. Ejércelos en Perfil en la app, o Contacto en katecheo.app/contact. Puedes apagar cada tipo de aviso.",
+        body: `Acceso, corrección (editar perfil), portabilidad (exportar), eliminación de la cuenta e información sobre el uso. Ejércelos en Perfil en la app, o escribe a ${CONTACT_EMAIL}. Puedes apagar cada tipo de aviso.`,
       },
     ],
   },
