@@ -1,12 +1,7 @@
 User-agent: *
 Allow: /
-Disallow: /login
-Disallow: /profile
-Disallow: /inbox
-Disallow: /c/
-Disallow: /g/
 Disallow: /api/auth
-Disallow: /admin
-Disallow: /settings
+Disallow: /auth/
+Disallow: /api/native/
 
 Sitemap: https://katecheo.app/sitemap.xml

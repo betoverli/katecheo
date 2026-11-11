@@ -1,10 +1,9 @@
-import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+import { redirectWebAppToLanding } from "@/lib/web-app-gone";
 
+/** Former web-product route — permanent redirect to the marketing landing. */
 export const Route = createFileRoute("/notebook/g/$id")({
-  component: NotebookGroupRedirect,
+  beforeLoad: () => {
+    redirectWebAppToLanding();
+  },
 });
-
-function NotebookGroupRedirect() {
-  const { id } = Route.useParams();
-  return <Navigate to="/groups/$id" params={{ id }} />;
-}

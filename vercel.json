@@ -1,4 +1,28 @@
 {
+  "redirects": [
+    { "source": "/app", "destination": "/", "permanent": true },
+    { "source": "/app/:path*", "destination": "/", "permanent": true },
+    { "source": "/login", "destination": "/", "permanent": true },
+    { "source": "/admin", "destination": "/", "permanent": true },
+    { "source": "/settings", "destination": "/", "permanent": true },
+    { "source": "/inbox", "destination": "/", "permanent": true },
+    { "source": "/collections", "destination": "/", "permanent": true },
+    { "source": "/collections/:path*", "destination": "/", "permanent": true },
+    { "source": "/c/:path*", "destination": "/", "permanent": true },
+    { "source": "/reading", "destination": "/", "permanent": true },
+    { "source": "/reading/:path*", "destination": "/", "permanent": true },
+    { "source": "/g/:path*", "destination": "/", "permanent": true },
+    { "source": "/notebook", "destination": "/", "permanent": true },
+    { "source": "/notebook/:path*", "destination": "/", "permanent": true },
+    { "source": "/n/:path*", "destination": "/", "permanent": true },
+    { "source": "/groups", "destination": "/", "permanent": true },
+    { "source": "/groups/:path*", "destination": "/", "permanent": true },
+    { "source": "/profile", "destination": "/", "permanent": true },
+    { "source": "/profile/:path*", "destination": "/", "permanent": true },
+    { "source": "/u/:path*", "destination": "/", "permanent": true },
+    { "source": "/native-editor", "destination": "/", "permanent": true },
+    { "source": "/native-phase0", "destination": "/", "permanent": true }
+  ],
   "headers": [
     {
       "source": "/(.*)",

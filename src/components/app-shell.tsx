@@ -1,22 +1,5 @@
-import { useEffect, useLayoutEffect, useState, type ReactNode, Component } from "react";
-import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
-import { AccountSync } from "@/components/account-sync";
-import { Coachmarks } from "@/components/coachmarks";
-import { NotifyPrompt } from "@/components/notify-prompt";
-import { CompleteProfile } from "@/components/complete-profile";
-import { Onboarding } from "@/components/onboarding";
-import { SplashScreen } from "@/components/splash-screen";
-import { TabBar } from "@/components/tab-bar";
-import { showTabBar } from "@/lib/tabs";
-import { UsagePing } from "@/components/usage-ping";
-import { useCurrentUserState } from "@/lib/auth/use-current-user";
-import { takeInvite } from "@/lib/invite";
-import { joinPlanGroup } from "@/lib/plan-groups";
-import { getOnlineStatus, subscribeOnlineStatus } from "@/lib/online-status";
-import { syncWindowControlsPad } from "@/lib/platform";
-import { useAppStore } from "@/lib/store";
-
-const PUBLIC = new Set(["/", "/about", "/for-ai", "/login"]);
+import { Outlet } from "@tanstack/react-router";
+import { Component, type ReactNode } from "react";
 
 class ShellCatch extends Component<{ children: ReactNode }, { error: boolean }> {
   state = { error: false };
@@ -28,8 +11,8 @@ class ShellCatch extends Component<{ children: ReactNode }, { error: boolean }> 
       return (
         <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-bg px-6 text-fg">
           <p className="text-center text-sm">Algo deu errado.</p>
-          <a href="/app" className="rounded-full bg-accent px-4 py-2 text-sm font-medium text-accent-fg">
-            Abrir o app
+          <a href="/" className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-fg">
+            Katecheo
           </a>
         </div>
       );
@@ -38,105 +21,11 @@ class ShellCatch extends Component<{ children: ReactNode }, { error: boolean }> 
   }
 }
 
+/** Marketing-site shell: outlet only (product UI lives in the iOS app). */
 export function AppShell() {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const navigate = useNavigate();
-  const onboarded = useAppStore((s) => s.onboarded);
-  const cloudHydrated = useAppStore((s) => s.cloudHydrated);
-  const cloudProfileOk = useAppStore((s) => s.cloudProfileOk);
-  const startPlan = useAppStore((s) => s.startPlan);
-  const { user, isPending } = useCurrentUserState();
-  const [online, setOnline] = useState(() => getOnlineStatus());
-  const invitePage = pathname.startsWith("/g/");
-  const publicPage =
-    PUBLIC.has(pathname) ||
-    invitePage ||
-    pathname.startsWith("/auth/native-") ||
-    pathname.startsWith("/u/") ||
-    pathname.startsWith("/c/") ||
-    pathname.startsWith("/n/");
-  const [hydrated, setHydrated] = useState(publicPage);
-  const [minTime, setMinTime] = useState(publicPage);
-  // Never block the shell on cloud when offline — local notes/session are enough.
-  const waitingCloud = Boolean(online && !onboarded && user && !cloudHydrated && !isPending);
-  const showSplash = !publicPage && (!hydrated || !minTime || waitingCloud);
-  const showOnboarding = !publicPage && !showSplash && !onboarded;
-  const needsProfile = Boolean(user && !user.isDevFallback && cloudHydrated && !isPending && !cloudProfileOk);
-  const showProfile = !publicPage && !showSplash && !showOnboarding && needsProfile;
-  const tabs = onboarded && !showSplash && !showOnboarding && !showProfile && showTabBar(pathname);
-
-  useEffect(() => {
-    const api = useAppStore.persist;
-    if (!api) {
-      setHydrated(true);
-      return;
-    }
-    if (api.hasHydrated()) {
-      setHydrated(true);
-      return;
-    }
-    return api.onFinishHydration(() => setHydrated(true));
-  }, []);
-
-  useEffect(() => subscribeOnlineStatus(setOnline), []);
-
-  useEffect(() => {
-    if (publicPage) return;
-    // Offline: skip the artificial splash delay so navigation stays snappy.
-    const delay = online ? 450 : 0;
-    const timer = window.setTimeout(() => setMinTime(true), delay);
-    return () => window.clearTimeout(timer);
-  }, [publicPage, online]);
-
-  useLayoutEffect(() => {
-    document.documentElement.classList.toggle("has-tab-bar", Boolean(tabs));
-    return () => document.documentElement.classList.remove("has-tab-bar");
-  }, [tabs]);
-
-  useEffect(() => syncWindowControlsPad(), []);
-
-  useEffect(() => {
-    if (!onboarded || !user) return;
-    const id = takeInvite();
-    if (!id) return;
-    void joinPlanGroup({ data: { id } }).then((result) => {
-      if (result && result.ok) {
-        startPlan(result.planId);
-        void navigate({ to: "/reading/$id", params: { id: result.planId } });
-      }
-    });
-  }, [onboarded, user, navigate, startPlan]);
-
-  let body: ReactNode;
-  if (publicPage) {
-    body = (
-      <>
-        <Outlet />
-        {tabs ? <TabBar /> : null}
-      </>
-    );
-  } else if (showSplash) {
-    body = <SplashScreen />;
-  } else if (showOnboarding) {
-    body = <Onboarding onBack={() => void navigate({ to: "/" })} />;
-  } else if (showProfile) {
-    body = <CompleteProfile />;
-  } else {
-    body = (
-      <>
-        <Outlet />
-        {tabs ? <TabBar /> : null}
-        <Coachmarks />
-        <NotifyPrompt />
-      </>
-    );
-  }
-
   return (
-    <>
-      <ShellCatch>{body}</ShellCatch>
-      <AccountSync />
-      {publicPage || (!showSplash && !showOnboarding && !showProfile) ? <UsagePing /> : null}
-    </>
+    <ShellCatch>
+      <Outlet />
+    </ShellCatch>
   );
 }

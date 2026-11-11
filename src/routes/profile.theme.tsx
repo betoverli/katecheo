@@ -1,20 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AppHeader } from "@/components/app-header";
-import { ProfileScreen } from "@/components/screen";
-import { AppearanceSettings } from "@/components/settings-panel";
-import { t } from "@/lib/i18n";
-import { useAppStore } from "@/lib/store";
+import { redirectWebAppToLanding } from "@/lib/web-app-gone";
 
+/** Former web-product route — permanent redirect to the marketing landing. */
 export const Route = createFileRoute("/profile/theme")({
-  component: ProfileTheme,
+  beforeLoad: () => {
+    redirectWebAppToLanding();
+  },
 });
-
-function ProfileTheme() {
-  const locale = useAppStore((s) => s.locale);
-  return (
-    <ProfileScreen>
-      <AppHeader title={t(locale, "appearance")} backTo="/profile" />
-      <AppearanceSettings />
-    </ProfileScreen>
-  );
-}

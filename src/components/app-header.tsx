@@ -8,20 +8,7 @@ import { useAppStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-type BackTo =
-  | "/"
-  | "/settings"
-  | "/app"
-  | "/profile"
-  | "/collections"
-  | "/collections/themes"
-  | "/collections/category/$categoryId"
-  | "/reading"
-  | "/reading/all"
-  | "/reading/category/$categoryId"
-  | "/notebook"
-  | "/groups"
-  | "/groups/$id";
+type BackTo = "/" | "/privacy" | "/terms" | "/contact" | "/for-ai" | "/about";
 
 export type HeaderSearch = {
   value: string;

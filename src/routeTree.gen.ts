@@ -14,6 +14,7 @@ import { Route as AboutRouteImport } from './routes/about'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as CollectionsRouteImport } from './routes/collections'
+import { Route as ContactRouteImport } from './routes/contact'
 import { Route as ForAiRouteImport } from './routes/for-ai'
 import { Route as GroupsRouteImport } from './routes/groups'
 import { Route as InboxRouteImport } from './routes/inbox'
@@ -25,12 +26,12 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ReadingRouteImport } from './routes/reading'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as DotwellKnownAppleAppSiteAssociationRouteImport } from './routes/[.]well-known/apple-app-site-association'
 import { Route as ApiCollectionsRouteImport } from './routes/api/collections'
 import { Route as ApiLinkRouteImport } from './routes/api/link'
 import { Route as ApiMcpRouteImport } from './routes/api/mcp'
 import { Route as ApiPlansRouteImport } from './routes/api/plans'
-import { Route as ApiInternalCatalogPushRouteImport } from './routes/api/internal/catalog-push'
 import { Route as AuthNativeConfigRouteImport } from './routes/auth/native-config'
 import { Route as AuthNativeDoneRouteImport } from './routes/auth/native-done'
 import { Route as AuthNativeReturnRouteImport } from './routes/auth/native-return'
@@ -60,6 +61,7 @@ import { Route as ReadingIdRouteImport } from './routes/reading.$id'
 import { Route as ReadingAllRouteImport } from './routes/reading.all'
 import { Route as UHandleRouteImport } from './routes/u.$handle'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as ApiInternalCatalogPushRouteImport } from './routes/api/internal/catalog-push'
 import { Route as CollectionsCategoryCategoryIdRouteImport } from './routes/collections.category.$categoryId'
 import { Route as NotebookGIdRouteImport } from './routes/notebook.g.$id'
 import { Route as ReadingCategoryCategoryIdRouteImport } from './routes/reading.category.$categoryId'
@@ -89,6 +91,11 @@ const AppRoute = AppRouteImport.update({
 const CollectionsRoute = CollectionsRouteImport.update({
   id: '/collections',
   path: '/collections',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForAiRoute = ForAiRouteImport.update({
@@ -146,6 +153,11 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DotwellKnownAppleAppSiteAssociationRoute =
   DotwellKnownAppleAppSiteAssociationRouteImport.update({
     id: '/.well-known/apple-app-site-association',
@@ -170,11 +182,6 @@ const ApiMcpRoute = ApiMcpRouteImport.update({
 const ApiPlansRoute = ApiPlansRouteImport.update({
   id: '/api/plans',
   path: '/api/plans',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiInternalCatalogPushRoute = ApiInternalCatalogPushRouteImport.update({
-  id: '/api/internal/catalog-push',
-  path: '/api/internal/catalog-push',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthNativeConfigRoute = AuthNativeConfigRouteImport.update({
@@ -322,6 +329,11 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiInternalCatalogPushRoute = ApiInternalCatalogPushRouteImport.update({
+  id: '/api/internal/catalog-push',
+  path: '/api/internal/catalog-push',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CollectionsCategoryCategoryIdRoute =
   CollectionsCategoryCategoryIdRouteImport.update({
     id: '/category/$categoryId',
@@ -356,6 +368,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/app': typeof AppRoute
   '/collections': typeof CollectionsRouteWithChildren
+  '/contact': typeof ContactRoute
   '/for-ai': typeof ForAiRoute
   '/groups': typeof GroupsRouteWithChildren
   '/inbox': typeof InboxRoute
@@ -367,12 +380,12 @@ export interface FileRoutesByFullPath {
   '/profile': typeof ProfileRouteWithChildren
   '/reading': typeof ReadingRouteWithChildren
   '/settings': typeof SettingsRoute
+  '/terms': typeof TermsRoute
   '/.well-known/apple-app-site-association': typeof DotwellKnownAppleAppSiteAssociationRoute
   '/api/collections': typeof ApiCollectionsRoute
   '/api/link': typeof ApiLinkRoute
   '/api/mcp': typeof ApiMcpRoute
   '/api/plans': typeof ApiPlansRoute
-  '/api/internal/catalog-push': typeof ApiInternalCatalogPushRoute
   '/auth/native-config': typeof AuthNativeConfigRoute
   '/auth/native-done': typeof AuthNativeDoneRoute
   '/auth/native-return': typeof AuthNativeReturnRoute
@@ -402,6 +415,7 @@ export interface FileRoutesByFullPath {
   '/profile/': typeof ProfileIndexRoute
   '/reading/': typeof ReadingIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/internal/catalog-push': typeof ApiInternalCatalogPushRoute
   '/collections/category/$categoryId': typeof CollectionsCategoryCategoryIdRoute
   '/notebook/g/$id': typeof NotebookGIdRoute
   '/reading/category/$categoryId': typeof ReadingCategoryCategoryIdRoute
@@ -413,6 +427,7 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/admin': typeof AdminRoute
   '/app': typeof AppRoute
+  '/contact': typeof ContactRoute
   '/for-ai': typeof ForAiRoute
   '/inbox': typeof InboxRoute
   '/login': typeof LoginRoute
@@ -420,12 +435,12 @@ export interface FileRoutesByTo {
   '/native-phase0': typeof NativePhase0Route
   '/privacy': typeof PrivacyRoute
   '/settings': typeof SettingsRoute
+  '/terms': typeof TermsRoute
   '/.well-known/apple-app-site-association': typeof DotwellKnownAppleAppSiteAssociationRoute
   '/api/collections': typeof ApiCollectionsRoute
   '/api/link': typeof ApiLinkRoute
   '/api/mcp': typeof ApiMcpRoute
   '/api/plans': typeof ApiPlansRoute
-  '/api/internal/catalog-push': typeof ApiInternalCatalogPushRoute
   '/auth/native-config': typeof AuthNativeConfigRoute
   '/auth/native-done': typeof AuthNativeDoneRoute
   '/auth/native-return': typeof AuthNativeReturnRoute
@@ -455,6 +470,7 @@ export interface FileRoutesByTo {
   '/profile': typeof ProfileIndexRoute
   '/reading': typeof ReadingIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/internal/catalog-push': typeof ApiInternalCatalogPushRoute
   '/collections/category/$categoryId': typeof CollectionsCategoryCategoryIdRoute
   '/notebook/g/$id': typeof NotebookGIdRoute
   '/reading/category/$categoryId': typeof ReadingCategoryCategoryIdRoute
@@ -468,6 +484,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/app': typeof AppRoute
   '/collections': typeof CollectionsRouteWithChildren
+  '/contact': typeof ContactRoute
   '/for-ai': typeof ForAiRoute
   '/groups': typeof GroupsRouteWithChildren
   '/inbox': typeof InboxRoute
@@ -479,12 +496,12 @@ export interface FileRoutesById {
   '/profile': typeof ProfileRouteWithChildren
   '/reading': typeof ReadingRouteWithChildren
   '/settings': typeof SettingsRoute
+  '/terms': typeof TermsRoute
   '/.well-known/apple-app-site-association': typeof DotwellKnownAppleAppSiteAssociationRoute
   '/api/collections': typeof ApiCollectionsRoute
   '/api/link': typeof ApiLinkRoute
   '/api/mcp': typeof ApiMcpRoute
   '/api/plans': typeof ApiPlansRoute
-  '/api/internal/catalog-push': typeof ApiInternalCatalogPushRoute
   '/auth/native-config': typeof AuthNativeConfigRoute
   '/auth/native-done': typeof AuthNativeDoneRoute
   '/auth/native-return': typeof AuthNativeReturnRoute
@@ -514,6 +531,7 @@ export interface FileRoutesById {
   '/profile/': typeof ProfileIndexRoute
   '/reading/': typeof ReadingIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/internal/catalog-push': typeof ApiInternalCatalogPushRoute
   '/collections/category/$categoryId': typeof CollectionsCategoryCategoryIdRoute
   '/notebook/g/$id': typeof NotebookGIdRoute
   '/reading/category/$categoryId': typeof ReadingCategoryCategoryIdRoute
@@ -528,6 +546,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/app'
     | '/collections'
+    | '/contact'
     | '/for-ai'
     | '/groups'
     | '/inbox'
@@ -539,12 +558,12 @@ export interface FileRouteTypes {
     | '/profile'
     | '/reading'
     | '/settings'
+    | '/terms'
     | '/.well-known/apple-app-site-association'
     | '/api/collections'
     | '/api/link'
     | '/api/mcp'
     | '/api/plans'
-    | '/api/internal/catalog-push'
     | '/auth/native-config'
     | '/auth/native-done'
     | '/auth/native-return'
@@ -574,6 +593,7 @@ export interface FileRouteTypes {
     | '/profile/'
     | '/reading/'
     | '/api/auth/$'
+    | '/api/internal/catalog-push'
     | '/collections/category/$categoryId'
     | '/notebook/g/$id'
     | '/reading/category/$categoryId'
@@ -585,6 +605,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/admin'
     | '/app'
+    | '/contact'
     | '/for-ai'
     | '/inbox'
     | '/login'
@@ -592,12 +613,12 @@ export interface FileRouteTypes {
     | '/native-phase0'
     | '/privacy'
     | '/settings'
+    | '/terms'
     | '/.well-known/apple-app-site-association'
     | '/api/collections'
     | '/api/link'
     | '/api/mcp'
     | '/api/plans'
-    | '/api/internal/catalog-push'
     | '/auth/native-config'
     | '/auth/native-done'
     | '/auth/native-return'
@@ -627,6 +648,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/reading'
     | '/api/auth/$'
+    | '/api/internal/catalog-push'
     | '/collections/category/$categoryId'
     | '/notebook/g/$id'
     | '/reading/category/$categoryId'
@@ -639,6 +661,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/app'
     | '/collections'
+    | '/contact'
     | '/for-ai'
     | '/groups'
     | '/inbox'
@@ -650,12 +673,12 @@ export interface FileRouteTypes {
     | '/profile'
     | '/reading'
     | '/settings'
+    | '/terms'
     | '/.well-known/apple-app-site-association'
     | '/api/collections'
     | '/api/link'
     | '/api/mcp'
     | '/api/plans'
-    | '/api/internal/catalog-push'
     | '/auth/native-config'
     | '/auth/native-done'
     | '/auth/native-return'
@@ -685,6 +708,7 @@ export interface FileRouteTypes {
     | '/profile/'
     | '/reading/'
     | '/api/auth/$'
+    | '/api/internal/catalog-push'
     | '/collections/category/$categoryId'
     | '/notebook/g/$id'
     | '/reading/category/$categoryId'
@@ -698,6 +722,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   AppRoute: typeof AppRoute
   CollectionsRoute: typeof CollectionsRouteWithChildren
+  ContactRoute: typeof ContactRoute
   ForAiRoute: typeof ForAiRoute
   GroupsRoute: typeof GroupsRouteWithChildren
   InboxRoute: typeof InboxRoute
@@ -709,12 +734,12 @@ export interface RootRouteChildren {
   ProfileRoute: typeof ProfileRouteWithChildren
   ReadingRoute: typeof ReadingRouteWithChildren
   SettingsRoute: typeof SettingsRoute
+  TermsRoute: typeof TermsRoute
   DotwellKnownAppleAppSiteAssociationRoute: typeof DotwellKnownAppleAppSiteAssociationRoute
   ApiCollectionsRoute: typeof ApiCollectionsRoute
   ApiLinkRoute: typeof ApiLinkRoute
   ApiMcpRoute: typeof ApiMcpRoute
   ApiPlansRoute: typeof ApiPlansRoute
-  ApiInternalCatalogPushRoute: typeof ApiInternalCatalogPushRoute
   AuthNativeConfigRoute: typeof AuthNativeConfigRoute
   AuthNativeDoneRoute: typeof AuthNativeDoneRoute
   AuthNativeReturnRoute: typeof AuthNativeReturnRoute
@@ -724,6 +749,7 @@ export interface RootRouteChildren {
   NIdRoute: typeof NIdRoute
   UHandleRoute: typeof UHandleRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiInternalCatalogPushRoute: typeof ApiInternalCatalogPushRoute
   ApiNativeV1SplatRoute: typeof ApiNativeV1SplatRoute
   ApiNativeV1IndexRoute: typeof ApiNativeV1IndexRoute
 }
@@ -763,6 +789,13 @@ declare module '@tanstack/react-router' {
       path: '/collections'
       fullPath: '/collections'
       preLoaderRoute: typeof CollectionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/for-ai': {
@@ -842,6 +875,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/.well-known/apple-app-site-association': {
       id: '/.well-known/apple-app-site-association'
       path: '/.well-known/apple-app-site-association'
@@ -875,13 +915,6 @@ declare module '@tanstack/react-router' {
       path: '/api/plans'
       fullPath: '/api/plans'
       preLoaderRoute: typeof ApiPlansRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/internal/catalog-push': {
-      id: '/api/internal/catalog-push'
-      path: '/api/internal/catalog-push'
-      fullPath: '/api/internal/catalog-push'
-      preLoaderRoute: typeof ApiInternalCatalogPushRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/native-config': {
@@ -1087,6 +1120,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/internal/catalog-push': {
+      id: '/api/internal/catalog-push'
+      path: '/api/internal/catalog-push'
+      fullPath: '/api/internal/catalog-push'
+      preLoaderRoute: typeof ApiInternalCatalogPushRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/collections/category/$categoryId': {
       id: '/collections/category/$categoryId'
       path: '/category/$categoryId'
@@ -1224,6 +1264,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   AppRoute: AppRoute,
   CollectionsRoute: CollectionsRouteWithChildren,
+  ContactRoute: ContactRoute,
   ForAiRoute: ForAiRoute,
   GroupsRoute: GroupsRouteWithChildren,
   InboxRoute: InboxRoute,
@@ -1235,13 +1276,13 @@ const rootRouteChildren: RootRouteChildren = {
   ProfileRoute: ProfileRouteWithChildren,
   ReadingRoute: ReadingRouteWithChildren,
   SettingsRoute: SettingsRoute,
+  TermsRoute: TermsRoute,
   DotwellKnownAppleAppSiteAssociationRoute:
     DotwellKnownAppleAppSiteAssociationRoute,
   ApiCollectionsRoute: ApiCollectionsRoute,
   ApiLinkRoute: ApiLinkRoute,
   ApiMcpRoute: ApiMcpRoute,
   ApiPlansRoute: ApiPlansRoute,
-  ApiInternalCatalogPushRoute: ApiInternalCatalogPushRoute,
   AuthNativeConfigRoute: AuthNativeConfigRoute,
   AuthNativeDoneRoute: AuthNativeDoneRoute,
   AuthNativeReturnRoute: AuthNativeReturnRoute,
@@ -1251,6 +1292,7 @@ const rootRouteChildren: RootRouteChildren = {
   NIdRoute: NIdRoute,
   UHandleRoute: UHandleRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiInternalCatalogPushRoute: ApiInternalCatalogPushRoute,
   ApiNativeV1SplatRoute: ApiNativeV1SplatRoute,
   ApiNativeV1IndexRoute: ApiNativeV1IndexRoute,
 }
