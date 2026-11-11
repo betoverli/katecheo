@@ -56,6 +56,8 @@
 		D3E0F0052FED796500168540 /* NativeAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E0F0042FED796500168540 /* NativeAPIClient.swift */; };
 		E4F1A0102FED796500168550 /* AppRoot.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4F1A0112FED796500168550 /* AppRoot.swift */; };
 		E4F1A0122FED796500168550 /* LocalNoteCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4F1A0132FED796500168550 /* LocalNoteCache.swift */; };
+		GNCACHE12FED7965001685GN /* LocalGroupNotesCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = GNCACHE11FED7965001685GN /* LocalGroupNotesCache.swift */; };
+		GNCACHE22FED7965001685GN /* GroupNotesCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = GNCACHE21FED7965001685GN /* GroupNotesCacheTests.swift */; };
 		A1B2C0122FED7965001685F2 /* GroupMembersViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C0132FED7965001685F2 /* GroupMembersViewController.swift */; };
 		A1B2C0102FED7965001685F1 /* LocalSessionCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C0112FED7965001685F1 /* LocalSessionCache.swift */; };
 		E4F1A0142FED796500168550 /* NativeRootTabBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4F1A0152FED796500168550 /* NativeRootTabBarController.swift */; };
@@ -132,6 +134,8 @@
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 		E4F1A0112FED796500168550 /* AppRoot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRoot.swift; sourceTree = "<group>"; };
 		E4F1A0132FED796500168550 /* LocalNoteCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalNoteCache.swift; sourceTree = "<group>"; };
+		GNCACHE11FED7965001685GN /* LocalGroupNotesCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalGroupNotesCache.swift; sourceTree = "<group>"; };
+		GNCACHE21FED7965001685GN /* GroupNotesCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupNotesCacheTests.swift; sourceTree = "<group>"; };
 		A1B2C0132FED7965001685F2 /* GroupMembersViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupMembersViewController.swift; sourceTree = "<group>"; };
 		A1B2C0112FED7965001685F1 /* LocalSessionCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalSessionCache.swift; sourceTree = "<group>"; };
 		E4F1A0152FED796500168550 /* NativeRootTabBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeRootTabBarController.swift; sourceTree = "<group>"; };
@@ -271,6 +275,7 @@
 				D3E0F0042FED796500168540 /* NativeAPIClient.swift */,
 				E4F1A0112FED796500168550 /* AppRoot.swift */,
 				E4F1A0132FED796500168550 /* LocalNoteCache.swift */,
+				GNCACHE11FED7965001685GN /* LocalGroupNotesCache.swift */,
 				A1B2C0132FED7965001685F2 /* GroupMembersViewController.swift */,
 				A1B2C0112FED7965001685F1 /* LocalSessionCache.swift */,
 				F6A6E0112FED7965001685B0 /* LegacyNoteConverter.swift */,
@@ -331,6 +336,7 @@
 				TBAUTH1FED7965001685TB /* AuthSignInScreenTests.swift */,
 				TBONB21FED7965001685TB /* OnboardingFlowTests.swift */,
 				KCSWR21FED7965001685V2 /* NativeSWRCacheTests.swift */,
+				GNCACHE21FED7965001685GN /* GroupNotesCacheTests.swift */,
 				TBNTC11FED7965001685TB /* NotificationsCenterTests.swift */,
 			);
 			path = KatecheoTests;
@@ -548,6 +554,7 @@
 				D3E0F0052FED796500168540 /* NativeAPIClient.swift in Sources */,
 				E4F1A0102FED796500168550 /* AppRoot.swift in Sources */,
 				E4F1A0122FED796500168550 /* LocalNoteCache.swift in Sources */,
+				GNCACHE12FED7965001685GN /* LocalGroupNotesCache.swift in Sources */,
 				A1B2C0122FED7965001685F2 /* GroupMembersViewController.swift in Sources */,
 				A1B2C0102FED7965001685F1 /* LocalSessionCache.swift in Sources */,
 				F6A6E0102FED7965001685B0 /* LegacyNoteConverter.swift in Sources */,
@@ -600,6 +607,7 @@
 				TBAUTH2FED7965001685TB /* AuthSignInScreenTests.swift in Sources */,
 				TBONB22FED7965001685TB /* OnboardingFlowTests.swift in Sources */,
 				KCSWR22FED7965001685V2 /* NativeSWRCacheTests.swift in Sources */,
+				GNCACHE22FED7965001685GN /* GroupNotesCacheTests.swift in Sources */,
 				TBNTC12FED7965001685TB /* NotificationsCenterTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

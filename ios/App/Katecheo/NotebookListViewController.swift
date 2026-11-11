@@ -22,11 +22,17 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     /// When set, this list shows notes published to the group (Phase 2).
     private var group: NativeAPIClient.GroupDTO?
     private var notificationsBell: KCNotificationsBellButton?
+    /// True until the first group-notes network (or throttle hit) finishes when there was no cache.
+    private var groupNotesAwaitingFirstPaint = false
 
     convenience init(group: NativeAPIClient.GroupDTO) {
         self.init(nibName: nil, bundle: nil)
         self.group = group
     }
+
+    /// Test hooks — group notes cache paint.
+    var testing_groupCardsCount: Int { groupCards.count }
+    var testing_firstGroupNoteTitle: String? { groupCards.first?.note.title }
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -121,6 +127,16 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
         if group == nil {
             notes = LocalNoteCache.loadNotes()
             speakers = LocalNoteCache.loadSpeakers()
+        } else if let group {
+            // Stale-while-revalidate: paint last known group notes immediately.
+            let userId = LocalSessionCache.loadMe()?.id ?? ""
+            if let cached = LocalGroupNotesCache.load(userId: userId, groupId: group.id), !cached.isEmpty {
+                groupCards = cached
+                notes = groupCards.compactMap { $0.document }
+                groupNotesAwaitingFirstPaint = false
+            } else {
+                groupNotesAwaitingFirstPaint = true
+            }
         }
         applyFilter()
 
@@ -220,11 +236,36 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             do {
                 let force = refresh.isRefreshing
                 if let group {
-                    let refreshed = try await NativeAPIClient.getGroup(id: group.id)
-                    self.group = refreshed
-                    title = refreshed.name
-                    groupCards = try await NativeAPIClient.listGroupNotes(groupId: group.id)
-                    notes = groupCards.compactMap { $0.document }
+                    let userId = LocalSessionCache.loadMe()?.id ?? ""
+                    // Keep showing cache while revalidating; spinner only when nothing cached yet.
+                    if groupCards.isEmpty,
+                       let cached = LocalGroupNotesCache.load(userId: userId, groupId: group.id),
+                       !cached.isEmpty
+                    {
+                        groupCards = cached
+                        notes = groupCards.compactMap { $0.document }
+                        groupNotesAwaitingFirstPaint = false
+                        applyFilter()
+                    } else if groupCards.isEmpty {
+                        groupNotesAwaitingFirstPaint = true
+                        emptyState.showLoading(message: String(localized: "Carregando…"))
+                        tableView.isHidden = true
+                    }
+
+                    let notesFresh = NativeSWR.isFresh(.groupNotes(group.id), ttl: NativeSWR.TTL.groupNotes)
+                    if force || !notesFresh {
+                        // Metadata refresh only when we actually hit the notes endpoint (or pull).
+                        let refreshed = try await NativeAPIClient.getGroup(id: group.id)
+                        self.group = refreshed
+                        title = refreshed.name
+                        groupCards = try await NativeAPIClient.listGroupNotes(groupId: group.id, force: force)
+                        notes = groupCards.compactMap { $0.document }
+                    } else if let cached = LocalGroupNotesCache.load(userId: userId, groupId: group.id) {
+                        // Throttled — reuse disk/memory without another GET.
+                        groupCards = cached
+                        notes = groupCards.compactMap { $0.document }
+                    }
+                    groupNotesAwaitingFirstPaint = false
                     // No persistent sync success banner — list content is enough.
                     setBannerStatus(nil)
                     applyFilter()
@@ -265,7 +306,12 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                         setBannerStatus(String(localized: "Sem rede — mostrando cache."), kind: .warning)
                     }
                 } else {
-                    setBannerStatus(String(localized: "Sem rede. \(error.localizedDescription)"), kind: .error)
+                    groupNotesAwaitingFirstPaint = false
+                    if groupCards.isEmpty {
+                        setBannerStatus(String(localized: "Sem rede. \(error.localizedDescription)"), kind: .error)
+                    } else {
+                        setBannerStatus(String(localized: "Sem rede — mostrando cache."), kind: .warning)
+                    }
                 }
                 applyFilter()
             }
@@ -358,7 +404,11 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 }
             }
             if filteredCards.isEmpty {
-                if q.isEmpty {
+                if groupNotesAwaitingFirstPaint && q.isEmpty {
+                    // First open with no cache — keep the loading spinner, don't flash empty.
+                    emptyState.showLoading(message: String(localized: "Carregando…"))
+                    tableView.isHidden = true
+                } else if q.isEmpty {
                     showEmpty(
                         symbol: "tray",
                         title: String(localized: "Nenhuma nota neste grupo"),

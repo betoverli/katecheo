@@ -9,6 +9,7 @@ enum NativeSWR {
         case speakers
         case granted
         case groups
+        case groupNotes(String)
         case prefs
         case me
         case note(String)
@@ -23,6 +24,7 @@ enum NativeSWR {
             case .speakers: return "speakers"
             case .granted: return "granted"
             case .groups: return "groups"
+            case .groupNotes(let id): return "groupNotes:\(id)"
             case .prefs: return "prefs"
             case .me: return "me"
             case .note(let id): return "note:\(id)"
@@ -44,6 +46,8 @@ enum NativeSWR {
     /// Sensible TTLs (seconds).
     enum TTL {
         static let lists: TimeInterval = 180 // notes / speakers / granted / groups
+        /// Group detail notes — short throttle so re-open skips network (~30s).
+        static let groupNotes: TimeInterval = 30
         static let prefs: TimeInterval = 180
         static let me: TimeInterval = 180
         static let note: TimeInterval = 45
@@ -148,6 +152,7 @@ enum NativeSWR {
         clearAccountDiskCaches()
         // Disk mirrors + outbox are account-owned (explore gap from SWR work).
         LocalNoteCache.clearAll()
+        LocalGroupNotesCache.clearAll()
         NativeOutbox.clearAll()
     }
 
@@ -164,6 +169,7 @@ enum NativeSWR {
         clearPublicDiskCaches()
         // Avoid leaking session mirrors / outbox / notes across XCTest cases.
         LocalNoteCache.clearAll()
+        LocalGroupNotesCache.clearAll()
         NativeOutbox.clearAll()
         LocalSessionCache.clearMe()
         LocalSessionCache.clearGroups()

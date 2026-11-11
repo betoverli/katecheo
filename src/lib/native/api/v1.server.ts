@@ -440,7 +440,12 @@ export function nativeV1Catalog() {
       { method: "GET", path: "/groups/:id", auth: true },
       { method: "PATCH", path: "/groups/:id", auth: true, body: "{ name?, description?, visibility?, postPolicy? }" },
       { method: "DELETE", path: "/groups/:id", auth: true },
-      { method: "GET", path: "/groups/:id/notes", auth: true },
+      {
+        method: "GET",
+        path: "/groups/:id/notes",
+        auth: true,
+        note: "Supports updatedSince + If-None-Match/ETag (304)",
+      },
       { method: "POST", path: "/groups/:id/notes", auth: true, body: "{ noteId }" },
       { method: "DELETE", path: "/groups/:id/notes/:noteId", auth: true },
       { method: "GET", path: "/groups/:id/members", auth: true },

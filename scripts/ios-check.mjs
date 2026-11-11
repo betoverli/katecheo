@@ -1288,6 +1288,25 @@ try {
   if (!notifyCenter.includes("Limpar tudo") || !notifyCenter.includes("deleteNotification") || !notifyCenter.includes("Excluir")) {
     errors.push("Avisos tem de ter swipe Excluir e Limpar tudo com confirmação.");
   }
+  if (!notifyCenter.includes("checkmark.circle") || !notifyCenter.includes("systemName: \"trash\"")) {
+    errors.push("Avisos Mark all / Clear all têm de ser botões de ícone SF Symbol (não texto).");
+  }
+  const emptyState = read("ios/App/Katecheo/KCComponents.swift");
+  if (!emptyState.includes("stopIconAnimation") || !/func show\([\s\S]*stopIconAnimation/.test(emptyState)) {
+    errors.push("KCEmptyStateView.show tem de parar a animação de loading (empty state estático).");
+  }
+  if (!read("ios/App/Katecheo/LocalGroupNotesCache.swift").includes("clearAll")) {
+    errors.push("LocalGroupNotesCache.clearAll obrigatório (cache de notas do grupo).");
+  }
+  if (!project.includes("LocalGroupNotesCache.swift in Sources")) {
+    errors.push("LocalGroupNotesCache.swift tem de estar no target App.");
+  }
+  if (!project.includes("GroupNotesCacheTests.swift in Sources")) {
+    errors.push("GroupNotesCacheTests.swift tem de estar no target KatecheoTests.");
+  }
+  if (!api.includes("listGroupNotes") || !api.includes("If-None-Match") || !api.includes("updatedSince")) {
+    errors.push("listGroupNotes tem de usar If-None-Match / updatedSince (SWR do grupo).");
+  }
   if (!notifyVm.includes("func deleteNotification") || !notifyVm.includes("func clearAll")) {
     errors.push("NotificationsCenterViewModel tem de apagar/limpar com UI otimista.");
   }
@@ -1320,6 +1339,9 @@ try {
   }
   if (notebookShared.includes("Shared with me") || notebookShared.includes("Compartilhadas comigo")) {
     errors.push("Não criar secção duplicada Shared with me — reutilizar Compartilhadas (build-238).");
+  }
+  if (!notebookShared.includes("LocalGroupNotesCache") || !notebookShared.includes("groupNotesAwaitingFirstPaint")) {
+    errors.push("NotebookList (grupo) tem de pintar cache local antes do fetch.");
   }
 } catch {
   errors.push("Falha ao validar checks build-238.");

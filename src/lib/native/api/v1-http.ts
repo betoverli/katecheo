@@ -39,7 +39,7 @@ import {
 import type { z } from "zod";
 
 const CORS_METHODS = "GET, POST, PATCH, PUT, DELETE, OPTIONS";
-const CORS_HEADERS = "Authorization, Content-Type, Cookie";
+const CORS_HEADERS = "Authorization, Content-Type, Cookie, If-None-Match";
 
 function corsHeadersFor(request: Request): Record<string, string> {
   const origin = request.headers.get("origin")?.trim() ?? "";
@@ -519,9 +519,32 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
     if (route.kind === "group-notes") {
       if (!route.noteId) {
         if (method === "GET") {
-          const result = await groupsApi.listNotesInGroupForUser(user.id, route.groupId);
+          const url = new URL(request.url);
+          const updatedSince = url.searchParams.get("updatedSince");
+          const result = await groupsApi.listNotesInGroupForUser(user.id, route.groupId, {
+            updatedSince,
+          });
           if (!result.ok) return respond(result, 403);
-          return respond(result);
+          const inm = request.headers.get("if-none-match")?.trim() ?? "";
+          if (inm && inm === result.etag) {
+            return new Response(null, {
+              status: 304,
+              headers: {
+                ETag: result.etag,
+                "Cache-Control": "private, no-cache",
+                ...corsHeadersFor(request),
+              },
+            });
+          }
+          return respond(
+            { ok: true, notes: result.notes, incremental: result.incremental },
+            200,
+            {
+              ETag: result.etag,
+              "Cache-Control": "private, no-cache",
+              "Access-Control-Expose-Headers": "ETag",
+            },
+          );
         }
         const body = await readAndParse(request, groupNotePublishSchema, respond);
         if (body instanceof Response) return body;

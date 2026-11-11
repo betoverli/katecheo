@@ -253,12 +253,21 @@ final class NotificationsCenterTests: XCTestCase {
         vc.loadViewIfNeeded()
         await vc.testing_viewModel.loadInitial()
         XCTAssertEqual(vc.title, String(localized: "Avisos"))
-        let rightTitles = vc.navigationItem.rightBarButtonItems?.compactMap(\.title) ?? []
-        XCTAssertEqual(vc.testing_markAllButton?.title, String(localized: "Marcar todas como lidas"))
-        XCTAssertEqual(vc.testing_clearAllButton?.title, String(localized: "Limpar tudo"))
-        XCTAssertTrue(rightTitles.contains(String(localized: "Marcar todas como lidas")))
-        XCTAssertTrue(rightTitles.contains(String(localized: "Limpar tudo")))
+        // Compact SF Symbol buttons — a11y labels keep the localized copy.
+        XCTAssertNil(vc.testing_markAllButton?.title)
+        XCTAssertNil(vc.testing_clearAllButton?.title)
+        XCTAssertNotNil(vc.testing_markAllButton?.image)
+        XCTAssertNotNil(vc.testing_clearAllButton?.image)
+        XCTAssertEqual(
+            vc.testing_markAllButton?.accessibilityLabel,
+            String(localized: "Marcar todas como lidas")
+        )
+        XCTAssertEqual(
+            vc.testing_clearAllButton?.accessibilityLabel,
+            String(localized: "Limpar tudo")
+        )
         XCTAssertTrue(vc.testing_clearAllButton?.isEnabled == true)
+        XCTAssertTrue(vc.testing_markAllButton?.isEnabled == true)
         XCTAssertGreaterThan(vc.testing_tableView.numberOfSections, 0)
         XCTAssertEqual(vc.testing_viewModel.items.count, 2)
 
@@ -281,6 +290,16 @@ final class NotificationsCenterTests: XCTestCase {
         bell.updateBadge("99+")
         XCTAssertEqual(bell.accessibilityValue, "99+")
         XCTAssertEqual(bell.accessibilityLabel, String(localized: "Avisos"))
+    }
+
+    func testNotificationsCenter_iconButtonsDisabledWhenEmpty() async {
+        MockNativeURLProtocol.notificationsJSON = Self.emptyPayload
+        let vc = NotificationsCenterViewController()
+        vc.loadViewIfNeeded()
+        await vc.testing_viewModel.loadInitial()
+        XCTAssertTrue(vc.testing_viewModel.showsEmpty)
+        XCTAssertEqual(vc.testing_markAllButton?.isEnabled, false)
+        XCTAssertEqual(vc.testing_clearAllButton?.isEnabled, false)
     }
 
     // MARK: - Fixtures

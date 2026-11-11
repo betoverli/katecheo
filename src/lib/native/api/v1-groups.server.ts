@@ -3,8 +3,11 @@
  */
 import { getSql, type Sql } from "@/lib/db";
 import { allowRequest } from "@/lib/rate-limit";
+import { groupNotesEtag } from "./group-notes-etag";
 import { noteFromRow } from "./v1.server";
 import { noteToDocument, type LegacyNote, type NoteDocumentV1 } from "./note-document";
+
+export { groupNotesEtag } from "./group-notes-etag";
 
 export type NativeGroupVisibility = "listed" | "private";
 export type NativeGroupPostPolicy = "members" | "admins";
@@ -245,10 +248,22 @@ export async function deleteGroupForUser(
   return { ok: true };
 }
 
+export type ListGroupNotesResult =
+  | {
+      ok: true;
+      notes: NativeGroupNoteCard[];
+      /** Weak fingerprint of id+updatedAt for If-None-Match / ETag. */
+      etag: string;
+      /** True when `notes` is only the delta since `updatedSince` (not the full list). */
+      incremental: boolean;
+    }
+  | { ok: false; error: "forbidden" };
+
 export async function listNotesInGroupForUser(
   userId: string,
   groupId: string,
-): Promise<{ ok: true; notes: NativeGroupNoteCard[] } | { ok: false; error: "forbidden" }> {
+  options: { updatedSince?: string | null } = {},
+): Promise<ListGroupNotesResult> {
   const sql = await getSql();
   const mine = await memberOf(sql, groupId, userId);
   if (mine?.status !== "accepted") return { ok: false, error: "forbidden" };
@@ -272,7 +287,7 @@ export async function listNotesInGroupForUser(
     limit 80
   `;
 
-  const notes: NativeGroupNoteCard[] = rows.map((row) => {
+  const allNotes: NativeGroupNoteCard[] = rows.map((row) => {
     const owned = row.user_id === userId;
     const document = owned ? noteToDocument(noteFromRow(row) as LegacyNote) : null;
     const happened =
@@ -294,7 +309,17 @@ export async function listNotesInGroupForUser(
       document,
     };
   });
-  return { ok: true, notes };
+
+  const etag = groupNotesEtag(allNotes);
+  const since = options.updatedSince?.trim() || "";
+  if (since) {
+    const delta = allNotes.filter((card) => card.note.updatedAt > since);
+    // Only advertise incremental when the watermark filters something out.
+    if (delta.length < allNotes.length) {
+      return { ok: true, notes: delta, etag, incremental: true };
+    }
+  }
+  return { ok: true, notes: allNotes, etag, incremental: false };
 }
 
 export async function listGroupsForNote(
