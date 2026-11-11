@@ -2,6 +2,22 @@ import { isNativeApp } from "@/lib/native/runtime";
 
 const TOKEN_KEY = "katecheo.apns-token";
 const FLAG_KEY = "katecheo.apns";
+const DEVICE_ID_KEY = "katecheo.device-id";
+
+function stableDeviceId(): string {
+  try {
+    const existing = localStorage.getItem(DEVICE_ID_KEY)?.trim();
+    if (existing && existing.length >= 8) return existing;
+    const id =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `web-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    localStorage.setItem(DEVICE_ID_KEY, id);
+    return id;
+  } catch {
+    return `web-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  }
+}
 
 type PushResult =
   | { ok: true; error: null }
@@ -34,7 +50,14 @@ async function persistToken(token: string): Promise<PushResult> {
     /* storage can be blocked; the server row is what matters */
   }
   const { saveApnsDevice } = await import("@/lib/native/devices");
-  const saved = await saveApnsDevice({ data: { token, sandbox } });
+  const saved = await saveApnsDevice({
+    data: {
+      token,
+      deviceId: stableDeviceId(),
+      sandbox,
+      environment: sandbox ? "sandbox" : "production",
+    },
+  });
   if (!saved.ok) return { ok: false, error: "save" };
   return { ok: true, error: null };
 }
@@ -128,7 +151,13 @@ export async function disableNativePush() {
     /* still drop the server row when we can */
   }
   const { dropApnsDevice } = await import("@/lib/native/devices");
-  await dropApnsDevice({ data: { token } });
+  let deviceId = "";
+  try {
+    deviceId = localStorage.getItem(DEVICE_ID_KEY) ?? "";
+  } catch {
+    /* best-effort */
+  }
+  await dropApnsDevice({ data: { token, deviceId: deviceId || undefined } });
   try {
     const { PushNotifications } = await import("@capacitor/push-notifications");
     await PushNotifications.unregister();

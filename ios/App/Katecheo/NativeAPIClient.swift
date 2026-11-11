@@ -1665,10 +1665,12 @@ enum NativeAPIClient {
 
     // MARK: - APNs devices (Phase 5 — native, no Capacitor)
 
-    static func saveApnsDevice(token: String, sandbox: Bool) async throws {
+    static func saveApnsDevice(token: String, deviceId: String, sandbox: Bool) async throws {
         let body = try JSONSerialization.data(withJSONObject: [
             "token": token,
+            "deviceId": deviceId,
             "sandbox": sandbox,
+            "environment": sandbox ? "sandbox" : "production",
         ])
         let request = try authorizedRequest(path: "api/native/v1/devices/apns", method: "POST", body: body)
         let (status, data) = try await perform(request)
@@ -1678,8 +1680,11 @@ enum NativeAPIClient {
         }
     }
 
-    static func dropApnsDevice(token: String) async throws {
-        let body = try JSONSerialization.data(withJSONObject: ["token": token])
+    static func dropApnsDevice(token: String, deviceId: String) async throws {
+        let body = try JSONSerialization.data(withJSONObject: [
+            "token": token,
+            "deviceId": deviceId,
+        ])
         let request = try authorizedRequest(path: "api/native/v1/devices/apns", method: "DELETE", body: body)
         let (status, data) = try await perform(request)
         try throwIfUnauthorized(status)

@@ -1,12 +1,14 @@
 import Foundation
 import Security
 
-/// Small Keychain helper for the Better Auth bearer and APNs device token.
+/// Small Keychain helper for the Better Auth bearer, APNs device token, and stable device id.
 enum KeychainStore {
     static let bearerService = "katecheo.auth"
     static let bearerAccount = "bearer-token"
     static let apnsService = "katecheo.apns"
     static let apnsAccount = "device-token"
+    static let deviceIdService = "katecheo.device"
+    static let deviceIdAccount = "stable-device-id"
 
     @discardableResult
     static func setBearerToken(_ token: String?) -> Bool {
@@ -44,6 +46,26 @@ enum KeychainStore {
     @discardableResult
     static func deleteApnsToken() -> Bool {
         delete(service: apnsService, account: apnsAccount)
+    }
+
+    // MARK: - Stable device id (survives reinstall when Keychain retains the item)
+
+    @discardableResult
+    static func setDeviceId(_ deviceId: String?) -> Bool {
+        deleteDeviceId()
+        guard let deviceId, !deviceId.isEmpty, let data = deviceId.data(using: .utf8) else {
+            return deviceId == nil || deviceId?.isEmpty == true
+        }
+        return add(service: deviceIdService, account: deviceIdAccount, data: data)
+    }
+
+    static func deviceId() -> String? {
+        readString(service: deviceIdService, account: deviceIdAccount)
+    }
+
+    @discardableResult
+    static func deleteDeviceId() -> Bool {
+        delete(service: deviceIdService, account: deviceIdAccount)
     }
 
     // MARK: - Internals

@@ -255,6 +255,9 @@ if (!project.includes("BibleRefInsertPicker.swift in Sources")) {
 if (!project.includes("NativePushService.swift in Sources") || !project.includes("NativeDeepLinkRouter.swift in Sources")) {
   errors.push("NativePushService / NativeDeepLinkRouter têm de estar no target Xcode.");
 }
+if (!project.includes("DeviceIdStore.swift in Sources")) {
+  errors.push("DeviceIdStore tem de estar no target Xcode.");
+}
 if (!project.includes("LiquidGlassMaterial.m in Sources")) {
   errors.push("LiquidGlassMaterial tem de permanecer no target (vidro nativo).");
 }
@@ -715,6 +718,17 @@ if (!sessionBoot.includes("@MainActor") || !sessionBoot.includes("Thread.isMainT
 const push = read("ios/App/Katecheo/NativePushService.swift");
 if (!push.includes("UNUserNotificationCenter") || !push.includes("saveApnsDevice") || !push.includes("NativeDeepLinkRouter")) {
   errors.push("NativePushService tem de registar APNs e abrir href via NativeDeepLinkRouter.");
+}
+if (!push.includes("DeviceIdStore") || !push.includes("deviceId:")) {
+  errors.push("NativePushService tem de enviar deviceId estável com o token APNs.");
+}
+try {
+  const deviceIdStore = read("ios/App/Katecheo/DeviceIdStore.swift");
+  if (!deviceIdStore.includes("identifierForVendor") || !deviceIdStore.includes("KeychainStore")) {
+    errors.push("DeviceIdStore tem de usar identifierForVendor + Keychain.");
+  }
+} catch {
+  errors.push("Falta ios/App/Katecheo/DeviceIdStore.swift.");
 }
 
 const deep = read("ios/App/Katecheo/NativeDeepLinkRouter.swift");

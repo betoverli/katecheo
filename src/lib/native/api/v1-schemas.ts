@@ -97,22 +97,27 @@ export const notificationsReadSchema = z
 export const devicesApnsPostSchema = z
   .object({
     token: z.string().min(1).max(200),
+    deviceId: z.string().min(8).max(128),
     sandbox: z.boolean().optional(),
+    /** Optional alias for sandbox (`sandbox` | `production`). */
+    environment: z.enum(["sandbox", "production"]).optional(),
   })
   .passthrough();
 
 export const devicesApnsDeleteSchema = z
   .object({
     token: z.string().max(200).optional(),
+    deviceId: z.string().max(128).optional(),
     all: z.boolean().optional(),
   })
   .passthrough()
   .superRefine((val, ctx) => {
     if (val.all === true) return;
+    if (typeof val.deviceId === "string" && val.deviceId.trim()) return;
     if (typeof val.token === "string" && val.token.trim()) return;
     ctx.addIssue({
       code: "custom",
-      message: "token required unless all=true",
+      message: "token or deviceId required unless all=true",
       path: ["token"],
     });
   });

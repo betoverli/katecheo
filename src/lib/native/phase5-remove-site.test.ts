@@ -82,6 +82,8 @@ describe("Phase 5 — remove Capacitor site host", () => {
     const client = read("ios/App/Katecheo/NativeAPIClient.swift");
     assert.match(client, /func saveApnsDevice/);
     assert.match(client, /func dropApnsDevice/);
+    assert.match(client, /deviceId/);
+    assert.match(push, /DeviceIdStore/);
   });
 
   it("removes classic Cap fallbacks from login / Caderno / ComingSoon", () => {

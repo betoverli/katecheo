@@ -3,7 +3,7 @@ import UIKit
 import UserNotifications
 
 /// Pure-native APNs (no Capacitor PushNotifications plugin).
-/// Registers the device token with `/api/native/v1/devices/apns` using the Keychain bearer.
+/// Registers the device token + stable `DeviceIdStore` id with `/api/native/v1/devices/apns`.
 /// Device token itself is stored in the Keychain (not UserDefaults).
 @MainActor
 final class NativePushService: NSObject, UNUserNotificationCenterDelegate {
@@ -74,9 +74,10 @@ final class NativePushService: NSObject, UNUserNotificationCenterDelegate {
     func disable() async {
         UserDefaults.standard.set(false, forKey: Self.enabledKey)
         let token = lastTokenHex ?? KeychainStore.apnsToken() ?? ""
+        let deviceId = DeviceIdStore.deviceId()
         UIApplication.shared.unregisterForRemoteNotifications()
-        if !token.isEmpty, NativeAPIClient.hasBearer {
-            try? await NativeAPIClient.dropApnsDevice(token: token)
+        if NativeAPIClient.hasBearer, !token.isEmpty || !deviceId.isEmpty {
+            try? await NativeAPIClient.dropApnsDevice(token: token, deviceId: deviceId)
         }
         UserDefaults.standard.removeObject(forKey: Self.legacyTokenKey)
         _ = KeychainStore.deleteApnsToken()
@@ -85,10 +86,15 @@ final class NativePushService: NSObject, UNUserNotificationCenterDelegate {
 
     private func uploadToken(_ token: String) async {
         guard NativeAPIClient.hasBearer else { return }
+        let deviceId = DeviceIdStore.deviceId()
         do {
-            try await NativeAPIClient.saveApnsDevice(token: token, sandbox: Self.apnsSandbox)
+            try await NativeAPIClient.saveApnsDevice(
+                token: token,
+                deviceId: deviceId,
+                sandbox: Self.apnsSandbox
+            )
             #if DEBUG
-            print("[NativePush] token saved sandbox=\(Self.apnsSandbox)")
+            print("[NativePush] token saved deviceId=\(deviceId) sandbox=\(Self.apnsSandbox)")
             #endif
         } catch {
             #if DEBUG
