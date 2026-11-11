@@ -7,13 +7,28 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
         guard let windowScene = scene as? UIWindowScene else { return }
 
-        window = UIWindow(windowScene: windowScene)
-        window?.tintColor = KCDesign.accent
+        // Single window only. Info.plist used to also load Main.storyboard for this
+        // scene, so a naive `UIWindow(windowScene:)` here created a *second* full-screen
+        // window. The orphaned storyboard window + the programmatic one raced safe-area
+        // propagation; onboarding's bottom chrome then sat on the physical bottom edge
+        // (home indicator) with a zero bottom inset — Get started looked clipped and
+        // taps were swallowed by the system home gesture (TF 325).
+        let window = self.window ?? windowScene.windows.first { !$0.isHidden } ?? UIWindow(windowScene: windowScene)
+        window.frame = windowScene.coordinateSpace.bounds
+        window.tintColor = KCDesign.accent
         // Apply saved Appearance BEFORE the first frame (TF219) — never force system.
         AppAppearance.syncFromCacheAndApply()
         AppAppearance.apply(to: window)
-        window?.rootViewController = AppRoot.makeRootViewController()
-        window?.makeKeyAndVisible()
+        window.rootViewController = AppRoot.makeRootViewController()
+        window.makeKeyAndVisible()
+        self.window = window
+
+        // Hide any leftover storyboard / duplicate windows in this scene.
+        for other in windowScene.windows where other !== window {
+            other.isHidden = true
+            other.rootViewController = nil
+        }
+
         // Re-assert after the window is key (covers late scene attachment).
         AppAppearance.apply(to: window)
 

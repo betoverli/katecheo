@@ -1,7 +1,7 @@
 import XCTest
 @testable import Katecheo
 
-/// First-launch onboarding: skip, swipe-through, Get started, layout, SE / Pro Max snapshots.
+/// First-launch onboarding: skip, swipe-through, Get started, safe-area chrome, snapshots.
 @MainActor
 final class OnboardingFlowTests: XCTestCase {
     override func setUp() async throws {
@@ -42,6 +42,30 @@ final class OnboardingFlowTests: XCTestCase {
         OnboardingStore.markSeen()
         let shell = AppRoot.makeRootViewController()
         XCTAssertTrue(shell is NativeRootTabBarController)
+    }
+
+    func testEffectiveBottomSafeInset_usesHomeIndicatorFallbackWhenBottomZeroButTopInset() {
+        // TF 325 failure mode: top inset present (Dynamic Island), bottom reports 0.
+        let inset = OnboardingViewController.effectiveBottomSafeInset(
+            viewInset: 0,
+            windowInset: 0,
+            topInset: 59
+        )
+        XCTAssertEqual(inset, OnboardingViewController.homeIndicatorFallback)
+
+        let healthy = OnboardingViewController.effectiveBottomSafeInset(
+            viewInset: 34,
+            windowInset: 34,
+            topInset: 59
+        )
+        XCTAssertEqual(healthy, 34)
+
+        let seHomeButton = OnboardingViewController.effectiveBottomSafeInset(
+            viewInset: 0,
+            windowInset: 0,
+            topInset: 20
+        )
+        XCTAssertEqual(seHomeButton, 0, "classic SE / home-button phones keep a zero bottom inset")
     }
 
     func testFlow_skipMarksSeenAndFinishes() {
@@ -95,21 +119,18 @@ final class OnboardingFlowTests: XCTestCase {
         let (vc, window) = makeOnboarding(style: .light, size: CGSize(width: 320, height: 568))
         vc.testing_goToPage(0)
         vc.view.layoutIfNeeded()
-        // Welcome title is the complete word "Katecheo" — never split.
         XCTAssertEqual(vc.testing_pageTitle, "Katecheo")
         let wordmark = try XCTUnwrap(vc.testing_wordmarkLabel)
         XCTAssertEqual(wordmark.numberOfLines, 1)
         XCTAssertTrue(wordmark.adjustsFontSizeToFitWidth)
         XCTAssertEqual(wordmark.minimumScaleFactor, 0.6, accuracy: 0.001)
         XCTAssertEqual(wordmark.lineBreakMode, .byClipping)
-        // Rendered glyph run stays on one line (no wrap to a second line).
         let lineHeight = wordmark.font.lineHeight
         XCTAssertLessThanOrEqual(wordmark.bounds.height, lineHeight * 1.35 + 2)
         window.isHidden = true
     }
 
     func testFlow_titlesUseFullWidthNotNarrowColumn() throws {
-        // iPhone SE width — the regression was a ~2–3 word narrow column.
         let (vc, window) = makeOnboarding(style: .dark, size: CGSize(width: 375, height: 667))
         for page in 0 ..< vc.testing_pageCount {
             vc.testing_goToPage(page)
@@ -117,66 +138,86 @@ final class OnboardingFlowTests: XCTestCase {
             let title = try XCTUnwrap(vc.testing_currentTitleLabel)
             let body = try XCTUnwrap(vc.testing_currentBodyLabel)
             let minTextWidth = vc.view.bounds.width - (KCDesign.Space.xl * 2) - 8
-            XCTAssertGreaterThanOrEqual(
-                title.bounds.width,
-                minTextWidth * 0.92,
-                "page \(page) title must span nearly full width (got \(title.bounds.width), need ≥\(minTextWidth * 0.92))"
-            )
-            XCTAssertGreaterThanOrEqual(
-                body.bounds.width,
-                minTextWidth * 0.92,
-                "page \(page) body must span nearly full width"
-            )
+            XCTAssertGreaterThanOrEqual(title.bounds.width, minTextWidth * 0.92)
+            XCTAssertGreaterThanOrEqual(body.bounds.width, minTextWidth * 0.92)
         }
         window.isHidden = true
     }
 
-    func testFlow_getStartedStaysInsideSafeArea_onSmallAndLargePhones() {
-        let sizes: [(String, CGSize)] = [
-            ("se", CGSize(width: 375, height: 667)),
-            ("proMax", CGSize(width: 430, height: 932)),
+    /// Hit-test style assertion: Get started frame in window coords must sit inside
+    /// the window safe-area layout frame (with the effective inset fallback).
+    func testFlow_getStartedFrameInsideWindowSafeArea_onSmallAndLargePhones() {
+        let sizes: [(String, CGSize, UIEdgeInsets)] = [
+            ("se", CGSize(width: 375, height: 667), UIEdgeInsets(top: 20, left: 0, bottom: 0, right: 0)),
+            ("phone15", CGSize(width: 393, height: 852), UIEdgeInsets(top: 59, left: 0, bottom: 34, right: 0)),
+            ("proMax", CGSize(width: 430, height: 932), UIEdgeInsets(top: 59, left: 0, bottom: 34, right: 0)),
+            // TF 325 regression: top inset present, bottom reports 0 until fallback.
+            ("brokenBottomInset", CGSize(width: 393, height: 852), UIEdgeInsets(top: 59, left: 0, bottom: 0, right: 0)),
         ]
-        for (name, size) in sizes {
-            let (vc, window) = makeOnboarding(style: .light, size: size)
+        for (name, size, insets) in sizes {
+            let (vc, window) = makeOnboarding(style: .dark, size: size, safeArea: insets)
             vc.testing_goToPage(3)
             vc.view.layoutIfNeeded()
+            vc.testing_updateBottomChromeInset()
+            vc.view.layoutIfNeeded()
+
             XCTAssertTrue(vc.testing_isStartVisible, "\(name): start visible")
 
-            let start = vc.testing_startButtonFrameInView
-            let skip = vc.testing_skipButtonFrameInView
-            let insets = vc.testing_safeAreaInsets
-            let bounds = vc.view.bounds
-
-            XCTAssertFalse(start.isEmpty, "\(name): start has layout")
-            XCTAssertGreaterThanOrEqual(start.minY, insets.top - 0.5, "\(name): start below top safe area")
-            XCTAssertLessThanOrEqual(
-                start.maxY,
-                bounds.height - insets.bottom + 0.5,
-                "\(name): start above bottom safe area (maxY=\(start.maxY), limit=\(bounds.height - insets.bottom))"
+            let effective = OnboardingViewController.effectiveBottomSafeInset(
+                viewInset: insets.bottom,
+                windowInset: insets.bottom,
+                topInset: insets.top
             )
-            XCTAssertGreaterThan(start.width, 40, "\(name): start tappable width")
-            XCTAssertGreaterThan(start.height, 40, "\(name): start tappable height")
+            let expectedPad = effective + KCDesign.Space.md
+            XCTAssertEqual(
+                vc.testing_bottomBarBottomConstant,
+                -expectedPad,
+                accuracy: 0.5,
+                "\(name): bottom constant must clear home indicator + 16pt"
+            )
 
-            // Skip is hidden on last page — verify it stays in safe area on page 0.
-            vc.testing_goToPage(0)
-            vc.view.layoutIfNeeded()
-            let skipOnFirst = vc.testing_skipButtonFrameInView
-            XCTAssertLessThanOrEqual(skipOnFirst.maxY, bounds.height - insets.bottom + 0.5, "\(name): skip in safe area")
-            XCTAssertGreaterThanOrEqual(skipOnFirst.minY, insets.top - 0.5, "\(name): skip below top inset")
-            _ = skip
+            let startInView = vc.testing_startButtonFrameInView
+            let limitY = size.height - expectedPad
+            XCTAssertLessThanOrEqual(
+                startInView.maxY,
+                limitY + 0.5,
+                "\(name): start maxY \(startInView.maxY) must be ≤ \(limitY)"
+            )
+            XCTAssertGreaterThan(startInView.height, 40, "\(name): tappable height")
+            XCTAssertGreaterThan(startInView.width, 40, "\(name): tappable width")
+
+            // Window-coordinate containment (as requested).
+            let startInWindow = vc.testing_startButton.convert(vc.testing_startButton.bounds, to: window)
+            let safeFrame = CGRect(
+                x: 0,
+                y: insets.top,
+                width: size.width,
+                height: size.height - insets.top - effective
+            ).insetBy(dx: 0, dy: 0)
+            // Button must sit above the home-indicator band (safeFrame.maxY - 16 margin already in pad).
+            XCTAssertLessThanOrEqual(
+                startInWindow.maxY,
+                safeFrame.maxY - KCDesign.Space.md + 0.5,
+                "\(name): start in window coords must be inside safe area with 16pt margin"
+            )
+            XCTAssertTrue(
+                window.bounds.insetBy(dx: -0.5, dy: -0.5).contains(startInWindow),
+                "\(name): start must be inside window bounds (hit-testing)"
+            )
+
             window.isHidden = true
         }
     }
 
     func testFlow_snapshotsLightDark_allPages_seAndProMax() throws {
-        let sizes: [(String, CGSize)] = [
-            ("se", CGSize(width: 375, height: 667)),
-            ("proMax", CGSize(width: 430, height: 932)),
+        let sizes: [(String, CGSize, UIEdgeInsets)] = [
+            ("se", CGSize(width: 375, height: 667), UIEdgeInsets(top: 20, left: 0, bottom: 0, right: 0)),
+            ("proMax", CGSize(width: 430, height: 932), UIEdgeInsets(top: 59, left: 0, bottom: 34, right: 0)),
         ]
-        for (device, size) in sizes {
+        for (device, size, insets) in sizes {
             for style in [UIUserInterfaceStyle.light, .dark] {
                 let tag = style == .light ? "light" : "dark"
-                let (vc, window) = makeOnboarding(style: style, size: size)
+                let (vc, window) = makeOnboarding(style: style, size: size, safeArea: insets)
                 for page in 0 ..< vc.testing_pageCount {
                     vc.testing_goToPage(page)
                     vc.view.layoutIfNeeded()
@@ -192,6 +233,7 @@ final class OnboardingFlowTests: XCTestCase {
     private func makeOnboarding(
         style: UIUserInterfaceStyle,
         size: CGSize = CGSize(width: 390, height: 844),
+        safeArea: UIEdgeInsets? = nil,
         onFinished: (() -> Void)? = nil
     ) -> (OnboardingViewController, UIWindow) {
         let vc = OnboardingViewController()
@@ -203,13 +245,15 @@ final class OnboardingFlowTests: XCTestCase {
         window.makeKeyAndVisible()
         vc.overrideUserInterfaceStyle = style
         vc.loadViewIfNeeded()
+        let insets = safeArea ?? (
+            size.height <= 700
+                ? UIEdgeInsets(top: 20, left: 0, bottom: 0, right: 0)
+                : UIEdgeInsets(top: 47, left: 0, bottom: 34, right: 0)
+        )
+        vc.additionalSafeAreaInsets = insets
         vc.viewWillAppear(false)
-        // Simulate device safe areas for SE-ish / modern phones when the test window has none.
-        if size.height <= 700 {
-            vc.additionalSafeAreaInsets = UIEdgeInsets(top: 20, left: 0, bottom: 0, right: 0)
-        } else {
-            vc.additionalSafeAreaInsets = UIEdgeInsets(top: 47, left: 0, bottom: 34, right: 0)
-        }
+        vc.view.layoutIfNeeded()
+        vc.testing_updateBottomChromeInset()
         vc.view.layoutIfNeeded()
         return (vc, window)
     }

@@ -39,6 +39,17 @@
                ReferencedContainer = "container:Katecheo.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "KCUIT1B2FED7965001685UI"
+               BuildableName = "KatecheoUITests.xctest"
+               BlueprintName = "KatecheoUITests"
+               ReferencedContainer = "container:Katecheo.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction

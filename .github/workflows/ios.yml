@@ -72,6 +72,7 @@ jobs:
             -destination "$DEST" \
             -derivedDataPath "${RUNNER_TEMP}/katecheo-ios" \
             -parallel-testing-enabled NO \
+            -skip-testing:KatecheoUITests \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
@@ -93,6 +94,48 @@ jobs:
           done
           ls -la artifacts || true
           exit "$TEST_STATUS"
+      - name: UI tests Get started (SE + Pro Max)
+        run: |
+          set -euo pipefail
+          pick_dest() {
+            local preferred="$1"
+            node -e '
+              const preferred=process.argv[1].split("|");
+              const {execSync}=require("child_process");
+              const data=JSON.parse(execSync("xcrun simctl list devices available -j",{encoding:"utf8"}));
+              const found=[];
+              for (const [runtime, devices] of Object.entries(data.devices||{})) {
+                if (!/iOS|iPhone/i.test(runtime)) continue;
+                for (const d of devices) {
+                  if (d.isAvailable && String(d.name||"").startsWith("iPhone")) found.push(d.name);
+                }
+              }
+              const pick = preferred.find((n)=>found.includes(n)) || found.find((n)=>/SE/i.test(n)) || found[0];
+              if (!pick) { console.error("Nenhum iPhone Simulator disponível"); process.exit(1); }
+              process.stdout.write("platform=iOS Simulator,name="+pick);
+            ' "$preferred"
+          }
+          DEST_SE="$(pick_dest "iPhone SE (3rd generation)|iPhone SE (2nd generation)|iPhone SE")"
+          DEST_MAX="$(pick_dest "iPhone 16 Pro Max|iPhone 15 Pro Max|iPhone 14 Pro Max|iPhone 16 Plus|iPhone 15 Plus")"
+          echo "SE dest: $DEST_SE"
+          echo "Pro Max dest: $DEST_MAX"
+          for DEST in "$DEST_SE" "$DEST_MAX"; do
+            echo "Running KatecheoUITests on $DEST"
+            xcodebuild \
+              -project ios/App/Katecheo.xcodeproj \
+              -scheme Katecheo \
+              -configuration Debug \
+              -sdk iphonesimulator \
+              -destination "$DEST" \
+              -derivedDataPath "${RUNNER_TEMP}/katecheo-ios" \
+              -parallel-testing-enabled NO \
+              -only-testing:KatecheoUITests/OnboardingGetStartedUITests \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO \
+              CODE_SIGN_IDENTITY="" \
+              DEVELOPMENT_TEAM="" \
+              test
+          done
       - name: Upload speaker appearance screenshots
         if: always()
         uses: actions/upload-artifact@v4

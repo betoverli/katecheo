@@ -57,6 +57,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         let config = UISceneConfiguration(name: "Default Configuration",
                                           sessionRole: connectingSceneSession.role)
         config.delegateClass = SceneDelegate.self
+        // Explicitly no storyboard — SceneDelegate creates/reuses one window.
+        config.storyboard = nil
         return config
     }
 }

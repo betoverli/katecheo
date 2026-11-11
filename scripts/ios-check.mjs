@@ -350,6 +350,24 @@ if (!onboardingVC.includes("stack.alignment = .fill") && !onboardingVC.includes(
 if (!onboardingVC.includes("Space.xl") || !onboardingVC.includes("bottomBar.bottomAnchor")) {
   errors.push("Onboarding tem de usar padding horizontal ~32pt e pinar Get started na safe area inferior.");
 }
+if (!onboardingVC.includes("effectiveBottomSafeInset") || !onboardingVC.includes("homeIndicatorFallback") || !onboardingVC.includes("view.bottomAnchor")) {
+  errors.push("Onboarding Get started tem de usar effectiveBottomSafeInset (fallback home indicator) pinado a view.bottomAnchor.");
+}
+if (!onboardingVC.includes("isUserInteractionEnabled = last") || onboardingVC.includes("startButton.isHidden")) {
+  errors.push("Onboarding Get started não pode usar isHidden no botão (reflow); usar alpha + isUserInteractionEnabled.");
+}
+
+const sceneDelegate = read("ios/App/Katecheo/SceneDelegate.swift");
+if (!sceneDelegate.includes("windowScene.windows") || !sceneDelegate.includes("coordinateSpace.bounds")) {
+  errors.push("SceneDelegate tem de reutilizar uma única window da scene (sem duplicar sobre Main.storyboard).");
+}
+const infoPlist = read("ios/App/Katecheo/Info.plist");
+if (infoPlist.includes("UISceneStoryboardFile") || infoPlist.includes("<key>UIMainStoryboardFile</key>")) {
+  errors.push("Info.plist não pode carregar Main.storyboard na scene (causa janela duplicada / safe area zerada).");
+}
+if (!project.includes("KatecheoUITests") || !project.includes("OnboardingGetStartedUITests.swift")) {
+  errors.push("KatecheoUITests / OnboardingGetStartedUITests têm de estar no projeto Xcode.");
+}
 if (!onboardingVC.includes("accessibilityLabel") || !onboardingVC.includes("accessibilityHint")) {
   errors.push("Onboarding tem de ter labels VoiceOver.");
 }
