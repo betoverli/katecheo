@@ -1,24 +1,34 @@
 import AuthenticationServices
 import UIKit
 
-/// Full-screen native sign-in when Keychain has no bearer.
+/// Full-screen native sign-in / create-account when Keychain has no bearer.
 final class NativeSignInViewController: UIViewController {
     var onSignedIn: (() -> Void)?
 
     private let scroll = UIScrollView()
     private let stack = UIStackView()
     private let statusLabel = UILabel()
+    private let socialCaptionLabel = UILabel()
+    private let nameField = UITextField()
     private let emailField = UITextField()
     private let passwordField = UITextField()
+    private let passwordConfirmField = UITextField()
+    private let nameErrorLabel = UILabel()
+    private let emailErrorLabel = UILabel()
+    private let passwordErrorLabel = UILabel()
+    private let passwordConfirmErrorLabel = UILabel()
+    private var modeControl: UISegmentedControl!
     private var googleButton: UIButton!
     private var appleButton: ASAuthorizationAppleIDButton!
     private var emailButton: UIButton!
+    private var emailFieldsStack: UIStackView!
     private var busy = false
+    private(set) var emailMode: NativeEmailAuthMode = .signIn
 
     override func viewDidLoad() {
         super.viewDidLoad()
         KCChrome.styleScreen(view)
-        title = String(localized: "Entrar")
+        title = String(localized: "Entrar ou criar conta")
         navigationItem.largeTitleDisplayMode = .never
         if let nav = navigationController {
             KCChrome.applyNavigationBarAppearance(to: nav.navigationBar)
@@ -27,6 +37,7 @@ final class NativeSignInViewController: UIViewController {
 
         scroll.translatesAutoresizingMaskIntoConstraints = false
         scroll.alwaysBounceVertical = true
+        scroll.keyboardDismissMode = .onDrag
         view.addSubview(scroll)
 
         stack.axis = .vertical
@@ -50,7 +61,7 @@ final class NativeSignInViewController: UIViewController {
         title.accessibilityTraits = .header
 
         let subtitle = UILabel()
-        subtitle.text = String(localized: "Anote versículos e reuniões no seu caderno.")
+        subtitle.text = String(localized: "Na primeira vez, criamos sua conta automaticamente.")
         subtitle.font = KCDesign.body()
         subtitle.textColor = .secondaryLabel
         subtitle.textAlignment = .center
@@ -64,13 +75,42 @@ final class NativeSignInViewController: UIViewController {
 
         appleButton = makeAppleButton()
 
+        socialCaptionLabel.text = String(localized: "Google e Apple criam a conta no primeiro acesso.")
+        socialCaptionLabel.font = KCDesign.caption()
+        socialCaptionLabel.textColor = .secondaryLabel
+        socialCaptionLabel.textAlignment = .center
+        socialCaptionLabel.numberOfLines = 0
+        socialCaptionLabel.adjustsFontForContentSizeCategory = true
+
+        modeControl = UISegmentedControl(items: [
+            String(localized: "Entrar"),
+            String(localized: "Criar conta"),
+        ])
+        modeControl.selectedSegmentIndex = NativeEmailAuthMode.signIn.rawValue
+        modeControl.addTarget(self, action: #selector(modeChanged), for: .valueChanged)
+        modeControl.accessibilityLabel = String(localized: "Entrar ou criar conta")
+
+        styleField(nameField, placeholder: String(localized: "Nome"), contentType: .name)
+        nameField.autocapitalizationType = .words
+        nameField.textContentType = .name
+
         styleField(emailField, placeholder: String(localized: "Email"), contentType: .username)
         emailField.keyboardType = .emailAddress
         emailField.autocapitalizationType = .none
         emailField.autocorrectionType = .no
+        emailField.textContentType = .emailAddress
 
         styleField(passwordField, placeholder: String(localized: "Senha"), contentType: .password)
         passwordField.isSecureTextEntry = true
+
+        styleField(passwordConfirmField, placeholder: String(localized: "Confirmar senha"), contentType: .newPassword)
+        passwordConfirmField.isSecureTextEntry = true
+        passwordConfirmField.textContentType = .newPassword
+
+        styleInlineError(nameErrorLabel)
+        styleInlineError(emailErrorLabel)
+        styleInlineError(passwordErrorLabel)
+        styleInlineError(passwordConfirmErrorLabel)
 
         emailButton = UIButton(type: .system)
         KCButtonStyle.applyPrimary(to: emailButton, title: String(localized: "Entrar com email"))
@@ -84,16 +124,31 @@ final class NativeSignInViewController: UIViewController {
         statusLabel.adjustsFontForContentSizeCategory = true
         statusLabel.accessibilityTraits = .updatesFrequently
 
+        emailFieldsStack = UIStackView(arrangedSubviews: [
+            modeControl,
+            nameField,
+            nameErrorLabel,
+            emailField,
+            emailErrorLabel,
+            passwordField,
+            passwordErrorLabel,
+            passwordConfirmField,
+            passwordConfirmErrorLabel,
+            emailButton,
+        ])
+        emailFieldsStack.axis = .vertical
+        emailFieldsStack.spacing = KCDesign.Space.xs
+
         stack.addArrangedSubview(brandMark)
         stack.addArrangedSubview(title)
         stack.addArrangedSubview(subtitle)
         stack.setCustomSpacing(KCDesign.Space.lg, after: subtitle)
         stack.addArrangedSubview(googleButton)
         stack.addArrangedSubview(appleButton)
-        stack.setCustomSpacing(KCDesign.Space.md, after: appleButton)
-        stack.addArrangedSubview(emailField)
-        stack.addArrangedSubview(passwordField)
-        stack.addArrangedSubview(emailButton)
+        stack.addArrangedSubview(socialCaptionLabel)
+        stack.setCustomSpacing(KCDesign.Space.md, after: socialCaptionLabel)
+        stack.addArrangedSubview(emailFieldsStack)
+        stack.setCustomSpacing(KCDesign.Space.sm, after: emailFieldsStack)
         stack.addArrangedSubview(statusLabel)
 
         NSLayoutConstraint.activate([
@@ -109,6 +164,7 @@ final class NativeSignInViewController: UIViewController {
             stack.widthAnchor.constraint(equalTo: scroll.frameLayoutGuide.widthAnchor, constant: -KCDesign.Space.lg * 2),
         ])
 
+        applyEmailMode(.signIn, clearErrors: true)
         Task { await loadProviders() }
     }
 
@@ -123,11 +179,11 @@ final class NativeSignInViewController: UIViewController {
     }
 
     private func makeAppleButton() -> ASAuthorizationAppleIDButton {
-        let button = ASAuthorizationAppleIDButton(type: .signIn, style: appleButtonStyle())
+        let button = ASAuthorizationAppleIDButton(type: .continue, style: appleButtonStyle())
         button.cornerRadius = KCDesign.Radius.md
         button.heightAnchor.constraint(equalToConstant: 50).isActive = true
         button.addTarget(self, action: #selector(tapApple), for: .touchUpInside)
-        button.accessibilityLabel = String(localized: "Entrar com Apple")
+        button.accessibilityLabel = String(localized: "Continuar com Apple")
         return button
     }
 
@@ -163,6 +219,15 @@ final class NativeSignInViewController: UIViewController {
         field.accessibilityLabel = placeholder
     }
 
+    private func styleInlineError(_ label: UILabel) {
+        label.font = KCDesign.caption()
+        label.textColor = KCDesign.danger
+        label.numberOfLines = 0
+        label.isHidden = true
+        label.adjustsFontForContentSizeCategory = true
+        label.accessibilityTraits = .staticText
+    }
+
     private func loadProviders() async {
         let providers = await NativeLoginService.shared.fetchProviders()
         await MainActor.run {
@@ -171,10 +236,70 @@ final class NativeSignInViewController: UIViewController {
             let googleOn = providers.google ?? true
             let appleOn = providers.apple ?? true
             appleButton.isHidden = !(appleOn || googleOn)
+            socialCaptionLabel.isHidden = googleButton.isHidden && appleButton.isHidden
             let emailOn = providers.email ?? true
-            emailField.isHidden = !emailOn
-            passwordField.isHidden = !emailOn
-            emailButton.isHidden = !emailOn
+            emailFieldsStack.isHidden = !emailOn
+        }
+    }
+
+    @objc private func modeChanged() {
+        let mode = NativeEmailAuthMode(rawValue: modeControl.selectedSegmentIndex) ?? .signIn
+        applyEmailMode(mode, clearErrors: true)
+    }
+
+    private func applyEmailMode(_ mode: NativeEmailAuthMode, clearErrors: Bool) {
+        emailMode = mode
+        modeControl.selectedSegmentIndex = mode.rawValue
+        let creating = mode == .createAccount
+        nameField.isHidden = !creating
+        passwordConfirmField.isHidden = !creating
+        passwordField.textContentType = creating ? .newPassword : .password
+        passwordField.placeholder = creating
+            ? String(localized: "Senha (mín. 8)")
+            : String(localized: "Senha")
+        passwordField.accessibilityLabel = passwordField.placeholder
+        let buttonTitle = creating
+            ? String(localized: "Criar conta com email")
+            : String(localized: "Entrar com email")
+        KCButtonStyle.applyPrimary(to: emailButton, title: buttonTitle)
+        if clearErrors {
+            clearFieldErrors()
+            statusLabel.text = nil
+        } else {
+            nameErrorLabel.isHidden = nameErrorLabel.isHidden || !creating
+            passwordConfirmErrorLabel.isHidden = passwordConfirmErrorLabel.isHidden || !creating
+        }
+    }
+
+    private func clearFieldErrors() {
+        for label in [nameErrorLabel, emailErrorLabel, passwordErrorLabel, passwordConfirmErrorLabel] {
+            label.text = nil
+            label.isHidden = true
+        }
+        for field in [nameField, emailField, passwordField, passwordConfirmField] {
+            field.layer.borderColor = KCDesign.separator.cgColor
+        }
+    }
+
+    private func showFieldErrors(_ result: NativeEmailAuthForm.Result) {
+        func apply(_ label: UILabel, _ field: UITextField, _ error: NativeEmailAuthForm.FieldError?) {
+            if let error {
+                label.text = error.localizedMessage
+                label.isHidden = false
+                field.layer.borderColor = KCDesign.danger.cgColor
+            } else {
+                label.text = nil
+                label.isHidden = true
+                field.layer.borderColor = KCDesign.separator.cgColor
+            }
+        }
+        apply(nameErrorLabel, nameField, result.name)
+        apply(emailErrorLabel, emailField, result.email)
+        apply(passwordErrorLabel, passwordField, result.password)
+        apply(passwordConfirmErrorLabel, passwordConfirmField, result.passwordConfirm)
+        if emailMode == .signIn {
+            nameErrorLabel.isHidden = true
+            passwordConfirmErrorLabel.isHidden = true
         }
     }
 
@@ -212,18 +337,37 @@ final class NativeSignInViewController: UIViewController {
 
     @objc private func tapEmail() {
         guard !busy else { return }
+        let name = nameField.text ?? ""
         let email = (emailField.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         let password = passwordField.text ?? ""
-        guard !email.isEmpty, !password.isEmpty else {
-            statusLabel.text = String(localized: "Preencha email e senha.")
+        let confirm = passwordConfirmField.text ?? ""
+        let validation = NativeEmailAuthForm.validate(
+            mode: emailMode,
+            name: name,
+            email: email,
+            password: password,
+            passwordConfirm: confirm
+        )
+        showFieldErrors(validation)
+        guard validation.isValid else {
+            statusLabel.text = validation.firstMessage
             statusLabel.textColor = KCDesign.danger
             return
         }
         KCHaptics.light()
-        setBusy(true, message: String(localized: "Entrando…"))
+        let creating = emailMode == .createAccount
+        setBusy(true, message: creating ? String(localized: "Criando conta…") : String(localized: "Entrando…"))
         Task { @MainActor in
             do {
-                try await NativeLoginService.shared.signInWithEmail(email: email, password: password)
+                if creating {
+                    try await NativeLoginService.shared.signUpWithEmail(
+                        name: name.trimmingCharacters(in: .whitespacesAndNewlines),
+                        email: email,
+                        password: password
+                    )
+                } else {
+                    try await NativeLoginService.shared.signInWithEmail(email: email, password: password)
+                }
                 finishSignedIn()
             } catch {
                 setBusy(false, message: error.localizedDescription)
@@ -252,8 +396,53 @@ final class NativeSignInViewController: UIViewController {
         googleButton.isEnabled = !value
         appleButton.isEnabled = !value
         emailButton.isEnabled = !value
+        modeControl.isEnabled = !value
         statusLabel.text = message
         statusLabel.textColor = value ? .secondaryLabel : KCDesign.danger
         if message == String(localized: "Sessão iniciada.") { statusLabel.textColor = KCDesign.accent }
     }
+
+    // MARK: - Testing hooks
+
+    func testing_setEmailMode(_ mode: NativeEmailAuthMode) {
+        applyEmailMode(mode, clearErrors: true)
+    }
+
+    func testing_fill(
+        name: String? = nil,
+        email: String? = nil,
+        password: String? = nil,
+        passwordConfirm: String? = nil
+    ) {
+        if let name { nameField.text = name }
+        if let email { emailField.text = email }
+        if let password { passwordField.text = password }
+        if let passwordConfirm { passwordConfirmField.text = passwordConfirm }
+    }
+
+    @discardableResult
+    func testing_validateCurrentFields() -> NativeEmailAuthForm.Result {
+        let result = NativeEmailAuthForm.validate(
+            mode: emailMode,
+            name: nameField.text ?? "",
+            email: emailField.text ?? "",
+            password: passwordField.text ?? "",
+            passwordConfirm: passwordConfirmField.text ?? ""
+        )
+        showFieldErrors(result)
+        statusLabel.text = result.firstMessage
+        statusLabel.textColor = KCDesign.danger
+        return result
+    }
+
+    var testing_isNameFieldVisible: Bool { !nameField.isHidden }
+    var testing_isPasswordConfirmVisible: Bool { !passwordConfirmField.isHidden }
+    var testing_emailButtonTitle: String? { emailButton.configuration?.title }
+    var testing_statusText: String? { statusLabel.text }
+    var testing_emailErrorText: String? { emailErrorLabel.isHidden ? nil : emailErrorLabel.text }
+    var testing_passwordErrorText: String? { passwordErrorLabel.isHidden ? nil : passwordErrorLabel.text }
+    var testing_passwordConfirmErrorText: String? {
+        passwordConfirmErrorLabel.isHidden ? nil : passwordConfirmErrorLabel.text
+    }
+    var testing_socialCaptionText: String? { socialCaptionLabel.text }
 }

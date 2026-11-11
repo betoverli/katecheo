@@ -12,6 +12,7 @@ final class NativeLoginService: NSObject {
         let google: Bool?
         let apple: Bool?
         let email: Bool?
+        let minPasswordLength: Int?
     }
 
     struct TokenResponse: Decodable {
@@ -31,7 +32,13 @@ final class NativeLoginService: NSObject {
     func fetchProviders(force: Bool = false) async -> Providers {
         // Apple defaults on so App Store 4.8 always shows the button next to Google
         // even if /auth/providers is unreachable; the server still gates the exchange.
-        let fallback = Providers(ok: true, google: true, apple: true, email: true)
+        let fallback = Providers(
+            ok: true,
+            google: true,
+            apple: true,
+            email: true,
+            minPasswordLength: NativeEmailAuthForm.minPasswordLength
+        )
         if !force,
            let at = NativeSWR.authProvidersFetchedAt(),
            Date().timeIntervalSince(at) < NativeSWR.TTL.authProviders,
@@ -242,6 +249,45 @@ final class NativeLoginService: NSObject {
             throw LoginError.failed(decoded?.error == "credentials" ? String(localized: "Email ou senha incorretos.") : (decoded?.error ?? String(localized: "Falha no login.")))
         }
         _ = KeychainStore.setBearerToken(token)
+    }
+
+    func signUpWithEmail(name: String, email: String, password: String) async throws {
+        var request = URLRequest(url: NativeAPIClient.baseURL.appendingPathComponent("api/native/v1/auth/email/sign-up"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.httpBody = try JSONSerialization.data(withJSONObject: [
+            "name": name,
+            "email": email,
+            "password": password,
+        ])
+        let (data, response) = try await URLSession.shared.data(for: request)
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        let decoded = try? JSONDecoder().decode(TokenResponse.self, from: data)
+        guard status >= 200, status < 300, let token = decoded?.token, !token.isEmpty else {
+            throw LoginError.failed(Self.localizedSignUpError(code: decoded?.error, status: status))
+        }
+        _ = KeychainStore.setBearerToken(token)
+    }
+
+    private static func localizedSignUpError(code: String?, status: Int) -> String {
+        switch code {
+        case "email_exists":
+            return String(localized: "Este email já tem conta. Entre com a senha ou use Google/Apple.")
+        case "password_short":
+            return String(localized: "A senha deve ter pelo menos 8 caracteres.")
+        case "invalid_email":
+            return String(localized: "Informe um email válido.")
+        case "email_disabled":
+            return String(localized: "Entrar está desligado neste ambiente.")
+        case "rate_limited":
+            return String(localized: "Muitas tentativas. Aguarde um momento.")
+        default:
+            if status == 409 {
+                return String(localized: "Este email já tem conta. Entre com a senha ou use Google/Apple.")
+            }
+            return code ?? String(localized: "Não foi possível criar a conta.")
+        }
     }
 
     // MARK: - Sign out

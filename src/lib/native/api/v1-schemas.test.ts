@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   MAX_BODY_BYTES,
+  authEmailSchema,
+  authEmailSignUpSchema,
   clampNotificationLimit,
   devicesApnsDeleteSchema,
   groupCreateSchema,
@@ -11,6 +13,7 @@ import {
   planMarkSchema,
   speakerUpsertSchema,
 } from "./v1-schemas.ts";
+import { emailPasswordMinLength } from "../../auth/email-password.ts";
 
 describe("native v1 schemas (M1)", () => {
   it("clamps notification limit to 1..100", () => {
@@ -71,5 +74,27 @@ describe("native v1 schemas (M1)", () => {
     assert.equal(parseWithSchema(devicesApnsDeleteSchema, { all: true }).ok, true);
     assert.equal(parseWithSchema(devicesApnsDeleteSchema, { token: "abc" }).ok, true);
     assert.equal(parseWithSchema(devicesApnsDeleteSchema, {}).ok, false);
+  });
+
+  it("validates email sign-in and sign-up bodies", () => {
+    assert.equal(emailPasswordMinLength, 8);
+    assert.equal(parseWithSchema(authEmailSchema, { email: "a@b.co", password: "x" }).ok, true);
+    assert.equal(parseWithSchema(authEmailSchema, { email: "", password: "x" }).ok, false);
+    assert.equal(
+      parseWithSchema(authEmailSignUpSchema, {
+        name: "Ana",
+        email: "ana@example.com",
+        password: "password1",
+      }).ok,
+      true,
+    );
+    assert.equal(
+      parseWithSchema(authEmailSignUpSchema, {
+        name: "",
+        email: "ana@example.com",
+        password: "password1",
+      }).ok,
+      false,
+    );
   });
 });

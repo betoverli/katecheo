@@ -8,3 +8,9 @@
  * Do NOT edit `server.ts` for this — that file is frozen pre-wired config.
  */
 export const emailAndPasswordEnabled = true;
+
+/**
+ * Matches Better Auth default `emailAndPassword.minPasswordLength` when unset
+ * (`node_modules/better-auth` → 8). Keep native clients in sync with this.
+ */
+export const emailPasswordMinLength = 8;

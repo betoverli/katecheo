@@ -11,14 +11,27 @@ function read(rel: string) {
 describe("Phase 1 native login", () => {
   it("exposes auth routes on the native v1 router", () => {
     const router = read("src/lib/native/api/v1-router.ts");
-    for (const kind of ["auth-claim", "auth-email", "auth-apple", "auth-from-cookie", "auth-sign-out", "auth-providers"]) {
+    for (const kind of [
+      "auth-claim",
+      "auth-email",
+      "auth-email-sign-up",
+      "auth-apple",
+      "auth-from-cookie",
+      "auth-sign-out",
+      "auth-providers",
+    ]) {
       assert.match(router, new RegExp(kind));
     }
     const http = read("src/lib/native/api/v1-http.ts");
     assert.match(http, /auth-claim/);
     assert.match(http, /claimNativeBearer/);
     assert.match(http, /signInEmailNative/);
+    assert.match(http, /signUpEmailNative/);
     assert.match(http, /signInAppleNative/);
+    const auth = read("src/lib/native/api/v1-auth.server.ts");
+    assert.match(auth, /signUpEmailNative/);
+    assert.match(auth, /email_exists/);
+    assert.match(auth, /minPasswordLength/);
   });
 
   it("ships Swift sign-in + cookie bootstrap + Keychain sign-out", () => {
@@ -27,11 +40,17 @@ describe("Phase 1 native login", () => {
     assert.match(signIn, /ASAuthorizationAppleIDButton/);
     assert.match(signIn, /makeAppleButton|appleButtonStyle/);
     assert.match(signIn, /Entrar com email/);
+    assert.match(signIn, /Criar conta/);
+    assert.match(signIn, /Entrar ou criar conta/);
+    assert.match(signIn, /UISegmentedControl|emailModeControl/);
     assert.match(signIn, /BrandMark/);
+    assert.match(signIn, /\.continue|type: \.continue/);
     const login = read("ios/App/Katecheo/NativeLoginService.swift");
     assert.match(login, /ASWebAuthenticationSession/);
     assert.match(login, /auth\/claim/);
     assert.match(login, /auth\/apple/);
+    assert.match(login, /auth\/email\/sign-up/);
+    assert.match(login, /signUpWithEmail/);
     assert.match(login, /authorizationCode/);
     assert.match(login, /fullName|givenName/);
     assert.match(login, /requestedScopes = \[\.fullName, \.email\]/);

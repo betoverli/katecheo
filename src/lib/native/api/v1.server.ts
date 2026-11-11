@@ -375,6 +375,12 @@ export function nativeV1Catalog() {
       { method: "POST", path: "/auth/email", auth: false, body: "{ email, password }" },
       {
         method: "POST",
+        path: "/auth/email/sign-up",
+        auth: false,
+        body: "{ name, email, password }",
+      },
+      {
+        method: "POST",
         path: "/auth/apple",
         auth: false,
         body: "{ identityToken, authorizationCode?, nonce?, fullName? }",

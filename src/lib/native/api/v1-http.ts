@@ -6,6 +6,7 @@ import {
   authAppleSchema,
   authClaimSchema,
   authEmailSchema,
+  authEmailSignUpSchema,
   bibleLinkBodySchema,
   clampNotificationLimit,
   collectionCreateSchema,
@@ -244,6 +245,7 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
       route.kind === "auth-providers" ||
       route.kind === "auth-claim" ||
       route.kind === "auth-email" ||
+      route.kind === "auth-email-sign-up" ||
       route.kind === "auth-apple" ||
       route.kind === "auth-from-cookie"
     ) {
@@ -261,6 +263,12 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
         const payload = await readAndParse(request, authEmailSchema, respond);
         if (payload instanceof Response) return payload;
         const result = await authApi.signInEmailNative(request, payload);
+        return respond(result, result.ok ? 200 : result.status);
+      }
+      if (route.kind === "auth-email-sign-up") {
+        const payload = await readAndParse(request, authEmailSignUpSchema, respond);
+        if (payload instanceof Response) return payload;
+        const result = await authApi.signUpEmailNative(request, payload);
         return respond(result, result.ok ? 200 : result.status);
       }
       if (route.kind === "auth-apple") {
