@@ -134,12 +134,13 @@ final class AuthSignInScreenTests: XCTestCase {
         xct.name = name
         xct.lifetime = .keepAlways
         test.add(xct)
-        let tmp = URL(fileURLWithPath: "/tmp").appendingPathComponent(name)
-        try? image.pngData()?.write(to: tmp, options: .atomic)
-        let cwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-            .appendingPathComponent("artifacts", isDirectory: true)
-        try? FileManager.default.createDirectory(at: cwd, withIntermediateDirectories: true)
-        try? image.pngData()?.write(to: cwd.appendingPathComponent(name), options: .atomic)
-        NSLog("auth artifact written: %@", tmp.path)
+        // Write under the Simulator sandbox temp dir so CI harvest
+        // (`find … CoreSimulator`) can copy auth-*.png into artifacts/.
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("katecheo-auth", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let url = dir.appendingPathComponent(name)
+        try? image.pngData()?.write(to: url, options: .atomic)
+        NSLog("auth artifact written: %@", url.path)
     }
 }
