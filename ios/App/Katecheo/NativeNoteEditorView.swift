@@ -380,31 +380,105 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     var testing_forceCaretScroll = false
 
     private func captureScrollAnchor() {
-        pendingScrollAnchor = textView.contentOffset
+        let offset = textView.contentOffset
+        pendingScrollAnchor = offset
+        // Hold offset steady while TextKit briefly reports a tiny contentSize (UIKit
+        // would otherwise clamp to 0 and our restore would run too late / on a 0 max).
+        textView.stickyContentOffset = offset
     }
 
-    /// UIKit often clamps `contentOffset` to 0 while TextKit layout catches up after
-    /// an insert/delete. Put the pre-edit offset back (clamped), then minimal-scroll.
-    private func restoreScrollAnchorIfNeeded() {
-        guard let anchor = pendingScrollAnchor else { return }
+    private func clearScrollAnchor() {
         pendingScrollAnchor = nil
+        textView.stickyContentOffset = nil
+    }
+
+    /// Put the pre-edit offset back (clamped to measured content height), then minimal-scroll.
+    private func restoreScrollAnchorIfNeeded() {
+        guard let anchor = pendingScrollAnchor else {
+            textView.stickyContentOffset = nil
+            return
+        }
+        pendingScrollAnchor = nil
+        textView.stickyContentOffset = nil
         textView.layoutManager.ensureLayout(for: textView.textContainer)
         textView.layoutIfNeeded()
         let insets = textView.adjustedContentInset
         let minY = -insets.top
-        let maxY = max(minY, textView.contentSize.height - textView.bounds.height + insets.bottom)
+        let contentH = measuredContentHeight()
+        let maxY = max(minY, contentH - textView.bounds.height + insets.bottom)
         let y = min(max(anchor.y, minY), maxY)
         if abs(textView.contentOffset.y - y) > 0.5 {
             textView.setContentOffset(CGPoint(x: anchor.x, y: y), animated: false)
         }
     }
 
+    /// TextKit used-rect height — more trustworthy than `contentSize` mid-mutation.
+    private func measuredContentHeight() -> CGFloat {
+        let used = textView.layoutManager.usedRect(for: textView.textContainer)
+        let extra = textView.layoutManager.extraLineFragmentUsedRect
+        let bottom = max(used.maxY, extra.height > 0 ? extra.maxY : 0)
+        let fromLayout = bottom + textView.textContainerInset.top + textView.textContainerInset.bottom
+        return max(textView.contentSize.height, fromLayout)
+    }
+
+    /// Caret rect in view bounds from layoutManager (reliable without a key window).
+    private func caretRectInBoundsForScroll() -> CGRect? {
+        textView.layoutManager.ensureLayout(for: textView.textContainer)
+        let storage = textView.textStorage
+        let inset = textView.textContainerInset
+        guard storage.length > 0 else {
+            guard let selected = textView.selectedTextRange else { return nil }
+            let rect = textView.caretRect(for: selected.start)
+            return rect.isNull ? nil : rect
+        }
+
+        let loc = min(max(0, textView.selectedRange.location), storage.length)
+        let ns = storage.string as NSString
+        let endsWithNewline = ns.length > 0 && ns.character(at: ns.length - 1) == 10
+        let extra = textView.layoutManager.extraLineFragmentUsedRect
+
+        let contentY: CGFloat
+        let height: CGFloat
+        if loc >= storage.length, endsWithNewline || extra.height > 0 {
+            if extra.height > 0 {
+                contentY = inset.top + extra.minY
+                height = max(extra.height, 1)
+            } else {
+                let lastGlyph = textView.layoutManager.glyphIndexForCharacter(at: storage.length - 1)
+                var lineRange = NSRange()
+                let lineRect = textView.layoutManager.lineFragmentUsedRect(
+                    forGlyphAt: lastGlyph,
+                    effectiveRange: &lineRange
+                )
+                let lineH = ceil((textView.typingAttributes[.font] as? UIFont)?.lineHeight ?? 22)
+                contentY = inset.top + lineRect.maxY
+                height = lineH
+            }
+        } else {
+            let charIndex = min(loc, storage.length - 1)
+            let glyphIndex = textView.layoutManager.glyphIndexForCharacter(at: charIndex)
+            var lineRange = NSRange()
+            let lineRect = textView.layoutManager.lineFragmentUsedRect(
+                forGlyphAt: glyphIndex,
+                effectiveRange: &lineRange
+            )
+            contentY = inset.top + lineRect.minY
+            height = max(lineRect.height, 1)
+        }
+
+        return CGRect(
+            x: inset.left,
+            y: contentY - textView.contentOffset.y,
+            width: 2,
+            height: height
+        )
+    }
+
     private func applyMinimalCaretScroll(animated: Bool) {
         textView.layoutManager.ensureLayout(for: textView.textContainer)
         textView.layoutIfNeeded()
 
-        guard let selected = textView.selectedTextRange else { return }
-        let caret = textView.caretRect(for: selected.start)
+        guard let caret = caretRectInBoundsForScroll() else { return }
         guard caret.origin.x.isFinite, caret.origin.y.isFinite, caret.height.isFinite, !caret.isNull else { return }
 
         let insets = textView.adjustedContentInset
@@ -412,7 +486,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             caretRectInBounds: caret,
             boundsHeight: textView.bounds.height,
             contentInset: insets,
-            contentSizeHeight: textView.contentSize.height,
+            contentSizeHeight: measuredContentHeight(),
             currentOffsetY: textView.contentOffset.y
         )
         let current = textView.contentOffset
@@ -420,6 +494,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
         let next = CGPoint(x: current.x, y: targetY)
         let apply = {
+            self.textView.stickyContentOffset = nil
             self.textView.setContentOffset(next, animated: false)
         }
         if animated {
@@ -577,6 +652,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         // Enter-on-header only moves into the seeded body.
         if rangeIntersectsSpeakerHeader(range) || paragraphBlockType() == "speakerSection" {
             _ = moveCaretIntoSpeakerBodyAfterHeader()
+            clearScrollAnchor()
             return false
         }
 
@@ -1933,14 +2009,15 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         let previous = testing_forceCaretScroll
         testing_forceCaretScroll = true
         defer { testing_forceCaretScroll = previous }
-        applyMinimalCaretScroll(animated: animated)
+        scrollCaretVisible(animated: animated)
     }
 
     func testing_caretRectInBounds() -> CGRect {
-        textView.layoutManager.ensureLayout(for: textView.textContainer)
-        textView.layoutIfNeeded()
-        guard let selected = textView.selectedTextRange else { return .null }
-        return textView.caretRect(for: selected.start)
+        caretRectInBoundsForScroll() ?? .null
+    }
+
+    func testing_measuredContentHeight() -> CGFloat {
+        measuredContentHeight()
     }
 
     /// Delete backward one character/selection the way the keyboard does (Backspace).
@@ -2091,6 +2168,9 @@ final class NoteEditorTextView: UITextView {
     /// Must run the editor's minimal caret-scroll helper so Enter/typing still follow the caret.
     var onRequestCaretScroll: (() -> Void)?
 
+    /// When set, UIKit/TextKit cannot rewrite `contentOffset` (prevents mid-edit clamp-to-0).
+    var stickyContentOffset: CGPoint?
+
     /// Re-entrancy guard: `onRequestCaretScroll` → `setContentOffset` must not loop.
     private var isHandlingCaretScrollRequest = false
 
@@ -2102,6 +2182,14 @@ final class NoteEditorTextView: UITextView {
             rect.size.height = lineHeight
         }
         return rect
+    }
+
+    override func setContentOffset(_ contentOffset: CGPoint, animated: Bool) {
+        if let sticky = stickyContentOffset {
+            super.setContentOffset(sticky, animated: false)
+            return
+        }
+        super.setContentOffset(contentOffset, animated: animated)
     }
 
     /// UIKit's default, with a large keyboard `contentInset.bottom`, pins the caret line

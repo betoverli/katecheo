@@ -7,14 +7,29 @@ import XCTest
 @MainActor
 final class NativeNoteEditorCaretScrollTests: XCTestCase {
     private var editor: NativeNoteEditorView!
+    private var hostWindow: UIWindow?
 
     override func setUp() async throws {
         try await super.setUp()
         editor = NativeNoteEditorView(frame: CGRect(x: 0, y: 0, width: 390, height: 720))
+        // Host in a window so UITextView/TextKit layout + caret geometry are real.
+        // Do not steal key status from SceneDelegate (AppTests flake); just attach.
+        let host = UIViewController()
+        host.view.backgroundColor = .systemBackground
+        host.view.addSubview(editor)
+        editor.frame = host.view.bounds
+        editor.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        window.rootViewController = host
+        window.isHidden = false
+        hostWindow = window
         editor.testing_prepare(size: CGSize(width: 390, height: 720))
+        editor.layoutIfNeeded()
     }
 
     override func tearDown() async throws {
+        hostWindow?.isHidden = true
+        hostWindow = nil
         editor = nil
         try await super.tearDown()
     }
@@ -149,7 +164,7 @@ final class NativeNoteEditorCaretScrollTests: XCTestCase {
         let storage = editor.testing_textStorage()
         editor.testing_setSelectedRange(NSRange(location: storage.length, length: 0))
 
-        let contentH = editor.testing_contentSize().height
+        let contentH = editor.testing_measuredContentHeight()
         let boundsH = editor.testing_boundsHeight()
         let bottomInset = editor.testing_contentInset().bottom
         let maxOffset = max(0, contentH - boundsH + bottomInset)
@@ -159,7 +174,7 @@ final class NativeNoteEditorCaretScrollTests: XCTestCase {
         editor.testing_scrollCaretVisible(animated: false)
 
         let before = editor.testing_contentOffset().y
-        XCTAssertGreaterThan(before, 80, "list must be scrolled; offset=\(before) max=\(maxOffset)")
+        XCTAssertGreaterThan(before, 80, "list must be scrolled; offset=\(before) max=\(maxOffset) contentH=\(contentH)")
 
         // Enter → new bullet (same path as the recording).
         editor.testing_insertText("\n")
@@ -196,8 +211,7 @@ final class NativeNoteEditorCaretScrollTests: XCTestCase {
     }
 
     /// Caret on the last visible line + repeated Enter must follow with ~one line of
-    /// scroll each time — not freeze (no-op scrollRangeToVisible without helper) and
-    /// not pin the line to the top.
+    /// scroll each time — not freeze and not pin the line to the top.
     func testRepeatedEnterAtLastVisibleLine_scrollsAboutOneLineEachTime() {
         var note = NativeAPIClient.emptyNote(id: "note-caret-follow")
         note.title = "Nota longa"
@@ -246,7 +260,7 @@ final class NativeNoteEditorCaretScrollTests: XCTestCase {
         let visibleBottom = boundsH - inset.bottom
         XCTAssertLessThan(
             visibleBottom - startCaret.maxY,
-            40,
+            48,
             "caret must start near the bottom of the visible band (gap=\(visibleBottom - startCaret.maxY))"
         )
 

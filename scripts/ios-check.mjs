@@ -1193,6 +1193,9 @@ if (!project.includes("NativeNoteEditorCaretScrollTests.swift in Sources")) {
   if (!editorSrc.includes("pendingScrollAnchor") || !editorSrc.includes("restoreScrollAnchorIfNeeded")) {
     errors.push("NativeNoteEditorView tem de preservar contentOffset (pendingScrollAnchor) após Enter/Backspace.");
   }
+  if (!editorSrc.includes("stickyContentOffset") || !editorSrc.includes("measuredContentHeight") || !editorSrc.includes("caretRectInBoundsForScroll")) {
+    errors.push("NativeNoteEditorView tem de travar contentOffset (sticky) e medir caret/altura via layoutManager.");
+  }
   if (!/override func scrollRangeToVisible/.test(editorSrc) || !editorSrc.includes("onRequestCaretScroll")) {
     errors.push("NoteEditorTextView.scrollRangeToVisible tem de encaminhar para onRequestCaretScroll (minimal caret follow).");
   }
