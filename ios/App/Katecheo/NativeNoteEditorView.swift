@@ -146,8 +146,49 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         textView.addGestureRecognizer(tap)
 
         observeKeyboard()
+        observeForegroundAppearance()
         refreshPlaceholders()
         repositionTagsStrip()
+    }
+
+    /// Re-assert dynamic colors after background snapshots / Bible-app round-trips.
+    private func observeForegroundAppearance() {
+        let center = NotificationCenter.default
+        center.addObserver(
+            self,
+            selector: #selector(handleForegroundAppearanceRefresh),
+            name: UIApplication.willEnterForegroundNotification,
+            object: nil
+        )
+        center.addObserver(
+            self,
+            selector: #selector(handleForegroundAppearanceRefresh),
+            name: UIApplication.didBecomeActiveNotification,
+            object: nil
+        )
+        if #available(iOS 17.0, *) {
+            registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (view: NativeNoteEditorView, _) in
+                view.refreshAppearanceForCurrentTraits(forceAttachments: true)
+            }
+        }
+    }
+
+    @objc private func handleForegroundAppearanceRefresh() {
+        refreshAppearanceForCurrentTraits(forceAttachments: true)
+    }
+
+    /// Public entry for the note VC after returning from an external Bible app.
+    func refreshAppearanceForCurrentTraits(forceAttachments: Bool = false) {
+        refreshDynamicTextColors()
+        titlePlaceholderLabel.textColor = .tertiaryLabel
+        bodyPlaceholderLabel.textColor = .tertiaryLabel
+        backgroundColor = KCDesign.canvas
+        textView.backgroundColor = KCDesign.canvas
+        if forceAttachments {
+            forceRefreshAttachmentAppearances()
+        } else {
+            refreshAttachmentAppearances()
+        }
     }
 
     override func layoutSubviews() {
@@ -159,7 +200,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         super.didMoveToWindow()
         // Window attachment is when overrideUserInterfaceStyle finally reaches the text view.
         guard window != nil else { return }
-        refreshAttachmentAppearances()
+        refreshAppearanceForCurrentTraits(forceAttachments: true)
     }
 
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
@@ -167,8 +208,9 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         guard traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection)
             || textView.traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection)
         else { return }
-        // Baked attachments (speaker headers + bible pills) — rebuild for light/dark.
-        refreshAttachmentAppearances()
+        // Baked attachments + attributed title/body colors — rebuild for light/dark.
+        // Background snapshots briefly flip traits; re-resolve so we never keep a stale bake.
+        refreshAppearanceForCurrentTraits(forceAttachments: true)
     }
 
     /// Traits used to bake attachment chrome: prefer the text view's real traits, then the
@@ -191,12 +233,50 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     }
 
     private func refreshAttachmentAppearances() {
-        refreshSpeakerHeaderAppearances()
-        refreshBibleRefPillAppearances()
+        refreshSpeakerHeaderAppearances(force: false)
+        refreshBibleRefPillAppearances(force: false)
+    }
+
+    private func forceRefreshAttachmentAppearances() {
+        refreshSpeakerHeaderAppearances(force: true)
+        refreshBibleRefPillAppearances(force: true)
+    }
+
+    /// Re-stamp dynamic `UIColor.label` / `secondaryLabel` / bookmark on text runs.
+    /// Background snapshots can leave TextKit with a once-resolved CGColor that no longer matches.
+    private func refreshDynamicTextColors() {
+        let storage = textView.textStorage
+        guard storage.length > 0 else { return }
+        storage.beginEditing()
+        storage.enumerateAttributes(in: NSRange(location: 0, length: storage.length), options: []) { attrs, range, _ in
+            if attrs[.attachment] != nil { return }
+            if attrs[NoteDocumentCodec.bibleRefKey] != nil { return }
+            if let fg = attrs[.foregroundColor] as? UIColor {
+                var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+                if fg.getRed(&r, green: &g, blue: &b, alpha: &a), a < 0.01 { return }
+            }
+            if attrs[NoteDocumentCodec.listMarkerKey] as? Bool == true {
+                storage.addAttribute(.foregroundColor, value: UIColor.secondaryLabel, range: range)
+                return
+            }
+            if attrs[NoteDocumentCodec.linkKey] != nil {
+                storage.addAttribute(.foregroundColor, value: KCDesign.bookmark, range: range)
+                return
+            }
+            storage.addAttribute(.foregroundColor, value: UIColor.label, range: range)
+        }
+        storage.endEditing()
+        // Nudge layout so glyph colors rebuild against the current trait collection.
+        textView.setNeedsDisplay()
+        textView.layoutManager.invalidateLayout(
+            forCharacterRange: NSRange(location: 0, length: storage.length),
+            actualCharacterRange: nil
+        )
+        textView.layoutManager.ensureLayout(for: textView.textContainer)
     }
 
     /// Re-render every `SpeakerHeaderAttachment` for the text view's trait collection.
-    private func refreshSpeakerHeaderAppearances() {
+    private func refreshSpeakerHeaderAppearances(force: Bool) {
         let storage = textView.textStorage
         guard storage.length > 0 else { return }
         let inset = textView.textContainerInset
@@ -207,7 +287,8 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         storage.enumerateAttribute(.attachment, in: NSRange(location: 0, length: storage.length)) { value, _, _ in
             guard let header = value as? SpeakerHeaderAttachment else { return }
             let w = max(header.image?.size.width ?? 0, width)
-            if header.image != nil,
+            if !force,
+               header.image != nil,
                abs(header.renderedWidth - w) <= 1,
                header.renderedInterfaceStyle == style
             {
@@ -221,7 +302,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     }
 
     /// Re-bake bible ref pills under the live text-view / Appearance traits (build-234).
-    private func refreshBibleRefPillAppearances() {
+    private func refreshBibleRefPillAppearances(force: Bool) {
         let storage = textView.textStorage
         guard storage.length > 0 else { return }
         let traits = speakerBakeTraits()
@@ -229,7 +310,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         var touched = false
         storage.enumerateAttribute(.attachment, in: NSRange(location: 0, length: storage.length)) { value, _, _ in
             guard let pill = value as? BibleRefPillAttachment else { return }
-            if pill.image != nil, pill.renderedInterfaceStyle == style { return }
+            if !force, pill.image != nil, pill.renderedInterfaceStyle == style { return }
             pill.refreshImage(traits: traits)
             touched = true
         }
@@ -711,7 +792,117 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             textView.typingAttributes = typingAttributesForSpeakerBody()
         }
 
+        // Backspace / delete — custom empty-line + reference-pill path (web onMerge / arm→delete).
+        // Empty plain lines must merge in ONE press (skip the ZWSP placeholder step).
+        // Empty list markers keep 2 presses (demote, then merge). Pills keep select→delete.
+        if text.isEmpty {
+            if handleCustomBackspace(proposedRange: range) {
+                return false
+            }
+        }
+
         // TF210: @ and / are ordinary characters — speaker / reference only via toolbar.
+        return true
+    }
+
+    /// Custom Backspace. Returns `true` when the deletion was fully handled (caller returns false).
+    @discardableResult
+    private func handleCustomBackspace(proposedRange range: NSRange) -> Bool {
+        // Reference pills: first press selects, second deletes (do not treat as empty-line merge).
+        if let pillRange = bibleRefAttachmentRange(intersecting: range) {
+            let selected = textView.selectedRange
+            let alreadyArmed = selected.length > 0
+                && NSIntersectionRange(selected, pillRange).length == pillRange.length
+            if alreadyArmed {
+                // Second press — let UIKit / testing_deleteBackward remove the attachment.
+                return false
+            }
+            textView.selectedRange = pillRange
+            clearScrollAnchor()
+            return true
+        }
+
+        // Only intercept empty-line merges / list demotes for collapsed carets (or deletes
+        // that land inside the current visually-empty paragraph).
+        let caret = textView.selectedRange
+        let para = paragraphRange()
+        let beforeCaret = caret.location > 0 ? caret.location - 1 : caret.location
+        let touchesCurrentPara = NSIntersectionRange(range, para).length > 0
+            || (caret.length == 0 && range.location + range.length == para.location)
+            || (caret.length == 0 && NSLocationInRange(beforeCaret, para))
+        guard touchesCurrentPara, isCurrentParagraphVisuallyEmpty() else {
+            return false
+        }
+
+        let type = paragraphBlockType()
+        if type == "bullet" || type == "numbered" || type == "check" || type == "quote" {
+            // First press removes the bullet/marker (demote). Second press merges the plain line.
+            applyBlockType("paragraph", preserveChecked: false)
+            scrollCaretVisible(animated: true)
+            return true
+        }
+
+        // Never merge away the title / speaker header chrome via this path.
+        if type == "speakerSection" || (type == "heading" && para.location == 0) {
+            return false
+        }
+
+        return mergeEmptyPlainParagraphOnBackspace()
+    }
+
+    /// Range of a bible-ref attachment touched by a proposed delete, if any.
+    /// Also treats the soft ZWSP pads around pills as part of the arm→delete gesture.
+    private func bibleRefAttachmentRange(intersecting range: NSRange) -> NSRange? {
+        let storage = textView.textStorage
+        guard storage.length > 0, range.length > 0 else { return nil }
+        let ns = storage.string as NSString
+
+        func pillRange(at index: Int) -> NSRange? {
+            guard index >= 0, index < storage.length else { return nil }
+            var effective = NSRange(location: index, length: 1)
+            let attrs = storage.attributes(at: index, effectiveRange: &effective)
+            if attrs[.attachment] is BibleRefPillAttachment || attrs[NoteDocumentCodec.bibleRefKey] != nil {
+                return effective
+            }
+            return nil
+        }
+
+        // Direct hit on the attachment character.
+        if let hit = pillRange(at: range.location) { return hit }
+
+        // Soft ZWSP pad immediately before/after the pill (bibleRefPill wraps pads).
+        let candidates = [range.location, range.location - 1, range.location + 1]
+        for raw in candidates {
+            guard raw >= 0, raw < ns.length else { continue }
+            let ch = ns.substring(with: NSRange(location: raw, length: 1))
+            guard ch == "\u{200B}" else { continue }
+            if let after = pillRange(at: raw + 1) { return after }
+            if raw > 0, let before = pillRange(at: raw - 1) { return before }
+        }
+        return nil
+    }
+
+    /// Join an empty plain paragraph with the previous line in one Backspace (web `onMerge`).
+    /// Skips the ZWSP-only first step that made empty lines need two presses.
+    @discardableResult
+    private func mergeEmptyPlainParagraphOnBackspace() -> Bool {
+        let storage = textView.textStorage
+        let para = paragraphRange()
+        guard para.location > 0, para.length >= 0, storage.length >= NSMaxRange(para) else {
+            clearScrollAnchor()
+            return false
+        }
+        // Delete only this empty paragraph (incl. its trailing `\n` when present). Keep the
+        // previous paragraph's terminator so "hello\n·\nworld" → "hello\nworld", not "helloworld".
+        let caret = max(0, para.location - 1)
+        storage.replaceCharacters(in: para, with: "")
+        let loc = min(caret, storage.length)
+        textView.selectedRange = NSRange(location: loc, length: 0)
+        textView.typingAttributes = typingAttributesForCaret()
+        emitChange()
+        refreshPlaceholders()
+        refreshSpeakerRails()
+        scrollCaretVisible(animated: true)
         return true
     }
 
@@ -1969,15 +2160,42 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     }
 
     func testing_refreshSpeakerHeaderAppearances() {
-        refreshSpeakerHeaderAppearances()
+        refreshSpeakerHeaderAppearances(force: true)
     }
 
     func testing_refreshBibleRefPillAppearances() {
-        refreshBibleRefPillAppearances()
+        refreshBibleRefPillAppearances(force: true)
     }
 
     func testing_refreshAttachmentAppearances() {
-        refreshAttachmentAppearances()
+        forceRefreshAttachmentAppearances()
+    }
+
+    func testing_refreshAppearanceForCurrentTraits() {
+        refreshAppearanceForCurrentTraits(forceAttachments: true)
+    }
+
+    /// Resolved title (first paragraph) foreground under the given traits — AppTests.
+    func testing_titleForegroundColor(traits: UITraitCollection) -> UIColor? {
+        let storage = textView.textStorage
+        guard storage.length > 0 else { return nil }
+        let para = (storage.string as NSString).paragraphRange(for: NSRange(location: 0, length: 0))
+        guard para.length > 0 else { return nil }
+        var sampleLoc = para.location
+        let ns = storage.string as NSString
+        while sampleLoc < NSMaxRange(para) {
+            let ch = ns.substring(with: NSRange(location: sampleLoc, length: 1))
+            if ch == "\u{200B}" || ch == "\n" {
+                sampleLoc += 1
+                continue
+            }
+            break
+        }
+        let loc = min(sampleLoc, max(0, storage.length - 1))
+        guard let fg = storage.attribute(.foregroundColor, at: loc, effectiveRange: nil) as? UIColor else {
+            return nil
+        }
+        return fg.resolvedColor(with: traits)
     }
 
     func testing_contentOffset() -> CGPoint {

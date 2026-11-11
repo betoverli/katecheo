@@ -134,6 +134,20 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
             name: .nativeNoteDidChange,
             object: nil
         )
+        // Returning from an external Bible app: iOS may have snapshotted light+dark and left
+        // once-resolved title / speaker-header colors stale. Re-assert override + re-bake.
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(refreshAppearanceAfterForeground),
+            name: UIApplication.willEnterForegroundNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(refreshAppearanceAfterForeground),
+            name: UIApplication.didBecomeActiveNotification,
+            object: nil
+        )
         Task { await refreshFromAPI() }
     }
 
@@ -143,8 +157,17 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         navigationController?.navigationBar.prefersLargeTitles = false
         applyEditorAppearanceOverride()
         applyEditorChrome()
+        editor.refreshAppearanceForCurrentTraits(forceAttachments: true)
         // Opening a note clears Shared unread for that id (build-238).
         KCActivityStore.markSharedNoteOpened(noteId)
+    }
+
+    @objc private func refreshAppearanceAfterForeground() {
+        guard viewIfLoaded?.window != nil else { return }
+        applyEditorAppearanceOverride()
+        applyEditorChrome()
+        editor.refreshAppearanceForCurrentTraits(forceAttachments: true)
+        refreshSpeakerChip()
     }
 
     override func viewWillDisappear(_ animated: Bool) {

@@ -1185,6 +1185,12 @@ if (!project.includes("NativeNoteEditorTF222Tests.swift in Sources")) {
 if (!project.includes("NativeNoteEditorCaretScrollTests.swift in Sources")) {
   errors.push("AppTests de scroll do caret (NativeNoteEditorCaretScrollTests) têm de estar no target.");
 }
+if (!project.includes("NativeNoteEditorBackspaceTests.swift in Sources")) {
+  errors.push("AppTests de Backspace (NativeNoteEditorBackspaceTests) têm de estar no target.");
+}
+if (!project.includes("NativeNoteEditorTitleAppearanceTests.swift in Sources")) {
+  errors.push("AppTests de aparência do título (NativeNoteEditorTitleAppearanceTests) têm de estar no target.");
+}
 {
   const editorSrc = read("ios/App/Katecheo/NativeNoteEditorView.swift");
   if (!editorSrc.includes("NoteEditorCaretScroll") || !editorSrc.includes("contentInsetAdjustmentBehavior = .never")) {
@@ -1205,6 +1211,28 @@ if (!project.includes("NativeNoteEditorCaretScrollTests.swift in Sources")) {
   const caretTests = read("ios/App/KatecheoTests/NativeNoteEditorCaretScrollTests.swift");
   if (!caretTests.includes("testRepeatedEnterAtLastVisibleLine_scrollsAboutOneLineEachTime")) {
     errors.push("NativeNoteEditorCaretScrollTests tem de cobrir Enter repetido na última linha visível (~1 linha por Enter).");
+  }
+  if (!editorSrc.includes("handleCustomBackspace") || !editorSrc.includes("mergeEmptyPlainParagraphOnBackspace")) {
+    errors.push("NativeNoteEditorView tem de tratar Backspace em linha vazia (merge 1x) vs bullet/pill (2x).");
+  }
+  if (!editorSrc.includes("refreshAppearanceForCurrentTraits") || !editorSrc.includes("refreshDynamicTextColors")) {
+    errors.push("NativeNoteEditorView tem de re-resolver cores dinâmicas no foreground / trait change.");
+  }
+  const backspaceTests = read("ios/App/KatecheoTests/NativeNoteEditorBackspaceTests.swift");
+  if (
+    !backspaceTests.includes("testEmptyPlainLine_backspaceMergesInOnePress") ||
+    !backspaceTests.includes("testEmptyBullet_backspaceNeedsTwoPresses") ||
+    !backspaceTests.includes("testReferencePill_backspaceNeedsTwoPresses")
+  ) {
+    errors.push("NativeNoteEditorBackspaceTests tem de cobrir plain=1, bullet=2, reference=2.");
+  }
+  const titleAppearanceTests = read("ios/App/KatecheoTests/NativeNoteEditorTitleAppearanceTests.swift");
+  if (!titleAppearanceTests.includes("testTitleColor_resolvesCorrectlyWhenUserInterfaceStyleToggles")) {
+    errors.push("NativeNoteEditorTitleAppearanceTests tem de alternar userInterfaceStyle e verificar a cor do título.");
+  }
+  const noteDetail = read("ios/App/Katecheo/NoteDetailViewController.swift");
+  if (!noteDetail.includes("refreshAppearanceAfterForeground") || !noteDetail.includes("willEnterForegroundNotification")) {
+    errors.push("NoteDetailViewController tem de refrescar aparência ao voltar do background / app de Bíblia.");
   }
 }
 if (!project.includes("Build234FeedbackTests.swift in Sources")) {
