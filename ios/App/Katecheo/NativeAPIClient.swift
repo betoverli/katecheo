@@ -1229,6 +1229,76 @@ enum NativeAPIClient {
         return data
     }
 
+    // MARK: - Contas conectadas
+
+    static func listIdentities() async throws -> ConnectedIdentitiesResponse {
+        let request = try authorizedRequest(path: "api/native/v1/auth/identities", method: "GET")
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(ConnectedIdentitiesResponse.self, from: data) else {
+            throw APIError.decoding
+        }
+        return decoded
+    }
+
+    static func linkAppleIdentity(body: [String: Any]) async throws {
+        let request = try authorizedRequest(
+            path: "api/native/v1/auth/identities/link/apple",
+            method: "POST",
+            body: try JSONSerialization.data(withJSONObject: body)
+        )
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+    }
+
+    static func linkGoogleIdentity(code: String, verifier: String) async throws {
+        let request = try authorizedRequest(
+            path: "api/native/v1/auth/identities/link/google",
+            method: "POST",
+            body: try JSONSerialization.data(withJSONObject: ["code": code, "verifier": verifier])
+        )
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+    }
+
+    static func setIdentityPassword(password: String, currentPassword: String?) async throws {
+        var body: [String: Any] = ["password": password]
+        if let currentPassword, !currentPassword.isEmpty {
+            body["currentPassword"] = currentPassword
+        }
+        let request = try authorizedRequest(
+            path: "api/native/v1/auth/identities/set-password",
+            method: "POST",
+            body: try JSONSerialization.data(withJSONObject: body)
+        )
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+    }
+
+    static func unlinkIdentity(provider: ConnectedIdentityProvider) async throws {
+        let request = try authorizedRequest(
+            path: "api/native/v1/auth/identities/unlink/\(provider.unlinkPathValue)",
+            method: "DELETE"
+        )
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+    }
+
     static func deleteAccount() async throws {
         let request = try authorizedRequest(path: "api/native/v1/account/delete", method: "POST")
         let (status, data) = try await perform(request)

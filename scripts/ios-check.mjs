@@ -818,9 +818,81 @@ if (!forgotForm.includes("codeLength = 6") || !forgotForm.includes("resendCooldo
   errors.push("NativeForgotPasswordForm tem de validar código de 6 dígitos e cooldown de reenvio.");
 }
 
+// Contas conectadas (link Apple/Google/password without replacing the session).
+{
+  const profile = read("ios/App/Katecheo/ProfileViewController.swift");
+  if (!profile.includes("Contas conectadas") || !profile.includes("ConnectedIdentitiesViewController")) {
+    errors.push("Perfil → Conta tem de abrir Contas conectadas (ConnectedIdentitiesViewController).");
+  }
+  const connected = read("ios/App/Katecheo/ConnectedIdentitiesViewController.swift");
+  if (
+    !connected.includes("linkApple") ||
+    !connected.includes("linkGoogle") ||
+    !connected.includes("unlinkIdentity") ||
+    !connected.includes("setIdentityPassword")
+  ) {
+    errors.push("ConnectedIdentitiesViewController tem de ligar/desligar Apple, Google e senha.");
+  }
+  const models = read("ios/App/Katecheo/ConnectedIdentitiesModels.swift");
+  if (
+    !models.includes("identity_in_use") ||
+    !models.includes("Essa conta Apple já está ligada a outra conta Katecheo.") ||
+    !models.includes("Essa conta Google já está ligada a outra conta Katecheo.")
+  ) {
+    errors.push("ConnectedIdentitiesModels tem de localizar o conflito identity_in_use (Apple/Google).");
+  }
+  if (!project.includes("ConnectedIdentitiesModels.swift in Sources")) {
+    errors.push("ConnectedIdentitiesModels.swift tem de estar no target App.");
+  }
+  if (!project.includes("ConnectedIdentitiesViewController.swift in Sources")) {
+    errors.push("ConnectedIdentitiesViewController.swift tem de estar no target App.");
+  }
+  if (!project.includes("ConnectedIdentitiesTests.swift in Sources")) {
+    errors.push("ConnectedIdentitiesTests.swift tem de estar no target KatecheoTests.");
+  }
+  try {
+    const catalog = JSON.parse(read("ios/App/Katecheo/Localizable.xcstrings"));
+    for (const key of [
+      "Contas conectadas",
+      "Conectar",
+      "Email e senha",
+      "Essa conta Apple já está ligada a outra conta Katecheo.",
+      "Essa conta Google já está ligada a outra conta Katecheo.",
+      "Mantenha pelo menos um método de entrada.",
+    ]) {
+      for (const lang of ["pt-BR", "en", "es"]) {
+        const value = catalog.strings?.[key]?.localizations?.[lang]?.stringUnit?.value;
+        if (typeof value !== "string" || !value) {
+          errors.push(`Localizable.xcstrings: falta ${JSON.stringify(key)} / ${lang}.`);
+        }
+      }
+      if (key.includes("Katecheo")) {
+        const en = catalog.strings?.[key]?.localizations?.en?.stringUnit?.value || "";
+        if (en && !en.includes("Katecheo")) {
+          errors.push(`Localizable.xcstrings en para ${JSON.stringify(key)} tem de manter "Katecheo".`);
+        }
+      }
+    }
+  } catch {
+    errors.push("Localizable.xcstrings ilegível para Contas conectadas.");
+  }
+}
+
 const loginService = read("ios/App/Katecheo/NativeLoginService.swift");
 if (!loginService.includes("ASWebAuthenticationSession") || !loginService.includes("auth/claim")) {
   errors.push("NativeLoginService tem de fazer Google via ASWebAuthenticationSession + claim.");
+}
+if (!loginService.includes("func linkApple") || !loginService.includes("func linkGoogle")) {
+  errors.push("NativeLoginService tem de expor linkApple/linkGoogle sem substituir o bearer.");
+}
+const identitiesApiClient = read("ios/App/Katecheo/NativeAPIClient.swift");
+if (
+  !identitiesApiClient.includes("auth/identities/link/apple") ||
+  !identitiesApiClient.includes("auth/identities/link/google") ||
+  !identitiesApiClient.includes("auth/identities/set-password") ||
+  !identitiesApiClient.includes("auth/identities/unlink")
+) {
+  errors.push("NativeAPIClient tem de chamar os endpoints /auth/identities/*.");
 }
 if (
   !loginService.includes("requestPasswordReset") ||

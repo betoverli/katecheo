@@ -9,6 +9,9 @@ import {
   authEmailForgotPasswordSchema,
   authEmailResetPasswordSchema,
   authEmailSignUpSchema,
+  authIdentitiesLinkAppleSchema,
+  authIdentitiesLinkGoogleSchema,
+  authIdentitiesSetPasswordSchema,
   bibleLinkBodySchema,
   clampNotificationLimit,
   collectionCreateSchema,
@@ -323,6 +326,40 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
 
     if (route.kind === "session") {
       return respond(await getNativeSession(user.id, user.email));
+    }
+
+    if (
+      route.kind === "auth-identities" ||
+      route.kind === "auth-identities-link-apple" ||
+      route.kind === "auth-identities-link-google" ||
+      route.kind === "auth-identities-set-password" ||
+      route.kind === "auth-identities-unlink"
+    ) {
+      const identitiesApi = await import("./v1-identities.server");
+      if (route.kind === "auth-identities") {
+        const result = await identitiesApi.listIdentitiesForUser(request, user.id);
+        return respond(result, result.ok ? 200 : result.status);
+      }
+      if (route.kind === "auth-identities-link-apple") {
+        const payload = await readAndParse(request, authIdentitiesLinkAppleSchema, respond);
+        if (payload instanceof Response) return payload;
+        const result = await identitiesApi.linkAppleIdentity(request, user.id, payload);
+        return respond(result, result.ok ? 200 : result.status);
+      }
+      if (route.kind === "auth-identities-link-google") {
+        const payload = await readAndParse(request, authIdentitiesLinkGoogleSchema, respond);
+        if (payload instanceof Response) return payload;
+        const result = await identitiesApi.linkGoogleIdentity(request, user.id, payload);
+        return respond(result, result.ok ? 200 : result.status);
+      }
+      if (route.kind === "auth-identities-set-password") {
+        const payload = await readAndParse(request, authIdentitiesSetPasswordSchema, respond);
+        if (payload instanceof Response) return payload;
+        const result = await identitiesApi.setPasswordIdentity(request, user.id, payload);
+        return respond(result, result.ok ? 200 : result.status);
+      }
+      const result = await identitiesApi.unlinkIdentity(request, user.id, route.provider);
+      return respond(result, result.ok ? 200 : result.status);
     }
 
     if (route.kind === "notes") {

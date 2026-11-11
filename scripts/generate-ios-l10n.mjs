@@ -376,6 +376,75 @@ const MANUAL = {
     "Too many attempts. Please wait a moment.",
     "Demasiados intentos. Espera un momento.",
   ],
+  // Contas conectadas (Profile → Account)
+  "Contas conectadas": ["Connected sign-ins", "Cuentas conectadas"],
+  "Conectar": ["Connect", "Conectar"],
+  Apple: ["Apple", "Apple"],
+  Google: ["Google", "Google"],
+  "Email e senha": ["Email and password", "Correo y contraseña"],
+  "Métodos de entrada": ["Sign-in methods", "Métodos de acceso"],
+  Desligar: ["Disconnect", "Desconectar"],
+  "Desligar método?": ["Disconnect this method?", "¿Desconectar este método?"],
+  "Não é possível desligar": ["Can't disconnect", "No se puede desconectar"],
+  "Alterar senha": ["Change password", "Cambiar contraseña"],
+  "Definir senha": ["Set password", "Definir contraseña"],
+  "Senha atual": ["Current password", "Contraseña actual"],
+  "Nova senha": ["New password", "Nueva contraseña"],
+  Atenção: ["Notice", "Aviso"],
+  "Essa conta Apple já está ligada a outra conta Katecheo.": [
+    "That Apple account is already linked to another Katecheo account.",
+    "Esa cuenta de Apple ya está vinculada a otra cuenta Katecheo.",
+  ],
+  "Essa conta Google já está ligada a outra conta Katecheo.": [
+    "That Google account is already linked to another Katecheo account.",
+    "Esa cuenta de Google ya está vinculada a otra cuenta Katecheo.",
+  ],
+  "Mantenha pelo menos um método de entrada.": [
+    "Keep at least one sign-in method.",
+    "Mantén al menos un método de acceso.",
+  ],
+  "Apple, Google, email e senha": [
+    "Apple, Google, email and password",
+    "Apple, Google, correo y contraseña",
+  ],
+  "Ligue Apple, Google ou email e senha à mesma conta Katecheo. Mantenha pelo menos um método.": [
+    "Link Apple, Google, or email and password to the same Katecheo account. Keep at least one method.",
+    "Vincula Apple, Google o correo y contraseña a la misma cuenta Katecheo. Mantén al menos un método.",
+  ],
+  "Informe a senha atual para alterar.": [
+    "Enter your current password to change it.",
+    "Introduce la contraseña actual para cambiarla.",
+  ],
+  "Senha atual incorreta.": ["Current password is incorrect.", "La contraseña actual es incorrecta."],
+  "Adicione um email no perfil antes de criar uma senha.": [
+    "Add an email in your profile before creating a password.",
+    "Añade un correo en tu perfil antes de crear una contraseña.",
+  ],
+  "Este método não está conectado.": [
+    "This method isn’t connected.",
+    "Este método no está conectado.",
+  ],
+  "Não foi possível atualizar as contas conectadas.": [
+    "Couldn’t update connected sign-ins.",
+    "No se pudieron actualizar las cuentas conectadas.",
+  ],
+  "Não foi possível ligar este método.": [
+    "Couldn’t link this method.",
+    "No se pudo vincular este método.",
+  ],
+  "Você poderá ligar de novo depois. Mantenha pelo menos um método de entrada.": [
+    "You can connect it again later. Keep at least one sign-in method.",
+    "Podrás vincularlo de nuevo después. Mantén al menos un método de acceso.",
+  ],
+  "Crie uma senha para entrar com o email desta conta.": [
+    "Create a password to sign in with this account’s email.",
+    "Crea una contraseña para entrar con el correo de esta cuenta.",
+  ],
+  "Informe a senha atual e a nova senha.": [
+    "Enter your current password and the new password.",
+    "Introduce la contraseña actual y la nueva.",
+  ],
+  "Verifique os campos.": ["Check the fields.", "Revisa los campos."],
   "Esqueci minha senha": ["Forgot password", "Olvidé mi contraseña"],
   "Enviaremos um código de 6 dígitos para o seu email.": [
     "We’ll send a 6-digit code to your email.",

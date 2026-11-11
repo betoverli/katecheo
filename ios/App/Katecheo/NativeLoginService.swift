@@ -23,7 +23,10 @@ final class NativeLoginService: NSObject {
 
     private var authSession: ASWebAuthenticationSession?
     private var appleContinuation: CheckedContinuation<String, Error>?
+    private var appleLinkContinuation: CheckedContinuation<Void, Error>?
     private var appleNonce: String?
+    private enum AppleFlowMode { case signIn, link }
+    private var appleMode: AppleFlowMode = .signIn
 
     private var anchor = AuthPresentationAnchor()
 
@@ -219,6 +222,7 @@ final class NativeLoginService: NSObject {
 
         let token: String = try await withCheckedThrowingContinuation { continuation in
             self.appleContinuation = continuation
+            self.appleMode = .signIn
             let provider = ASAuthorizationAppleIDProvider()
             let request = provider.createRequest()
             request.requestedScopes = [.fullName, .email]
@@ -229,6 +233,87 @@ final class NativeLoginService: NSObject {
             controller.performRequests()
         }
         _ = KeychainStore.setBearerToken(token)
+    }
+
+    /// Obtain Apple credentials and POST to identities/link/apple — keeps the current bearer.
+    @MainActor
+    func linkApple(from presenter: UIViewController) async throws {
+        anchor.windowProvider = { presenter.view.window }
+        let rawNonce = Self.randomNonce()
+        appleNonce = rawNonce
+        let hashed = Self.sha256(rawNonce)
+
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            self.appleLinkContinuation = continuation
+            self.appleMode = .link
+            let provider = ASAuthorizationAppleIDProvider()
+            let request = provider.createRequest()
+            request.requestedScopes = [.fullName, .email]
+            request.nonce = hashed
+            let controller = ASAuthorizationController(authorizationRequests: [request])
+            controller.delegate = self
+            controller.presentationContextProvider = self
+            controller.performRequests()
+        }
+    }
+
+    /// Run Google OAuth (same as sign-in) then POST identities/link/google — keeps the current bearer.
+    @MainActor
+    func linkGoogle(from presenter: UIViewController) async throws {
+        anchor.windowProvider = { presenter.view.window }
+
+        if #available(iOS 17.4, *) {
+            do {
+                try await completeGoogleLink(returnMode: .https)
+            } catch {
+                if Self.shouldFallBackToScheme(error) {
+                    try await completeGoogleLink(returnMode: .scheme)
+                } else {
+                    throw error
+                }
+            }
+        } else {
+            try await completeGoogleLink(returnMode: .scheme)
+        }
+    }
+
+    @MainActor
+    private func completeGoogleLink(returnMode: GoogleReturnMode) async throws {
+        let verifier = Self.newPkceVerifier()
+        let challenge = Self.pkceChallenge(verifier)
+        var components = URLComponents(
+            url: NativeAPIClient.baseURL.appendingPathComponent("auth/native-start"),
+            resolvingAgainstBaseURL: false
+        )!
+        components.queryItems = [
+            URLQueryItem(name: "providerId", value: "google"),
+            URLQueryItem(name: "code_challenge", value: challenge),
+            URLQueryItem(name: "return", value: returnMode.queryValue),
+        ]
+        guard let startURL = components.url else { throw LoginError.invalidURL }
+
+        let callbackURL = try await runAuthSession(url: startURL, returnMode: returnMode)
+        let comps = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false)
+        if comps?.queryItems?.contains(where: { $0.name == "error" }) == true {
+            throw LoginError.failed(String(localized: "Login Google cancelado ou falhou."))
+        }
+        guard let code = comps?.queryItems?.first(where: { $0.name == "code" })?.value, !code.isEmpty else {
+            throw LoginError.failed(String(localized: "Código de login em falta."))
+        }
+        do {
+            try await NativeAPIClient.linkGoogleIdentity(code: code, verifier: verifier)
+        } catch let api as NativeAPIClient.APIError {
+            if case .http(let status, let body) = api {
+                throw LoginError.failed(
+                    ConnectedIdentitiesLogic.localizedError(
+                        code: body,
+                        provider: .google,
+                        status: status
+                    )
+                )
+            }
+            throw api
+        }
     }
 
     // MARK: - Email
@@ -430,16 +515,17 @@ extension NativeLoginService: ASAuthorizationControllerDelegate, ASAuthorization
               let tokenData = credential.identityToken,
               let identityToken = String(data: tokenData, encoding: .utf8)
         else {
-            appleContinuation?.resume(throwing: LoginError.failed(String(localized: "Token Apple em falta.")))
+            let missing = LoginError.failed(String(localized: "Token Apple em falta."))
+            appleContinuation?.resume(throwing: missing)
+            appleLinkContinuation?.resume(throwing: missing)
             appleContinuation = nil
+            appleLinkContinuation = nil
             return
         }
         let nonce = appleNonce
+        let mode = appleMode
         Task {
             do {
-                var request = URLRequest(url: NativeAPIClient.baseURL.appendingPathComponent("api/native/v1/auth/apple"))
-                request.httpMethod = "POST"
-                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
                 var body: [String: Any] = ["identityToken": identityToken]
                 if let nonce { body["nonce"] = nonce }
                 if let codeData = credential.authorizationCode,
@@ -448,41 +534,68 @@ extension NativeLoginService: ASAuthorizationControllerDelegate, ASAuthorization
                 {
                     body["authorizationCode"] = code
                 }
-                // Apple only returns the person's name on the first authorization.
-                if let fullName = credential.fullName {
-                    var name: [String: String] = [:]
-                    if let given = fullName.givenName, !given.isEmpty { name["givenName"] = given }
-                    if let family = fullName.familyName, !family.isEmpty { name["familyName"] = family }
-                    if !name.isEmpty { body["fullName"] = name }
+                if mode == .link {
+                    try await NativeAPIClient.linkAppleIdentity(body: body)
+                    appleLinkContinuation?.resume(returning: ())
+                } else {
+                    // Apple only returns the person's name on the first authorization.
+                    if let fullName = credential.fullName {
+                        var name: [String: String] = [:]
+                        if let given = fullName.givenName, !given.isEmpty { name["givenName"] = given }
+                        if let family = fullName.familyName, !family.isEmpty { name["familyName"] = family }
+                        if !name.isEmpty { body["fullName"] = name }
+                    }
+                    var request = URLRequest(url: NativeAPIClient.baseURL.appendingPathComponent("api/native/v1/auth/apple"))
+                    request.httpMethod = "POST"
+                    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                    request.httpBody = try JSONSerialization.data(withJSONObject: body)
+                    let (data, response) = try await URLSession.shared.data(for: request)
+                    let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+                    let decoded = try? JSONDecoder().decode(TokenResponse.self, from: data)
+                    if status == 501 {
+                        throw LoginError.failed(String(localized: "Sign in with Apple ainda não está configurado no servidor."))
+                    }
+                    guard status >= 200, status < 300, let token = decoded?.token, !token.isEmpty else {
+                        throw LoginError.failed(decoded?.error ?? String(localized: "Falha no login Apple."))
+                    }
+                    appleContinuation?.resume(returning: token)
                 }
-                request.httpBody = try JSONSerialization.data(withJSONObject: body)
-                let (data, response) = try await URLSession.shared.data(for: request)
-                let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-                let decoded = try? JSONDecoder().decode(TokenResponse.self, from: data)
-                if status == 501 {
-                    throw LoginError.failed(String(localized: "Sign in with Apple ainda não está configurado no servidor."))
+            } catch let api as NativeAPIClient.APIError {
+                if case .http(let status, let body) = api {
+                    let mapped = LoginError.failed(
+                        ConnectedIdentitiesLogic.localizedError(
+                            code: body,
+                            provider: .apple,
+                            status: status
+                        )
+                    )
+                    appleContinuation?.resume(throwing: mapped)
+                    appleLinkContinuation?.resume(throwing: mapped)
+                } else {
+                    appleContinuation?.resume(throwing: api)
+                    appleLinkContinuation?.resume(throwing: api)
                 }
-                guard status >= 200, status < 300, let token = decoded?.token, !token.isEmpty else {
-                    throw LoginError.failed(decoded?.error ?? String(localized: "Falha no login Apple."))
-                }
-                appleContinuation?.resume(returning: token)
             } catch {
                 appleContinuation?.resume(throwing: error)
+                appleLinkContinuation?.resume(throwing: error)
             }
             appleContinuation = nil
+            appleLinkContinuation = nil
             appleNonce = nil
+            appleMode = .signIn
         }
     }
 
     func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
         let ns = error as NSError
-        if ns.code == ASAuthorizationError.canceled.rawValue {
-            appleContinuation?.resume(throwing: LoginError.cancelled)
-        } else {
-            appleContinuation?.resume(throwing: error)
-        }
+        let mapped: Error =
+            ns.code == ASAuthorizationError.canceled.rawValue ? LoginError.cancelled : error
+        appleContinuation?.resume(throwing: mapped)
+        appleLinkContinuation?.resume(throwing: mapped)
         appleContinuation = nil
+        appleLinkContinuation = nil
         appleNonce = nil
+        appleMode = .signIn
     }
 }
 
