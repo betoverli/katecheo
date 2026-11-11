@@ -888,15 +888,23 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     private func mergeEmptyPlainParagraphOnBackspace() -> Bool {
         let storage = textView.textStorage
         let para = paragraphRange()
-        guard para.location > 0, para.length >= 0, storage.length >= NSMaxRange(para) else {
+        guard para.location > 0, storage.length >= NSMaxRange(para) else {
             clearScrollAnchor()
             return false
         }
-        // Delete only this empty paragraph (incl. its trailing `\n` when present). Keep the
-        // previous paragraph's terminator so "hello\n·\nworld" → "hello\nworld", not "helloworld".
-        let caret = max(0, para.location - 1)
-        storage.replaceCharacters(in: para, with: "")
-        let loc = min(caret, storage.length)
+        // Middle empty ("hello\n·\nworld"): delete only this paragraph (incl. its `\n`) so the
+        // previous terminator stays → "hello\nworld".
+        // Trailing empty ("hello\n·"): also eat the previous `\n`, or document() still sees an
+        // empty body line after "hello\n".
+        let isTrailing = NSMaxRange(para) >= storage.length
+        let deleteStart = isTrailing ? para.location - 1 : para.location
+        let deleteLen = NSMaxRange(para) - deleteStart
+        guard deleteLen > 0 else {
+            clearScrollAnchor()
+            return false
+        }
+        storage.replaceCharacters(in: NSRange(location: deleteStart, length: deleteLen), with: "")
+        let loc = min(isTrailing ? deleteStart : max(0, para.location - 1), storage.length)
         textView.selectedRange = NSRange(location: loc, length: 0)
         textView.typingAttributes = typingAttributesForCaret()
         emitChange()
