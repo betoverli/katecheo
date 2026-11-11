@@ -25,6 +25,8 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     private var baseBottomInset: CGFloat = KCDesign.Space.lg
     private var keyboardOverlap: CGFloat = 0
     private var isBodyEditing = false
+    /// contentOffset before an edit; restored after UIKit/layout may clamp it to 0.
+    private var pendingScrollAnchor: CGPoint?
     private var tapGesture: UITapGestureRecognizer!
     private let titlePlaceholderLabel = UILabel()
     private let bodyPlaceholderLabel = UILabel()
@@ -365,11 +367,32 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     /// and leaves a blank gap above the toolbar (Enter / Backspace jump).
     private func scrollCaretVisible(animated: Bool) {
         guard textView.isFirstResponder || testing_forceCaretScroll else { return }
+        restoreScrollAnchorIfNeeded()
         applyMinimalCaretScroll(animated: animated)
     }
 
     /// Test seam: allow caret-scroll without first responder (AppTests host).
     var testing_forceCaretScroll = false
+
+    private func captureScrollAnchor() {
+        pendingScrollAnchor = textView.contentOffset
+    }
+
+    /// UIKit often clamps `contentOffset` to 0 while TextKit layout catches up after
+    /// an insert/delete. Put the pre-edit offset back (clamped), then minimal-scroll.
+    private func restoreScrollAnchorIfNeeded() {
+        guard let anchor = pendingScrollAnchor else { return }
+        pendingScrollAnchor = nil
+        textView.layoutManager.ensureLayout(for: textView.textContainer)
+        textView.layoutIfNeeded()
+        let insets = textView.adjustedContentInset
+        let minY = -insets.top
+        let maxY = max(minY, textView.contentSize.height - textView.bounds.height + insets.bottom)
+        let y = min(max(anchor.y, minY), maxY)
+        if abs(textView.contentOffset.y - y) > 0.5 {
+            textView.setContentOffset(CGPoint(x: anchor.x, y: y), animated: false)
+        }
+    }
 
     private func applyMinimalCaretScroll(animated: Bool) {
         textView.layoutManager.ensureLayout(for: textView.textContainer)
@@ -542,6 +565,8 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     }
 
     func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
+        // Snapshot scroll before UIKit/TextKit can clamp contentOffset during the edit.
+        captureScrollAnchor()
         // Never let the keyboard mutate the non-editable speaker header (attachment or
         // its trailing "\n"). Bounce into the body; do not also run exit/continue — web
         // Enter-on-header only moves into the seeded body.
@@ -581,6 +606,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
                 return false
             case .demoteListToParagraph:
                 applyBlockType("paragraph", preserveChecked: false)
+                scrollCaretVisible(animated: true)
                 return false
             case .exitSection:
                 exitSpeakerSection()
@@ -723,6 +749,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     }
 
     private func insertContinuingSpeakerBodyParagraph() {
+        captureScrollAnchor()
         let result = SpeakerSectionEditing.insertContinuingBodyParagraph(
             in: textView.textStorage,
             at: textView.selectedRange.location
@@ -735,6 +762,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     }
 
     private func insertContinuingOutsideParagraph() {
+        captureScrollAnchor()
         let result = SpeakerSectionEditing.insertContinuingOutsideParagraph(
             in: textView.textStorage,
             at: textView.selectedRange.location
@@ -747,6 +775,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     }
 
     private func insertContinuingListItem(listType: String) {
+        captureScrollAnchor()
         let range = paragraphRange()
         let number = numberedIndex(
             forParagraphStartingAt: range.location,
@@ -2055,6 +2084,13 @@ final class NoteEditorTextView: UITextView {
             rect.size.height = lineHeight
         }
         return rect
+    }
+
+    /// UIKit's default implementation, combined with a large keyboard `contentInset.bottom`,
+    /// pins the caret line to the top of the viewport. `NativeNoteEditorView` owns
+    /// caret visibility via minimal contentOffset math instead.
+    override func scrollRangeToVisible(_ range: NSRange) {
+        // no-op
     }
 
     private func caretFont(at position: UITextPosition) -> UIFont {

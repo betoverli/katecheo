@@ -1190,8 +1190,11 @@ if (!project.includes("NativeNoteEditorCaretScrollTests.swift in Sources")) {
   if (!editorSrc.includes("NoteEditorCaretScroll") || !editorSrc.includes("contentInsetAdjustmentBehavior = .never")) {
     errors.push("NativeNoteEditorView tem de usar NoteEditorCaretScroll + contentInsetAdjustmentBehavior.never (sem scrollRangeToVisible no caret).");
   }
-  if (/scrollCaretVisible[\s\S]{0,400}scrollRangeToVisible/.test(editorSrc)) {
-    errors.push("scrollCaretVisible não pode chamar scrollRangeToVisible (jump Enter/Backspace).");
+  if (!editorSrc.includes("pendingScrollAnchor") || !editorSrc.includes("restoreScrollAnchorIfNeeded")) {
+    errors.push("NativeNoteEditorView tem de preservar contentOffset (pendingScrollAnchor) após Enter/Backspace.");
+  }
+  if (!/override func scrollRangeToVisible/.test(editorSrc)) {
+    errors.push("NoteEditorTextView tem de sobrescrever scrollRangeToVisible (UIKit pin-to-top com inset do teclado).");
   }
 }
 if (!project.includes("Build234FeedbackTests.swift in Sources")) {
