@@ -84,7 +84,6 @@ describe("native menus wiring (Phase 5: Cap plugins removed from iOS)", () => {
   const storyboard = readFileSync(new URL("../../../ios/App/Katecheo/Base.lproj/Main.storyboard", import.meta.url), "utf8");
   const pbx = readFileSync(new URL("../../../ios/App/Katecheo.xcodeproj/project.pbxproj", import.meta.url), "utf8");
   const wrapper = readFileSync(new URL("./menus.ts", import.meta.url), "utf8");
-  const sheet = readFileSync(new URL("../../components/viewport-sheet.tsx", import.meta.url), "utf8");
 
   it("drops NativeMenus / Cap bridge from the iOS target", () => {
     assert.doesNotMatch(pbx, /NativeMenus\.swift/);
@@ -94,53 +93,18 @@ describe("native menus wiring (Phase 5: Cap plugins removed from iOS)", () => {
     assert.doesNotMatch(storyboard, /KatecheoBridge|CAPBridgeViewController/);
   });
 
-  it("TS wrapper still marks failures so website ActionSheet can fall back", () => {
+  it("TS wrapper still marks failures for callers that fall back", () => {
     assert.match(wrapper, /failed\?:\s*boolean/);
     assert.match(wrapper, /PRESENT_HANG_TIMEOUT_MS/);
     assert.match(wrapper, /PRESENTATION_CONFIRM_MS/);
     assert.match(wrapper, /FORCE_WEB_FALLBACK_MS/);
     assert.match(wrapper, /classifyPresentOutcome/);
     assert.match(wrapper, /failed:\s*true/);
-    assert.match(sheet, /result\.failed/);
-    assert.match(sheet, /setMode\("web"\)/);
-    assert.match(sheet, /FORCE_WEB_FALLBACK_MS/);
   });
 
   it("does not await addListener before present (TF85 blank pending hang)", () => {
     assert.doesNotMatch(wrapper, /listener\s*=\s*await\s+plugin\.addListener/);
     assert.match(wrapper, /NEVER await addListener before present/);
     assert.match(wrapper, /Promise\.race\(\[listenerReady/);
-  });
-});
-
-describe("website notebook chrome helpers (Cap host gone on iOS)", () => {
-  const home = readFileSync(new URL("../../components/notebook-home.tsx", import.meta.url), "utf8");
-  const note = readFileSync(new URL("../../components/notebook-editor.tsx", import.meta.url), "utf8");
-  const sheet = readFileSync(new URL("../../components/viewport-sheet.tsx", import.meta.url), "utf8");
-  const css = readFileSync(new URL("../../styles.css", import.meta.url), "utf8");
-
-  it("offers Nova nota + Importar from the notebook + button", () => {
-    assert.match(home, /COMPOSE_IMPORT/);
-    assert.match(home, /notebookImport/);
-    assert.match(home, /menu:\s*composeMenu/);
-    assert.match(home, /ActionSheet/);
-  });
-
-  it("note list swipe uses non-passive touchmove", () => {
-    assert.match(home, /passive:\s*false/);
-    assert.match(home, /touchmove/);
-    assert.match(home, /preventDefault/);
-    assert.match(home, /shareNote/);
-    assert.match(css, /html\.native-ios main\.screen > \.screen-body[\s\S]*?touch-action:\s*pan-x pan-y/);
-  });
-
-  it("note editor keeps title in the body and snapshots ActionSheet handlers", () => {
-    assert.match(note, /title=""/);
-    assert.match(note, /note-whole-speaker/);
-    assert.doesNotMatch(note, /title=\{draft\.title/);
-    assert.match(note, /pickNoteSpeaker/);
-    assert.doesNotMatch(note, /dropSpeaker/);
-    assert.match(sheet, /settledRef/);
-    assert.match(sheet, /presented\.map/);
   });
 });

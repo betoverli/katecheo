@@ -1,20 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AppHeader } from "@/components/app-header";
-import { ProfileScreen } from "@/components/screen";
-import { BibleSettings } from "@/components/settings-panel";
-import { t } from "@/lib/i18n";
-import { useAppStore } from "@/lib/store";
+import { redirectWebAppToLanding } from "@/lib/web-app-gone";
 
+/** Former web-product route — permanent redirect to the marketing landing. */
 export const Route = createFileRoute("/profile/bible")({
-  component: ProfileBible,
+  beforeLoad: () => {
+    redirectWebAppToLanding();
+  },
 });
-
-function ProfileBible() {
-  const locale = useAppStore((s) => s.locale);
-  return (
-    <ProfileScreen>
-      <AppHeader title={t(locale, "bibleApp")} backTo="/profile" />
-      <BibleSettings />
-    </ProfileScreen>
-  );
-}

@@ -1,20 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AppHeader } from "@/components/app-header";
-import { ProfileScreen } from "@/components/screen";
-import { HelpSettings } from "@/components/settings-panel";
-import { t } from "@/lib/i18n";
-import { useAppStore } from "@/lib/store";
+import { redirectWebAppToLanding } from "@/lib/web-app-gone";
 
+/** Former web-product route — permanent redirect to the marketing landing. */
 export const Route = createFileRoute("/profile/help")({
-  component: ProfileHelp,
+  beforeLoad: () => {
+    redirectWebAppToLanding();
+  },
 });
-
-function ProfileHelp() {
-  const locale = useAppStore((s) => s.locale);
-  return (
-    <ProfileScreen>
-      <AppHeader title={t(locale, "aboutTitle")} backTo="/profile" />
-      <HelpSettings />
-    </ProfileScreen>
-  );
-}

@@ -1,18 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { NotebookGroupDetail } from "@/components/notebook-group-detail";
-import { pageHead } from "@/lib/seo";
+import { redirectWebAppToLanding } from "@/lib/web-app-gone";
 
+/** Former web-product route — permanent redirect to the marketing landing. */
 export const Route = createFileRoute("/groups/$id")({
-  component: GroupDetailRoute,
-  head: () =>
-    pageHead({
-      title: "Katecheo — Grupo",
-      description: "Caderno compartilhado de um grupo.",
-      path: "/groups",
-    }),
+  beforeLoad: () => {
+    redirectWebAppToLanding();
+  },
 });
-
-function GroupDetailRoute() {
-  const { id } = Route.useParams();
-  return <NotebookGroupDetail id={id} />;
-}

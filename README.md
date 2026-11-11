@@ -1,12 +1,12 @@
 # Katecheo
 
-Picker de referências bíblicas. Escolha livro, capítulo e versos; copie um texto rico com deep link para o app de Bíblia (YouVersion, Logos, Tecarta e outros). Coleções por tema. Planos de leitura de capítulos inteiros. Caderno de reunião, grupos e perfil com conta opcional.
+Estudo bíblico organizado no **iPhone**: notas com referências que abrem no app de Bíblia que você já usa (Katecheo nunca mostra o texto bíblico), temas, planos de leitura, grupos e amigos.
 
-Live: [katecheo.app](https://katecheo.app)
+O site [katecheo.app](https://katecheo.app) é a **landing de marketing** + APIs (`/api/native/*`, ferramentas de IA). O uso do produto é exclusivo do app nativo iOS (`ios/App/Katecheo.xcodeproj`).
 
 Repositório: [github.com/betoverli/katecheo](https://github.com/betoverli/katecheo)
 
-Português, English, Español. PWA offline. Conta opcional (Google ou e-mail). Backend em **Vercel** + **Neon**. App nativo iOS em `ios/App/Katecheo.xcodeproj`.
+Português, English, Español. Backend em **Vercel** + **Neon**.
 
 > Antes chamava-se Verse2Note. O domínio legado `verse2note.com` redireciona para `katecheo.app` (com exclusões para builds antigos do iOS e OAuth — ver `docs/domain-cutover.md`).
 
@@ -74,7 +74,7 @@ O regresso do app de iPhone não entra nesta lista. A Apple e o Google só vêem
 
 ## App iOS
 
-O site em [katecheo.app](https://katecheo.app) é o produto web. O app de iPhone é **nativo** (Swift / UIKit), projeto em `ios/App/Katecheo.xcodeproj`. Fala com a API em `katecheo.app` (Better Auth + `/api/native/v1`). O identificador do app continua `com.verse2note.app` (e o tópico APNs).
+O site em [katecheo.app](https://katecheo.app) é marketing + API. O app de iPhone é **nativo** (Swift / UIKit), projeto em `ios/App/Katecheo.xcodeproj`. Fala com a API em `katecheo.app` (Better Auth + `/api/native/v1`). O identificador do app continua `com.verse2note.app` (e o tópico APNs).
 
 Ícone, ecrã de abertura, avisos da Apple, folha de partilha e abertura da Bíblia (YouVersion e outras) são nativos. O login com Google abre o navegador do sistema e volta para o app (`katecheo://`), porque a Apple e o Google recusam esse login dentro de WebView. O regresso do login traz só um código de uso único, preso a um segredo que fica no app.
 

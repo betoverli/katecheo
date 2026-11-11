@@ -1000,3 +1000,71 @@ main.note-screen > .note-chrome .app-header {
     padding-right: 1.5rem;
   }
 }
+
+/* —— Marketing landing —— */
+.marketing-atmosphere {
+  background:
+    radial-gradient(1200px 600px at 10% -10%, color-mix(in srgb, var(--color-accent) 22%, transparent), transparent 60%),
+    radial-gradient(900px 500px at 90% 0%, color-mix(in srgb, var(--color-accent) 12%, transparent), transparent 55%),
+    linear-gradient(180deg, color-mix(in srgb, var(--color-elevated) 55%, transparent), transparent 42%);
+}
+
+html.light .marketing-atmosphere {
+  background:
+    radial-gradient(1200px 600px at 12% -8%, color-mix(in srgb, var(--color-accent) 16%, transparent), transparent 58%),
+    radial-gradient(800px 480px at 88% 5%, color-mix(in srgb, var(--color-accent) 10%, transparent), transparent 50%),
+    linear-gradient(180deg, #ffffff, transparent 40%);
+}
+
+@keyframes marketing-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes marketing-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.marketing-fade-up {
+  animation: marketing-fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.marketing-fade-in {
+  animation: marketing-fade-in 0.55s ease both;
+}
+
+.marketing-delay-1 {
+  animation-delay: 0.08s;
+}
+.marketing-delay-2 {
+  animation-delay: 0.16s;
+}
+.marketing-delay-3 {
+  animation-delay: 0.24s;
+}
+.marketing-delay-4 {
+  animation-delay: 0.32s;
+}
+
+.marketing-device {
+  animation: marketing-fade-up 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.28s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marketing-fade-up,
+  .marketing-fade-in,
+  .marketing-device {
+    animation: none;
+  }
+}
