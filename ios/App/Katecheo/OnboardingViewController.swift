@@ -27,6 +27,11 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
     private var pageWidth: CGFloat = 0
     private(set) var currentPageIndex = 0
 
+    /// When set (unit tests only), `updateBottomChromeInset` uses these values
+    /// instead of the live window/scene safe area — the TEST_HOST simulator's
+    /// Face-ID insets must not overwrite SE / Pro Max fixture cases.
+    private var testingBottomInsetOverride: (view: CGFloat, window: CGFloat, top: CGFloat)?
+
     /// Standard home-indicator inset used when top is clearly inset (notch /
     /// Dynamic Island) but bottom reports 0 — the TF 325 failure mode.
     static let homeIndicatorFallback: CGFloat = 34
@@ -192,13 +197,24 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
     }
 
     private func updateBottomChromeInset() {
-        let windowInset = view.window?.safeAreaInsets.bottom
-            ?? view.window?.windowScene?.windows.map(\.safeAreaInsets.bottom).max()
-            ?? 0
+        let viewInset: CGFloat
+        let windowInset: CGFloat
+        let topInset: CGFloat
+        if let override = testingBottomInsetOverride {
+            viewInset = override.view
+            windowInset = override.window
+            topInset = override.top
+        } else {
+            viewInset = view.safeAreaInsets.bottom
+            windowInset = view.window?.safeAreaInsets.bottom
+                ?? view.window?.windowScene?.windows.map(\.safeAreaInsets.bottom).max()
+                ?? 0
+            topInset = view.safeAreaInsets.top
+        }
         let inset = Self.effectiveBottomSafeInset(
-            viewInset: view.safeAreaInsets.bottom,
+            viewInset: viewInset,
             windowInset: windowInset,
-            topInset: view.safeAreaInsets.top
+            topInset: topInset
         )
         let constant = -(inset + KCDesign.Space.md)
         if bottomBarBottomConstraint?.constant != constant {
@@ -433,13 +449,10 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
 
     /// Apply a known inset triple (bypasses the live window/scene) so layout
     /// assertions stay deterministic inside the TEST_HOST simulator.
+    /// Persists across `viewDidLayoutSubviews` → `updateBottomChromeInset`.
     func testing_applyBottomInsets(viewInset: CGFloat, windowInset: CGFloat, topInset: CGFloat) {
-        let inset = Self.effectiveBottomSafeInset(
-            viewInset: viewInset,
-            windowInset: windowInset,
-            topInset: topInset
-        )
-        bottomBarBottomConstraint?.constant = -(inset + KCDesign.Space.md)
+        testingBottomInsetOverride = (viewInset, windowInset, topInset)
+        updateBottomChromeInset()
         view.layoutIfNeeded()
     }
 
