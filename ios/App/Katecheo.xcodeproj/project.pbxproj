@@ -11,6 +11,8 @@
 		T9TF21922FED7965001685T9 /* NativeNoteEditorTF219Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T9TF21921FED7965001685T9 /* NativeNoteEditorTF219Tests.swift */; };
 		TATF22222FED7965001685TA /* NativeNoteEditorTF222Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TATF22221FED7965001685TA /* NativeNoteEditorTF222Tests.swift */; };
 		TBCSCROLL2FED7965001685TB /* NativeNoteEditorCaretScrollTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TBCSCROLL1FED7965001685TB /* NativeNoteEditorCaretScrollTests.swift */; };
+		TBBSAP12FED7965001685TB /* NativeNoteEditorBackspaceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TBBSAP11FED7965001685TB /* NativeNoteEditorBackspaceTests.swift */; };
+		TBTLAP12FED7965001685TB /* NativeNoteEditorTitleAppearanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TBTLAP11FED7965001685TB /* NativeNoteEditorTitleAppearanceTests.swift */; };
 		T9APPAPP2FED7965001685T9 /* AppAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = T9APPAPP1FED7965001685T9 /* AppAppearance.swift */; };
 		KCFRN12FED7965001685V2 /* FriendsActivityViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCFRN11FED7965001685V2 /* FriendsActivityViewController.swift */; };
 		KCACT12FED7965001685V2 /* KCActivityStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCACT11FED7965001685V2 /* KCActivityStore.swift */; };
@@ -123,6 +125,8 @@
 		T9TF21921FED7965001685T9 /* NativeNoteEditorTF219Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeNoteEditorTF219Tests.swift; sourceTree = "<group>"; };
 		TATF22221FED7965001685TA /* NativeNoteEditorTF222Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeNoteEditorTF222Tests.swift; sourceTree = "<group>"; };
 		TBCSCROLL1FED7965001685TB /* NativeNoteEditorCaretScrollTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeNoteEditorCaretScrollTests.swift; sourceTree = "<group>"; };
+		TBBSAP11FED7965001685TB /* NativeNoteEditorBackspaceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeNoteEditorBackspaceTests.swift; sourceTree = "<group>"; };
+		TBTLAP11FED7965001685TB /* NativeNoteEditorTitleAppearanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeNoteEditorTitleAppearanceTests.swift; sourceTree = "<group>"; };
 		T5SHEET11FED7965001685T5 /* KCSheetPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KCSheetPresenter.swift; sourceTree = "<group>"; };
 		T5CONF11FED7965001685T5 /* KCConfirmation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KCConfirmation.swift; sourceTree = "<group>"; };
 		T5CONF21FED7965001685T5 /* ConfirmationDialogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfirmationDialogTests.swift; sourceTree = "<group>"; };
@@ -335,6 +339,8 @@
 				T9TF21921FED7965001685T9 /* NativeNoteEditorTF219Tests.swift */,
 				TATF22221FED7965001685TA /* NativeNoteEditorTF222Tests.swift */,
 				TBCSCROLL1FED7965001685TB /* NativeNoteEditorCaretScrollTests.swift */,
+				TBBSAP11FED7965001685TB /* NativeNoteEditorBackspaceTests.swift */,
+				TBTLAP11FED7965001685TB /* NativeNoteEditorTitleAppearanceTests.swift */,
 				T8SCROLL1FED7965001685T8 /* KCScrollChromeTests.swift */,
 				TBSWIPE1FED7965001685TB /* KCSwipeActionTests.swift */,
 				TCTABBG1FED7965001685TC /* TabBackgroundConsistencyTests.swift */,
@@ -609,6 +615,8 @@
 				T9TF21922FED7965001685T9 /* NativeNoteEditorTF219Tests.swift in Sources */,
 				TATF22222FED7965001685TA /* NativeNoteEditorTF222Tests.swift in Sources */,
 				TBCSCROLL2FED7965001685TB /* NativeNoteEditorCaretScrollTests.swift in Sources */,
+				TBBSAP12FED7965001685TB /* NativeNoteEditorBackspaceTests.swift in Sources */,
+				TBTLAP12FED7965001685TB /* NativeNoteEditorTitleAppearanceTests.swift in Sources */,
 				T8SCROLL2FED7965001685T8 /* KCScrollChromeTests.swift in Sources */,
 				TBSWIPE2FED7965001685TB /* KCSwipeActionTests.swift in Sources */,
 				TCTABBG2FED7965001685TC /* TabBackgroundConsistencyTests.swift in Sources */,
