@@ -529,6 +529,41 @@ const MANUAL = {
     "Pull to refresh when you’re back online.",
     "Desliza para actualizar cuando vuelva la red.",
   ],
+  // First-launch onboarding
+  Pular: ["Skip", "Omitir"],
+  Começar: ["Get started", "Empezar"],
+  "Seu estudo bíblico, organizado": [
+    "Your Bible study, organized",
+    "Tu estudio bíblico, organizado",
+  ],
+  "Notas com referências": ["Notes with references", "Notas con referencias"],
+  "Anote sermões e estudos e marque referências bíblicas que abrem no seu app de Bíblia.": [
+    "Write sermon and study notes and mark Bible references that open in your own Bible app.",
+    "Escribe notas de sermones y estudios y marca referencias bíblicas que se abren en tu app de Biblia.",
+  ],
+  "Temas e leitura": ["Themes and reading", "Temas y lectura"],
+  "Organize por temas e acompanhe planos de leitura.": [
+    "Organize by themes and follow reading plans.",
+    "Organiza por temas y sigue planes de lectura.",
+  ],
+  "Grupos e amigos": ["Groups and friends", "Grupos y amigos"],
+  "Compartilhe notas com amigos e grupos da igreja.": [
+    "Share notes with friends and church groups.",
+    "Comparte notas con amigos y grupos de la iglesia.",
+  ],
+  "Ver introdução": ["View intro", "Ver introducción"],
+  "Ver de novo as telas iniciais": [
+    "See the intro screens again",
+    "Ver de nuevo las pantallas iniciales",
+  ],
+  "Boas-vindas ao Katecheo": ["Welcome to Katecheo", "Bienvenido a Katecheo"],
+  "Pula a introdução e continua": [
+    "Skips the intro and continues",
+    "Omite la introducción y continúa",
+  ],
+  "Páginas da introdução": ["Intro pages", "Páginas de la introducción"],
+  "Página %lld de %lld": ["Page %lld of %lld", "Página %lld de %lld"],
+
 };
 
 /** Keys owned by the MANUAL table (safe to add into an existing hand catalog). */

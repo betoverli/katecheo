@@ -305,7 +305,56 @@ if (!project.includes("AppAppearance.swift in Sources")) {
 
 const appRoot = read("ios/App/Katecheo/AppRoot.swift");
 if (!appRoot.includes("NativeRootTabBarController") || appRoot.includes("KatecheoBridge") || appRoot.includes("capacitorSite")) {
-  errors.push("AppRoot tem de montar só NativeRootTabBarController (sem Cap).");
+  errors.push("AppRoot tem de montar NativeRootTabBarController (sem Cap).");
+}
+if (!appRoot.includes("OnboardingViewController") || !appRoot.includes("OnboardingStore")) {
+  errors.push("AppRoot tem de mostrar OnboardingViewController na primeira abertura (antes do auth).");
+}
+if (!appRoot.includes("applyMainShell") || !appRoot.includes("makeMainShell")) {
+  errors.push("AppRoot tem de trocar para o shell principal depois do onboarding (applyMainShell).");
+}
+
+const onboardingStore = read("ios/App/Katecheo/OnboardingStore.swift");
+if (!onboardingStore.includes("katecheo.hasSeenOnboarding") || !onboardingStore.includes("UserDefaults")) {
+  errors.push("OnboardingStore tem de persistir hasSeen com chave katecheo.* em UserDefaults.");
+}
+if (!onboardingStore.includes("-katecheoSkipOnboarding")) {
+  errors.push("OnboardingStore tem de aceitar -katecheoSkipOnboarding para testes existentes.");
+}
+
+const onboardingVC = read("ios/App/Katecheo/OnboardingViewController.swift");
+if (!onboardingVC.includes("Pular") || !onboardingVC.includes("Começar")) {
+  errors.push("OnboardingViewController tem de ter Pular e Começar.");
+}
+if (!onboardingVC.includes("isPagingEnabled") || !onboardingVC.includes("UIPageControl")) {
+  errors.push("OnboardingViewController tem de ser swipeable com page dots.");
+}
+if (!onboardingVC.includes('String(localized: "Katecheo")') || /["'`]Kate["'`]/.test(onboardingVC) || /["'`]cheo["'`]/.test(onboardingVC)) {
+  errors.push('Onboarding: "Katecheo" tem de ser uma só palavra em estilo uniforme.');
+}
+if (!onboardingVC.includes("Seu estudo bíblico, organizado")) {
+  errors.push("Onboarding página 1 tem de incluir o tagline de boas-vindas.");
+}
+if (!onboardingVC.includes("Notas com referências") || !onboardingVC.includes("Temas e leitura") || !onboardingVC.includes("Grupos e amigos")) {
+  errors.push("Onboarding tem de ter as 4 páginas (boas-vindas, notas, temas, grupos).");
+}
+if (!onboardingVC.includes("adjustsFontForContentSizeCategory") || !onboardingVC.includes("safeAreaLayoutGuide")) {
+  errors.push("Onboarding tem de respeitar Dynamic Type e safe areas.");
+}
+if (!onboardingVC.includes("accessibilityLabel") || !onboardingVC.includes("accessibilityHint")) {
+  errors.push("Onboarding tem de ter labels VoiceOver.");
+}
+
+const profileForOnboarding = read("ios/App/Katecheo/ProfileViewController.swift");
+if (!profileForOnboarding.includes("Ver introdução") || !profileForOnboarding.includes("presentOnboardingReplay")) {
+  errors.push("Perfil/Settings tem de oferecer 'Ver introdução' para repetir o onboarding.");
+}
+
+if (!project.includes("OnboardingStore.swift in Sources") || !project.includes("OnboardingViewController.swift in Sources")) {
+  errors.push("OnboardingStore/OnboardingViewController têm de estar no target Xcode.");
+}
+if (!project.includes("OnboardingFlowTests.swift in Sources")) {
+  errors.push("OnboardingFlowTests tem de estar no target KatecheoTests.");
 }
 
 const mainStoryboard = read("ios/App/Katecheo/Base.lproj/Main.storyboard");

@@ -71,6 +71,9 @@
 		E4F1B0182FED796500168560 /* NativeForgotPasswordViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4F1B0192FED796500168560 /* NativeForgotPasswordViewController.swift */; };
 		E4F1B01A2FED796500168560 /* NativeForgotPasswordForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4F1B01B2FED796500168560 /* NativeForgotPasswordForm.swift */; };
 		TBAUTH2FED7965001685TB /* AuthSignInScreenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TBAUTH1FED7965001685TB /* AuthSignInScreenTests.swift */; };
+		TBONB22FED7965001685TB /* OnboardingFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TBONB21FED7965001685TB /* OnboardingFlowTests.swift */; };
+		KCONB12FED7965001685V2 /* OnboardingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCONB11FED7965001685V2 /* OnboardingStore.swift */; };
+		KCONB22FED7965001685V2 /* OnboardingViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCONB21FED7965001685V2 /* OnboardingViewController.swift */; };
 		F5A2C0102FED796500168570 /* GroupsListViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A2C0112FED796500168570 /* GroupsListViewController.swift */; };
 		F5A3D0102FED796500168580 /* ProfileViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A3D0112FED796500168580 /* ProfileViewController.swift */; };
 		F5A3D0122FED796500168580 /* ProfileSettingsScreens.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A3D0132FED796500168580 /* ProfileSettingsScreens.swift */; };
@@ -142,6 +145,9 @@
 		E4F1B0192FED796500168560 /* NativeForgotPasswordViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeForgotPasswordViewController.swift; sourceTree = "<group>"; };
 		E4F1B01B2FED796500168560 /* NativeForgotPasswordForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeForgotPasswordForm.swift; sourceTree = "<group>"; };
 		TBAUTH1FED7965001685TB /* AuthSignInScreenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthSignInScreenTests.swift; sourceTree = "<group>"; };
+		TBONB21FED7965001685TB /* OnboardingFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingFlowTests.swift; sourceTree = "<group>"; };
+		KCONB11FED7965001685V2 /* OnboardingStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingStore.swift; sourceTree = "<group>"; };
+		KCONB21FED7965001685V2 /* OnboardingViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingViewController.swift; sourceTree = "<group>"; };
 		F5A2C0112FED796500168570 /* GroupsListViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupsListViewController.swift; sourceTree = "<group>"; };
 		F5A3D0112FED796500168580 /* ProfileViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileViewController.swift; sourceTree = "<group>"; };
 		F5A3D0132FED796500168580 /* ProfileSettingsScreens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileSettingsScreens.swift; sourceTree = "<group>"; };
@@ -268,6 +274,8 @@
 				E4F1B0162FED796500168560 /* NativeEmailAuthForm.swift */,
 				E4F1B0192FED796500168560 /* NativeForgotPasswordViewController.swift */,
 				E4F1B01B2FED796500168560 /* NativeForgotPasswordForm.swift */,
+				KCONB11FED7965001685V2 /* OnboardingStore.swift */,
+				KCONB21FED7965001685V2 /* OnboardingViewController.swift */,
 				F5A2C0112FED796500168570 /* GroupsListViewController.swift */,
 				F5A3D0112FED796500168580 /* ProfileViewController.swift */,
 				F5A3D0132FED796500168580 /* ProfileSettingsScreens.swift */,
@@ -306,6 +314,7 @@
 				TB238FB1FED7965001685TB /* Build238FeedbackTests.swift */,
 				T5CONF21FED7965001685T5 /* ConfirmationDialogTests.swift */,
 				TBAUTH1FED7965001685TB /* AuthSignInScreenTests.swift */,
+				TBONB21FED7965001685TB /* OnboardingFlowTests.swift */,
 				KCSWR21FED7965001685V2 /* NativeSWRCacheTests.swift */,
 				TBNTC11FED7965001685TB /* NotificationsCenterTests.swift */,
 			);
@@ -491,6 +500,8 @@
 				E4F1B0172FED796500168560 /* NativeEmailAuthForm.swift in Sources */,
 				E4F1B0182FED796500168560 /* NativeForgotPasswordViewController.swift in Sources */,
 				E4F1B01A2FED796500168560 /* NativeForgotPasswordForm.swift in Sources */,
+				KCONB12FED7965001685V2 /* OnboardingStore.swift in Sources */,
+				KCONB22FED7965001685V2 /* OnboardingViewController.swift in Sources */,
 				F5A2C0102FED796500168570 /* GroupsListViewController.swift in Sources */,
 				F5A3D0102FED796500168580 /* ProfileViewController.swift in Sources */,
 				F5A3D0122FED796500168580 /* ProfileSettingsScreens.swift in Sources */,
@@ -521,6 +532,7 @@
 				TB238FB2FED7965001685TB /* Build238FeedbackTests.swift in Sources */,
 				T5CONF22FED7965001685T5 /* ConfirmationDialogTests.swift in Sources */,
 				TBAUTH2FED7965001685TB /* AuthSignInScreenTests.swift in Sources */,
+				TBONB22FED7965001685TB /* OnboardingFlowTests.swift in Sources */,
 				KCSWR22FED7965001685V2 /* NativeSWRCacheTests.swift in Sources */,
 				TBNTC12FED7965001685TB /* NotificationsCenterTests.swift in Sources */,
 			);
