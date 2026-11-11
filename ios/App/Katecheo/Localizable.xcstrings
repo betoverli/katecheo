@@ -16514,6 +16514,29 @@
           }
         }
       }
+    },
+    "Busque pelo @usuário.": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Busque pelo @usuário."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search by @username."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Busca por @usuario."
+          }
+        }
+      }
     }
   },
   "version": "1.0"
