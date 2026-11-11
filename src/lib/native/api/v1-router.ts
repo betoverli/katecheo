@@ -14,9 +14,10 @@ export type NativeV1Route =
   | { kind: "links-remove" }
   | { kind: "links-request" }
   | { kind: "links-search" }
-  | { kind: "notifications" }
+  | { kind: "notifications"; notificationId?: string }
   | { kind: "notifications-read" }
   | { kind: "notifications-summary" }
+  | { kind: "notifications-clear" }
   | { kind: "speakers"; speakerId?: string }
   | { kind: "devices-apns" }
   | { kind: "auth-providers" }
@@ -86,6 +87,12 @@ export function matchNativeV1Route(splat: string): NativeV1Route {
   }
   if (a === "notifications" && b === "read" && parts.length === 2) {
     return { kind: "notifications-read" };
+  }
+  if (a === "notifications" && b === "clear" && parts.length === 2) {
+    return { kind: "notifications-clear" };
+  }
+  if (a === "notifications" && parts.length === 2 && b) {
+    return { kind: "notifications", notificationId: b };
   }
   if (a === "speakers" && parts.length === 1) return { kind: "speakers" };
   if (a === "speakers" && parts.length === 2 && b) return { kind: "speakers", speakerId: b };
@@ -206,10 +213,14 @@ export function methodAllowed(route: NativeV1Route, method: string): boolean {
     case "links-request":
       return m === "POST";
     case "notifications":
+      if (route.notificationId) return m === "DELETE";
+      return m === "GET";
     case "notifications-summary":
       return m === "GET";
     case "notifications-read":
       return m === "POST";
+    case "notifications-clear":
+      return m === "POST" || m === "DELETE";
     case "note-groups":
       return m === "GET";
     case "speakers":

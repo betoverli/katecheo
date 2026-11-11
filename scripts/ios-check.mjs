@@ -341,6 +341,15 @@ if (!onboardingVC.includes("Notas com referências") || !onboardingVC.includes("
 if (!onboardingVC.includes("adjustsFontForContentSizeCategory") || !onboardingVC.includes("safeAreaLayoutGuide")) {
   errors.push("Onboarding tem de respeitar Dynamic Type e safe areas.");
 }
+if (!onboardingVC.includes("minimumScaleFactor") || !onboardingVC.includes("numberOfLines = 1") || !onboardingVC.includes("adjustsFontSizeToFitWidth")) {
+  errors.push("Onboarding wordmark Katecheo tem de ser 1 linha (scale ≥0.6, sem hyphenation/wrap).");
+}
+if (!onboardingVC.includes("stack.alignment = .fill") && !onboardingVC.includes("alignment = .fill")) {
+  errors.push("Onboarding titles/bodies têm de usar largura total (.fill), não coluna estreita por .center.");
+}
+if (!onboardingVC.includes("Space.xl") || !onboardingVC.includes("bottomBar.bottomAnchor")) {
+  errors.push("Onboarding tem de usar padding horizontal ~32pt e pinar Get started na safe area inferior.");
+}
 if (!onboardingVC.includes("accessibilityLabel") || !onboardingVC.includes("accessibilityHint")) {
   errors.push("Onboarding tem de ter labels VoiceOver.");
 }
@@ -1253,6 +1262,16 @@ try {
   }
   if (!api.includes("links/request") || !api.includes("links/search") || !api.includes("notifications/summary")) {
     errors.push("NativeAPIClient tem de chamar links/request, links/search e notifications/summary (build-238 limits).");
+  }
+  if (!api.includes("func deleteNotification") || !api.includes("notifications/clear") || !api.includes("func clearNotifications")) {
+    errors.push("NativeAPIClient tem de apagar avisos (DELETE notifications/:id + clear).");
+  }
+  const notifyCenter = read("ios/App/Katecheo/NotificationsCenterViewController.swift");
+  if (!notifyCenter.includes("Limpar tudo") || !notifyCenter.includes("deleteNotification") || !notifyCenter.includes("Excluir")) {
+    errors.push("Avisos tem de ter swipe Excluir e Limpar tudo com confirmação.");
+  }
+  if (!notifyVm.includes("func deleteNotification") || !notifyVm.includes("func clearAll")) {
+    errors.push("NotificationsCenterViewModel tem de apagar/limpar com UI otimista.");
   }
   if (!api.includes("links/remove") || !api.includes("func removeLink")) {
     errors.push("NativeAPIClient tem de chamar links/remove (unfriend).");

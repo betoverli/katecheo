@@ -693,6 +693,29 @@ enum NativeAPIClient {
         }
     }
 
+    /// Deletes one alert. Connection requests in Friends are unaffected.
+    static func deleteNotification(id: String) async throws {
+        let trimmed = id.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        let encoded = trimmed.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? trimmed
+        let request = try authorizedRequest(path: "api/native/v1/notifications/\(encoded)", method: "DELETE")
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+    }
+
+    /// Clears the entire alerts inbox on the server.
+    static func clearNotifications() async throws {
+        let request = try authorizedRequest(path: "api/native/v1/notifications/clear", method: "POST")
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+    }
+
     static func upsertNote(_ note: NoteDocument) async throws -> NoteDocument {
         var payload = note
         payload.schemaVersion = 1

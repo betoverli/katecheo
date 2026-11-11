@@ -292,9 +292,13 @@ final class MockNativeURLProtocol: URLProtocol {
     static var notificationsJSON: String?
     static var notificationsPage2JSON: String?
     static var notificationsReadJSON: String?
+    static var notificationsDeleteJSON: String?
+    static var notificationsClearJSON: String?
     static var providersJSON: String?
     static var artificialDelayMs: UInt64 = 0
     private(set) static var readBodies: [[String: Any]] = []
+    private(set) static var deletedNotificationIds: [String] = []
+    private(set) static var clearNotificationsHits = 0
     private(set) static var notificationsListHits = 0
     private static var registered = false
 
@@ -329,9 +333,13 @@ final class MockNativeURLProtocol: URLProtocol {
         notificationsJSON = nil
         notificationsPage2JSON = nil
         notificationsReadJSON = nil
+        notificationsDeleteJSON = nil
+        notificationsClearJSON = nil
         providersJSON = nil
         artificialDelayMs = 0
         readBodies = []
+        deletedNotificationIds = []
+        clearNotificationsHits = 0
         notificationsListHits = 0
     }
 
@@ -384,6 +392,19 @@ final class MockNativeURLProtocol: URLProtocol {
             } else {
                 Self.readBodies.append([:])
             }
+        } else if path.contains("/notifications/clear"), method == "POST" || method == "DELETE" {
+            Self.clearNotificationsHits += 1
+            // nil fixture → 404 so optimistic UI can test rollback.
+            body = Self.notificationsClearJSON
+        } else if method == "DELETE",
+                  path.range(of: #"/notifications/[^/]+$"#, options: .regularExpression) != nil,
+                  !path.contains("/notifications/clear"),
+                  !path.contains("/notifications/read"),
+                  !path.contains("/notifications/summary") {
+            let id = path.split(separator: "/").last.map(String.init) ?? ""
+            Self.deletedNotificationIds.append(id)
+            // nil fixture → 404 so optimistic UI can test rollback.
+            body = Self.notificationsDeleteJSON
         } else if path.hasSuffix("/notifications") || path.contains("/notifications?") {
             Self.notificationsListHits += 1
             let cursor = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?

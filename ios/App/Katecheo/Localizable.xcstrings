@@ -17503,6 +17503,75 @@
           }
         }
       }
+    },
+    "Isso remove os avisos da lista. Pedidos de amizade continuam em Amigos.": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Isso remove os avisos da lista. Pedidos de amizade continuam em Amigos."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This removes alerts from the list. Friend requests stay in Friends."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esto elimina los avisos de la lista. Las solicitudes de amistad siguen en Amigos."
+          }
+        }
+      }
+    },
+    "Limpar todos os avisos?": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Limpar todos os avisos?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear all alerts?"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Borrar todos los avisos?"
+          }
+        }
+      }
+    },
+    "Limpar tudo": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Limpar tudo"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear all"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Borrar todo"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

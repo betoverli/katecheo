@@ -407,3 +407,15 @@ export async function markNotificationsReadForUser(userId: string, id?: string) 
   await markRead(userId, id);
   return { ok: true as const };
 }
+
+/** Deletes one alert row; never touches user_links / Friends requests. */
+export async function deleteNotificationForUser(userId: string, id: string) {
+  const { deleteNotification } = await import("@/lib/notify.server");
+  return deleteNotification(userId, id);
+}
+
+/** Clears the entire alerts inbox for this user. */
+export async function clearNotificationsForUser(userId: string) {
+  const { clearNotifications } = await import("@/lib/notify.server");
+  return clearNotifications(userId);
+}
