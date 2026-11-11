@@ -701,13 +701,49 @@ if (!signIn.includes('UIImage(named: "BrandMark")') || signIn.includes("book.clo
 if (!signIn.includes('String(localized: "Katecheo")') || /["'`]Kate["'`]/.test(signIn) || /["'`]cheo["'`]/.test(signIn)) {
   errors.push('NativeSignInViewController: "Katecheo" tem de ser uma só palavra em estilo uniforme.');
 }
-if (signIn.includes("Esqueci minha senha") || signIn.includes("Forgot password")) {
-  errors.push("Não adicionar 'Esqueci minha senha' sem mailer/password-reset no Better Auth.");
+if (
+  !signIn.includes("Esqueci minha senha") ||
+  !signIn.includes("tapForgotPassword") ||
+  !signIn.includes("NativeForgotPasswordViewController")
+) {
+  errors.push("Entrar mode tem de expor 'Esqueci minha senha' → NativeForgotPasswordViewController.");
+}
+
+const forgotVC = read("ios/App/Katecheo/NativeForgotPasswordViewController.swift");
+if (!forgotVC.includes("oneTimeCode") || !forgotVC.includes("numberPad")) {
+  errors.push("Forgot-password step 2 precisa de textContentType .oneTimeCode + teclado numberPad.");
+}
+if (!forgotVC.includes("Reenviar código")) {
+  errors.push("Forgot-password precisa de ação Reenviar código com cooldown.");
+}
+if (!forgotVC.includes("Nova senha (mín. 8)") || !forgotVC.includes("Confirmar nova senha")) {
+  errors.push("Forgot-password step 2 precisa de campos de nova senha + confirmação.");
+}
+if (!forgotVC.includes("AppLocale.apiCode")) {
+  errors.push("Forgot-password tem de enviar o idioma do dispositivo como locale.");
+}
+
+const forgotForm = read("ios/App/Katecheo/NativeForgotPasswordForm.swift");
+if (!forgotForm.includes("codeLength = 6") || !forgotForm.includes("resendCooldownSeconds")) {
+  errors.push("NativeForgotPasswordForm tem de validar código de 6 dígitos e cooldown de reenvio.");
 }
 
 const loginService = read("ios/App/Katecheo/NativeLoginService.swift");
 if (!loginService.includes("ASWebAuthenticationSession") || !loginService.includes("auth/claim")) {
   errors.push("NativeLoginService tem de fazer Google via ASWebAuthenticationSession + claim.");
+}
+if (
+  !loginService.includes("requestPasswordReset") ||
+  !loginService.includes("auth/email/forgot-password") ||
+  !loginService.includes("resetPasswordWithCode") ||
+  !loginService.includes("auth/email/reset-password")
+) {
+  errors.push(
+    "NativeLoginService tem de chamar /auth/email/forgot-password e /auth/email/reset-password.",
+  );
+}
+if (!loginService.includes("locale") || !loginService.includes("invalid_code") || !loginService.includes("code_exhausted")) {
+  errors.push("Forgot/reset nativo tem de enviar locale e tratar invalid_code / code_exhausted.");
 }
 if (
   !loginService.includes("signInWithApple") ||
@@ -1504,6 +1540,31 @@ if (!project.includes("AppSite.swift in Sources")) {
   }
   try {
     const catalog = JSON.parse(read("ios/App/Katecheo/Localizable.xcstrings"));
+    const allKeys = Object.keys(catalog.strings || {});
+    if (allKeys.length < 700) {
+      errors.push(
+        `Localizable.xcstrings encolheu (${allKeys.length} chaves); o gerador/ios-check não podem apagar strings existentes.`,
+      );
+    }
+    for (const key of [
+      "Aceitar ou recusar este pedido de amizade?",
+      "Cancelar pedido",
+      "Buscar por @usuário",
+      "Copiar",
+      "Comece a escrever…",
+      "ARC — Almeida Revista e Corrigida",
+      "Sair",
+      "Esqueci minha senha",
+      "Enviar código",
+      "Reenviar código",
+    ]) {
+      if (!catalog.strings?.[key]) {
+        errors.push(`Localizable.xcstrings tem de manter a chave ${JSON.stringify(key)}.`);
+      }
+    }
+    if (catalog.strings?.Sair?.localizations?.en?.stringUnit?.value !== "Sign out") {
+      errors.push('Localizable.xcstrings «Sair»/en tem de continuar "Sign out".');
+    }
     const ferr = catalog.strings?.Ferramentas?.localizations || {};
     for (const lang of ["pt-BR", "en", "es"]) {
       const value = ferr[lang]?.stringUnit?.value;
@@ -1516,6 +1577,10 @@ if (!project.includes("AppSite.swift in Sources")) {
     }
   } catch {
     errors.push("Não foi possível ler Localizable.xcstrings para a chave Ferramentas.");
+  }
+  const genL10n = read("scripts/generate-ios-l10n.mjs");
+  if (!genL10n.includes("mergeCatalog") || !genL10n.includes("refused to shrink")) {
+    errors.push("generate-ios-l10n.mjs tem de fazer merge-only (nunca apagar chaves do Localizable).");
   }
   if (!project.includes("BibleBooksData.json in Resources")) {
     errors.push("BibleBooksData.json tem de estar nos Resources (catálogo bíblico permanente).");

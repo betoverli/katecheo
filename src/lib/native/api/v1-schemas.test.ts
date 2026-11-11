@@ -3,6 +3,8 @@ import { describe, it } from "node:test";
 import {
   MAX_BODY_BYTES,
   authEmailSchema,
+  authEmailForgotPasswordSchema,
+  authEmailResetPasswordSchema,
   authEmailSignUpSchema,
   clampNotificationLimit,
   devicesApnsDeleteSchema,
@@ -93,6 +95,27 @@ describe("native v1 schemas (M1)", () => {
         name: "",
         email: "ana@example.com",
         password: "password1",
+      }).ok,
+      false,
+    );
+    assert.equal(
+      parseWithSchema(authEmailForgotPasswordSchema, { email: "ana@example.com", locale: "pt" }).ok,
+      true,
+    );
+    assert.equal(parseWithSchema(authEmailForgotPasswordSchema, { email: "" }).ok, false);
+    assert.equal(
+      parseWithSchema(authEmailResetPasswordSchema, {
+        email: "ana@example.com",
+        code: "123456",
+        newPassword: "password1",
+      }).ok,
+      true,
+    );
+    assert.equal(
+      parseWithSchema(authEmailResetPasswordSchema, {
+        email: "ana@example.com",
+        code: "",
+        newPassword: "password1",
       }).ok,
       false,
     );

@@ -6,6 +6,8 @@ import {
   authAppleSchema,
   authClaimSchema,
   authEmailSchema,
+  authEmailForgotPasswordSchema,
+  authEmailResetPasswordSchema,
   authEmailSignUpSchema,
   bibleLinkBodySchema,
   clampNotificationLimit,
@@ -246,6 +248,8 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
       route.kind === "auth-claim" ||
       route.kind === "auth-email" ||
       route.kind === "auth-email-sign-up" ||
+      route.kind === "auth-email-forgot-password" ||
+      route.kind === "auth-email-reset-password" ||
       route.kind === "auth-apple" ||
       route.kind === "auth-from-cookie"
     ) {
@@ -269,6 +273,18 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
         const payload = await readAndParse(request, authEmailSignUpSchema, respond);
         if (payload instanceof Response) return payload;
         const result = await authApi.signUpEmailNative(request, payload);
+        return respond(result, result.ok ? 200 : result.status);
+      }
+      if (route.kind === "auth-email-forgot-password") {
+        const payload = await readAndParse(request, authEmailForgotPasswordSchema, respond);
+        if (payload instanceof Response) return payload;
+        const result = await authApi.forgotPasswordNative(request, payload);
+        return respond(result, result.ok ? 200 : result.status);
+      }
+      if (route.kind === "auth-email-reset-password") {
+        const payload = await readAndParse(request, authEmailResetPasswordSchema, respond);
+        if (payload instanceof Response) return payload;
+        const result = await authApi.resetPasswordNative(request, payload);
         return respond(result, result.ok ? 200 : result.status);
       }
       if (route.kind === "auth-apple") {

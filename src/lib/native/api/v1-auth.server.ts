@@ -19,11 +19,29 @@ import {
   emailPasswordMinLength,
 } from "@/lib/auth/email-password";
 import { GOOGLE_PROVIDER_ID, googleOAuthFromEnv } from "@/lib/auth/google";
+import {
+  PASSWORD_RESET_EMAIL_RATE_MAX,
+  PASSWORD_RESET_IP_RATE_MAX,
+  PASSWORD_RESET_MAX_ATTEMPTS,
+  PASSWORD_RESET_TTL_MS,
+  PASSWORD_RESET_VERIFY_IP_RATE_MAX,
+  asPasswordResetLocale,
+  generateResetCode,
+  hashResetCode,
+  isSixDigitCode,
+  normalizeResetEmail,
+  resetCodesMatch,
+} from "@/lib/auth/password-reset-code";
+import { buildPasswordResetEmail } from "@/lib/auth/password-reset-email";
+import { sendResendEmail } from "@/lib/auth/resend-email.server";
 import { auth, authConfigured, SESSION_TOKEN_COOKIE } from "@/lib/auth/server";
+import { getSql } from "@/lib/db";
 import { allowRequest, clientKey } from "@/lib/rate-limit";
 import { claimHandoff } from "@/lib/native/handoff.server";
 import { NATIVE_SESSION_COOKIE, sessionTokenFromCookie } from "@/lib/native/session-cookie";
 import { isAllowedPublicHost, trustedWebOrigins } from "@/lib/site";
+
+const GENERIC_FORGOT_OK = { ok: true as const };
 
 function tokenFromSetCookie(headers: Headers): string | null {
   const bags = typeof headers.getSetCookie === "function" ? headers.getSetCookie() : [];
@@ -353,6 +371,202 @@ export async function signOutNative(
     /* client still clears Keychain */
   }
   return { ok: true };
+}
+
+/**
+ * Request a 6-digit reset code by email.
+ * Always returns the same generic 200 body whether or not the account exists.
+ * Rate limits: per email (3 / 15 min) and per IP (10 / 15 min).
+ */
+export async function forgotPasswordNative(
+  request: Request,
+  body: { email?: unknown; locale?: unknown },
+): Promise<{ ok: true } | { ok: false; error: string; status: number }> {
+  if (!emailAndPasswordEnabled || !authConfigured) {
+    return { ok: false, error: "email_disabled", status: 501 };
+  }
+  const ip = clientKey(request);
+  if (!(await allowRequest(`native-v1-forgot-ip:${ip}`, PASSWORD_RESET_IP_RATE_MAX, PASSWORD_RESET_TTL_MS))) {
+    return { ok: false, error: "rate_limited", status: 429 };
+  }
+
+  const emailRaw = typeof body.email === "string" ? body.email : "";
+  const email = normalizeResetEmail(emailRaw);
+  if (!email || email.length > 320 || !email.includes("@")) {
+    // Same generic success — do not leak validation vs existence.
+    return GENERIC_FORGOT_OK;
+  }
+
+  if (!(await allowRequest(`native-v1-forgot-email:${email}`, PASSWORD_RESET_EMAIL_RATE_MAX, PASSWORD_RESET_TTL_MS))) {
+    return { ok: false, error: "rate_limited", status: 429 };
+  }
+
+  const locale = asPasswordResetLocale(body.locale);
+
+  try {
+    const sql = await getSql();
+    const users = await sql<{ id: string }>`
+      select u.id
+      from "user" u
+      inner join account a on a."userId" = u.id
+      where lower(u.email) = ${email}
+        and a."providerId" = 'credential'
+        and a.password is not null
+        and length(a.password) > 0
+      limit 1
+    `;
+    const userId = users[0]?.id;
+    if (!userId) {
+      // Timing cover: still hash a dummy code so work is similar.
+      hashResetCode("missing-user", generateResetCode());
+      return GENERIC_FORGOT_OK;
+    }
+
+    const code = generateResetCode();
+    const codeHash = hashResetCode(userId, code);
+    const id = crypto.randomUUID().replaceAll("-", "");
+    const expiresAt = new Date(Date.now() + PASSWORD_RESET_TTL_MS).toISOString();
+
+    // Invalidate older unused codes for this user.
+    await sql`
+      update password_reset_codes
+      set used_at = now()
+      where user_id = ${userId}
+        and used_at is null
+    `;
+    await sql`
+      insert into password_reset_codes (
+        id, user_id, email_normalized, code_hash, attempts, expires_at, created_at
+      ) values (
+        ${id}, ${userId}, ${email}, ${codeHash}, 0, ${expiresAt}::timestamptz, now()
+      )
+    `;
+
+    const copy = buildPasswordResetEmail(locale, code);
+    const from = process.env.EMAIL_FROM?.trim() || "";
+    const sent = await sendResendEmail({
+      from,
+      to: email,
+      subject: copy.subject,
+      html: copy.html,
+      text: copy.text,
+    });
+    if (!sent.ok) {
+      console.error("[native/v1/auth/email/forgot-password] email not sent", sent.error, sent.detail);
+    }
+  } catch (error) {
+    console.error("[native/v1/auth/email/forgot-password]", error);
+  }
+
+  return GENERIC_FORGOT_OK;
+}
+
+/**
+ * Verify the 6-digit code, set a new password, revoke other sessions, sign in.
+ * Returns the same `{ ok, token }` payload as email sign-in.
+ */
+export async function resetPasswordNative(
+  request: Request,
+  body: { email?: unknown; code?: unknown; newPassword?: unknown },
+): Promise<{ ok: true; token: string } | { ok: false; error: string; status: number }> {
+  if (!emailAndPasswordEnabled || !authConfigured) {
+    return { ok: false, error: "email_disabled", status: 501 };
+  }
+  const ip = clientKey(request);
+  if (!(await allowRequest(`native-v1-reset-ip:${ip}`, PASSWORD_RESET_VERIFY_IP_RATE_MAX, 60_000))) {
+    return { ok: false, error: "rate_limited", status: 429 };
+  }
+
+  const email = normalizeResetEmail(typeof body.email === "string" ? body.email : "");
+  const code = typeof body.code === "string" ? body.code.trim() : "";
+  const newPassword = typeof body.newPassword === "string" ? body.newPassword : "";
+  if (!email || !isSixDigitCode(code) || !newPassword) {
+    return { ok: false, error: "invalid", status: 400 };
+  }
+  if (newPassword.length < emailPasswordMinLength) {
+    return { ok: false, error: "password_short", status: 400 };
+  }
+  if (newPassword.length > 200) {
+    return { ok: false, error: "invalid", status: 400 };
+  }
+
+  try {
+    const sql = await getSql();
+    const rows = await sql<{
+      id: string;
+      user_id: string;
+      code_hash: string;
+      attempts: number;
+      expires_at: string | Date;
+    }>`
+      select id, user_id, code_hash, attempts, expires_at
+      from password_reset_codes
+      where email_normalized = ${email}
+        and used_at is null
+        and expires_at > now()
+      order by created_at desc
+      limit 1
+    `;
+    const row = rows[0];
+    if (!row) {
+      return { ok: false, error: "invalid_code", status: 400 };
+    }
+    if (Number(row.attempts) >= PASSWORD_RESET_MAX_ATTEMPTS) {
+      await sql`
+        update password_reset_codes set used_at = now() where id = ${row.id} and used_at is null
+      `;
+      return { ok: false, error: "code_exhausted", status: 400 };
+    }
+
+    if (!resetCodesMatch(row.code_hash, row.user_id, code)) {
+      const nextAttempts = Number(row.attempts) + 1;
+      if (nextAttempts >= PASSWORD_RESET_MAX_ATTEMPTS) {
+        await sql`
+          update password_reset_codes
+          set attempts = ${nextAttempts}, used_at = now()
+          where id = ${row.id} and used_at is null
+        `;
+        return { ok: false, error: "code_exhausted", status: 400 };
+      }
+      await sql`
+        update password_reset_codes
+        set attempts = ${nextAttempts}
+        where id = ${row.id} and used_at is null
+      `;
+      return { ok: false, error: "invalid_code", status: 400 };
+    }
+
+    // Consume the code first so concurrent resets cannot reuse it.
+    const consumed = await sql<{ id: string }>`
+      update password_reset_codes
+      set used_at = now()
+      where id = ${row.id}
+        and used_at is null
+        and expires_at > now()
+      returning id
+    `;
+    if (!consumed[0]?.id) {
+      return { ok: false, error: "invalid_code", status: 400 };
+    }
+
+    const ctx = await auth.$context;
+    const passwordHash = await ctx.password.hash(newPassword);
+    const credential = await ctx.internalAdapter.findCredentialAccount(row.user_id);
+    if (!credential?.password) {
+      return { ok: false, error: "invalid_code", status: 400 };
+    }
+    await ctx.internalAdapter.updatePassword(row.user_id, passwordHash);
+    await ctx.internalAdapter.deleteUserSessions(row.user_id);
+
+    const session = await ctx.internalAdapter.createSession(row.user_id, false);
+    if (!session?.token) {
+      return { ok: false, error: "no_token", status: 500 };
+    }
+    return { ok: true, token: session.token };
+  } catch (error) {
+    console.error("[native/v1/auth/email/reset-password]", error);
+    return { ok: false, error: "server_error", status: 500 };
+  }
 }
 
 // Keep handoff import referenced for tree clarity in tests that mock modules.

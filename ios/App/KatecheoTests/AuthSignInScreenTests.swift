@@ -56,11 +56,14 @@ final class AuthSignInScreenTests: XCTestCase {
         XCTAssertFalse(vc.testing_isNameFieldVisible)
         XCTAssertFalse(vc.testing_isPasswordConfirmVisible)
         XCTAssertEqual(vc.testing_emailButtonTitle, String(localized: "Entrar com email"))
+        XCTAssertTrue(vc.testing_isForgotPasswordVisible)
+        XCTAssertEqual(vc.testing_forgotPasswordTitle, String(localized: "Esqueci minha senha"))
 
         vc.testing_setEmailMode(.createAccount)
         XCTAssertTrue(vc.testing_isNameFieldVisible)
         XCTAssertTrue(vc.testing_isPasswordConfirmVisible)
         XCTAssertEqual(vc.testing_emailButtonTitle, String(localized: "Criar conta com email"))
+        XCTAssertFalse(vc.testing_isForgotPasswordVisible)
 
         vc.testing_fill(name: "", email: "bad", password: "123", passwordConfirm: "456")
         let result = vc.testing_validateCurrentFields()
@@ -72,8 +75,76 @@ final class AuthSignInScreenTests: XCTestCase {
         vc.testing_setEmailMode(.signIn)
         XCTAssertFalse(vc.testing_isNameFieldVisible)
         XCTAssertFalse(vc.testing_isPasswordConfirmVisible)
+        XCTAssertTrue(vc.testing_isForgotPasswordVisible)
         _ = nav
         window.isHidden = true
+    }
+
+    func testForgotPassword_opensNativeFlowFromSignInPath() throws {
+        let (vc, nav, window) = makeSignIn(style: .light)
+        vc.testing_fill(email: "pessoa@example.com")
+        vc.testing_openForgotPassword()
+        nav.view.layoutIfNeeded()
+
+        let forgot = nav.topViewController as? NativeForgotPasswordViewController
+        XCTAssertNotNil(forgot, "Esqueci minha senha must push NativeForgotPasswordViewController")
+        XCTAssertEqual(forgot?.title, String(localized: "Esqueci minha senha"))
+        XCTAssertEqual(forgot?.testing_emailText, "pessoa@example.com")
+        XCTAssertTrue(forgot?.testing_isRequestVisible ?? false)
+        XCTAssertFalse(forgot?.testing_isResetVisible ?? true)
+
+        forgot?.testing_fill(email: "bad")
+        let badRequest = forgot?.testing_validateRequest()
+        XCTAssertEqual(badRequest?.email, .invalidEmail)
+
+        forgot?.testing_setStep(.resetPassword)
+        XCTAssertTrue(forgot?.testing_isResetVisible ?? false)
+        XCTAssertEqual(forgot?.testing_codeContentType, .oneTimeCode)
+        XCTAssertEqual(forgot?.testing_codeKeyboard, .numberPad)
+
+        forgot?.testing_fill(code: "12", password: "short", passwordConfirm: "other")
+        let badReset = forgot?.testing_validateReset()
+        XCTAssertEqual(badReset?.code, .invalidCode)
+        XCTAssertEqual(badReset?.password, .passwordTooShort)
+        XCTAssertEqual(badReset?.passwordConfirm, .passwordMismatch)
+
+        let snap = try XCTUnwrap(Self.render(nav.view, size: CGSize(width: 390, height: 844)))
+        XCTAssertTrue(Self.hasVisiblePixels(snap), "auth-light-forgot-reset must not be blank")
+        Self.write(snap, name: "auth-light-forgot-reset.png", into: self)
+
+        forgot?.overrideUserInterfaceStyle = .dark
+        nav.overrideUserInterfaceStyle = .dark
+        window.overrideUserInterfaceStyle = .dark
+        AppAppearance.apply(to: window)
+        nav.view.layoutIfNeeded()
+        let darkSnap = try XCTUnwrap(Self.render(nav.view, size: CGSize(width: 390, height: 844)))
+        XCTAssertTrue(Self.hasVisiblePixels(darkSnap), "auth-dark-forgot-reset must not be blank")
+        Self.write(darkSnap, name: "auth-dark-forgot-reset.png", into: self)
+
+        window.isHidden = true
+    }
+
+    func testForgotPasswordForm_validationHelpers() {
+        let badEmail = NativeForgotPasswordForm.validateRequest(email: "nope")
+        XCTAssertEqual(badEmail.email, .invalidEmail)
+        let okEmail = NativeForgotPasswordForm.validateRequest(email: "ok@example.com")
+        XCTAssertTrue(okEmail.isValid)
+
+        let badCode = NativeForgotPasswordForm.validateReset(
+            code: "abcdef",
+            password: "password1",
+            passwordConfirm: "password1"
+        )
+        XCTAssertEqual(badCode.code, .invalidCode)
+
+        let ok = NativeForgotPasswordForm.validateReset(
+            code: "123456",
+            password: "password1",
+            passwordConfirm: "password1"
+        )
+        XCTAssertTrue(ok.isValid)
+        XCTAssertEqual(NativeForgotPasswordForm.codeLength, 6)
+        XCTAssertEqual(NativeForgotPasswordForm.resendCooldownSeconds, 60)
     }
 
     func testScreen_snapshotsLightDark_signInAndCreateModes() throws {

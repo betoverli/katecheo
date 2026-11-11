@@ -381,6 +381,20 @@ export function nativeV1Catalog() {
       },
       {
         method: "POST",
+        path: "/auth/email/forgot-password",
+        auth: false,
+        body: "{ email, locale?}",
+        note: "Always 200 generic; emails 6-digit code via Resend when credential account exists",
+      },
+      {
+        method: "POST",
+        path: "/auth/email/reset-password",
+        auth: false,
+        body: "{ email, code, newPassword }",
+        returns: "{ ok, token } same as email sign-in",
+      },
+      {
+        method: "POST",
         path: "/auth/apple",
         auth: false,
         body: "{ identityToken, authorizationCode?, nonce?, fullName? }",

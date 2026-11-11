@@ -27,8 +27,29 @@ if (catalog) {
   }
   const strings = catalog.strings || {};
   const keys = Object.keys(strings);
-  if (keys.length < 50) {
-    errors.push(`Localizable.xcstrings tem poucas chaves (${keys.length}).`);
+  // Hand-maintained catalog grew past 700 keys (PRs #89/#90). Never ship a shrink.
+  if (keys.length < 700) {
+    errors.push(
+      `Localizable.xcstrings tem poucas chaves (${keys.length}); esperado ≥ 700 (não apagar strings existentes).`,
+    );
+  }
+  // Spot-check strings that lived only in the hand catalog (not always in MANUAL).
+  for (const key of [
+    "Aceitar ou recusar este pedido de amizade?",
+    "Cancelar pedido",
+    "Buscar por @usuário",
+    "Copiar",
+    "Comece a escrever…",
+    "ARC — Almeida Revista e Corrigida",
+    "Sair",
+  ]) {
+    if (!(key in strings)) {
+      errors.push(`Localizable.xcstrings perdeu a chave existente ${JSON.stringify(key)}.`);
+    }
+  }
+  const sairEn = strings["Sair"]?.localizations?.en?.stringUnit?.value;
+  if (sairEn && sairEn !== "Sign out") {
+    errors.push(`Localizable.xcstrings «Sair»/en tem de ser "Sign out" (é ${JSON.stringify(sairEn)}).`);
   }
   let missing = 0;
   for (const key of keys) {
@@ -46,6 +67,14 @@ if (catalog) {
   if (missing > 20) {
     errors.push(`… e mais ${missing - 20} traduções em falta.`);
   }
+}
+
+const generateSrc = fs.readFileSync(path.join(root, "scripts/generate-ios-l10n.mjs"), "utf8");
+if (!generateSrc.includes("never deleted") && !generateSrc.includes("NEVER") && !generateSrc.includes("mergeCatalog")) {
+  errors.push("generate-ios-l10n.mjs tem de fazer merge (nunca apagar chaves existentes).");
+}
+if (!generateSrc.includes("refused to shrink") || !generateSrc.includes("refused to drop existing key")) {
+  errors.push("generate-ios-l10n.mjs tem de falhar se o catálogo encolher ou perder chaves.");
 }
 
 if (infoCatalog) {

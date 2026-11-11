@@ -3,8 +3,12 @@
  * Generates ios/App/Katecheo/Localizable.xcstrings (+ InfoPlist.xcstrings) and
  * optionally rewrites Swift sources to wrap known UI strings in String(localized:).
  *
+ * Merge-only for Localizable.xcstrings: existing keys and translations are NEVER
+ * deleted or overwritten. The script only adds missing keys from MANUAL / i18n.
+ * Hand-edited catalog entries (e.g. from recent PRs) always win.
+ *
  * Usage:
- *   node scripts/generate-ios-l10n.mjs            # catalog only
+ *   node scripts/generate-ios-l10n.mjs            # catalog only (merge)
  *   node scripts/generate-ios-l10n.mjs --rewrite  # catalog + wrap Swift UI strings
  */
 import fs from "node:fs";
@@ -70,7 +74,8 @@ const MANUAL = {
   Atualizar: ["Refresh", "Actualizar"],
   Renomear: ["Rename", "Renombrar"],
   Entrar: ["Sign in", "Entrar"],
-  Sair: ["Leave", "Salir"],
+  // Keep in sync with hand-maintained catalog (Sign out, not "Leave group").
+  Sair: ["Sign out", "Cerrar sesión"],
   "Buscar livro": ["Search book", "Buscar libro"],
   "Pesquisar notas": ["Search notes", "Buscar notas"],
   "Pesquisar notas do grupo": ["Search group notes", "Buscar notas del grupo"],
@@ -371,6 +376,48 @@ const MANUAL = {
     "Too many attempts. Please wait a moment.",
     "Demasiados intentos. Espera un momento.",
   ],
+  "Esqueci minha senha": ["Forgot password", "Olvidé mi contraseña"],
+  "Enviaremos um código de 6 dígitos para o seu email.": [
+    "We’ll send a 6-digit code to your email.",
+    "Enviaremos un código de 6 dígitos a tu correo.",
+  ],
+  "Código de 6 dígitos": ["6-digit code", "Código de 6 dígitos"],
+  "Nova senha (mín. 8)": ["New password (min. 8)", "Nueva contraseña (mín. 8)"],
+  "Confirmar nova senha": ["Confirm new password", "Confirmar nueva contraseña"],
+  "Enviar código": ["Send code", "Enviar código"],
+  "Redefinir senha": ["Reset password", "Restablecer contraseña"],
+  "Reenviar código": ["Resend code", "Reenviar código"],
+  "Reenviar em %d s": ["Resend in %d s", "Reenviar en %d s"],
+  "Enviando código…": ["Sending code…", "Enviando código…"],
+  "Se existir uma conta, enviamos um código.": [
+    "If an account exists, we sent a code.",
+    "Si existe una cuenta, enviamos un código.",
+  ],
+  "Redefinindo senha…": ["Resetting password…", "Restableciendo contraseña…"],
+  "Informe o código de 6 dígitos.": [
+    "Enter the 6-digit code.",
+    "Introduce el código de 6 dígitos.",
+  ],
+  "Código incorreto ou expirado.": [
+    "Incorrect or expired code.",
+    "Código incorrecto o caducado.",
+  ],
+  "Muitas tentativas com este código. Peça um novo.": [
+    "Too many attempts with this code. Request a new one.",
+    "Demasiados intentos con este código. Pide uno nuevo.",
+  ],
+  "Não foi possível enviar o código. Verifique a conexão.": [
+    "Couldn’t send the code. Check your connection.",
+    "No se pudo enviar el código. Comprueba la conexión.",
+  ],
+  "Não foi possível redefinir a senha. Verifique a conexão.": [
+    "Couldn’t reset the password. Check your connection.",
+    "No se pudo restablecer la contraseña. Comprueba la conexión.",
+  ],
+  "Não foi possível redefinir a senha.": [
+    "Couldn’t reset the password.",
+    "No se pudo restablecer la contraseña.",
+  ],
   "Continuar com Apple": ["Continue with Apple", "Continuar con Apple"],
   Nome: ["Name", "Nombre"],
   "Abrindo Google…": ["Opening Google…", "Abriendo Google…"],
@@ -484,6 +531,9 @@ const MANUAL = {
   ],
 };
 
+/** Keys owned by the MANUAL table (safe to add into an existing hand catalog). */
+const manualKeys = new Set(Object.keys(MANUAL));
+
 for (const [pt, [en, es]] of Object.entries(MANUAL)) {
   translations.set(pt, { en, es });
 }
@@ -571,25 +621,80 @@ function unit(value) {
   return { stringUnit: { state: "translated", value } };
 }
 
-function buildCatalog(extraKeys = []) {
+function entryFromTranslation(key, tr) {
+  return {
+    extractionState: "manual",
+    localizations: {
+      "pt-BR": unit(key),
+      en: unit(tr.en),
+      es: unit(tr.es),
+    },
+  };
+}
+
+/**
+ * Merge translations into an existing catalog.
+ * Existing keys are preserved byte-for-byte (never deleted, never overwritten),
+ * and their relative order is kept. New keys are appended (sorted) at the end.
+ * When a catalog already exists, only missing MANUAL keys are added — we do not
+ * bulk-import every `i18n.ts` phrase onto a hand-maintained file.
+ * A missing catalog (greenfield) still builds from i18n + MANUAL (sorted).
+ */
+function mergeCatalog(existingCatalog, extraKeys = []) {
+  const prior =
+    existingCatalog && typeof existingCatalog === "object" && existingCatalog.strings
+      ? existingCatalog.strings
+      : {};
+  const beforeKeys = Object.keys(prior);
+  const beforeCount = beforeKeys.length;
   const strings = {};
-  const keys = new Set([...translations.keys(), ...extraKeys]);
-  for (const key of [...keys].sort((a, b) => a.localeCompare(b, "pt-BR"))) {
+  for (const key of beforeKeys) {
+    strings[key] = prior[key];
+  }
+  let added = 0;
+  const candidateKeys =
+    beforeCount > 0
+      ? [...manualKeys, ...extraKeys]
+      : [...translations.keys(), ...extraKeys];
+  const toAdd = [];
+  for (const key of candidateKeys) {
+    if (Object.prototype.hasOwnProperty.call(strings, key)) continue;
     const tr = translations.get(key);
-    if (!tr) continue;
-    strings[key] = {
-      extractionState: "manual",
-      localizations: {
-        "pt-BR": unit(key.includes("%") ? key : key),
-        en: unit(tr.en),
-        es: unit(tr.es),
-      },
-    };
+    if (!tr?.en || !tr?.es) continue;
+    toAdd.push(key);
+  }
+  for (const key of [...new Set(toAdd)].sort((a, b) => a.localeCompare(b, "pt-BR"))) {
+    strings[key] = entryFromTranslation(key, translations.get(key));
+    added += 1;
+  }
+  const afterKeys = Object.keys(strings);
+  const afterCount = afterKeys.length;
+  if (afterCount < beforeCount) {
+    throw new Error(
+      `generate-ios-l10n refused to shrink Localizable.xcstrings (${beforeCount} → ${afterCount})`,
+    );
+  }
+  for (const key of beforeKeys) {
+    if (!Object.prototype.hasOwnProperty.call(strings, key)) {
+      throw new Error(`generate-ios-l10n refused to drop existing key: ${JSON.stringify(key)}`);
+    }
+    if (strings[key] !== prior[key] && JSON.stringify(strings[key]) !== JSON.stringify(prior[key])) {
+      throw new Error(`generate-ios-l10n refused to overwrite existing key: ${JSON.stringify(key)}`);
+    }
+  }
+  // Existing relative order must stay identical.
+  if (beforeKeys.length && afterKeys.slice(0, beforeKeys.length).join("\0") !== beforeKeys.join("\0")) {
+    throw new Error("generate-ios-l10n refused to reorder existing Localizable keys");
   }
   return {
-    sourceLanguage: "pt-BR",
-    strings,
-    version: "1.0",
+    catalog: {
+      sourceLanguage: "pt-BR",
+      strings,
+      version: existingCatalog?.version || "1.0",
+    },
+    beforeCount,
+    afterCount,
+    added,
   };
 }
 
@@ -600,33 +705,38 @@ function writeJson(filePath, obj) {
 const catalogPath = path.join(appDir, "Localizable.xcstrings");
 const infoPlistCatalogPath = path.join(appDir, "InfoPlist.xcstrings");
 
-const infoPlistCatalog = {
-  sourceLanguage: "pt-BR",
-  strings: {
-    CFBundleDisplayName: {
-      extractionState: "manual",
-      localizations: {
-        "pt-BR": unit("Katecheo"),
-        en: unit("Katecheo"),
-        es: unit("Katecheo"),
-      },
-    },
-    CFBundleName: {
-      extractionState: "manual",
-      localizations: {
-        "pt-BR": unit("Katecheo"),
-        en: unit("Katecheo"),
-        es: unit("Katecheo"),
-      },
-    },
-  },
-  version: "1.0",
-};
+let existingCatalog = null;
+if (fs.existsSync(catalogPath)) {
+  existingCatalog = JSON.parse(fs.readFileSync(catalogPath, "utf8"));
+}
+const merged = mergeCatalog(existingCatalog);
+writeJson(catalogPath, merged.catalog);
 
-writeJson(catalogPath, buildCatalog());
-writeJson(infoPlistCatalogPath, infoPlistCatalog);
+// InfoPlist is tiny and owned by this script; only ensure Katecheo display names.
+const existingInfo = fs.existsSync(infoPlistCatalogPath)
+  ? JSON.parse(fs.readFileSync(infoPlistCatalogPath, "utf8"))
+  : { sourceLanguage: "pt-BR", strings: {}, version: "1.0" };
+const infoStrings = { ...(existingInfo.strings || {}) };
+for (const key of ["CFBundleDisplayName", "CFBundleName"]) {
+  if (!infoStrings[key]) {
+    infoStrings[key] = {
+      extractionState: "manual",
+      localizations: {
+        "pt-BR": unit("Katecheo"),
+        en: unit("Katecheo"),
+        es: unit("Katecheo"),
+      },
+    };
+  }
+}
+writeJson(infoPlistCatalogPath, {
+  sourceLanguage: "pt-BR",
+  strings: infoStrings,
+  version: existingInfo.version || "1.0",
+});
+
 console.log(
-  `Wrote ${path.relative(root, catalogPath)} with ${Object.keys(JSON.parse(fs.readFileSync(catalogPath, "utf8")).strings).length} keys`,
+  `Merged ${path.relative(root, catalogPath)}: ${merged.beforeCount} existing + ${merged.added} new = ${merged.afterCount} keys (never deletes)`,
 );
 
 if (!rewrite) {

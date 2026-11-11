@@ -144,6 +144,8 @@ O envio do aviso fica no site. Na Vercel, acrescente:
 | `APPLE_SIGNIN_KEY_ID` | Key ID da chave Sign in with Apple (não a de APNs). Opcional — sem ela o login verifica o JWT e salta o exchange |
 | `APPLE_SIGNIN_PRIVATE_KEY` | `.p8` da chave Sign in with Apple (ou Base64). Opcional — ver `docs/sign-in-with-apple.md` |
 | `NATIVE_AUTH_HANDOFF_KEY` | Opcional. 32 bytes em Base64 ou 64 caracteres hex. Cifra a sessão guardada por 90 segundos. Se faltar, o servidor usa `BETTER_AUTH_SECRET` |
+| `RESEND_API_KEY` | Chave da API Resend para enviar o código de “Esqueci minha senha” no app iOS. Sem ela o endpoint responde igual, mas o email não sai (erro no log do servidor) |
+| `EMAIL_FROM` | Remetente Resend, no formato `Katecheo <naoresponda@katecheo.app>` |
 
 Sem as variáveis de avisos o site continua igual e os avisos do navegador continuam. Os avisos do iPhone só passam a sair depois disto **e** de publicar esta versão do site.
 

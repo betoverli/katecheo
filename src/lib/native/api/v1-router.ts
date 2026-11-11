@@ -23,6 +23,8 @@ export type NativeV1Route =
   | { kind: "auth-claim" }
   | { kind: "auth-email" }
   | { kind: "auth-email-sign-up" }
+  | { kind: "auth-email-forgot-password" }
+  | { kind: "auth-email-reset-password" }
   | { kind: "auth-apple" }
   | { kind: "auth-from-cookie" }
   | { kind: "auth-sign-out" }
@@ -93,6 +95,12 @@ export function matchNativeV1Route(splat: string): NativeV1Route {
   if (a === "auth" && b === "email" && c === "sign-up" && parts.length === 3) {
     return { kind: "auth-email-sign-up" };
   }
+  if (a === "auth" && b === "email" && c === "forgot-password" && parts.length === 3) {
+    return { kind: "auth-email-forgot-password" };
+  }
+  if (a === "auth" && b === "email" && c === "reset-password" && parts.length === 3) {
+    return { kind: "auth-email-reset-password" };
+  }
   if (a === "auth" && b === "email" && parts.length === 2) return { kind: "auth-email" };
   if (a === "auth" && b === "apple" && parts.length === 2) return { kind: "auth-apple" };
   if (a === "auth" && b === "from-cookie" && parts.length === 2) return { kind: "auth-from-cookie" };
@@ -160,6 +168,8 @@ export function isPublicNativeAuthRoute(route: NativeV1Route): boolean {
     route.kind === "auth-claim" ||
     route.kind === "auth-email" ||
     route.kind === "auth-email-sign-up" ||
+    route.kind === "auth-email-forgot-password" ||
+    route.kind === "auth-email-reset-password" ||
     route.kind === "auth-apple" ||
     route.kind === "auth-from-cookie" ||
     route.kind === "catalog" ||
@@ -212,6 +222,8 @@ export function methodAllowed(route: NativeV1Route, method: string): boolean {
     case "auth-claim":
     case "auth-email":
     case "auth-email-sign-up":
+    case "auth-email-forgot-password":
+    case "auth-email-reset-password":
     case "auth-apple":
     case "auth-from-cookie":
     case "auth-sign-out":
