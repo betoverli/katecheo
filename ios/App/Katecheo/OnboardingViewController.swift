@@ -431,6 +431,18 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
     func testing_tapStart() { finishTapped() }
     func testing_updateBottomChromeInset() { updateBottomChromeInset() }
 
+    /// Apply a known inset triple (bypasses the live window/scene) so layout
+    /// assertions stay deterministic inside the TEST_HOST simulator.
+    func testing_applyBottomInsets(viewInset: CGFloat, windowInset: CGFloat, topInset: CGFloat) {
+        let inset = Self.effectiveBottomSafeInset(
+            viewInset: viewInset,
+            windowInset: windowInset,
+            topInset: topInset
+        )
+        bottomBarBottomConstraint?.constant = -(inset + KCDesign.Space.md)
+        view.layoutIfNeeded()
+    }
+
     private func goToPage(_ index: Int, animated: Bool) {
         let clamped = max(0, min(pages.count - 1, index))
         currentPageIndex = clamped

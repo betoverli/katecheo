@@ -145,21 +145,26 @@ final class OnboardingFlowTests: XCTestCase {
     }
 
     /// Hit-test style assertion: Get started frame in window coords must sit inside
-    /// the window safe-area layout frame (with the effective inset fallback).
+    /// the safe band. Insets are applied explicitly via the testing hook so the
+    /// TEST_HOST simulator's real safe area cannot skew SE / Pro Max cases.
     func testFlow_getStartedFrameInsideWindowSafeArea_onSmallAndLargePhones() {
-        let sizes: [(String, CGSize, UIEdgeInsets)] = [
+        let cases: [(String, CGSize, UIEdgeInsets)] = [
             ("se", CGSize(width: 375, height: 667), UIEdgeInsets(top: 20, left: 0, bottom: 0, right: 0)),
             ("phone15", CGSize(width: 393, height: 852), UIEdgeInsets(top: 59, left: 0, bottom: 34, right: 0)),
             ("proMax", CGSize(width: 430, height: 932), UIEdgeInsets(top: 59, left: 0, bottom: 34, right: 0)),
             // TF 325 regression: top inset present, bottom reports 0 until fallback.
             ("brokenBottomInset", CGSize(width: 393, height: 852), UIEdgeInsets(top: 59, left: 0, bottom: 0, right: 0)),
         ]
-        for (name, size, insets) in sizes {
-            let (vc, window) = makeOnboarding(style: .dark, size: size, safeArea: insets)
+        for (name, size, insets) in cases {
+            let (vc, window) = makeOnboarding(style: .dark, size: size, safeArea: .zero)
             vc.testing_goToPage(3)
             vc.view.layoutIfNeeded()
-            vc.testing_updateBottomChromeInset()
-            vc.view.layoutIfNeeded()
+            // Drive the pin from the case insets — not the host simulator's live insets.
+            vc.testing_applyBottomInsets(
+                viewInset: insets.bottom,
+                windowInset: insets.bottom,
+                topInset: insets.top
+            )
 
             XCTAssertTrue(vc.testing_isStartVisible, "\(name): start visible")
 
@@ -188,16 +193,10 @@ final class OnboardingFlowTests: XCTestCase {
 
             // Window-coordinate containment (as requested).
             let startInWindow = vc.testing_startButton.convert(vc.testing_startButton.bounds, to: window)
-            let safeFrame = CGRect(
-                x: 0,
-                y: insets.top,
-                width: size.width,
-                height: size.height - insets.top - effective
-            ).insetBy(dx: 0, dy: 0)
-            // Button must sit above the home-indicator band (safeFrame.maxY - 16 margin already in pad).
+            let safeMaxY = size.height - effective
             XCTAssertLessThanOrEqual(
                 startInWindow.maxY,
-                safeFrame.maxY - KCDesign.Space.md + 0.5,
+                safeMaxY - KCDesign.Space.md + 0.5,
                 "\(name): start in window coords must be inside safe area with 16pt margin"
             )
             XCTAssertTrue(
