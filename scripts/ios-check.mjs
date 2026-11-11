@@ -1182,6 +1182,31 @@ if (!project.includes("NativeNoteEditorTF219Tests.swift in Sources")) {
 if (!project.includes("NativeNoteEditorTF222Tests.swift in Sources")) {
   errors.push("AppTests TF222 (NativeNoteEditorTF222Tests) têm de estar no target.");
 }
+if (!project.includes("NativeNoteEditorCaretScrollTests.swift in Sources")) {
+  errors.push("AppTests de scroll do caret (NativeNoteEditorCaretScrollTests) têm de estar no target.");
+}
+{
+  const editorSrc = read("ios/App/Katecheo/NativeNoteEditorView.swift");
+  if (!editorSrc.includes("NoteEditorCaretScroll") || !editorSrc.includes("contentInsetAdjustmentBehavior = .never")) {
+    errors.push("NativeNoteEditorView tem de usar NoteEditorCaretScroll + contentInsetAdjustmentBehavior.never (sem scrollRangeToVisible no caret).");
+  }
+  if (!editorSrc.includes("pendingScrollAnchor") || !editorSrc.includes("restoreScrollAnchorIfNeeded")) {
+    errors.push("NativeNoteEditorView tem de preservar contentOffset (pendingScrollAnchor) após Enter/Backspace.");
+  }
+  if (!editorSrc.includes("stickyContentOffset") || !editorSrc.includes("measuredContentHeight") || !editorSrc.includes("caretRectInBoundsForScroll")) {
+    errors.push("NativeNoteEditorView tem de travar contentOffset (sticky) e medir caret/altura via layoutManager.");
+  }
+  if (!editorSrc.includes("greatestFiniteMagnitude") || !editorSrc.includes("heightTracksTextView = false")) {
+    errors.push("testing_prepare tem de usar textContainer height unbounded (greatestFiniteMagnitude).");
+  }
+  if (!/override func scrollRangeToVisible/.test(editorSrc) || !editorSrc.includes("onRequestCaretScroll")) {
+    errors.push("NoteEditorTextView.scrollRangeToVisible tem de encaminhar para onRequestCaretScroll (minimal caret follow).");
+  }
+  const caretTests = read("ios/App/KatecheoTests/NativeNoteEditorCaretScrollTests.swift");
+  if (!caretTests.includes("testRepeatedEnterAtLastVisibleLine_scrollsAboutOneLineEachTime")) {
+    errors.push("NativeNoteEditorCaretScrollTests tem de cobrir Enter repetido na última linha visível (~1 linha por Enter).");
+  }
+}
 if (!project.includes("Build234FeedbackTests.swift in Sources")) {
   errors.push("AppTests Build234 (Build234FeedbackTests) têm de estar no target.");
 }
