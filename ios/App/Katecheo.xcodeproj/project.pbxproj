@@ -52,6 +52,8 @@
 		9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9582B6822FE993A50072D4E8 /* SceneDelegate.swift */; };
 		A1C0DE042FED796500168520 /* LiquidGlassMaterial.m in Sources */ = {isa = PBXBuildFile; fileRef = A1C0DE032FED796500168520 /* LiquidGlassMaterial.m */; };
 		D3E0F0012FED796500168540 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E0F0002FED796500168540 /* KeychainStore.swift */; };
+		D3E0F0112FED796500168541 /* DeviceIdStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E0F0102FED796500168541 /* DeviceIdStore.swift */; };
+		D3E0F0132FED796500168541 /* DeviceIdStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E0F0122FED796500168541 /* DeviceIdStoreTests.swift */; };
 		D3E0F0032FED796500168540 /* NativeShellMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E0F0022FED796500168540 /* NativeShellMode.swift */; };
 		D3E0F0052FED796500168540 /* NativeAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E0F0042FED796500168540 /* NativeAPIClient.swift */; };
 		E4F1A0102FED796500168550 /* AppRoot.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4F1A0112FED796500168550 /* AppRoot.swift */; };
@@ -126,6 +128,8 @@
 		504EC3131FED79650016851F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		9582B6822FE993A50072D4E8 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		D3E0F0002FED796500168540 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
+		D3E0F0102FED796500168541 /* DeviceIdStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceIdStore.swift; sourceTree = "<group>"; };
+		D3E0F0122FED796500168541 /* DeviceIdStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceIdStoreTests.swift; sourceTree = "<group>"; };
 		D3E0F0022FED796500168540 /* NativeShellMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeShellMode.swift; sourceTree = "<group>"; };
 		D3E0F0042FED796500168540 /* NativeAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAPIClient.swift; sourceTree = "<group>"; };
 		A1C0DE032FED796500168520 /* LiquidGlassMaterial.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = LiquidGlassMaterial.m; sourceTree = "<group>"; };
@@ -271,6 +275,7 @@
 				F5A5E0132FED7965001685A0 /* NativeDeepLinkRouter.swift */,
 				F5A5E0152FED7965001685A0 /* NativePushService.swift */,
 				D3E0F0002FED796500168540 /* KeychainStore.swift */,
+				D3E0F0102FED796500168541 /* DeviceIdStore.swift */,
 				D3E0F0022FED796500168540 /* NativeShellMode.swift */,
 				D3E0F0042FED796500168540 /* NativeAPIClient.swift */,
 				E4F1A0112FED796500168550 /* AppRoot.swift */,
@@ -332,6 +337,7 @@
 				TCTABBG1FED7965001685TC /* TabBackgroundConsistencyTests.swift */,
 				TB234FB1FED7965001685TB /* Build234FeedbackTests.swift */,
 				TB238FB1FED7965001685TB /* Build238FeedbackTests.swift */,
+				D3E0F0122FED796500168541 /* DeviceIdStoreTests.swift */,
 				T5CONF21FED7965001685T5 /* ConfirmationDialogTests.swift */,
 				TBAUTH1FED7965001685TB /* AuthSignInScreenTests.swift */,
 				TBONB21FED7965001685TB /* OnboardingFlowTests.swift */,
@@ -550,6 +556,7 @@
 				F5A5E0142FED7965001685A0 /* NativePushService.swift in Sources */,
 				A1C0DE042FED796500168520 /* LiquidGlassMaterial.m in Sources */,
 				D3E0F0012FED796500168540 /* KeychainStore.swift in Sources */,
+				D3E0F0112FED796500168541 /* DeviceIdStore.swift in Sources */,
 				D3E0F0032FED796500168540 /* NativeShellMode.swift in Sources */,
 				D3E0F0052FED796500168540 /* NativeAPIClient.swift in Sources */,
 				E4F1A0102FED796500168550 /* AppRoot.swift in Sources */,
@@ -603,6 +610,7 @@
 				TCTABBG2FED7965001685TC /* TabBackgroundConsistencyTests.swift in Sources */,
 				TB234FB2FED7965001685TB /* Build234FeedbackTests.swift in Sources */,
 				TB238FB2FED7965001685TB /* Build238FeedbackTests.swift in Sources */,
+				D3E0F0132FED796500168541 /* DeviceIdStoreTests.swift in Sources */,
 				T5CONF22FED7965001685T5 /* ConfirmationDialogTests.swift in Sources */,
 				TBAUTH2FED7965001685TB /* AuthSignInScreenTests.swift in Sources */,
 				TBONB22FED7965001685TB /* OnboardingFlowTests.swift in Sources */,

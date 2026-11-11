@@ -2,6 +2,9 @@ import http2 from "node:http2";
 import { importPKCS8, SignJWT } from "jose";
 import type { Sql } from "@/lib/db";
 import { apnsPayload, apnsSilentPayload, type ApnsAlert, type ApnsSilentHint } from "@/lib/apns-payload";
+import { shouldPruneApnsDevice } from "@/lib/native/apns-devices-logic";
+
+export { shouldPruneApnsDevice } from "@/lib/native/apns-devices-logic";
 
 const TOPIC = () => process.env.APNS_TOPIC?.trim() || "com.verse2note.app";
 
@@ -91,11 +94,8 @@ async function deliverToDevices(
     if (!/^[0-9a-fA-F]{64,200}$/.test(device.token)) continue;
     try {
       const result = await postApns(hostFor(device.sandbox), device.token, jwt, body, opts);
-      if (result.status === 410 || result.status === 400) {
-        const reason = result.body;
-        if (result.status === 410 || /BadDeviceToken|Unregistered|DeviceTokenNotForTopic/.test(reason)) {
-          await sql`delete from apns_devices where token = ${device.token}`;
-        }
+      if (shouldPruneApnsDevice(result.status, result.body)) {
+        await sql`delete from apns_devices where token = ${device.token}`;
       }
     } catch {
       /* one device failing must not stop the others or the web push path */

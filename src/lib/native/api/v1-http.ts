@@ -470,7 +470,14 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
       if (method === "POST") {
         const payload = await readAndParse(request, devicesApnsPostSchema, respond);
         if (payload instanceof Response) return payload;
-        const result = await saveApnsDevice(user.id, payload.token, payload.sandbox === true);
+        const sandbox =
+          payload.sandbox === true || payload.environment === "sandbox";
+        const result = await saveApnsDevice(
+          user.id,
+          payload.token,
+          sandbox,
+          String(payload.deviceId ?? ""),
+        );
         const status =
           result.ok ? 200 : result.error === "rate" ? 429 : result.error === "conflict" ? 409 : 400;
         return respond(result, status);
@@ -479,6 +486,7 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
       if (payload instanceof Response) return payload;
       const result = await dropApnsDevice(user.id, String(payload.token ?? ""), {
         all: payload.all === true,
+        deviceId: typeof payload.deviceId === "string" ? payload.deviceId : undefined,
       });
       return respond(result, result.ok ? 200 : 400);
     }

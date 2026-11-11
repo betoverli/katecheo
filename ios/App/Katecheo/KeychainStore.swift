@@ -1,12 +1,14 @@
 import Foundation
 import Security
 
-/// Small Keychain helper for the Better Auth bearer and APNs device token.
+/// Small Keychain helper for the Better Auth bearer, APNs device token, and stable device id.
 enum KeychainStore {
     static let bearerService = "katecheo.auth"
     static let bearerAccount = "bearer-token"
     static let apnsService = "katecheo.apns"
     static let apnsAccount = "device-token"
+    static let deviceIdService = "katecheo.device"
+    static let deviceIdAccount = "stable-device-id"
 
     @discardableResult
     static func setBearerToken(_ token: String?) -> Bool {
@@ -46,7 +48,41 @@ enum KeychainStore {
         delete(service: apnsService, account: apnsAccount)
     }
 
+    // MARK: - Stable device id (survives reinstall when Keychain retains the item)
+
+    @discardableResult
+    static func setDeviceId(_ deviceId: String?) -> Bool {
+        guard let deviceId, !deviceId.isEmpty, let data = deviceId.data(using: .utf8) else {
+            return deleteDeviceId()
+        }
+        return upsert(service: deviceIdService, account: deviceIdAccount, data: data)
+    }
+
+    static func deviceId() -> String? {
+        readString(service: deviceIdService, account: deviceIdAccount)
+    }
+
+    @discardableResult
+    static func deleteDeviceId() -> Bool {
+        delete(service: deviceIdService, account: deviceIdAccount)
+    }
+
     // MARK: - Internals
+
+    private static func upsert(service: String, account: String, data: Data) -> Bool {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+        ]
+        let attrs: [String: Any] = [kSecValueData as String: data]
+        let updated = SecItemUpdate(query as CFDictionary, attrs as CFDictionary)
+        if updated == errSecSuccess { return true }
+        if updated != errSecItemNotFound {
+            _ = delete(service: service, account: account)
+        }
+        return add(service: service, account: account, data: data)
+    }
 
     private static func add(service: String, account: String, data: Data) -> Bool {
         let query: [String: Any] = [

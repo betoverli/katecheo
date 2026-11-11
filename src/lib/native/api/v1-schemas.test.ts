@@ -8,6 +8,7 @@ import {
   authEmailSignUpSchema,
   clampNotificationLimit,
   devicesApnsDeleteSchema,
+  devicesApnsPostSchema,
   groupCreateSchema,
   handleBodySchema,
   noteUpsertSchema,
@@ -75,7 +76,25 @@ describe("native v1 schemas (M1)", () => {
     assert.equal(parseWithSchema(planMarkSchema, { planId: "gospels-30", day: "2", on: false }).ok, true);
     assert.equal(parseWithSchema(devicesApnsDeleteSchema, { all: true }).ok, true);
     assert.equal(parseWithSchema(devicesApnsDeleteSchema, { token: "abc" }).ok, true);
+    assert.equal(parseWithSchema(devicesApnsDeleteSchema, { deviceId: "device-123" }).ok, true);
     assert.equal(parseWithSchema(devicesApnsDeleteSchema, {}).ok, false);
+    assert.equal(
+      parseWithSchema(devicesApnsPostSchema, {
+        token: "a".repeat(64),
+        deviceId: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE",
+        sandbox: true,
+      }).ok,
+      true,
+    );
+    assert.equal(
+      parseWithSchema(devicesApnsPostSchema, {
+        token: "a".repeat(64),
+        deviceId: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE",
+        environment: "production",
+      }).ok,
+      true,
+    );
+    assert.equal(parseWithSchema(devicesApnsPostSchema, { token: "a".repeat(64) }).ok, false);
   });
 
   it("validates email sign-in and sign-up bodies", () => {
