@@ -81,7 +81,7 @@ jobs:
           set -e
           # KatecheoTests write PNGs inside the Simulator app sandbox — harvest even on failure.
           # Per-pattern finds (no shared head) so b238 is not crowded out by older tf/b234 PNGs.
-          for pat in 'tf222-*.png' 'tab-bg-*.png' 'b234-*.png' 'b238-*.png' 'confirm-*.png' 'auth-*.png'; do
+          for pat in 'tf222-*.png' 'tab-bg-*.png' 'b234-*.png' 'b238-*.png' 'confirm-*.png' 'auth-*.png' 'onboarding-*.png'; do
             find \
               "${HOME}/Library/Developer/CoreSimulator" \
               "${RUNNER_TEMP}/katecheo-ios" \
@@ -134,6 +134,13 @@ jobs:
         with:
           name: auth-signin-create-account
           path: artifacts/auth-*.png
+          if-no-files-found: error
+      - name: Upload onboarding screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: onboarding-first-launch
+          path: artifacts/onboarding-*.png
           if-no-files-found: error
 
   testflight:

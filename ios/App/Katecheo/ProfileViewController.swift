@@ -15,7 +15,13 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
         case language
         case bible
         case notifications
+        case viewIntro
         case help
+    }
+
+    private enum GuestRow: Int, CaseIterable {
+        case signIn
+        case viewIntro
     }
 
     private enum AccountRow: Int, CaseIterable {
@@ -277,7 +283,7 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
         switch sectionKind(at: section) {
         case .preferences: return PrefRow.allCases.count
         case .account: return AccountRow.allCases.count
-        case .guest: return 1
+        case .guest: return GuestRow.allCases.count
         }
     }
 
@@ -309,10 +315,18 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
 
         switch sectionKind(at: indexPath.section) {
         case .guest:
-            config.text = String(localized: "Entrar")
-            config.secondaryText = String(localized: "Google, Apple ou email")
-            config.image = UIImage(systemName: "person.badge.key")
-            cell.accessoryType = .none
+            guard let row = GuestRow(rawValue: indexPath.row) else { break }
+            switch row {
+            case .signIn:
+                config.text = String(localized: "Entrar")
+                config.secondaryText = String(localized: "Google, Apple ou email")
+                config.image = UIImage(systemName: "person.badge.key")
+                cell.accessoryType = .none
+            case .viewIntro:
+                config.text = String(localized: "Ver introdução")
+                config.secondaryText = String(localized: "Ver de novo as telas iniciais")
+                config.image = UIImage(systemName: "sparkles")
+            }
         case .preferences:
             guard let row = PrefRow(rawValue: indexPath.row) else { break }
             switch row {
@@ -347,6 +361,10 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
                 let devices = me?.notify.apnsDevices ?? 0
                 config.secondaryText = devices > 0 ? String(localized: "\(devices) dispositivo(s)") : String(localized: "Configurar alertas")
                 config.image = UIImage(systemName: "bell")
+            case .viewIntro:
+                config.text = String(localized: "Ver introdução")
+                config.secondaryText = String(localized: "Ver de novo as telas iniciais")
+                config.image = UIImage(systemName: "sparkles")
             case .help:
                 config.text = String(localized: "Sobre e ajuda")
                 config.secondaryText = String(localized: "Privacidade · site")
@@ -388,9 +406,18 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
         KCHaptics.selection()
         switch sectionKind(at: indexPath.section) {
         case .guest:
-            presentSignIn()
+            guard let row = GuestRow(rawValue: indexPath.row) else { return }
+            switch row {
+            case .signIn: presentSignIn()
+            case .viewIntro: presentOnboardingReplay()
+            }
         case .preferences:
-            guard let row = PrefRow(rawValue: indexPath.row), let me else { return }
+            guard let row = PrefRow(rawValue: indexPath.row) else { return }
+            if row == .viewIntro {
+                presentOnboardingReplay()
+                return
+            }
+            guard let me else { return }
             switch row {
             case .edit:
                 let edit = ProfileEditViewController(me: me) { [weak self] in self?.reload() }
@@ -409,6 +436,8 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
             case .notifications:
                 let vc = ProfileNotifyViewController(notify: me.notify) { [weak self] in self?.reload() }
                 navigationController?.pushViewController(vc, animated: true)
+            case .viewIntro:
+                presentOnboardingReplay()
             case .help:
                 openHelp()
             }
@@ -431,6 +460,15 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
         let nav = UINavigationController(rootViewController: signIn)
         nav.modalPresentationStyle = .fullScreen
         present(nav, animated: true)
+    }
+
+    private func presentOnboardingReplay() {
+        let onboarding = OnboardingViewController()
+        onboarding.onFinished = { [weak self] in
+            self?.dismiss(animated: true)
+        }
+        onboarding.modalPresentationStyle = .fullScreen
+        present(onboarding, animated: true)
     }
 
     private func confirmSignOut() {
