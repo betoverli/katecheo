@@ -29,6 +29,7 @@ final class NativeSignInViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         KCChrome.styleScreen(view)
+        view.accessibilityIdentifier = "signin.root"
         title = String(localized: "Entrar ou criar conta")
         navigationItem.largeTitleDisplayMode = .never
         if let nav = navigationController {

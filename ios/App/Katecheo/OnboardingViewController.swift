@@ -2,12 +2,14 @@ import UIKit
 
 /// First-launch intro: 4 swipeable pages before the auth screen.
 ///
-/// Layout contract (device-verified):
+/// Layout contract:
 /// - Wordmark "Katecheo" never wraps/hyphenates — single line, shrinks instead.
-/// - Titles/bodies use the full page width (~32pt side padding), not a narrow
-///   centered intrinsic column (`UIStackView.alignment = .center` was the cause).
-/// - Page dots + Get started stay pinned inside the bottom safe area; page
-///   content scrolls vertically when Dynamic Type / small screens need room.
+/// - Titles/bodies use the full page width (~32pt side padding).
+/// - Page dots + Get started stay **above the home indicator**: bottom chrome is
+///   pinned to `view.bottomAnchor` with an explicit inset of
+///   `effectiveBottomSafeInset + 16`, never to a possibly-zero
+///   `safeAreaLayoutGuide.bottom` alone (TF 325: guide bottom matched the
+///   physical edge when the scene window race zeroed bottom insets).
 final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
     /// Called after Skip / Get started marks the intro seen.
     /// First-launch uses this to swap the window root; Settings replay dismisses.
@@ -19,8 +21,20 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
     private let skipButton = UIButton(type: .system)
     private let startButton = UIButton(type: .system)
     private let bottomBar = UIStackView()
+    /// Pins `bottomBar` to the physical bottom, with a constant that includes
+    /// the home-indicator inset (+ 16pt). Updated whenever safe-area changes.
+    private var bottomBarBottomConstraint: NSLayoutConstraint?
     private var pageWidth: CGFloat = 0
     private(set) var currentPageIndex = 0
+
+    /// When set (unit tests only), `updateBottomChromeInset` uses these values
+    /// instead of the live window/scene safe area — the TEST_HOST simulator's
+    /// Face-ID insets must not overwrite SE / Pro Max fixture cases.
+    private var testingBottomInsetOverride: (view: CGFloat, window: CGFloat, top: CGFloat)?
+
+    /// Standard home-indicator inset used when top is clearly inset (notch /
+    /// Dynamic Island) but bottom reports 0 — the TF 325 failure mode.
+    static let homeIndicatorFallback: CGFloat = 34
 
     private struct Page {
         let symbolName: String
@@ -65,6 +79,8 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
         super.viewDidLoad()
         KCChrome.styleScreen(view)
         view.accessibilityIdentifier = "onboarding.root"
+        // Bottom chrome must receive taps; don't let a sibling scroll view steal them.
+        view.clipsToBounds = true
 
         skipButton.setTitle(String(localized: "Pular"), for: .normal)
         skipButton.titleLabel?.font = KCDesign.headline()
@@ -83,7 +99,7 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
         scrollView.delegate = self
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.accessibilityIdentifier = "onboarding.scroll"
-        // Let the bottom chrome win when Dynamic Type eats vertical space.
+        scrollView.contentInsetAdjustmentBehavior = .never
         scrollView.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
         scrollView.setContentHuggingPriority(.defaultLow, for: .vertical)
 
@@ -99,7 +115,10 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
         KCButtonStyle.applyPrimary(to: startButton, title: String(localized: "Começar"))
         startButton.addTarget(self, action: #selector(finishTapped), for: .touchUpInside)
         startButton.accessibilityIdentifier = "onboarding.start"
-        startButton.isHidden = true
+        // Keep the button in the stack at all times (alpha only) so showing it on
+        // the last page cannot reflow the stack past the bottom edge.
+        startButton.alpha = 0
+        startButton.isUserInteractionEnabled = false
         startButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 50).isActive = true
 
         bottomBar.axis = .vertical
@@ -115,8 +134,14 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
         view.addSubview(skipButton)
         view.addSubview(scrollView)
         view.addSubview(bottomBar)
+        // Ensure chrome is above the paging scroll view for hit-testing.
+        view.bringSubviewToFront(bottomBar)
+        view.bringSubviewToFront(skipButton)
 
         let guide = view.safeAreaLayoutGuide
+        let bottomPin = bottomBar.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -KCDesign.Space.md)
+        bottomBarBottomConstraint = bottomPin
+
         NSLayoutConstraint.activate([
             skipButton.topAnchor.constraint(equalTo: guide.topAnchor, constant: KCDesign.Space.xs),
             skipButton.trailingAnchor.constraint(equalTo: guide.trailingAnchor, constant: -KCDesign.Space.md),
@@ -128,16 +153,22 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
 
             bottomBar.leadingAnchor.constraint(equalTo: guide.leadingAnchor, constant: KCDesign.Space.lg),
             bottomBar.trailingAnchor.constraint(equalTo: guide.trailingAnchor, constant: -KCDesign.Space.lg),
-            // Pin chrome inside the home-indicator safe area with a little breathing room.
-            bottomBar.bottomAnchor.constraint(equalTo: guide.bottomAnchor, constant: -KCDesign.Space.md),
+            bottomPin,
         ])
 
         buildPages()
+        updateBottomChromeInset()
         updateChrome(animated: false)
+    }
+
+    override func viewSafeAreaInsetsDidChange() {
+        super.viewSafeAreaInsetsDidChange()
+        updateBottomChromeInset()
     }
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
+        updateBottomChromeInset()
         let width = scrollView.bounds.width
         guard width > 0, abs(width - pageWidth) > 0.5 else { return }
         pageWidth = width
@@ -149,6 +180,48 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
         scrollView.setContentOffset(CGPoint(x: CGFloat(currentPageIndex) * width, y: 0), animated: false)
     }
 
+    /// Resolves the bottom safe inset that Get started must clear.
+    /// Pure — unit-tested. Prefer the larger of view/window insets; if top is
+    /// clearly inset (notch / island) but bottom is 0, use the home-indicator
+    /// fallback so chrome never sits flush with the physical bottom edge.
+    static func effectiveBottomSafeInset(
+        viewInset: CGFloat,
+        windowInset: CGFloat,
+        topInset: CGFloat
+    ) -> CGFloat {
+        let resolved = max(0, max(viewInset, windowInset))
+        if resolved < 1, topInset > 20 {
+            return homeIndicatorFallback
+        }
+        return resolved
+    }
+
+    private func updateBottomChromeInset() {
+        let viewInset: CGFloat
+        let windowInset: CGFloat
+        let topInset: CGFloat
+        if let override = testingBottomInsetOverride {
+            viewInset = override.view
+            windowInset = override.window
+            topInset = override.top
+        } else {
+            viewInset = view.safeAreaInsets.bottom
+            windowInset = view.window?.safeAreaInsets.bottom
+                ?? view.window?.windowScene?.windows.map(\.safeAreaInsets.bottom).max()
+                ?? 0
+            topInset = view.safeAreaInsets.top
+        }
+        let inset = Self.effectiveBottomSafeInset(
+            viewInset: viewInset,
+            windowInset: windowInset,
+            topInset: topInset
+        )
+        let constant = -(inset + KCDesign.Space.md)
+        if bottomBarBottomConstraint?.constant != constant {
+            bottomBarBottomConstraint?.constant = constant
+        }
+    }
+
     private func buildPages() {
         scrollView.subviews.forEach { $0.removeFromSuperview() }
         for (index, page) in pages.enumerated() {
@@ -158,11 +231,9 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
     }
 
     private func makePageView(_ page: Page, index: Int) -> UIView {
-        // Outer page fills the horizontal pager slot.
         let container = UIView()
         container.accessibilityIdentifier = "onboarding.page.\(index)"
 
-        // Inner vertical scroller so SE + large Dynamic Type never push Get started off-screen.
         let pageScroll = UIScrollView()
         pageScroll.translatesAutoresizingMaskIntoConstraints = false
         pageScroll.showsVerticalScrollIndicator = false
@@ -172,8 +243,6 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
 
         let stack = UIStackView()
         stack.axis = .vertical
-        // `.fill` + centered text: labels take the full width. `.center` was the
-        // root cause of the 2–3-word narrow column (intrinsic UILabel width).
         stack.alignment = .fill
         stack.spacing = KCDesign.Space.lg
         stack.translatesAutoresizingMaskIntoConstraints = false
@@ -222,7 +291,6 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
 
         let title = UILabel()
         title.text = page.title
-        // Katecheo must stay one complete word in a single uniform style (never split fonts).
         title.font = page.usesBrandMark ? KCDesign.displayTitle() : KCDesign.screenTitle()
         title.textAlignment = .center
         title.textColor = .label
@@ -230,13 +298,11 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
         title.accessibilityTraits = .header
         title.accessibilityIdentifier = page.usesBrandMark ? "onboarding.wordmark" : "onboarding.title.\(index)"
         if page.usesBrandMark {
-            // Always one line / one word — shrink instead of wrapping or hyphenating.
             title.numberOfLines = 1
             title.lineBreakMode = .byClipping
             title.adjustsFontSizeToFitWidth = true
             title.minimumScaleFactor = 0.6
             title.allowsDefaultTighteningForTruncation = true
-            // No soft hyphens / hyphenation — keep the glyph run intact.
             title.setContentCompressionResistancePriority(.required, for: .vertical)
         } else {
             title.numberOfLines = 0
@@ -264,7 +330,7 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
         container.accessibilityHint = page.accessibilityHint
         container.accessibilityTraits = .staticText
 
-        let sidePad = KCDesign.Space.xl // 32pt — full-width text with normal padding
+        let sidePad = KCDesign.Space.xl
         NSLayoutConstraint.activate([
             pageScroll.topAnchor.constraint(equalTo: container.topAnchor),
             pageScroll.leadingAnchor.constraint(equalTo: container.leadingAnchor),
@@ -276,7 +342,6 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
             stack.trailingAnchor.constraint(equalTo: pageScroll.frameLayoutGuide.trailingAnchor, constant: -sidePad),
             stack.bottomAnchor.constraint(lessThanOrEqualTo: pageScroll.contentLayoutGuide.bottomAnchor, constant: -KCDesign.Space.lg),
             stack.widthAnchor.constraint(equalTo: pageScroll.frameLayoutGuide.widthAnchor, constant: -(sidePad * 2)),
-            // Vertically center when content is short; contentLayoutGuide grows when tall.
             stack.centerYAnchor.constraint(equalTo: pageScroll.frameLayoutGuide.centerYAnchor).withPriority(.defaultHigh),
             pageScroll.contentLayoutGuide.heightAnchor.constraint(
                 greaterThanOrEqualTo: pageScroll.frameLayoutGuide.heightAnchor
@@ -285,7 +350,6 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
         return container
     }
 
-    /// Full-width row that centers a fixed-size child (icons / brand) under `.fill` stacks.
     private func centeredRow(_ child: UIView) -> UIView {
         let row = UIView()
         row.translatesAutoresizingMaskIntoConstraints = false
@@ -306,15 +370,18 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
         let changes = {
             self.skipButton.alpha = last ? 0 : 1
             self.skipButton.isEnabled = !last
-            self.skipButton.isHidden = last
-            self.startButton.isHidden = !last
+            self.skipButton.isUserInteractionEnabled = !last
+            // Never isHidden the start button — keep stack height stable and
+            // the bottom pin meaningful on every page.
             self.startButton.alpha = last ? 1 : 0
+            self.startButton.isUserInteractionEnabled = last
             self.pageControl.currentPage = self.currentPageIndex
             self.pageControl.accessibilityValue = String(
                 format: String(localized: "Página %lld de %lld"),
                 self.currentPageIndex + 1,
                 self.pages.count
             )
+            self.updateBottomChromeInset()
             self.view.layoutIfNeeded()
         }
         if animated {
@@ -346,15 +413,19 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
     // MARK: - Testing hooks
 
     var testing_currentPage: Int { currentPageIndex }
-    var testing_isSkipVisible: Bool { !skipButton.isHidden && skipButton.alpha > 0.01 }
-    var testing_isStartVisible: Bool { !startButton.isHidden && startButton.alpha > 0.01 }
+    var testing_isSkipVisible: Bool { skipButton.alpha > 0.01 && skipButton.isUserInteractionEnabled }
+    var testing_isStartVisible: Bool { startButton.alpha > 0.01 && startButton.isUserInteractionEnabled }
     var testing_pageCount: Int { pages.count }
     var testing_skipTitle: String? { skipButton.title(for: .normal) }
     var testing_startTitle: String? { startButton.configuration?.title ?? startButton.title(for: .normal) }
     var testing_bottomBarFrameInView: CGRect { bottomBar.convert(bottomBar.bounds, to: view) }
     var testing_startButtonFrameInView: CGRect { startButton.convert(startButton.bounds, to: view) }
     var testing_skipButtonFrameInView: CGRect { skipButton.convert(skipButton.bounds, to: view) }
+    var testing_startButtonFrameInWindow: CGRect {
+        startButton.convert(startButton.bounds, to: view.window)
+    }
     var testing_safeAreaInsets: UIEdgeInsets { view.safeAreaInsets }
+    var testing_bottomBarBottomConstant: CGFloat { bottomBarBottomConstraint?.constant ?? 0 }
     var testing_wordmarkLabel: UILabel? {
         firstLabel(in: scrollView, matching: { $0.accessibilityIdentifier == "onboarding.wordmark" })
     }
@@ -366,6 +437,7 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
         return firstLabel(in: scrollView, matching: { $0.accessibilityIdentifier == "onboarding.title.\(currentPageIndex)" })
     }
     var testing_pageTitle: String? { testing_currentTitleLabel?.text }
+    var testing_startButton: UIButton { startButton }
 
     func testing_goToPage(_ index: Int, animated: Bool = false) {
         goToPage(index, animated: animated)
@@ -373,6 +445,16 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
 
     func testing_tapSkip() { finishTapped() }
     func testing_tapStart() { finishTapped() }
+    func testing_updateBottomChromeInset() { updateBottomChromeInset() }
+
+    /// Apply a known inset triple (bypasses the live window/scene) so layout
+    /// assertions stay deterministic inside the TEST_HOST simulator.
+    /// Persists across `viewDidLayoutSubviews` → `updateBottomChromeInset`.
+    func testing_applyBottomInsets(viewInset: CGFloat, windowInset: CGFloat, topInset: CGFloat) {
+        testingBottomInsetOverride = (viewInset, windowInset, topInset)
+        updateBottomChromeInset()
+        view.layoutIfNeeded()
+    }
 
     private func goToPage(_ index: Int, animated: Bool) {
         let clamped = max(0, min(pages.count - 1, index))

@@ -90,6 +90,8 @@
 		F8B8E0102FED7965001685D0 /* KCDesign.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8B8E0112FED7965001685D0 /* KCDesign.swift */; };
 		F8B8E0122FED7965001685D0 /* KCComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8B8E0132FED7965001685D0 /* KCComponents.swift */; };
 		C9D0E0102FED7965001685E0 /* ReadingScreens.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9D0E0112FED7965001685E0 /* ReadingScreens.swift */; };
+		KCUIT12FED7965001685UI /* OnboardingGetStartedUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCUIT11FED7965001685UI /* OnboardingGetStartedUITests.swift */; };
+		KCUIT13FED7965001685UI /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = KCUIT10FED7965001685UI /* XCTest.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -182,6 +184,9 @@
 		KCCAT11FED7965001685V2 /* NativeCatalogSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeCatalogSync.swift; sourceTree = "<group>"; };
 		T7TAGS11FED7965001685T7 /* NoteEditorTagsStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteEditorTagsStrip.swift; sourceTree = "<group>"; };
 		T1A2B0142FED7965001685T1 /* KatecheoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = KatecheoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		KCUIT11FED7965001685UI /* OnboardingGetStartedUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingGetStartedUITests.swift; sourceTree = "<group>"; };
+		KCUIT14FED7965001685UI /* KatecheoUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = KatecheoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		KCUIT10FED7965001685UI /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = System/Library/Frameworks/XCTest.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -199,6 +204,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		KCUIT16FED7965001685UI /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				KCUIT13FED7965001685UI /* XCTest.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -208,6 +221,7 @@
 				958DCC722DB07C7200EA8C5F /* debug.xcconfig */,
 				504EC3061FED79650016851F /* Katecheo */,
 				T1A2B0152FED7965001685T1 /* KatecheoTests */,
+				KCUIT15FED7965001685UI /* KatecheoUITests */,
 				504EC3051FED79650016851F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -217,6 +231,7 @@
 			children = (
 				504EC3041FED79650016851F /* Katecheo.app */,
 				T1A2B0142FED7965001685T1 /* KatecheoTests.xctest */,
+				KCUIT14FED7965001685UI /* KatecheoUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -321,6 +336,14 @@
 			path = KatecheoTests;
 			sourceTree = "<group>";
 		};
+		KCUIT15FED7965001685UI /* KatecheoUITests */ = {
+			isa = PBXGroup;
+			children = (
+				KCUIT11FED7965001685UI /* OnboardingGetStartedUITests.swift */,
+			);
+			path = KatecheoUITests;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXContainerItemProxy section */
@@ -331,6 +354,13 @@
 			remoteGlobalIDString = 504EC3031FED79650016851F;
 			remoteInfo = App;
 		};
+		KCUIT19FED7965001685UI /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 504EC3031FED79650016851F;
+			remoteInfo = Katecheo;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXTargetDependency section */
@@ -338,6 +368,11 @@
 			isa = PBXTargetDependency;
 			target = 504EC3031FED79650016851F /* Katecheo */;
 			targetProxy = T1A2B0192FED7965001685T1 /* PBXContainerItemProxy */;
+		};
+		KCUIT1A2FED7965001685UI /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 504EC3031FED79650016851F /* Katecheo */;
+			targetProxy = KCUIT19FED7965001685UI /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -379,6 +414,24 @@
 			productReference = T1A2B0142FED7965001685T1 /* KatecheoTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		KCUIT1B2FED7965001685UI /* KatecheoUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = KCUIT1C2FED7965001685UI /* Build configuration list for PBXNativeTarget "KatecheoUITests" */;
+			buildPhases = (
+				KCUIT17FED7965001685UI /* Sources */,
+				KCUIT16FED7965001685UI /* Frameworks */,
+				KCUIT18FED7965001685UI /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				KCUIT1A2FED7965001685UI /* PBXTargetDependency */,
+			);
+			name = KatecheoUITests;
+			productName = KatecheoUITests;
+			productReference = KCUIT14FED7965001685UI /* KatecheoUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -394,6 +447,11 @@
 						ProvisioningStyle = Automatic;
 					};
 					T1A2B01B2FED7965001685T1 = {
+						CreatedOnToolsVersion = 16.0;
+						ProvisioningStyle = Automatic;
+						TestTargetID = 504EC3031FED79650016851F;
+					};
+					KCUIT1B2FED7965001685UI = {
 						CreatedOnToolsVersion = 16.0;
 						ProvisioningStyle = Automatic;
 						TestTargetID = 504EC3031FED79650016851F;
@@ -419,6 +477,7 @@
 			targets = (
 				504EC3031FED79650016851F /* Katecheo */,
 				T1A2B01B2FED7965001685T1 /* KatecheoTests */,
+				KCUIT1B2FED7965001685UI /* KatecheoUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -439,6 +498,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		T1A2B0182FED7965001685T1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		KCUIT18FED7965001685UI /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -535,6 +601,14 @@
 				TBONB22FED7965001685TB /* OnboardingFlowTests.swift in Sources */,
 				KCSWR22FED7965001685V2 /* NativeSWRCacheTests.swift in Sources */,
 				TBNTC12FED7965001685TB /* NotificationsCenterTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		KCUIT17FED7965001685UI /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				KCUIT12FED7965001685UI /* OnboardingGetStartedUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -768,6 +842,52 @@
 			};
 			name = Release;
 		};
+		KCUIT1D2FED7965001685UI /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGNING_REQUIRED = NO;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.verse2note.app.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Katecheo;
+			};
+			name = Debug;
+		};
+		KCUIT1E2FED7965001685UI /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGNING_REQUIRED = NO;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.verse2note.app.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Katecheo;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -794,6 +914,15 @@
 			buildConfigurations = (
 				T1A2B01D2FED7965001685T1 /* Debug */,
 				T1A2B01E2FED7965001685T1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		KCUIT1C2FED7965001685UI /* Build configuration list for PBXNativeTarget "KatecheoUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				KCUIT1D2FED7965001685UI /* Debug */,
+				KCUIT1E2FED7965001685UI /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
