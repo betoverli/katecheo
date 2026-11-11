@@ -1,4 +1,5 @@
 import type { Locale } from "@/lib/bible/books";
+import { CONTACT_EMAIL } from "@/lib/app-store";
 
 type Copy = {
   title: string;
@@ -29,7 +30,7 @@ const COPY: Record<Locale, Copy> = {
       },
       {
         title: "Contato",
-        body: "Dúvidas sobre estes termos: página de Contato em katecheo.app/contact ou o repositório github.com/betoverli/katecheo.",
+        body: `Dúvidas sobre estes termos: escreva para ${CONTACT_EMAIL}, use katecheo.app/contact ou o repositório github.com/betoverli/katecheo.`,
       },
     ],
   },
@@ -55,7 +56,7 @@ const COPY: Record<Locale, Copy> = {
       },
       {
         title: "Contact",
-        body: "Questions about these terms: the Contact page at katecheo.app/contact or github.com/betoverli/katecheo.",
+        body: `Questions about these terms: email ${CONTACT_EMAIL}, use katecheo.app/contact, or github.com/betoverli/katecheo.`,
       },
     ],
   },
@@ -81,7 +82,7 @@ const COPY: Record<Locale, Copy> = {
       },
       {
         title: "Contacto",
-        body: "Preguntas sobre estos términos: la página de Contacto en katecheo.app/contact o github.com/betoverli/katecheo.",
+        body: `Preguntas sobre estos términos: escribe a ${CONTACT_EMAIL}, usa katecheo.app/contact o github.com/betoverli/katecheo.`,
       },
     ],
   },

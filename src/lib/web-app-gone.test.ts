@@ -77,4 +77,19 @@ describe("marketing cutover — kept surfaces", () => {
     assert.match(landing, /APP_STORE_URL|APP_STORE_LIVE/);
     assert.match(landing, /INSTAGRAM_URL/);
   });
+
+  it("exposes contato@katecheo.app as mailto on landing, contact, privacy, and terms", () => {
+    const cfg = read("src/lib/app-store.ts");
+    assert.match(cfg, /CONTACT_EMAIL = "contato@katecheo\.app"/);
+    assert.match(cfg, /CONTACT_MAILTO/);
+    const landing = read("src/components/landing.tsx");
+    assert.match(landing, /CONTACT_MAILTO/);
+    assert.match(landing, /CONTACT_EMAIL/);
+    const contactRoute = read("src/routes/contact.tsx");
+    assert.match(contactRoute, /CONTACT_MAILTO/);
+    assert.match(contactRoute, /contato@katecheo\.app/);
+    for (const rel of ["src/lib/privacy.ts", "src/lib/terms.ts", "src/lib/contact.ts"]) {
+      assert.match(read(rel), /CONTACT_EMAIL|contato@katecheo\.app/);
+    }
+  });
 });

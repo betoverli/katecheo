@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppHeader } from "@/components/app-header";
+import { MailtoText } from "@/components/mailto-text";
 import { Screen } from "@/components/screen";
 import { pageHead } from "@/lib/seo";
 import { useAppStore } from "@/lib/store";
@@ -26,7 +27,10 @@ function TermsRoute() {
         {copy.sections.map((section) => (
           <section key={section.title} className="space-y-2">
             <h2 className="text-xs font-medium tracking-wide text-muted uppercase">{section.title}</h2>
-            <p className="max-w-xl text-pretty text-sm leading-relaxed text-fg">{section.body}</p>
+            <MailtoText
+              text={section.body}
+              className="max-w-xl text-pretty text-sm leading-relaxed text-fg"
+            />
           </section>
         ))}
       </div>
