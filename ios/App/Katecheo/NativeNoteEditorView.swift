@@ -77,6 +77,11 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         textView.tintColor = KCDesign.accent
         textView.accessibilityLabel = String(localized: "Corpo da nota")
         textView.accessibilityHint = String(localized: "A primeira linha é o título")
+        // Replace UIKit's pin-to-top `scrollRangeToVisible` with our minimal helper so
+        // typing / Enter still follow the caret without jumping the viewport.
+        textView.onRequestCaretScroll = { [weak self] in
+            self?.scrollCaretVisible(animated: false)
+        }
         addSubview(textView)
 
         titlePlaceholderLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -1999,6 +2004,12 @@ extension NoteDocumentCodec {
 
 /// Minimal contentOffset math so Enter/Backspace never pin the caret line to the
 /// top of the viewport (the `UITextView.scrollRangeToVisible` + keyboard inset bug).
+///
+/// Contract:
+/// - caret already in the inset-adjusted band → keep `currentOffsetY` (then clamp)
+/// - caret below the band → increase offset by exactly the overflow (≈ one line on Enter)
+/// - caret above the band → decrease offset by exactly the overflow
+/// - never jump to pin the caret line to the top of the viewport
 enum NoteEditorCaretScroll {
     /// `caretRectInBounds` is UITextView's caret rect (view coordinates, not content).
     static func contentOffsetY(
@@ -2076,6 +2087,13 @@ enum SpeakerEnterDecision: Equatable {
 
 /// Clamps the caret to the font line height so `paragraphSpacing` does not stretch the cursor.
 final class NoteEditorTextView: UITextView {
+    /// Invoked instead of UIKit's pin-to-top `scrollRangeToVisible` (keyboard inset bug).
+    /// Must run the editor's minimal caret-scroll helper so Enter/typing still follow the caret.
+    var onRequestCaretScroll: (() -> Void)?
+
+    /// Re-entrancy guard: `onRequestCaretScroll` → `setContentOffset` must not loop.
+    private var isHandlingCaretScrollRequest = false
+
     override func caretRect(for position: UITextPosition) -> CGRect {
         var rect = super.caretRect(for: position)
         let font = caretFont(at: position)
@@ -2086,11 +2104,17 @@ final class NoteEditorTextView: UITextView {
         return rect
     }
 
-    /// UIKit's default implementation, combined with a large keyboard `contentInset.bottom`,
-    /// pins the caret line to the top of the viewport. `NativeNoteEditorView` owns
-    /// caret visibility via minimal contentOffset math instead.
+    /// UIKit's default, with a large keyboard `contentInset.bottom`, pins the caret line
+    /// to the top of the viewport. Forward to `NativeNoteEditorView`'s minimal scroll
+    /// (restore pre-edit offset + scroll only if the caret left the visible band).
     override func scrollRangeToVisible(_ range: NSRange) {
-        // no-op
+        guard !isHandlingCaretScrollRequest else { return }
+        isHandlingCaretScrollRequest = true
+        defer { isHandlingCaretScrollRequest = false }
+        if let onRequestCaretScroll {
+            onRequestCaretScroll()
+        }
+        // If the host has not wired a handler yet, do nothing (never call super).
     }
 
     private func caretFont(at position: UITextPosition) -> UIFont {

@@ -1193,8 +1193,12 @@ if (!project.includes("NativeNoteEditorCaretScrollTests.swift in Sources")) {
   if (!editorSrc.includes("pendingScrollAnchor") || !editorSrc.includes("restoreScrollAnchorIfNeeded")) {
     errors.push("NativeNoteEditorView tem de preservar contentOffset (pendingScrollAnchor) após Enter/Backspace.");
   }
-  if (!/override func scrollRangeToVisible/.test(editorSrc)) {
-    errors.push("NoteEditorTextView tem de sobrescrever scrollRangeToVisible (UIKit pin-to-top com inset do teclado).");
+  if (!/override func scrollRangeToVisible/.test(editorSrc) || !editorSrc.includes("onRequestCaretScroll")) {
+    errors.push("NoteEditorTextView.scrollRangeToVisible tem de encaminhar para onRequestCaretScroll (minimal caret follow).");
+  }
+  const caretTests = read("ios/App/KatecheoTests/NativeNoteEditorCaretScrollTests.swift");
+  if (!caretTests.includes("testRepeatedEnterAtLastVisibleLine_scrollsAboutOneLineEachTime")) {
+    errors.push("NativeNoteEditorCaretScrollTests tem de cobrir Enter repetido na última linha visível (~1 linha por Enter).");
   }
 }
 if (!project.includes("Build234FeedbackTests.swift in Sources")) {

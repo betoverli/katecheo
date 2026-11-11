@@ -91,6 +91,22 @@ final class NativeNoteEditorCaretScrollTests: XCTestCase {
         XCTAssertLessThan(y, 200)
     }
 
+    func testOneLineOverflow_scrollsExactlyByOverflow() {
+        // Caret one body line (~24pt) past the visible bottom → offset grows by that only.
+        let line: CGFloat = 24
+        let inset = UIEdgeInsets(top: 0, left: 0, bottom: 360, right: 0)
+        let visibleBottom = 720 - inset.bottom - 4 // 356
+        let caret = CGRect(x: 20, y: visibleBottom - 2, width: 2, height: line) // maxY = 378
+        let y = NoteEditorCaretScroll.contentOffsetY(
+            caretRectInBounds: caret,
+            boundsHeight: 720,
+            contentInset: inset,
+            contentSizeHeight: 2000,
+            currentOffsetY: 500
+        )
+        XCTAssertEqual(y, 500 + (378 - 356), accuracy: 0.5)
+    }
+
     // MARK: - Real UITextView Enter / Backspace path
 
     func testEnterBackspaceOnLongList_doesNotJumpOffsetOrLeaveGap() {
@@ -177,6 +193,91 @@ final class NativeNoteEditorCaretScrollTests: XCTestCase {
         assertNoTopPinJump(from: settled, to: afterEnter2, boundsHeight: boundsH, label: "Enter#2")
         assertCaretVisibleAboveKeyboard(label: "after Enter#2")
         assertNoLargeBlankGap(label: "after Enter#2")
+    }
+
+    /// Caret on the last visible line + repeated Enter must follow with ~one line of
+    /// scroll each time — not freeze (no-op scrollRangeToVisible without helper) and
+    /// not pin the line to the top.
+    func testRepeatedEnterAtLastVisibleLine_scrollsAboutOneLineEachTime() {
+        var note = NativeAPIClient.emptyNote(id: "note-caret-follow")
+        note.title = "Nota longa"
+        var blocks: [NativeAPIClient.LineBlock] = []
+        for i in 1 ... 40 {
+            blocks.append(
+                NativeAPIClient.LineBlock(
+                    id: "p\(i)",
+                    type: "paragraph",
+                    spans: [
+                        .init(
+                            type: "text",
+                            text: "Parágrafo \(i) com texto para preencher a nota e forçar rolagem do editor.",
+                            marks: nil,
+                            bookId: nil,
+                            chapter: nil,
+                            verseStart: nil,
+                            verseEnd: nil,
+                            href: nil
+                        ),
+                    ],
+                    speakerId: nil,
+                    title: nil,
+                    collapsed: nil,
+                    checked: nil,
+                    blocks: nil
+                )
+            )
+        }
+        note.body.blocks = blocks
+        editor.pushNote(note, speakers: [])
+        editor.layoutIfNeeded()
+
+        editor.testing_setKeyboardBottomInset(336)
+        editor.testing_forceCaretScroll = true
+
+        let storage = editor.testing_textStorage()
+        editor.testing_setSelectedRange(NSRange(location: storage.length, length: 0))
+        editor.testing_scrollCaretVisible(animated: false)
+
+        // Caret should already sit on the last visible line (just above the keyboard).
+        assertCaretVisibleAboveKeyboard(label: "parked")
+        let startCaret = editor.testing_caretRectInBounds()
+        let inset = editor.testing_contentInset()
+        let boundsH = editor.testing_boundsHeight()
+        let visibleBottom = boundsH - inset.bottom
+        XCTAssertLessThan(
+            visibleBottom - startCaret.maxY,
+            40,
+            "caret must start near the bottom of the visible band (gap=\(visibleBottom - startCaret.maxY))"
+        )
+
+        let lineHeight = max(startCaret.height, 20)
+        var previousOffset = editor.testing_contentOffset().y
+        XCTAssertGreaterThan(previousOffset, 80, "long note must be scrolled before Enter loop")
+
+        for step in 1 ... 5 {
+            editor.testing_insertText("\n")
+            editor.testing_scrollCaretVisible(animated: false)
+
+            let nextOffset = editor.testing_contentOffset().y
+            let delta = nextOffset - previousOffset
+            assertCaretVisibleAboveKeyboard(label: "Enter#\(step)")
+            assertNoLargeBlankGap(label: "Enter#\(step)")
+            assertPrecedingLineStillVisible(label: "Enter#\(step)")
+
+            // Must follow the caret downward (not freeze at the old offset).
+            XCTAssertGreaterThan(
+                delta,
+                lineHeight * 0.35,
+                "Enter#\(step): offset must grow (~one line); delta=\(delta) lineHeight=\(lineHeight) from \(previousOffset) to \(nextOffset)"
+            )
+            // Must not pin-to-top / jump by a large fraction of the viewport.
+            XCTAssertLessThan(
+                delta,
+                max(lineHeight * 3.5, 90),
+                "Enter#\(step): offset grew too much (delta=\(delta)); expected ~one line"
+            )
+            previousOffset = nextOffset
+        }
     }
 
     // MARK: - Assertions
