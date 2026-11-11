@@ -371,6 +371,48 @@ const MANUAL = {
     "Too many attempts. Please wait a moment.",
     "Demasiados intentos. Espera un momento.",
   ],
+  "Esqueci minha senha": ["Forgot password", "Olvidé mi contraseña"],
+  "Enviaremos um código de 6 dígitos para o seu email.": [
+    "We’ll send a 6-digit code to your email.",
+    "Enviaremos un código de 6 dígitos a tu correo.",
+  ],
+  "Código de 6 dígitos": ["6-digit code", "Código de 6 dígitos"],
+  "Nova senha (mín. 8)": ["New password (min. 8)", "Nueva contraseña (mín. 8)"],
+  "Confirmar nova senha": ["Confirm new password", "Confirmar nueva contraseña"],
+  "Enviar código": ["Send code", "Enviar código"],
+  "Redefinir senha": ["Reset password", "Restablecer contraseña"],
+  "Reenviar código": ["Resend code", "Reenviar código"],
+  "Reenviar em %d s": ["Resend in %d s", "Reenviar en %d s"],
+  "Enviando código…": ["Sending code…", "Enviando código…"],
+  "Se existir uma conta, enviamos um código.": [
+    "If an account exists, we sent a code.",
+    "Si existe una cuenta, enviamos un código.",
+  ],
+  "Redefinindo senha…": ["Resetting password…", "Restableciendo contraseña…"],
+  "Informe o código de 6 dígitos.": [
+    "Enter the 6-digit code.",
+    "Introduce el código de 6 dígitos.",
+  ],
+  "Código incorreto ou expirado.": [
+    "Incorrect or expired code.",
+    "Código incorrecto o caducado.",
+  ],
+  "Muitas tentativas com este código. Peça um novo.": [
+    "Too many attempts with this code. Request a new one.",
+    "Demasiados intentos con este código. Pide uno nuevo.",
+  ],
+  "Não foi possível enviar o código. Verifique a conexão.": [
+    "Couldn’t send the code. Check your connection.",
+    "No se pudo enviar el código. Comprueba la conexión.",
+  ],
+  "Não foi possível redefinir a senha. Verifique a conexão.": [
+    "Couldn’t reset the password. Check your connection.",
+    "No se pudo restablecer la contraseña. Comprueba la conexión.",
+  ],
+  "Não foi possível redefinir a senha.": [
+    "Couldn’t reset the password.",
+    "No se pudo restablecer la contraseña.",
+  ],
   "Continuar com Apple": ["Continue with Apple", "Continuar con Apple"],
   Nome: ["Name", "Nombre"],
   "Abrindo Google…": ["Opening Google…", "Abriendo Google…"],

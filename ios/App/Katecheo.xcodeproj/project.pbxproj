@@ -68,6 +68,8 @@
 		E4F1B0122FED796500168560 /* NativeLoginService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4F1B0132FED796500168560 /* NativeLoginService.swift */; };
 		E4F1B0142FED796500168560 /* NativeSignInViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4F1B0152FED796500168560 /* NativeSignInViewController.swift */; };
 		E4F1B0172FED796500168560 /* NativeEmailAuthForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4F1B0162FED796500168560 /* NativeEmailAuthForm.swift */; };
+		E4F1B0182FED796500168560 /* NativeForgotPasswordViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4F1B0192FED796500168560 /* NativeForgotPasswordViewController.swift */; };
+		E4F1B01A2FED796500168560 /* NativeForgotPasswordForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4F1B01B2FED796500168560 /* NativeForgotPasswordForm.swift */; };
 		TBAUTH2FED7965001685TB /* AuthSignInScreenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TBAUTH1FED7965001685TB /* AuthSignInScreenTests.swift */; };
 		F5A2C0102FED796500168570 /* GroupsListViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A2C0112FED796500168570 /* GroupsListViewController.swift */; };
 		F5A3D0102FED796500168580 /* ProfileViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A3D0112FED796500168580 /* ProfileViewController.swift */; };
@@ -137,6 +139,8 @@
 		E4F1B0132FED796500168560 /* NativeLoginService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeLoginService.swift; sourceTree = "<group>"; };
 		E4F1B0152FED796500168560 /* NativeSignInViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeSignInViewController.swift; sourceTree = "<group>"; };
 		E4F1B0162FED796500168560 /* NativeEmailAuthForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeEmailAuthForm.swift; sourceTree = "<group>"; };
+		E4F1B0192FED796500168560 /* NativeForgotPasswordViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeForgotPasswordViewController.swift; sourceTree = "<group>"; };
+		E4F1B01B2FED796500168560 /* NativeForgotPasswordForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeForgotPasswordForm.swift; sourceTree = "<group>"; };
 		TBAUTH1FED7965001685TB /* AuthSignInScreenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthSignInScreenTests.swift; sourceTree = "<group>"; };
 		F5A2C0112FED796500168570 /* GroupsListViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupsListViewController.swift; sourceTree = "<group>"; };
 		F5A3D0112FED796500168580 /* ProfileViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileViewController.swift; sourceTree = "<group>"; };
@@ -262,6 +266,8 @@
 				E4F1B0132FED796500168560 /* NativeLoginService.swift */,
 				E4F1B0152FED796500168560 /* NativeSignInViewController.swift */,
 				E4F1B0162FED796500168560 /* NativeEmailAuthForm.swift */,
+				E4F1B0192FED796500168560 /* NativeForgotPasswordViewController.swift */,
+				E4F1B01B2FED796500168560 /* NativeForgotPasswordForm.swift */,
 				F5A2C0112FED796500168570 /* GroupsListViewController.swift */,
 				F5A3D0112FED796500168580 /* ProfileViewController.swift */,
 				F5A3D0132FED796500168580 /* ProfileSettingsScreens.swift */,
@@ -483,6 +489,8 @@
 				E4F1B0122FED796500168560 /* NativeLoginService.swift in Sources */,
 				E4F1B0142FED796500168560 /* NativeSignInViewController.swift in Sources */,
 				E4F1B0172FED796500168560 /* NativeEmailAuthForm.swift in Sources */,
+				E4F1B0182FED796500168560 /* NativeForgotPasswordViewController.swift in Sources */,
+				E4F1B01A2FED796500168560 /* NativeForgotPasswordForm.swift in Sources */,
 				F5A2C0102FED796500168570 /* GroupsListViewController.swift in Sources */,
 				F5A3D0102FED796500168580 /* ProfileViewController.swift in Sources */,
 				F5A3D0122FED796500168580 /* ProfileSettingsScreens.swift in Sources */,

@@ -176,6 +176,21 @@ export const authEmailSignUpSchema = z
   })
   .passthrough();
 
+export const authEmailForgotPasswordSchema = z
+  .object({
+    email: z.string().min(1).max(320),
+    locale: z.string().min(1).max(32).optional(),
+  })
+  .passthrough();
+
+export const authEmailResetPasswordSchema = z
+  .object({
+    email: z.string().min(1).max(320),
+    code: z.string().min(1).max(12),
+    newPassword: z.string().min(1).max(200),
+  })
+  .passthrough();
+
 export const authAppleSchema = z
   .object({
     identityToken: z.string().min(1).max(8000),

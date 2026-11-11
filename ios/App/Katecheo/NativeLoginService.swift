@@ -270,6 +270,75 @@ final class NativeLoginService: NSObject {
         _ = KeychainStore.setBearerToken(token)
     }
 
+    /// Asks the server to email a 6-digit reset code. Always succeeds from the
+    /// client's perspective when the API returns 200 (account existence is hidden).
+    func requestPasswordReset(email: String, locale: String) async throws {
+        var request = URLRequest(
+            url: NativeAPIClient.baseURL.appendingPathComponent("api/native/v1/auth/email/forgot-password")
+        )
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.httpBody = try JSONSerialization.data(withJSONObject: [
+            "email": email,
+            "locale": locale,
+        ])
+        let (data, response) = try await URLSession.shared.data(for: request)
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        let decoded = try? JSONDecoder().decode(TokenResponse.self, from: data)
+        if status == 429 || decoded?.error == "rate_limited" {
+            throw LoginError.failed(String(localized: "Muitas tentativas. Aguarde um momento."))
+        }
+        guard status >= 200, status < 300, decoded?.ok != false else {
+            if decoded?.error == "email_disabled" {
+                throw LoginError.failed(String(localized: "Entrar está desligado neste ambiente."))
+            }
+            throw LoginError.failed(String(localized: "Não foi possível enviar o código. Verifique a conexão."))
+        }
+    }
+
+    /// Verifies the code, sets the new password, and stores the session bearer.
+    func resetPasswordWithCode(email: String, code: String, newPassword: String) async throws {
+        var request = URLRequest(
+            url: NativeAPIClient.baseURL.appendingPathComponent("api/native/v1/auth/email/reset-password")
+        )
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.httpBody = try JSONSerialization.data(withJSONObject: [
+            "email": email,
+            "code": code,
+            "newPassword": newPassword,
+        ])
+        let (data, response) = try await URLSession.shared.data(for: request)
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        let decoded = try? JSONDecoder().decode(TokenResponse.self, from: data)
+        guard status >= 200, status < 300, let token = decoded?.token, !token.isEmpty else {
+            throw LoginError.failed(Self.localizedResetError(code: decoded?.error, status: status))
+        }
+        _ = KeychainStore.setBearerToken(token)
+    }
+
+    private static func localizedResetError(code: String?, status: Int) -> String {
+        switch code {
+        case "invalid_code":
+            return String(localized: "Código incorreto ou expirado.")
+        case "code_exhausted":
+            return String(localized: "Muitas tentativas com este código. Peça um novo.")
+        case "password_short":
+            return String(localized: "A senha deve ter pelo menos 8 caracteres.")
+        case "rate_limited":
+            return String(localized: "Muitas tentativas. Aguarde um momento.")
+        case "email_disabled":
+            return String(localized: "Entrar está desligado neste ambiente.")
+        default:
+            if status == 0 {
+                return String(localized: "Não foi possível redefinir a senha. Verifique a conexão.")
+            }
+            return code ?? String(localized: "Não foi possível redefinir a senha.")
+        }
+    }
+
     private static func localizedSignUpError(code: String?, status: Int) -> String {
         switch code {
         case "email_exists":

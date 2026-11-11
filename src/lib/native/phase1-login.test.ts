@@ -15,6 +15,8 @@ describe("Phase 1 native login", () => {
       "auth-claim",
       "auth-email",
       "auth-email-sign-up",
+      "auth-email-forgot-password",
+      "auth-email-reset-password",
       "auth-apple",
       "auth-from-cookie",
       "auth-sign-out",
@@ -27,9 +29,13 @@ describe("Phase 1 native login", () => {
     assert.match(http, /claimNativeBearer/);
     assert.match(http, /signInEmailNative/);
     assert.match(http, /signUpEmailNative/);
+    assert.match(http, /forgotPasswordNative/);
+    assert.match(http, /resetPasswordNative/);
     assert.match(http, /signInAppleNative/);
     const auth = read("src/lib/native/api/v1-auth.server.ts");
     assert.match(auth, /signUpEmailNative/);
+    assert.match(auth, /forgotPasswordNative/);
+    assert.match(auth, /resetPasswordNative/);
     assert.match(auth, /email_exists/);
     assert.match(auth, /minPasswordLength/);
   });
@@ -51,6 +57,11 @@ describe("Phase 1 native login", () => {
     assert.match(login, /auth\/apple/);
     assert.match(login, /auth\/email\/sign-up/);
     assert.match(login, /signUpWithEmail/);
+    assert.match(login, /auth\/email\/forgot-password/);
+    assert.match(login, /auth\/email\/reset-password/);
+    assert.match(login, /requestPasswordReset|forgotPassword/);
+    assert.match(login, /resetPasswordWithCode|resetPassword/);
+    assert.match(signIn, /Esqueci minha senha/);
     assert.match(login, /authorizationCode/);
     assert.match(login, /fullName|givenName/);
     assert.match(login, /requestedScopes = \[\.fullName, \.email\]/);

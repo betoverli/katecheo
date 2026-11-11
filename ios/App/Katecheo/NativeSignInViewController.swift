@@ -21,6 +21,7 @@ final class NativeSignInViewController: UIViewController {
     private var googleButton: UIButton!
     private var appleButton: ASAuthorizationAppleIDButton!
     private var emailButton: UIButton!
+    private var forgotPasswordButton: UIButton!
     private var emailFieldsStack: UIStackView!
     private var busy = false
     private(set) var emailMode: NativeEmailAuthMode = .signIn
@@ -117,6 +118,15 @@ final class NativeSignInViewController: UIViewController {
         emailButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 50).isActive = true
         emailButton.addTarget(self, action: #selector(tapEmail), for: .touchUpInside)
 
+        forgotPasswordButton = UIButton(type: .system)
+        forgotPasswordButton.setTitle(String(localized: "Esqueci minha senha"), for: .normal)
+        forgotPasswordButton.titleLabel?.font = KCDesign.caption()
+        forgotPasswordButton.titleLabel?.adjustsFontForContentSizeCategory = true
+        forgotPasswordButton.setTitleColor(KCDesign.accent, for: .normal)
+        forgotPasswordButton.contentHorizontalAlignment = .center
+        forgotPasswordButton.addTarget(self, action: #selector(tapForgotPassword), for: .touchUpInside)
+        forgotPasswordButton.accessibilityLabel = String(localized: "Esqueci minha senha")
+
         statusLabel.font = KCDesign.caption()
         statusLabel.textColor = .secondaryLabel
         statusLabel.numberOfLines = 0
@@ -135,6 +145,7 @@ final class NativeSignInViewController: UIViewController {
             passwordConfirmField,
             passwordConfirmErrorLabel,
             emailButton,
+            forgotPasswordButton,
         ])
         emailFieldsStack.axis = .vertical
         emailFieldsStack.spacing = KCDesign.Space.xs
@@ -262,6 +273,7 @@ final class NativeSignInViewController: UIViewController {
             ? String(localized: "Criar conta com email")
             : String(localized: "Entrar com email")
         KCButtonStyle.applyPrimary(to: emailButton, title: buttonTitle)
+        forgotPasswordButton.isHidden = creating
         if clearErrors {
             clearFieldErrors()
             statusLabel.text = nil
@@ -375,6 +387,18 @@ final class NativeSignInViewController: UIViewController {
         }
     }
 
+    @objc private func tapForgotPassword() {
+        guard !busy else { return }
+        KCHaptics.light()
+        let forgot = NativeForgotPasswordViewController()
+        forgot.initialEmail = (emailField.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        // Forgot VC already dismisses the auth nav and posts session notifications.
+        forgot.onSignedIn = { [weak self] in
+            self?.onSignedIn?()
+        }
+        navigationController?.pushViewController(forgot, animated: true)
+    }
+
     private func finishSignedIn() {
         setBusy(false, message: String(localized: "Sessão iniciada."))
         KCHaptics.success()
@@ -396,6 +420,7 @@ final class NativeSignInViewController: UIViewController {
         googleButton.isEnabled = !value
         appleButton.isEnabled = !value
         emailButton.isEnabled = !value
+        forgotPasswordButton.isEnabled = !value
         modeControl.isEnabled = !value
         statusLabel.text = message
         statusLabel.textColor = value ? .secondaryLabel : KCDesign.danger
@@ -437,6 +462,8 @@ final class NativeSignInViewController: UIViewController {
 
     var testing_isNameFieldVisible: Bool { !nameField.isHidden }
     var testing_isPasswordConfirmVisible: Bool { !passwordConfirmField.isHidden }
+    var testing_isForgotPasswordVisible: Bool { !forgotPasswordButton.isHidden }
+    var testing_forgotPasswordTitle: String? { forgotPasswordButton.title(for: .normal) }
     var testing_emailButtonTitle: String? { emailButton.configuration?.title }
     var testing_statusText: String? { statusLabel.text }
     var testing_emailErrorText: String? { emailErrorLabel.isHidden ? nil : emailErrorLabel.text }
@@ -445,4 +472,8 @@ final class NativeSignInViewController: UIViewController {
         passwordConfirmErrorLabel.isHidden ? nil : passwordConfirmErrorLabel.text
     }
     var testing_socialCaptionText: String? { socialCaptionLabel.text }
+
+    func testing_openForgotPassword() {
+        tapForgotPassword()
+    }
 }

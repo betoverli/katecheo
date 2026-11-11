@@ -691,6 +691,29 @@
         }
       }
     },
+    "A senha deve ter pelo menos 8 caracteres.": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A senha deve ter pelo menos 8 caracteres."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Password must be at least 8 characters."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La contraseña debe tener al menos 8 caracteres."
+          }
+        }
+      }
+    },
     "Abertura": {
       "extractionState": "manual",
       "localizations": {
@@ -2209,6 +2232,29 @@
         }
       }
     },
+    "Buscar planos": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buscar planos"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search plans"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buscar planes"
+          }
+        }
+      }
+    },
     "Buscar tema ou passagem": {
       "extractionState": "manual",
       "localizations": {
@@ -2439,6 +2485,29 @@
         }
       }
     },
+    "Capítulos": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Capítulos"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chapters"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Capítulos"
+          }
+        }
+      }
+    },
     "capítulos por dia": {
       "extractionState": "manual",
       "localizations": {
@@ -2600,6 +2669,29 @@
         }
       }
     },
+    "Código de 6 dígitos": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Código de 6 dígitos"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "6-digit code"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Código de 6 dígitos"
+          }
+        }
+      }
+    },
     "Código de login em falta.": {
       "extractionState": "manual",
       "localizations": {
@@ -2619,6 +2711,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Falta el código de inicio."
+          }
+        }
+      }
+    },
+    "Código incorreto ou expirado.": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Código incorreto ou expirado."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Incorrect or expired code."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Código incorrecto o caducado."
           }
         }
       }
@@ -3175,6 +3290,29 @@
         }
       }
     },
+    "Confirmar nova senha": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirmar nova senha"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirm new password"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirmar nueva contraseña"
+          }
+        }
+      }
+    },
     "Confirmar senha": {
       "extractionState": "manual",
       "localizations": {
@@ -3313,29 +3451,6 @@
         }
       }
     },
-    "Conta opcional. Depois da primeira abertura, funciona sem internet.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Conta opcional. Depois da primeira abertura, funciona sem internet."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Optional account. After the first open, it works offline."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cuenta opcional. Después de la primera apertura, funciona sin internet."
-          }
-        }
-      }
-    },
     "Conta Katecheo": {
       "extractionState": "manual",
       "localizations": {
@@ -3355,6 +3470,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Cuenta Katecheo"
+          }
+        }
+      }
+    },
+    "Conta opcional. Depois da primeira abertura, funciona sem internet.": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conta opcional. Depois da primeira abertura, funciona sem internet."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Optional account. After the first open, it works offline."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cuenta opcional. Después de la primera apertura, funciona sin internet."
           }
         }
       }
@@ -3773,6 +3911,29 @@
         }
       }
     },
+    "Criando conta…": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Criando conta…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Creating account…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Creando cuenta…"
+          }
+        }
+      }
+    },
     "Criar": {
       "extractionState": "manual",
       "localizations": {
@@ -3888,6 +4049,52 @@
         }
       }
     },
+    "Criar conta com email": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Criar conta com email"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create account with email"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Crear cuenta con correo"
+          }
+        }
+      }
+    },
+    "Criar lista": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Criar lista"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create list"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Crear lista"
+          }
+        }
+      }
+    },
     "Criar nota": {
       "extractionState": "manual",
       "localizations": {
@@ -3907,6 +4114,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Crear nota"
+          }
+        }
+      }
+    },
+    "Criar tema": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Criar tema"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create theme"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Crear tema"
           }
         }
       }
@@ -4183,6 +4413,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "días"
+          }
+        }
+      }
+    },
+    "Dias": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dias"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Days"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Días"
           }
         }
       }
@@ -4624,6 +4877,29 @@
         }
       }
     },
+    "Entrar ou criar conta": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entrar ou criar conta"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in or create account"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inicia sesión o crea una cuenta"
+          }
+        }
+      }
+    },
     "Entre no grupo «%@» no Katecheo": {
       "extractionState": "manual",
       "localizations": {
@@ -4923,6 +5199,29 @@
         }
       }
     },
+    "Enviando código…": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enviando código…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sending code…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enviando código…"
+          }
+        }
+      }
+    },
     "Enviar a um amigo": {
       "extractionState": "manual",
       "localizations": {
@@ -4942,6 +5241,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "Enviar a un amigo"
+          }
+        }
+      }
+    },
+    "Enviar código": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enviar código"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Send code"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enviar código"
+          }
+        }
+      }
+    },
+    "Enviaremos um código de 6 dígitos para o seu email.": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enviaremos um código de 6 dígitos para o seu email."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We’ll send a 6-digit code to your email."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enviaremos un código de 6 dígitos a tu correo."
           }
         }
       }
@@ -5222,6 +5567,29 @@
         }
       }
     },
+    "Esqueci minha senha": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esqueci minha senha"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forgot password"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Olvidé mi contraseña"
+          }
+        }
+      }
+    },
     "Esquema nativo do app": {
       "extractionState": "manual",
       "localizations": {
@@ -5425,6 +5793,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Este dispositivo puede recibir notificaciones push (APNs)."
+          }
+        }
+      }
+    },
+    "Este email já tem conta. Entre com a senha ou use Google/Apple.": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este email já tem conta. Entre com a senha ou use Google/Apple."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This email already has an account. Sign in with your password or use Google/Apple."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este correo ya tiene cuenta. Entra con tu contraseña o usa Google/Apple."
           }
         }
       }
@@ -5866,6 +6257,29 @@
         }
       }
     },
+    "Ferramentas": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ferramentas"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tools"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Herramientas"
+          }
+        }
+      }
+    },
     "Ferramentas com leitura pendente": {
       "extractionState": "manual",
       "localizations": {
@@ -5977,6 +6391,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "GET /api/link para una referencia. GET /api/collections para un tema. GET /api/plans?id=gospels-30&day=1 para el día de un plan."
+          }
+        }
+      }
+    },
+    "Google e Apple criam a conta no primeiro acesso.": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google e Apple criam a conta no primeiro acesso."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google and Apple create your account on first access."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google y Apple crean tu cuenta en el primer acceso."
           }
         }
       }
@@ -6303,6 +6740,98 @@
         }
       }
     },
+    "Informe o código de 6 dígitos.": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Informe o código de 6 dígitos."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter the 6-digit code."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Introduce el código de 6 dígitos."
+          }
+        }
+      }
+    },
+    "Informe seu nome.": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Informe seu nome."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter your name."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escribe tu nombre."
+          }
+        }
+      }
+    },
+    "Informe sua senha.": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Informe sua senha."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter your password."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Introduce tu contraseña."
+          }
+        }
+      }
+    },
+    "Informe um email válido.": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Informe um email válido."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a valid email."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Introduce un correo válido."
+          }
+        }
+      }
+    },
     "Inicie sessão na aba Perfil ou Caderno para salvar versículos.": {
       "extractionState": "manual",
       "localizations": {
@@ -6510,25 +7039,25 @@
         }
       }
     },
-    "JSON-RPC em POST /api/mcp. Katecheo_link, Katecheo_collection e Katecheo_plan.": {
+    "JSON-RPC em POST /api/mcp. Tools: katecheo_link, katecheo_collection e katecheo_plan.": {
       "extractionState": "manual",
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "JSON-RPC em POST /api/mcp. Katecheo_link, Katecheo_collection e Katecheo_plan."
+            "value": "JSON-RPC em POST /api/mcp. Tools: katecheo_link, katecheo_collection e katecheo_plan."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "JSON-RPC at POST /api/mcp. Katecheo_link, Katecheo_collection, and Katecheo_plan."
+            "value": "JSON-RPC at POST /api/mcp. Tools: katecheo_link, katecheo_collection, and katecheo_plan."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "JSON-RPC en POST /api/mcp. Katecheo_link, Katecheo_collection y Katecheo_plan."
+            "value": "JSON-RPC en POST /api/mcp. Tools: katecheo_link, katecheo_collection y katecheo_plan."
           }
         }
       }
@@ -6552,6 +7081,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Juntos"
+          }
+        }
+      }
+    },
+    "Katecheo": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Katecheo"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Katecheo"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Katecheo"
           }
         }
       }
@@ -7499,6 +8051,52 @@
         }
       }
     },
+    "Muitas tentativas com este código. Peça um novo.": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muitas tentativas com este código. Peça um novo."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Too many attempts with this code. Request a new one."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Demasiados intentos con este código. Pide uno nuevo."
+          }
+        }
+      }
+    },
+    "Muitas tentativas. Aguarde um momento.": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muitas tentativas. Aguarde um momento."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Too many attempts. Please wait a moment."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Demasiados intentos. Espera un momento."
+          }
+        }
+      }
+    },
     "Na busca": {
       "extractionState": "manual",
       "localizations": {
@@ -7564,6 +8162,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "En la nota de hoy"
+          }
+        }
+      }
+    },
+    "Na primeira vez, criamos sua conta automaticamente.": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Na primeira vez, criamos sua conta automaticamente."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If you don’t have an account yet, we create one on first use."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Si aún no tienes cuenta, la creamos en el primer uso."
           }
         }
       }
@@ -7752,6 +8373,29 @@
         }
       }
     },
+    "Não foi possível carregar": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível carregar"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't load"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo cargar"
+          }
+        }
+      }
+    },
     "Não foi possível carregar.": {
       "extractionState": "manual",
       "localizations": {
@@ -7844,6 +8488,52 @@
         }
       }
     },
+    "Não foi possível criar a conta.": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível criar a conta."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t create the account."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo crear la cuenta."
+          }
+        }
+      }
+    },
+    "Não foi possível enviar o código. Verifique a conexão.": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível enviar o código. Verifique a conexão."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t send the code. Check your connection."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo enviar el código. Comprueba la conexión."
+          }
+        }
+      }
+    },
     "Não foi possível montar o link da Bíblia.": {
       "extractionState": "manual",
       "localizations": {
@@ -7863,6 +8553,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "No se pudo armar el enlace de la Biblia."
+          }
+        }
+      }
+    },
+    "Não foi possível redefinir a senha.": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível redefinir a senha."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t reset the password."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo restablecer la contraseña."
+          }
+        }
+      }
+    },
+    "Não foi possível redefinir a senha. Verifique a conexão.": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível redefinir a senha. Verifique a conexão."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t reset the password. Check your connection."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo restablecer la contraseña. Comprueba la conexión."
           }
         }
       }
@@ -8787,6 +9523,29 @@
         }
       }
     },
+    "Nome do tema": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nome do tema"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Theme name"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nombre del tema"
+          }
+        }
+      }
+    },
     "Nome e contato": {
       "extractionState": "manual",
       "localizations": {
@@ -9224,6 +9983,29 @@
         }
       }
     },
+    "Nova senha (mín. 8)": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nova senha (mín. 8)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New password (min. 8)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nueva contraseña (mín. 8)"
+          }
+        }
+      }
+    },
     "Nova tag": {
       "extractionState": "manual",
       "localizations": {
@@ -9293,6 +10075,29 @@
         }
       }
     },
+    "Novo": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Novo"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nuevo"
+          }
+        }
+      }
+    },
     "Novo grupo": {
       "extractionState": "manual",
       "localizations": {
@@ -9335,6 +10140,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Speaker nuevo"
+          }
+        }
+      }
+    },
+    "Novo tema": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Novo tema"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New theme"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tema nuevo"
           }
         }
       }
@@ -9477,52 +10305,6 @@
         }
       }
     },
-    "O próximo dia dos seus planos.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "O próximo dia dos seus planos."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The next day of your plans."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "El próximo día de tus planes."
-          }
-        }
-      }
-    },
-    "O que receber": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "O que receber"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "What to receive"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Qué recibir"
-          }
-        }
-      }
-    },
     "O Katecheo é gratuito e sem anúncio. Se ele te serve, um café ajuda a manter o projeto.": {
       "extractionState": "manual",
       "localizations": {
@@ -9565,6 +10347,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "Katecheo también genera el mismo enlace — colecciones por tema y el día de un plan de lectura — para Grok, Claude, Cursor o cualquier agente. La API es pública, sin login. El modelo llama a la API; no inventa la URL."
+          }
+        }
+      }
+    },
+    "O próximo dia dos seus planos.": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O próximo dia dos seus planos."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The next day of your plans."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El próximo día de tus planes."
+          }
+        }
+      }
+    },
+    "O que receber": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O que receber"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What to receive"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qué recibir"
           }
         }
       }
@@ -10328,6 +11156,29 @@
         }
       }
     },
+    "Plano de leitura": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plano de leitura"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reading plan"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plan de lectura"
+          }
+        }
+      }
+    },
     "Plano juntos": {
       "extractionState": "manual",
       "localizations": {
@@ -10416,6 +11267,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Planes activos"
+          }
+        }
+      }
+    },
+    "Planos de leitura": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Planos de leitura"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reading plans"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Planes de lectura"
           }
         }
       }
@@ -10715,6 +11589,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Privado"
+          }
+        }
+      }
+    },
+    "Progresso": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Progresso"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Progress"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Progreso"
           }
         }
       }
@@ -11083,6 +11980,98 @@
           "stringUnit": {
             "state": "translated",
             "value": "Rechazar"
+          }
+        }
+      }
+    },
+    "Redefinindo senha…": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Redefinindo senha…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resetting password…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restableciendo contraseña…"
+          }
+        }
+      }
+    },
+    "Redefinir senha": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Redefinir senha"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset password"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restablecer contraseña"
+          }
+        }
+      }
+    },
+    "Reenviar código": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reenviar código"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resend code"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reenviar código"
+          }
+        }
+      }
+    },
+    "Reenviar em %d s": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reenviar em %d s"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resend in %d s"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reenviar en %d s"
           }
         }
       }
@@ -11651,13 +12640,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sign out"
+            "value": "Leave"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Cerrar sesión"
+            "value": "Salir"
           }
         }
       }
@@ -11957,6 +12946,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Guardado en el dispositivo — se sincroniza cuando haya red."
+          }
+        }
+      }
+    },
+    "Se existir uma conta, enviamos um código.": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se existir uma conta, enviamos um código."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If an account exists, we sent a code."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Si existe una cuenta, enviamos un código."
           }
         }
       }
@@ -13778,29 +14790,6 @@
         }
       }
     },
-    "Katecheo": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Katecheo"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Katecheo"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Katecheo"
-          }
-        }
-      }
-    },
     "Versículo %lld": {
       "extractionState": "manual",
       "localizations": {
@@ -14188,2605 +15177,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Web"
-          }
-        }
-      }
-    },
-    "Aguardando API nativa": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aguardando API nativa"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Waiting for native API"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Esperando API nativa"
-          }
-        }
-      }
-    },
-    "No web já funciona; no app iOS ainda não há endpoints Bearer.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No web já funciona; no app iOS ainda não há endpoints Bearer."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Already works on the web; the iOS app still has no Bearer endpoints."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "En la web ya funciona; en la app iOS aún no hay endpoints Bearer."
-          }
-        }
-      }
-    },
-    "Listar, aceitar e recusar pedidos exige wrapping nativo das rotas web de amigos (listLinks / acceptLink / declineLink). Sem isso, o iOS não mostra bolinha em Perfil — evita beco sem saída.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Listar, aceitar e recusar pedidos exige wrapping nativo das rotas web de amigos (listLinks / acceptLink / declineLink). Sem isso, o iOS não mostra bolinha em Perfil — evita beco sem saída."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Listing, accepting, and declining friend requests needs a native wrap of the web friends routes (listLinks / acceptLink / declineLink). Without that, iOS does not show a Profile badge — avoids a dead end."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Listar, aceptar y rechazar solicitudes exige un wrapping nativo de las rutas web de amigos (listLinks / acceptLink / declineLink). Sin eso, iOS no muestra bolita en Perfil — evita un callejón sin salida."
-          }
-        }
-      }
-    },
-    "Amigo": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Amigo"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Friend"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Amigo"
-          }
-        }
-      }
-    },
-    "Pedidos enviados": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pedidos enviados"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sent requests"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Solicitudes enviadas"
-          }
-        }
-      }
-    },
-    "Pedidos só saem da lista depois de aceitar ou recusar.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pedidos só saem da lista depois de aceitar ou recusar."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Requests leave the list only after you accept or decline."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Las solicitudes solo salen de la lista después de aceptar o rechazar."
-          }
-        }
-      }
-    },
-    "Nenhum amigo ainda": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nenhum amigo ainda"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No friends yet"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Todavía no hay amigos"
-          }
-        }
-      }
-    },
-    "Nenhum pedido enviado": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nenhum pedido enviado"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No sent requests"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ninguna solicitud enviada"
-          }
-        }
-      }
-    },
-    "Aguardando resposta": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aguardando resposta"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Waiting for a response"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Esperando respuesta"
-          }
-        }
-      }
-    },
-    "Aceitar ou recusar este pedido de amizade?": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aceitar ou recusar este pedido de amizade?"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Accept or decline this friend request?"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "¿Aceptar o rechazar esta solicitud de amistad?"
-          }
-        }
-      }
-    },
-    "Buscar por @usuário": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Buscar por @usuário"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Search by @username"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Buscar por @usuario"
-          }
-        }
-      }
-    },
-    "Resultados": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Resultados"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Results"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Resultados"
-          }
-        }
-      }
-    },
-    "Digite pelo menos 2 caracteres do @usuário ou nome.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Digite pelo menos 2 caracteres do @usuário ou nome."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Enter at least 2 characters of the @username or name."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Escribe al menos 2 caracteres del @usuario o nombre."
-          }
-        }
-      }
-    },
-    "Toque em um pedido enviado para cancelar.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Toque em um pedido enviado para cancelar."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tap a sent request to cancel it."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Toca una solicitud enviada para cancelarla."
-          }
-        }
-      }
-    },
-    "Ninguém encontrado": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ninguém encontrado"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No one found"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nadie encontrado"
-          }
-        }
-      }
-    },
-    "Confira o @usuário e tente de novo.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Confira o @usuário e tente de novo."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Check the @username and try again."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Revisa el @usuario e inténtalo de nuevo."
-          }
-        }
-      }
-    },
-    "Use a busca acima para adicionar pelo @usuário.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Use a busca acima para adicionar pelo @usuário."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Use the search above to add by @username."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Usa la búsqueda de arriba para agregar por @usuario."
-          }
-        }
-      }
-    },
-    "Aguardando resposta · toque para cancelar": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aguardando resposta · toque para cancelar"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Waiting for a response · tap to cancel"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Esperando respuesta · toca para cancelar"
-          }
-        }
-      }
-    },
-    "Vocês já são amigos.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Vocês já são amigos."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "You are already friends."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ya son amigos."
-          }
-        }
-      }
-    },
-    "Pedido já enviado.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pedido já enviado."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Request already sent."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Solicitud ya enviada."
-          }
-        }
-      }
-    },
-    "Cancelar pedido": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cancelar pedido"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cancel request"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cancelar solicitud"
-          }
-        }
-      }
-    },
-    "Enviar pedido": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Enviar pedido"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Send request"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Enviar solicitud"
-          }
-        }
-      }
-    },
-    "Cancelar este pedido enviado?": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cancelar este pedido enviado?"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cancel this sent request?"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "¿Cancelar esta solicitud enviada?"
-          }
-        }
-      }
-    },
-    "Manter": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Manter"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Keep"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mantener"
-          }
-        }
-      }
-    },
-    "Não encontramos esse @usuário.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Não encontramos esse @usuário."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "We couldn’t find that @username."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No encontramos ese @usuario."
-          }
-        }
-      }
-    },
-    "Limite de pedidos atingido. Tente mais tarde.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Limite de pedidos atingido. Tente mais tarde."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Request limit reached. Try again later."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Límite de solicitudes alcanzado. Inténtalo más tarde."
-          }
-        }
-      }
-    },
-    "Ferramentas": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ferramentas"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tools"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Herramientas"
-          }
-        }
-      }
-    },
-    "Buscar planos": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Buscar planos"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Search plans"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Buscar planes"
-          }
-        }
-      }
-    },
-    "Capítulos": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Capítulos"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Chapters"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Capítulos"
-          }
-        }
-      }
-    },
-    "Novo": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Novo"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "New"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nuevo"
-          }
-        }
-      }
-    },
-    "Dias": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Dias"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Days"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Días"
-          }
-        }
-      }
-    },
-    "Progresso": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Progresso"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Progress"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Progreso"
-          }
-        }
-      }
-    },
-    "Marcação": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Marcação"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mark"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Marca"
-          }
-        }
-      }
-    },
-    "Copiar": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Copiar"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Copy"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Copiar"
-          }
-        }
-      }
-    },
-    "Criar lista": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Criar lista"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Create list"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Crear lista"
-          }
-        }
-      }
-    },
-    "Criar tema": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Criar tema"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Create theme"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Crear tema"
-          }
-        }
-      }
-    },
-    "Nome do tema": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nome do tema"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Theme name"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nombre del tema"
-          }
-        }
-      }
-    },
-    "Novo tema": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Novo tema"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "New theme"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tema nuevo"
-          }
-        }
-      }
-    },
-    "Lista vazia": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Lista vazia"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Empty list"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Lista vacía"
-          }
-        }
-      }
-    },
-    "Plano de leitura": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Plano de leitura"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reading plan"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Plan de lectura"
-          }
-        }
-      }
-    },
-    "Planos de leitura": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Planos de leitura"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reading plans"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Planes de lectura"
-          }
-        }
-      }
-    },
-    "Nenhum plano encontrado": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nenhum plano encontrado"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No plans found"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ningún plan encontrado"
-          }
-        }
-      }
-    },
-    "Nenhum plano nesta categoria": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nenhum plano nesta categoria"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No plans in this category"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ningún plan en esta categoría"
-          }
-        }
-      }
-    },
-    "Nenhum resultado": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nenhum resultado"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No results"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ningún resultado"
-          }
-        }
-      }
-    },
-    "Não foi possível carregar": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Não foi possível carregar"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Couldn't load"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No se pudo cargar"
-          }
-        }
-      }
-    },
-    "Tente outra busca ou crie um tema pessoal.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tente outra busca ou crie um tema pessoal."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Try another search or create a personal theme."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Prueba otra búsqueda o crea un tema personal."
-          }
-        }
-      }
-    },
-    "Tente outro termo de busca.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tente outro termo de busca."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Try another search term."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Prueba otro término de búsqueda."
-          }
-        }
-      }
-    },
-    "Toque no livro": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Toque no livro"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tap the book"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Toca el libro"
-          }
-        }
-      }
-    },
-    "Inicie sessão para acompanhar o plano.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Inicie sessão para acompanhar o plano."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sign in to follow the plan."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Inicia sesión para seguir el plan."
-          }
-        }
-      }
-    },
-    "Inicie sessão para compartilhar o plano.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Inicie sessão para compartilhar o plano."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sign in to share the plan."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Inicia sesión para compartir el plan."
-          }
-        }
-      }
-    },
-    "Inicie sessão para criar um tema pessoal.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Inicie sessão para criar um tema pessoal."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sign in to create a personal theme."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Inicia sesión para crear un tema personal."
-          }
-        }
-      }
-    },
-    "Limite de 2 marcações por dia.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Limite de 2 marcações por dia."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Limit of 2 marks per day."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Límite de 2 marcas por día."
-          }
-        }
-      }
-    },
-    "Entrar com Apple": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Entrar com Apple"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sign in with Apple"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Entrar con Apple"
-          }
-        }
-      }
-    },
-    "Entrar para começar": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Entrar para começar"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sign in to get started"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Entra para empezar"
-          }
-        }
-      }
-    },
-    "Entre para sincronizar": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Entre para sincronizar"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sign in to sync"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Entra para sincronizar"
-          }
-        }
-      }
-    },
-    "Entre para sincronizar e criar grupos.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Entre para sincronizar e criar grupos."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sign in to sync and create groups."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Entra para sincronizar y crear grupos."
-          }
-        }
-      }
-    },
-    "Entre para sincronizar suas anotações.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Entre para sincronizar suas anotações."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sign in to sync your notes."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Entra para sincronizar tus notas."
-          }
-        }
-      }
-    },
-    "Entre de novo para continuar sincronizando.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Entre de novo para continuar sincronizando."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sign in again to keep syncing."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Entra de nuevo para seguir sincronizando."
-          }
-        }
-      }
-    },
-    "Sessão expirada": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sessão expirada"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Session expired"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sesión expirada"
-          }
-        }
-      }
-    },
-    "Seu caderno está vazio": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Seu caderno está vazio"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Your notebook is empty"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tu cuaderno está vacío"
-          }
-        }
-      }
-    },
-    "Nenhuma nota ainda": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nenhuma nota ainda"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No notes yet"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ninguna nota aún"
-          }
-        }
-      }
-    },
-    "Nenhuma nota neste grupo": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nenhuma nota neste grupo"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No notes in this group"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ninguna nota en este grupo"
-          }
-        }
-      }
-    },
-    "Nenhum grupo ainda": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nenhum grupo ainda"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No groups yet"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ningún grupo aún"
-          }
-        }
-      }
-    },
-    "Você ainda não tem grupos": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Você ainda não tem grupos"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "You don’t have any groups yet"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Todavía no tienes grupos"
-          }
-        }
-      }
-    },
-    "Crie um com «Novo grupo».": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Crie um com «Novo grupo»."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Create one with “New group”."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Crea uno con «Grupo nuevo»."
-          }
-        }
-      }
-    },
-    "Toque em + para criar a primeira.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Toque em + para criar a primeira."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tap + to create the first one."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Toca + para crear la primera."
-          }
-        }
-      }
-    },
-    "Publique uma nota ou peça para alguém compartilhar.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Publique uma nota ou peça para alguém compartilhar."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Publish a note or ask someone to share."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Publica una nota o pide a alguien que comparta."
-          }
-        }
-      }
-    },
-    "As notas deste grupo ficam disponíveis após o login.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "As notas deste grupo ficam disponíveis após o login."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This group’s notes are available after sign-in."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Las notas de este grupo están disponibles tras iniciar sesión."
-          }
-        }
-      }
-    },
-    "Foto do perfil": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Foto do perfil"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Profile photo"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Foto del perfil"
-          }
-        }
-      }
-    },
-    "Mais opções": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mais opções"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "More options"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Más opciones"
-          }
-        }
-      }
-    },
-    "Mais opções da nota": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mais opções da nota"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "More note options"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Más opciones de la nota"
-          }
-        }
-      }
-    },
-    "Todas as tags": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Todas as tags"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "All tags"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Todas las etiquetas"
-          }
-        }
-      }
-    },
-    "Todos os speakers": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Todos os speakers"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "All speakers"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Todos los speakers"
-          }
-        }
-      }
-    },
-    "Speaker": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Speaker"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Speaker"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Speaker"
-          }
-        }
-      }
-    },
-    "Comece a escrever…": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Comece a escrever…"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Start writing…"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Empieza a escribir…"
-          }
-        }
-      }
-    },
-    "Anote versículos e reuniões no seu caderno.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Anote versículos e reuniões no seu caderno."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Capture verses and meetings in your notebook."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Anota versículos y reuniones en tu cuaderno."
-          }
-        }
-      }
-    },
-    "Salvo neste aparelho": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Salvo neste aparelho"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Saved on this device"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Guardado en este dispositivo"
-          }
-        }
-      }
-    },
-    "Sem rede — mostrando cache.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sem rede — mostrando cache."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Offline — showing cache."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sin red — mostrando caché."
-          }
-        }
-      }
-    },
-    "Status da sincronização": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Status da sincronização"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sync status"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Estado de sincronización"
-          }
-        }
-      }
-    },
-    "Remover seção": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Remover seção"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Remove section"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Quitar sección"
-          }
-        }
-      }
-    },
-    "Remover seção do speaker?": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Remover seção do speaker?"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Remove speaker section?"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "¿Quitar la sección del speaker?"
-          }
-        }
-      }
-    },
-    "O texto dentro da seção também será apagado.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "O texto dentro da seção também será apagado."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Text inside the section will also be deleted."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "El texto dentro de la sección también se borrará."
-          }
-        }
-      }
-    },
-    "Remover speaker": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Remover speaker"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Remove speaker"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Quitar speaker"
-          }
-        }
-      }
-    },
-    "Bíblia Online": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bíblia Online"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bible Online"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Biblia Online"
-          }
-        }
-      }
-    },
-    "ARC — Almeida Revista e Corrigida": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ARC — Almeida Revista e Corrigida"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ARC — Almeida Revista e Corrigida"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ARC — Almeida Revista e Corrigida"
-          }
-        }
-      }
-    },
-    "NVI — Nova Versão Internacional": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NVI — Nova Versão Internacional"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NVI — Nova Versão Internacional"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NVI — Nueva Versión Internacional"
-          }
-        }
-      }
-    },
-    "Ontem": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ontem"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Yesterday"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ayer"
-          }
-        }
-      }
-    },
-    "Marcar todas como lidas": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Marcar todas como lidas"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mark all as read"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Marcar todas como leídas"
-          }
-        }
-      }
-    },
-    "Marcar como lida": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Marcar como lida"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mark as read"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Marcar como leída"
-          }
-        }
-      }
-    },
-    "Nenhum aviso ainda": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nenhum aviso ainda"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No alerts yet"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ningún aviso todavía"
-          }
-        }
-      }
-    },
-    "Quando alguém compartilhar uma nota, convidar para um grupo ou lembrar da leitura, o aviso aparece aqui.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Quando alguém compartilhar uma nota, convidar para um grupo ou lembrar da leitura, o aviso aparece aqui."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "When someone shares a note, invites you to a group, or reminds you to read, the alert shows up here."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cuando alguien comparta una nota, te invite a un grupo o te recuerde la lectura, el aviso aparece aquí."
-          }
-        }
-      }
-    },
-    "Não foi possível carregar os avisos.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Não foi possível carregar os avisos."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Couldn’t load alerts."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No se pudieron cargar los avisos."
-          }
-        }
-      }
-    },
-    "Pedidos pendentes (%lld)": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pedidos pendentes (%lld)"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pending requests (%lld)"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Solicitudes pendientes (%lld)"
-          }
-        }
-      }
-    },
-    "Pedidos enviados (%lld)": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pedidos enviados (%lld)"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sent requests (%lld)"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Solicitudes enviadas (%lld)"
-          }
-        }
-      }
-    },
-    "Remover amigo": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Remover amigo"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Remove friend"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Eliminar amigo"
-          }
-        }
-      }
-    },
-    "Remover amigo?": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Remover amigo?"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Remove friend?"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "¿Eliminar amigo?"
-          }
-        }
-      }
-    },
-    "Vocês deixam de ser amigos nos dois lados.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Vocês deixam de ser amigos nos dois lados."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "You will no longer be friends on either side."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Dejan de ser amigos en ambos lados."
-          }
-        }
-      }
-    },
-    "Cancelar pedido?": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cancelar pedido?"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cancel request?"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "¿Cancelar solicitud?"
-          }
-        }
-      }
-    },
-    "Busque pelo @usuário acima.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Busque pelo @usuário acima."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Search by @username above."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Busca por @usuario arriba."
-          }
-        }
-      }
-    },
-    "Digite pelo menos 2 caracteres.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Digite pelo menos 2 caracteres."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Type at least 2 characters."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Escribe al menos 2 caracteres."
-          }
-        }
-      }
-    },
-    "Confira o @usuário.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Confira o @usuário."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Check the @username."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Revisa el @usuario."
-          }
-        }
-      }
-    },
-    "Entrar ou criar conta": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Entrar ou criar conta"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sign in or create account"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Inicia sesión o crea una cuenta"
-          }
-        }
-      }
-    },
-    "Na primeira vez, criamos sua conta automaticamente.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Na primeira vez, criamos sua conta automaticamente."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "If you don’t have an account yet, we create one on first use."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Si aún no tienes cuenta, la creamos en el primer uso."
-          }
-        }
-      }
-    },
-    "Google e Apple criam a conta no primeiro acesso.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Google e Apple criam a conta no primeiro acesso."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Google and Apple create your account on first access."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Google y Apple crean tu cuenta en el primer acceso."
-          }
-        }
-      }
-    },
-    "Criar conta com email": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Criar conta com email"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Create account with email"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Crear cuenta con correo"
-          }
-        }
-      }
-    },
-    "Informe seu nome.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Informe seu nome."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Enter your name."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Escribe tu nombre."
-          }
-        }
-      }
-    },
-    "Informe um email válido.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Informe um email válido."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Enter a valid email."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Introduce un correo válido."
-          }
-        }
-      }
-    },
-    "Informe sua senha.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Informe sua senha."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Enter your password."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Introduce tu contraseña."
-          }
-        }
-      }
-    },
-    "A senha deve ter pelo menos 8 caracteres.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "A senha deve ter pelo menos 8 caracteres."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Password must be at least 8 characters."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "La contraseña debe tener al menos 8 caracteres."
-          }
-        }
-      }
-    },
-    "Criando conta…": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Criando conta…"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Creating account…"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Creando cuenta…"
-          }
-        }
-      }
-    },
-    "Este email já tem conta. Entre com a senha ou use Google/Apple.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Este email já tem conta. Entre com a senha ou use Google/Apple."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This email already has an account. Sign in with your password or use Google/Apple."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Este correo ya tiene cuenta. Entra con tu contraseña o usa Google/Apple."
-          }
-        }
-      }
-    },
-    "Não foi possível criar a conta.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Não foi possível criar a conta."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Couldn’t create the account."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No se pudo crear la cuenta."
-          }
-        }
-      }
-    },
-    "Muitas tentativas. Aguarde um momento.": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Muitas tentativas. Aguarde um momento."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Too many attempts. Please wait a moment."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Demasiados intentos. Espera un momento."
           }
         }
       }
