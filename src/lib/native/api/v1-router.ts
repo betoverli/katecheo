@@ -11,6 +11,7 @@ export type NativeV1Route =
   | { kind: "links" }
   | { kind: "links-accept" }
   | { kind: "links-decline" }
+  | { kind: "links-remove" }
   | { kind: "links-request" }
   | { kind: "links-search" }
   | { kind: "notifications" }
@@ -73,6 +74,7 @@ export function matchNativeV1Route(splat: string): NativeV1Route {
   if (a === "links" && parts.length === 1) return { kind: "links" };
   if (a === "links" && b === "accept" && parts.length === 2) return { kind: "links-accept" };
   if (a === "links" && b === "decline" && parts.length === 2) return { kind: "links-decline" };
+  if (a === "links" && b === "remove" && parts.length === 2) return { kind: "links-remove" };
   if (a === "links" && b === "request" && parts.length === 2) return { kind: "links-request" };
   if (a === "links" && b === "search" && parts.length === 2) return { kind: "links-search" };
   if (a === "notifications" && parts.length === 1) return { kind: "notifications" };
@@ -185,6 +187,7 @@ export function methodAllowed(route: NativeV1Route, method: string): boolean {
       return m === "GET";
     case "links-accept":
     case "links-decline":
+    case "links-remove":
     case "links-request":
       return m === "POST";
     case "notifications":

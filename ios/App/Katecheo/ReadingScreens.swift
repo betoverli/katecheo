@@ -737,10 +737,7 @@ final class ReadingPlanDetailViewController: UITableViewController {
                     UIPasteboard.general.string = labels.joined(separator: ", ")
                 })
                 sheet.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
-                if let pop = sheet.popoverPresentationController {
-                    pop.sourceView = tableView
-                }
-                present(sheet, animated: true)
+                KCConfirmation.presentActionSheet(sheet, from: self, sourceView: tableView)
             } catch {
                 presentAlert(title: String(localized: "Dia"), message: error.localizedDescription)
             }
@@ -757,10 +754,11 @@ final class ReadingPlanDetailViewController: UITableViewController {
                 let id = try await NativeAPIClient.createReadingPlanInvite(planId: planId)
                 let url = NativeAPIClient.baseURL.appendingPathComponent("g/\(id)")
                 let vc = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-                if let pop = vc.popoverPresentationController {
-                    pop.barButtonItem = navigationItem.rightBarButtonItem
-                }
-                present(vc, animated: true)
+                KCConfirmation.presentActivity(
+                    vc,
+                    from: self,
+                    barButtonItem: navigationItem.rightBarButtonItem
+                )
             } catch {
                 presentAlert(title: String(localized: "Compartilhar"), message: error.localizedDescription)
             }

@@ -354,7 +354,12 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
       return respond({ ok: true, people: await social.searchPeopleForUser(user.id, q) });
     }
 
-    if (route.kind === "links-accept" || route.kind === "links-decline" || route.kind === "links-request") {
+    if (
+      route.kind === "links-accept" ||
+      route.kind === "links-decline" ||
+      route.kind === "links-remove" ||
+      route.kind === "links-request"
+    ) {
       const payload = await readAndParse(request, handleBodySchema, respond);
       if (payload instanceof Response) return payload;
       const handle = payload.handle;
@@ -374,6 +379,11 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
           return respond(result, status);
         }
         return respond(result);
+      }
+      if (route.kind === "links-remove") {
+        // Unfriend: deletes the accepted link for both users (+ shared grants).
+        const result = await social.removeLinkForUser(user.id, handle);
+        return respond(result, result.ok ? 200 : 404);
       }
       // decline also cancels outgoing (web friends page).
       const result = await social.declineLinkForUser(user.id, handle);

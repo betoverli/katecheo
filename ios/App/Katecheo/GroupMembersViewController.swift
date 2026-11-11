@@ -94,10 +94,11 @@ final class GroupMembersViewController: UIViewController, UITableViewDelegate, U
         let url = NativeAPIClient.baseURL.appendingPathComponent("groups/\(group.id)")
         let text = String(format: String(localized: "Entre no grupo «%@» no Katecheo"), group.name)
         let vc = UIActivityViewController(activityItems: [text, url], applicationActivities: nil)
-        if let pop = vc.popoverPresentationController {
-            pop.barButtonItem = navigationItem.rightBarButtonItem
-        }
-        present(vc, animated: true)
+        KCConfirmation.presentActivity(
+            vc,
+            from: self,
+            barButtonItem: navigationItem.rightBarButtonItem
+        )
     }
 
     private var sectionCount: Int {
@@ -157,7 +158,7 @@ final class GroupMembersViewController: UIViewController, UITableViewDelegate, U
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
         let member = members(in: indexPath.section)[indexPath.row]
-        presentActions(for: member)
+        presentActions(for: member, at: indexPath)
     }
 
     private func canManage(_ member: NativeAPIClient.GroupMemberDTO) -> Bool {
@@ -166,7 +167,7 @@ final class GroupMembersViewController: UIViewController, UITableViewDelegate, U
         return group.isAdmin && member.userId != meId
     }
 
-    private func presentActions(for member: NativeAPIClient.GroupMemberDTO) {
+    private func presentActions(for member: NativeAPIClient.GroupMemberDTO, at indexPath: IndexPath) {
         guard canManage(member) else { return }
         let sheet = UIAlertController(title: member.displayName, message: nil, preferredStyle: .actionSheet)
         if member.isPending, group.isAdmin {
@@ -192,11 +193,12 @@ final class GroupMembersViewController: UIViewController, UITableViewDelegate, U
             })
         }
         sheet.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
-        if let pop = sheet.popoverPresentationController {
-            pop.sourceView = tableView
-            pop.sourceRect = tableView.bounds
-        }
-        present(sheet, animated: true)
+        KCConfirmation.presentActionSheet(
+            sheet,
+            from: self,
+            sourceView: tableView,
+            sourceRect: tableView.rectForRow(at: indexPath)
+        )
     }
 
     private func decide(_ member: NativeAPIClient.GroupMemberDTO, accept: Bool) {

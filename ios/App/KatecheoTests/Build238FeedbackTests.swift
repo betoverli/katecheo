@@ -72,14 +72,18 @@ final class Build238FeedbackTests: XCTestCase {
     // MARK: - 3) Delete confirmation anchors
 
     func testDeleteConfirm_usesActionSheetPreferredStyle() {
-        // Smoke: NotebookListViewController + GroupsListViewController compile with
-        // sourceView/row anchoring helpers (full UIAlert presentation is covered in CI screenshots).
+        // Smoke: list VCs still load; iPhone/iPad anchoring lives in KCConfirmation
+        // (see ConfirmationDialogTests — never configure popover on compact width).
         let notebook = NotebookListViewController()
         notebook.loadViewIfNeeded()
         let groups = GroupsListViewController()
         groups.loadViewIfNeeded()
         XCTAssertNotNil(notebook.view)
         XCTAssertNotNil(groups.view)
+        XCTAssertFalse(
+            KCConfirmation.needsPopoverAnchor(for: notebook),
+            "phone-sized host must keep bottom action sheets"
+        )
     }
 
     // MARK: - 4) Lists empty alignment

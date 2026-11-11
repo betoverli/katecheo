@@ -19,6 +19,7 @@ describe("matchNativeV1Route", () => {
     assert.deepEqual(matchNativeV1Route("links"), { kind: "links" });
     assert.deepEqual(matchNativeV1Route("links/accept"), { kind: "links-accept" });
     assert.deepEqual(matchNativeV1Route("links/decline"), { kind: "links-decline" });
+    assert.deepEqual(matchNativeV1Route("links/remove"), { kind: "links-remove" });
     assert.deepEqual(matchNativeV1Route("links/request"), { kind: "links-request" });
     assert.deepEqual(matchNativeV1Route("links/search"), { kind: "links-search" });
     assert.deepEqual(matchNativeV1Route("notifications"), { kind: "notifications" });
@@ -127,6 +128,8 @@ describe("methodAllowed", () => {
     assert.equal(methodAllowed({ kind: "links-search" }, "GET"), true);
     assert.equal(methodAllowed({ kind: "links-accept" }, "POST"), true);
     assert.equal(methodAllowed({ kind: "links-decline" }, "POST"), true);
+    assert.equal(methodAllowed({ kind: "links-remove" }, "POST"), true);
+    assert.equal(methodAllowed({ kind: "links-remove" }, "GET"), false);
     assert.equal(methodAllowed({ kind: "links-request" }, "POST"), true);
     assert.equal(methodAllowed({ kind: "notifications" }, "GET"), true);
     assert.equal(methodAllowed({ kind: "notifications-summary" }, "GET"), true);

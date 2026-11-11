@@ -267,8 +267,32 @@ export async function acceptLinkForUser(
   return { ok: true };
 }
 
-/** Same semantics as web `declineLink` (by handle). */
+/** Same semantics as web `declineLink` (by handle). Also cancels outgoing. */
 export async function declineLinkForUser(
+  userId: string,
+  handleRaw: string,
+): Promise<{ ok: true } | { ok: false; error: "missing" }> {
+  return deletePairLink(userId, handleRaw);
+}
+
+/**
+ * Remove an accepted friendship for both users (and shared grants).
+ * Distinct from decline so clients can keep request vs unfriend UX separate.
+ */
+export async function removeLinkForUser(
+  userId: string,
+  handleRaw: string,
+): Promise<{ ok: true } | { ok: false; error: "missing" }> {
+  const handle = cleanHandle(handleRaw);
+  const sql = await getSql();
+  const other = handle ? await prefsByHandle(sql, handle) : null;
+  if (!other) return { ok: false, error: "missing" };
+  const status = await pairStatus(sql, userId, other.user_id);
+  if (status !== "accepted") return { ok: false, error: "missing" };
+  return deletePairLink(userId, handleRaw);
+}
+
+async function deletePairLink(
   userId: string,
   handleRaw: string,
 ): Promise<{ ok: true } | { ok: false; error: "missing" }> {
