@@ -80,7 +80,7 @@ final class AuthSignInScreenTests: XCTestCase {
         window.isHidden = true
     }
 
-    func testForgotPassword_opensNativeFlowFromSignInPath() {
+    func testForgotPassword_opensNativeFlowFromSignInPath() throws {
         let (vc, nav, window) = makeSignIn(style: .light)
         vc.testing_fill(email: "pessoa@example.com")
         vc.testing_openForgotPassword()
