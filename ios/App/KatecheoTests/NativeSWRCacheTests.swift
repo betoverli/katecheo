@@ -371,7 +371,19 @@ final class MockNativeURLProtocol: URLProtocol {
         let path = request.url?.path ?? ""
         let method = request.httpMethod ?? "GET"
         var body: String?
-        if path.hasSuffix("/notes/granted") {
+        // Group notes must be matched before the generic `/notes` suffix — otherwise
+        // `/groups/{id}/notes` is shadowed and returns mock_miss (404).
+        if path.range(of: #"/groups/[^/]+/notes$"#, options: .regularExpression) != nil, method == "GET" {
+            Self.groupNotesHits += 1
+            Self.lastIfNoneMatch = request.value(forHTTPHeaderField: "If-None-Match")
+            Self.lastUpdatedSince = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?
+                .queryItems?
+                .first(where: { $0.name == "updatedSince" })?
+                .value
+            body = Self.groupNotesJSON
+        } else if path.range(of: #"/groups/[^/]+$"#, options: .regularExpression) != nil, method == "GET" {
+            body = Self.groupJSON
+        } else if path.hasSuffix("/notes/granted") {
             body = Self.grantedJSON
         } else if path.range(of: #"/notes/[^/]+$"#, options: .regularExpression) != nil, method == "GET" {
             body = Self.noteByIdJSON
@@ -432,16 +444,6 @@ final class MockNativeURLProtocol: URLProtocol {
             }
         } else if path.contains("/auth/providers") {
             body = Self.providersJSON
-        } else if path.range(of: #"/groups/[^/]+/notes$"#, options: .regularExpression) != nil, method == "GET" {
-            Self.groupNotesHits += 1
-            Self.lastIfNoneMatch = request.value(forHTTPHeaderField: "If-None-Match")
-            Self.lastUpdatedSince = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?
-                .queryItems?
-                .first(where: { $0.name == "updatedSince" })?
-                .value
-            body = Self.groupNotesJSON
-        } else if path.range(of: #"/groups/[^/]+$"#, options: .regularExpression) != nil, method == "GET" {
-            body = Self.groupJSON
         }
 
         // Missing fixture → 404 (don't hit the real network / don't look like success).
