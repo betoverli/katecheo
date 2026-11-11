@@ -236,7 +236,7 @@ final class FriendsActivityViewController: UITableViewController, UISearchResult
                 config.text = String(localized: "Nenhum amigo ainda")
                 config.secondaryText = loading
                     ? String(localized: "Carregando…")
-                    : String(localized: "Busque pelo @usuário acima.")
+                    : String(localized: "Busque pelo @usuário.")
                 config.image = UIImage(systemName: "person.2")
             } else {
                 let person = friends[indexPath.row]
@@ -377,31 +377,36 @@ final class FriendsActivityViewController: UITableViewController, UISearchResult
     }
 
     private func compactButton(title: String, color: UIColor, emphasized: Bool = false, action: @escaping () -> Void) -> UIButton {
-        var config = UIButton.Configuration.plain()
-        config.title = title
-        config.baseForegroundColor = color
-        config.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 6, bottom: 4, trailing: 6)
-        config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
-            var outgoing = incoming
-            outgoing.font = .preferredFont(forTextStyle: .subheadline)
-            if emphasized {
-                outgoing.font = .preferredFont(forTextStyle: .subheadline).withWeight(.semibold)
-                    ?? outgoing.font
-            }
-            return outgoing
-        }
-        let button = UIButton(configuration: config, primaryAction: UIAction { _ in action() })
-        button.setContentCompressionResistancePriority(.required, for: .horizontal)
+        let button = UIButton(type: .system)
+        button.setTitle(title, for: .normal)
+        button.setTitleColor(color, for: .normal)
+        button.titleLabel?.font = emphasized
+            ? .preferredFont(forTextStyle: .subheadline).withWeight(.semibold)
+                ?? .preferredFont(forTextStyle: .subheadline)
+            : .preferredFont(forTextStyle: .subheadline)
+        button.contentEdgeInsets = UIEdgeInsets(top: 6, left: 8, bottom: 6, right: 8)
+        button.addAction(UIAction { _ in action() }, for: .touchUpInside)
+        button.sizeToFit()
         return button
     }
 
     private func accessoryStack(_ buttons: [UIView]) -> UIView {
-        let stack = UIStackView(arrangedSubviews: buttons)
-        stack.axis = .horizontal
-        stack.alignment = .center
-        stack.spacing = 2
-        stack.sizeToFit()
-        return stack
+        // Manual layout: UITableView only honors accessoryView.frame (not Auto Layout).
+        let spacing: CGFloat = 4
+        var x: CGFloat = 0
+        var height: CGFloat = 32
+        for button in buttons {
+            button.frame.origin = CGPoint(x: x, y: 0)
+            x += button.bounds.width + spacing
+            height = max(height, button.bounds.height)
+        }
+        let width = max(x - spacing, 1)
+        for button in buttons {
+            button.center.y = height / 2
+        }
+        let container = UIView(frame: CGRect(x: 0, y: 0, width: width, height: height))
+        buttons.forEach { container.addSubview($0) }
+        return container
     }
 
     // MARK: - Actions / confirmations

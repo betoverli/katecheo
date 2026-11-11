@@ -374,6 +374,27 @@ final class Build238FeedbackTests: XCTestCase {
             friendsNav.overrideUserInterfaceStyle = style
             friends.loadViewIfNeeded()
             friends.viewWillAppear(false)
+            friends.testing_setLinks(
+                friends: [
+                    NativeAPIClient.LinkPersonDTO(
+                        userId: "u1", handle: "betoverli_test", firstName: "Beto", lastName: "Verlí",
+                        avatarId: "book", avatarUrl: ""
+                    ),
+                ],
+                incoming: [
+                    NativeAPIClient.LinkPersonDTO(
+                        userId: "u2", handle: "ana_test", firstName: "Ana", lastName: "Silva",
+                        avatarId: "book", avatarUrl: ""
+                    ),
+                ],
+                outgoing: [
+                    NativeAPIClient.LinkPersonDTO(
+                        userId: "u3", handle: "joao_test", firstName: "João", lastName: "Costa",
+                        avatarId: "book", avatarUrl: ""
+                    ),
+                ]
+            )
+            friends.view.layoutIfNeeded()
             if let snap = Self.render(friendsNav.view, size: CGSize(width: 390, height: 844)) {
                 Self.write(snap, name: "b238-\(tag)-friends.png", into: self)
             }
