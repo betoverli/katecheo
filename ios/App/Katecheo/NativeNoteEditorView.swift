@@ -1826,7 +1826,14 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     func testing_prepare(size: CGSize = CGSize(width: 390, height: 844)) {
         frame = CGRect(origin: .zero, size: size)
         textView.frame = bounds
-        textView.textContainer.size = CGSize(width: size.width - 32, height: size.height)
+        // Width tracks the view; height must stay unbounded so long notes actually lay out
+        // (a finite height clips TextKit and breaks caret/contentOffset math).
+        textView.textContainer.size = CGSize(
+            width: max(0, size.width - textView.textContainerInset.left - textView.textContainerInset.right - 5),
+            height: .greatestFiniteMagnitude
+        )
+        textView.textContainer.heightTracksTextView = false
+        textView.layoutManager.ensureLayout(for: textView.textContainer)
         layoutIfNeeded()
     }
 

@@ -1196,6 +1196,9 @@ if (!project.includes("NativeNoteEditorCaretScrollTests.swift in Sources")) {
   if (!editorSrc.includes("stickyContentOffset") || !editorSrc.includes("measuredContentHeight") || !editorSrc.includes("caretRectInBoundsForScroll")) {
     errors.push("NativeNoteEditorView tem de travar contentOffset (sticky) e medir caret/altura via layoutManager.");
   }
+  if (!editorSrc.includes("greatestFiniteMagnitude") || !editorSrc.includes("heightTracksTextView = false")) {
+    errors.push("testing_prepare tem de usar textContainer height unbounded (greatestFiniteMagnitude).");
+  }
   if (!/override func scrollRangeToVisible/.test(editorSrc) || !editorSrc.includes("onRequestCaretScroll")) {
     errors.push("NoteEditorTextView.scrollRangeToVisible tem de encaminhar para onRequestCaretScroll (minimal caret follow).");
   }
