@@ -50,7 +50,7 @@ final class AuthSignInScreenTests: XCTestCase {
     }
 
     func testScreen_togglesCreateAccountFieldsAndInlineErrors() {
-        let (vc, window) = makeSignIn(style: .dark)
+        let (vc, nav, window) = makeSignIn(style: .dark)
         XCTAssertEqual(vc.title, String(localized: "Entrar ou criar conta"))
         XCTAssertEqual(vc.testing_socialCaptionText, String(localized: "Google e Apple criam a conta no primeiro acesso."))
         XCTAssertFalse(vc.testing_isNameFieldVisible)
@@ -72,17 +72,18 @@ final class AuthSignInScreenTests: XCTestCase {
         vc.testing_setEmailMode(.signIn)
         XCTAssertFalse(vc.testing_isNameFieldVisible)
         XCTAssertFalse(vc.testing_isPasswordConfirmVisible)
+        _ = nav
         window.isHidden = true
     }
 
-    func testScreen_snapshotsLightDark_signInAndCreateModes() {
+    func testScreen_snapshotsLightDark_signInAndCreateModes() throws {
         for style in [UIUserInterfaceStyle.light, .dark] {
             let tag = style == .light ? "light" : "dark"
-            let (vc, window) = makeSignIn(style: style)
-            window.layoutIfNeeded()
-            if let snap = Self.render(window, size: window.bounds.size) {
-                Self.write(snap, name: "auth-\(tag)-signin.png", into: self)
-            }
+            let (vc, nav, window) = makeSignIn(style: style)
+            nav.view.layoutIfNeeded()
+            let signInSnap = try XCTUnwrap(Self.render(nav.view, size: CGSize(width: 390, height: 844)))
+            XCTAssertTrue(Self.hasVisiblePixels(signInSnap), "auth-\(tag)-signin must not be blank")
+            Self.write(signInSnap, name: "auth-\(tag)-signin.png", into: self)
 
             vc.testing_setEmailMode(.createAccount)
             vc.testing_fill(
@@ -91,31 +92,40 @@ final class AuthSignInScreenTests: XCTestCase {
                 password: "",
                 passwordConfirm: ""
             )
-            window.layoutIfNeeded()
-            if let snap = Self.render(window, size: window.bounds.size) {
-                Self.write(snap, name: "auth-\(tag)-create.png", into: self)
-            }
+            nav.view.layoutIfNeeded()
+            let createSnap = try XCTUnwrap(Self.render(nav.view, size: CGSize(width: 390, height: 844)))
+            XCTAssertTrue(Self.hasVisiblePixels(createSnap), "auth-\(tag)-create must not be blank")
+            Self.write(createSnap, name: "auth-\(tag)-create.png", into: self)
 
             // Validation error state (create mode).
             _ = vc.testing_validateCurrentFields()
-            window.layoutIfNeeded()
-            if let snap = Self.render(window, size: window.bounds.size) {
-                Self.write(snap, name: "auth-\(tag)-create-errors.png", into: self)
-            }
+            nav.view.layoutIfNeeded()
+            let errorsSnap = try XCTUnwrap(Self.render(nav.view, size: CGSize(width: 390, height: 844)))
+            XCTAssertTrue(Self.hasVisiblePixels(errorsSnap), "auth-\(tag)-create-errors must not be blank")
+            Self.write(errorsSnap, name: "auth-\(tag)-create-errors.png", into: self)
             window.isHidden = true
         }
     }
 
-    private func makeSignIn(style: UIUserInterfaceStyle) -> (NativeSignInViewController, UIWindow) {
+    private func makeSignIn(style: UIUserInterfaceStyle) -> (
+        NativeSignInViewController,
+        UINavigationController,
+        UIWindow
+    ) {
         let vc = NativeSignInViewController()
         let nav = UINavigationController(rootViewController: vc)
+        KCChrome.style(navigationController: nav)
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
         window.overrideUserInterfaceStyle = style
+        AppAppearance.apply(to: window)
         window.rootViewController = nav
         window.makeKeyAndVisible()
+        nav.overrideUserInterfaceStyle = style
+        vc.overrideUserInterfaceStyle = style
         vc.loadViewIfNeeded()
+        vc.viewWillAppear(false)
         nav.view.layoutIfNeeded()
-        return (vc, window)
+        return (vc, nav, window)
     }
 
     private static func render(_ view: UIView, size: CGSize) -> UIImage? {
@@ -127,6 +137,28 @@ final class AuthSignInScreenTests: XCTestCase {
         return UIGraphicsImageRenderer(size: size, format: format).image { _ in
             view.drawHierarchy(in: CGRect(origin: .zero, size: size), afterScreenUpdates: true)
         }
+    }
+
+    /// Reject pure-black draws so CI cannot upload blank auth screenshots.
+    private static func hasVisiblePixels(_ image: UIImage) -> Bool {
+        guard let cg = image.cgImage, let data = cg.dataProvider?.data, let ptr = CFDataGetBytePtr(data) else {
+            return false
+        }
+        let bpp = max(cg.bitsPerPixel / 8, 1)
+        let row = cg.bytesPerRow
+        var samples = 0
+        var nonZero = 0
+        // Sparse sample across the frame.
+        for y in stride(from: 0, to: cg.height, by: max(cg.height / 40, 1)) {
+            for x in stride(from: 0, to: cg.width, by: max(cg.width / 40, 1)) {
+                let idx = y * row + x * bpp
+                samples += 1
+                if ptr[idx] > 8 || (bpp > 1 && ptr[idx + 1] > 8) || (bpp > 2 && ptr[idx + 2] > 8) {
+                    nonZero += 1
+                }
+            }
+        }
+        return samples > 0 && nonZero > samples / 20
     }
 
     private static func write(_ image: UIImage, name: String, into test: XCTestCase) {
