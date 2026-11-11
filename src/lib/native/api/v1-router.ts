@@ -29,6 +29,11 @@ export type NativeV1Route =
   | { kind: "auth-apple" }
   | { kind: "auth-from-cookie" }
   | { kind: "auth-sign-out" }
+  | { kind: "auth-identities" }
+  | { kind: "auth-identities-link-apple" }
+  | { kind: "auth-identities-link-google" }
+  | { kind: "auth-identities-set-password" }
+  | { kind: "auth-identities-unlink"; provider: string }
   | { kind: "groups"; groupId?: string }
   | { kind: "group-notes"; groupId: string; noteId?: string }
   | { kind: "group-members"; groupId: string; userId?: string }
@@ -112,6 +117,19 @@ export function matchNativeV1Route(splat: string): NativeV1Route {
   if (a === "auth" && b === "apple" && parts.length === 2) return { kind: "auth-apple" };
   if (a === "auth" && b === "from-cookie" && parts.length === 2) return { kind: "auth-from-cookie" };
   if (a === "auth" && b === "sign-out" && parts.length === 2) return { kind: "auth-sign-out" };
+  if (a === "auth" && b === "identities" && parts.length === 2) return { kind: "auth-identities" };
+  if (a === "auth" && b === "identities" && c === "link" && d === "apple" && parts.length === 4) {
+    return { kind: "auth-identities-link-apple" };
+  }
+  if (a === "auth" && b === "identities" && c === "link" && d === "google" && parts.length === 4) {
+    return { kind: "auth-identities-link-google" };
+  }
+  if (a === "auth" && b === "identities" && c === "set-password" && parts.length === 3) {
+    return { kind: "auth-identities-set-password" };
+  }
+  if (a === "auth" && b === "identities" && c === "unlink" && d && parts.length === 4) {
+    return { kind: "auth-identities-unlink", provider: d };
+  }
 
   if (a === "groups" && parts.length === 1) return { kind: "groups" };
   if (a === "groups" && parts.length === 2 && b) return { kind: "groups", groupId: b };
@@ -239,6 +257,14 @@ export function methodAllowed(route: NativeV1Route, method: string): boolean {
     case "auth-from-cookie":
     case "auth-sign-out":
       return m === "POST";
+    case "auth-identities":
+      return m === "GET";
+    case "auth-identities-link-apple":
+    case "auth-identities-link-google":
+    case "auth-identities-set-password":
+      return m === "POST";
+    case "auth-identities-unlink":
+      return m === "DELETE";
     case "groups":
       if (!route.groupId) return m === "GET" || m === "POST";
       return m === "GET" || m === "PATCH" || m === "PUT" || m === "DELETE";

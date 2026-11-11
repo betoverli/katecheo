@@ -25,6 +25,7 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
     }
 
     private enum AccountRow: Int, CaseIterable {
+        case connectedIdentities
         case signOut
         case exportData
         case deleteAccount
@@ -374,6 +375,11 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
             guard let row = AccountRow(rawValue: indexPath.row) else { break }
             cell.accessoryType = .none
             switch row {
+            case .connectedIdentities:
+                config.text = String(localized: "Contas conectadas")
+                config.secondaryText = String(localized: "Apple, Google, email e senha")
+                config.image = UIImage(systemName: "person.crop.circle.badge.checkmark")
+                cell.accessoryType = .disclosureIndicator
             case .signOut:
                 config.text = String(localized: "Sair da conta")
                 config.textProperties.color = .label
@@ -444,6 +450,9 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
         case .account:
             guard let row = AccountRow(rawValue: indexPath.row) else { return }
             switch row {
+            case .connectedIdentities:
+                let vc = ConnectedIdentitiesViewController { [weak self] in self?.reload() }
+                navigationController?.pushViewController(vc, animated: true)
             case .signOut: confirmSignOut()
             case .exportData: exportData()
             case .deleteAccount: confirmDeleteAccount()

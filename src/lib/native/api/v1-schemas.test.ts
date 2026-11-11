@@ -6,6 +6,9 @@ import {
   authEmailForgotPasswordSchema,
   authEmailResetPasswordSchema,
   authEmailSignUpSchema,
+  authIdentitiesLinkAppleSchema,
+  authIdentitiesLinkGoogleSchema,
+  authIdentitiesSetPasswordSchema,
   clampNotificationLimit,
   devicesApnsDeleteSchema,
   devicesApnsPostSchema,
@@ -138,5 +141,26 @@ describe("native v1 schemas (M1)", () => {
       }).ok,
       false,
     );
+    assert.equal(
+      parseWithSchema(authIdentitiesLinkAppleSchema, {
+        identityToken: "eyJhbGciOi",
+        authorizationCode: "c",
+        nonce: "n",
+      }).ok,
+      true,
+    );
+    assert.equal(parseWithSchema(authIdentitiesLinkAppleSchema, { identityToken: "" }).ok, false);
+    assert.equal(
+      parseWithSchema(authIdentitiesLinkGoogleSchema, { code: "abc", verifier: "def" }).ok,
+      true,
+    );
+    assert.equal(
+      parseWithSchema(authIdentitiesSetPasswordSchema, {
+        password: "password1",
+        currentPassword: "oldpass12",
+      }).ok,
+      true,
+    );
+    assert.equal(parseWithSchema(authIdentitiesSetPasswordSchema, { password: "" }).ok, false);
   });
 });

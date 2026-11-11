@@ -206,6 +206,25 @@ export const authAppleSchema = z
   })
   .passthrough();
 
+/** Link Apple — same token payload as sign-in (no fullName required). */
+export const authIdentitiesLinkAppleSchema = z
+  .object({
+    identityToken: z.string().min(1).max(8000),
+    authorizationCode: z.string().max(4000).optional(),
+    nonce: z.string().max(200).optional(),
+  })
+  .passthrough();
+
+/** Link Google — same PKCE claim body as `/auth/claim`. */
+export const authIdentitiesLinkGoogleSchema = authClaimSchema;
+
+export const authIdentitiesSetPasswordSchema = z
+  .object({
+    password: z.string().min(1).max(200),
+    currentPassword: z.string().max(200).optional(),
+  })
+  .passthrough();
+
 export const prefsPatchSchema = objectBody;
 export const mePatchSchema = objectBody;
 

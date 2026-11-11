@@ -50,6 +50,24 @@ describe("matchNativeV1Route", () => {
       kind: "auth-email-reset-password",
     });
     assert.deepEqual(matchNativeV1Route("auth/apple"), { kind: "auth-apple" });
+    assert.deepEqual(matchNativeV1Route("auth/identities"), { kind: "auth-identities" });
+    assert.deepEqual(matchNativeV1Route("auth/identities/link/apple"), {
+      kind: "auth-identities-link-apple",
+    });
+    assert.deepEqual(matchNativeV1Route("auth/identities/link/google"), {
+      kind: "auth-identities-link-google",
+    });
+    assert.deepEqual(matchNativeV1Route("auth/identities/set-password"), {
+      kind: "auth-identities-set-password",
+    });
+    assert.deepEqual(matchNativeV1Route("auth/identities/unlink/apple"), {
+      kind: "auth-identities-unlink",
+      provider: "apple",
+    });
+    assert.deepEqual(matchNativeV1Route("auth/identities/unlink/password"), {
+      kind: "auth-identities-unlink",
+      provider: "password",
+    });
     assert.deepEqual(matchNativeV1Route("auth/from-cookie"), { kind: "auth-from-cookie" });
     assert.deepEqual(matchNativeV1Route("auth/sign-out"), { kind: "auth-sign-out" });
   });
@@ -163,6 +181,15 @@ describe("methodAllowed", () => {
     assert.equal(methodAllowed({ kind: "auth-email-forgot-password" }, "POST"), true);
     assert.equal(methodAllowed({ kind: "auth-email-reset-password" }, "POST"), true);
     assert.equal(methodAllowed({ kind: "auth-apple" }, "POST"), true);
+    assert.equal(methodAllowed({ kind: "auth-identities" }, "GET"), true);
+    assert.equal(methodAllowed({ kind: "auth-identities" }, "POST"), false);
+    assert.equal(methodAllowed({ kind: "auth-identities-link-apple" }, "POST"), true);
+    assert.equal(methodAllowed({ kind: "auth-identities-link-google" }, "POST"), true);
+    assert.equal(methodAllowed({ kind: "auth-identities-set-password" }, "POST"), true);
+    assert.equal(
+      methodAllowed({ kind: "auth-identities-unlink", provider: "google" }, "DELETE"),
+      true,
+    );
     assert.equal(methodAllowed({ kind: "auth-from-cookie" }, "POST"), true);
     assert.equal(methodAllowed({ kind: "auth-sign-out" }, "POST"), true);
     assert.equal(methodAllowed({ kind: "auth-claim" }, "GET"), false);
@@ -214,6 +241,14 @@ describe("isPublicNativeAuthRoute", () => {
     assert.equal(isPublicNativeAuthRoute({ kind: "auth-email-sign-up" }), true);
     assert.equal(isPublicNativeAuthRoute({ kind: "auth-email-forgot-password" }), true);
     assert.equal(isPublicNativeAuthRoute({ kind: "auth-email-reset-password" }), true);
+    assert.equal(isPublicNativeAuthRoute({ kind: "auth-identities" }), false);
+    assert.equal(isPublicNativeAuthRoute({ kind: "auth-identities-link-apple" }), false);
+    assert.equal(isPublicNativeAuthRoute({ kind: "auth-identities-link-google" }), false);
+    assert.equal(isPublicNativeAuthRoute({ kind: "auth-identities-set-password" }), false);
+    assert.equal(
+      isPublicNativeAuthRoute({ kind: "auth-identities-unlink", provider: "apple" }),
+      false,
+    );
     assert.equal(isPublicNativeAuthRoute({ kind: "catalog" }), true);
     assert.equal(isPublicNativeAuthRoute({ kind: "notes" }), false);
     assert.equal(isPublicNativeAuthRoute({ kind: "auth-sign-out" }), false);
