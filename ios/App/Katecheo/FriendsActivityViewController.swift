@@ -236,7 +236,7 @@ final class FriendsActivityViewController: UITableViewController, UISearchResult
                 config.text = String(localized: "Nenhum amigo ainda")
                 config.secondaryText = loading
                     ? String(localized: "Carregando…")
-                    : String(localized: "Busque pelo @usuário acima.")
+                    : String(localized: "Busque pelo @usuário.")
                 config.image = UIImage(systemName: "person.2")
             } else {
                 let person = friends[indexPath.row]

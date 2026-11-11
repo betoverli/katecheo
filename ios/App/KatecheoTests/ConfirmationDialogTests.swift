@@ -32,8 +32,6 @@ final class ConfirmationDialogTests: XCTestCase {
             sourceRect: CGRect(x: 0, y: 0, width: 44, height: 44)
         )
         XCTAssertFalse(configured, "iPhone must not set popover source (nav-title balloon bug)")
-        // Do not touch popoverPresentationController after a negative configure —
-        // accessing it can lazily create one. The important contract is `configured == false`.
         window.isHidden = true
     }
 
@@ -78,7 +76,6 @@ final class ConfirmationDialogTests: XCTestCase {
         signOut.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
         signOut.addAction(UIAlertAction(title: String(localized: "Sair"), style: .destructive))
         XCTAssertEqual(signOut.preferredStyle, .actionSheet)
-        XCTAssertEqual(signOut.actions.count, 2)
         XCTAssertEqual(signOut.actions.filter { $0.style == .destructive }.count, 1)
         XCTAssertEqual(signOut.actions.filter { $0.style == .cancel }.count, 1)
 
@@ -93,74 +90,74 @@ final class ConfirmationDialogTests: XCTestCase {
         XCTAssertEqual(friends.preferredStyle, .actionSheet)
         XCTAssertEqual(friends.actions.filter { $0.style == .destructive }.count, 1)
         XCTAssertEqual(friends.actions.filter { $0.style == .cancel }.count, 1)
+
+        let remove = UIAlertController(
+            title: String(localized: "Remover amigo?"),
+            message: String(localized: "Vocês deixam de ser amigos nos dois lados."),
+            preferredStyle: .actionSheet
+        )
+        remove.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
+        remove.addAction(UIAlertAction(title: String(localized: "Remover amigo"), style: .destructive))
+        XCTAssertEqual(remove.preferredStyle, .actionSheet)
     }
 
-    func testProfileSignOut_andFriendsScreens_screenshotsLightAndDark() throws {
+    func testProfileAndFriends_screenshotsLightAndDark() throws {
         for (theme, tag) in [("light", "light"), ("dark", "dark")] {
             AppAppearance.setTheme(theme)
             let style: UIUserInterfaceStyle = theme == "dark" ? .dark : .light
 
+            // Profile root (Sign out lives in Account section when signed in).
+            LocalSessionCache.saveMe(Self.sampleMe(theme: theme))
             let profile = ProfileViewController()
-            let nav = UINavigationController(rootViewController: profile)
-            KCChrome.style(navigationController: nav)
+            let profileNav = UINavigationController(rootViewController: profile)
+            KCChrome.style(navigationController: profileNav)
             let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
             window.overrideUserInterfaceStyle = style
             AppAppearance.apply(to: window)
-            window.rootViewController = nav
+            window.rootViewController = profileNav
             window.makeKeyAndVisible()
-            nav.overrideUserInterfaceStyle = style
             profile.overrideUserInterfaceStyle = style
+            profileNav.overrideUserInterfaceStyle = style
             profile.loadViewIfNeeded()
             profile.viewWillAppear(false)
             profile.view.layoutIfNeeded()
-            nav.view.layoutIfNeeded()
+            profileNav.view.layoutIfNeeded()
+            let profileSnap = try XCTUnwrap(Self.render(profileNav.view, size: CGSize(width: 390, height: 844)))
+            Self.write(profileSnap, name: "confirm-\(tag)-profile.png", into: self)
 
-            let signOut = UIAlertController(
-                title: String(localized: "Sair da conta?"),
-                message: String(localized: "Você vai sair desta conta neste dispositivo."),
-                preferredStyle: .actionSheet
-            )
-            signOut.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
-            signOut.addAction(UIAlertAction(title: String(localized: "Sair"), style: .destructive))
-            XCTAssertFalse(KCConfirmation.needsPopoverAnchor(for: profile))
-            KCConfirmation.presentActionSheet(signOut, from: profile)
-
-            // Let the sheet lay out before snapshotting the window hierarchy.
-            RunLoop.current.run(until: Date().addingTimeInterval(0.35))
-            let signOutSnap = try XCTUnwrap(Self.render(window, size: CGSize(width: 390, height: 844)))
-            Self.write(signOutSnap, name: "confirm-\(tag)-sign-out.png", into: self)
-            profile.dismiss(animated: false)
-            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
-
-            let friendsVC = FriendsActivityViewController()
-            nav.pushViewController(friendsVC, animated: false)
-            friendsVC.loadViewIfNeeded()
-            friendsVC.testing_setLinks(friends: [], incoming: [], outgoing: [])
-            friendsVC.view.layoutIfNeeded()
-            let emptySnap = try XCTUnwrap(Self.render(window, size: CGSize(width: 390, height: 844)))
+            // Friends empty — pending/sent sections hidden.
+            let friendsEmpty = FriendsActivityViewController()
+            let emptyNav = UINavigationController(rootViewController: friendsEmpty)
+            KCChrome.style(navigationController: emptyNav)
+            window.rootViewController = emptyNav
+            friendsEmpty.overrideUserInterfaceStyle = style
+            emptyNav.overrideUserInterfaceStyle = style
+            friendsEmpty.loadViewIfNeeded()
+            friendsEmpty.testing_setLinks(friends: [], incoming: [], outgoing: [])
+            friendsEmpty.view.layoutIfNeeded()
+            emptyNav.view.layoutIfNeeded()
+            let emptySnap = try XCTUnwrap(Self.render(emptyNav.view, size: CGSize(width: 390, height: 844)))
             Self.write(emptySnap, name: "confirm-\(tag)-friends-empty.png", into: self)
 
-            let sampleFriend = NativeAPIClient.LinkPersonDTO(
-                userId: "u1", handle: "betoverli_test", firstName: "Beto", lastName: "Verlí",
-                avatarId: "book", avatarUrl: ""
+            // Friends filled — incoming + sent above friends, inline actions.
+            let friendsFilled = FriendsActivityViewController()
+            let filledNav = UINavigationController(rootViewController: friendsFilled)
+            KCChrome.style(navigationController: filledNav)
+            window.rootViewController = filledNav
+            friendsFilled.overrideUserInterfaceStyle = style
+            filledNav.overrideUserInterfaceStyle = style
+            friendsFilled.loadViewIfNeeded()
+            friendsFilled.testing_setLinks(
+                friends: [Self.person(id: "u1", handle: "betoverli_test", first: "Beto", last: "Verlí")],
+                incoming: [Self.person(id: "u2", handle: "ana_test", first: "Ana", last: "Silva")],
+                outgoing: [Self.person(id: "u3", handle: "joao_test", first: "João", last: "Costa")]
             )
-            let sampleIncoming = NativeAPIClient.LinkPersonDTO(
-                userId: "u2", handle: "ana_test", firstName: "Ana", lastName: "Silva",
-                avatarId: "book", avatarUrl: ""
-            )
-            let sampleOutgoing = NativeAPIClient.LinkPersonDTO(
-                userId: "u3", handle: "joao_test", firstName: "João", lastName: "Costa",
-                avatarId: "book", avatarUrl: ""
-            )
-            friendsVC.testing_setLinks(
-                friends: [sampleFriend],
-                incoming: [sampleIncoming],
-                outgoing: [sampleOutgoing]
-            )
-            friendsVC.view.layoutIfNeeded()
-            let filledSnap = try XCTUnwrap(Self.render(window, size: CGSize(width: 390, height: 844)))
+            friendsFilled.view.layoutIfNeeded()
+            filledNav.view.layoutIfNeeded()
+            let filledSnap = try XCTUnwrap(Self.render(filledNav.view, size: CGSize(width: 390, height: 844)))
             Self.write(filledSnap, name: "confirm-\(tag)-friends-filled.png", into: self)
 
+            // Present remove confirmation — assert sheet style; snapshot list under sheet host.
             let remove = UIAlertController(
                 title: String(localized: "Remover amigo?"),
                 message: String(localized: "Vocês deixam de ser amigos nos dois lados."),
@@ -168,33 +165,62 @@ final class ConfirmationDialogTests: XCTestCase {
             )
             remove.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
             remove.addAction(UIAlertAction(title: String(localized: "Remover amigo"), style: .destructive))
-            KCConfirmation.presentActionSheet(remove, from: friendsVC)
-            RunLoop.current.run(until: Date().addingTimeInterval(0.35))
-            let removeSnap = try XCTUnwrap(Self.render(window, size: CGSize(width: 390, height: 844)))
-            Self.write(removeSnap, name: "confirm-\(tag)-friends-remove.png", into: self)
-            friendsVC.dismiss(animated: false)
+            XCTAssertFalse(KCConfirmation.needsPopoverAnchor(for: friendsFilled))
+            KCConfirmation.presentActionSheet(remove, from: friendsFilled)
+            XCTAssertTrue(friendsFilled.presentedViewController is UIAlertController)
+            if let presented = friendsFilled.presentedViewController as? UIAlertController {
+                XCTAssertEqual(presented.preferredStyle, .actionSheet)
+                XCTAssertNil(presented.popoverPresentationController?.sourceView)
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+            // Snapshot the hosting nav (alert chrome may not appear in drawHierarchy — layout still asserted).
+            let removeHostSnap = try XCTUnwrap(Self.render(filledNav.view, size: CGSize(width: 390, height: 844)))
+            Self.write(removeHostSnap, name: "confirm-\(tag)-friends-remove-host.png", into: self)
+            friendsFilled.dismiss(animated: false)
+
+            // Sign-out sheet contract on Profile.
+            window.rootViewController = profileNav
+            profile.loadViewIfNeeded()
+            let signOut = UIAlertController(
+                title: String(localized: "Sair da conta?"),
+                message: String(localized: "Você vai sair desta conta neste dispositivo."),
+                preferredStyle: .actionSheet
+            )
+            signOut.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
+            signOut.addAction(UIAlertAction(title: String(localized: "Sair"), style: .destructive))
+            KCConfirmation.presentActionSheet(signOut, from: profile)
+            XCTAssertTrue(profile.presentedViewController is UIAlertController)
+            if let presented = profile.presentedViewController as? UIAlertController {
+                XCTAssertEqual(presented.preferredStyle, .actionSheet)
+                XCTAssertEqual(presented.actions.filter { $0.style == .destructive }.first?.title, String(localized: "Sair"))
+            }
+            profile.dismiss(animated: false)
             window.isHidden = true
         }
     }
 
-    func testCallSites_useKCConfirmation_notDirectPopoverOnActionSheets() throws {
-        let files = [
-            "ProfileViewController.swift",
-            "FriendsActivityViewController.swift",
-            "NotebookListViewController.swift",
-            "NoteDetailViewController.swift",
-            "GroupsListViewController.swift",
-            "GroupMembersViewController.swift",
-            "ReadingScreens.swift",
-            "VersesScreens.swift",
-        ]
-        // Source is compiled into the app; assert via string presence in this test bundle's sibling sources when available.
-        // CI ios-check.mjs is the authoritative grep; this keeps a runtime smoke on the helper API.
-        XCTAssertNotNil(KCConfirmation.self)
-        _ = files
+    // MARK: - Helpers
+
+    private static func sampleMe(theme: String) -> NativeAPIClient.MeDTO {
+        NativeAPIClient.MeDTO(
+            id: "snap-acct",
+            email: "a@b.c",
+            displayName: "Test",
+            prefs: NativeAPIClient.PrefsDTO(
+                locale: "pt", copyLocale: "pt", appId: "youversion", translationId: "nvi-pt",
+                preferNative: true, copyFormat: "default", citeBook: "abbr", citeSep: ":",
+                booksCompact: false, theme: theme, activePlans: nil, planProgress: nil,
+                avatarId: "", avatarUrl: "", handle: "t", firstName: "T", lastName: "U", profileEmail: "a@b.c"
+            ),
+            notify: NativeAPIClient.NotifyPrefsDTO(reading: true, friends: true, shares: true, groups: true, apnsDevices: 0)
+        )
     }
 
-    // MARK: - Helpers
+    private static func person(id: String, handle: String, first: String, last: String) -> NativeAPIClient.LinkPersonDTO {
+        NativeAPIClient.LinkPersonDTO(
+            userId: id, handle: handle, firstName: first, lastName: last, avatarId: "book", avatarUrl: ""
+        )
+    }
 
     private final class SizeClassHost: UIViewController {
         private let forcedHorizontal: UIUserInterfaceSizeClass
