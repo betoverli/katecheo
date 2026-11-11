@@ -86,7 +86,7 @@ final class NativeNoteEditorCaretScrollTests: XCTestCase {
             contentSizeHeight: 500,
             currentOffsetY: 480
         )
-        let maxOffset = max(0, 500 - 720 + 360) // 140
+        let maxOffset = max(CGFloat(0), CGFloat(500 - 720 + 360)) // 140
         XCTAssertEqual(y, maxOffset, accuracy: 0.5)
         XCTAssertLessThan(y, 200)
     }
