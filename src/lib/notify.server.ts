@@ -604,3 +604,26 @@ export async function markRead(userId: string, id?: string) {
     `;
   }
 }
+
+/**
+ * Remove one inbox row for this user. Friend/group link rows are untouched —
+ * deleting a connection-request alert only clears the notice, not the request.
+ */
+export async function deleteNotification(userId: string, id: string) {
+  const sql = await getSql();
+  const trimmed = id.trim();
+  if (!trimmed) return { ok: true as const, deleted: false };
+  const rows = await sql<{ id: string }>`
+    delete from notifications
+    where user_id = ${userId} and id = ${trimmed}
+    returning id
+  `;
+  return { ok: true as const, deleted: rows.length > 0 };
+}
+
+/** Wipe the user's notification inbox (alerts only — not Friends requests). */
+export async function clearNotifications(userId: string) {
+  const sql = await getSql();
+  await sql`delete from notifications where user_id = ${userId}`;
+  return { ok: true as const };
+}

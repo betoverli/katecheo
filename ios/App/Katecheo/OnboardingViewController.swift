@@ -1,6 +1,13 @@
 import UIKit
 
 /// First-launch intro: 4 swipeable pages before the auth screen.
+///
+/// Layout contract (device-verified):
+/// - Wordmark "Katecheo" never wraps/hyphenates — single line, shrinks instead.
+/// - Titles/bodies use the full page width (~32pt side padding), not a narrow
+///   centered intrinsic column (`UIStackView.alignment = .center` was the cause).
+/// - Page dots + Get started stay pinned inside the bottom safe area; page
+///   content scrolls vertically when Dynamic Type / small screens need room.
 final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
     /// Called after Skip / Get started marks the intro seen.
     /// First-launch uses this to swap the window root; Settings replay dismisses.
@@ -76,6 +83,9 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
         scrollView.delegate = self
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.accessibilityIdentifier = "onboarding.scroll"
+        // Let the bottom chrome win when Dynamic Type eats vertical space.
+        scrollView.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
+        scrollView.setContentHuggingPriority(.defaultLow, for: .vertical)
 
         pageControl.numberOfPages = pages.count
         pageControl.currentPage = 0
@@ -96,6 +106,9 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
         bottomBar.spacing = KCDesign.Space.md
         bottomBar.alignment = .fill
         bottomBar.translatesAutoresizingMaskIntoConstraints = false
+        bottomBar.accessibilityIdentifier = "onboarding.bottomBar"
+        bottomBar.setContentCompressionResistancePriority(.required, for: .vertical)
+        bottomBar.setContentHuggingPriority(.required, for: .vertical)
         bottomBar.addArrangedSubview(pageControl)
         bottomBar.addArrangedSubview(startButton)
 
@@ -115,6 +128,7 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
 
             bottomBar.leadingAnchor.constraint(equalTo: guide.leadingAnchor, constant: KCDesign.Space.lg),
             bottomBar.trailingAnchor.constraint(equalTo: guide.trailingAnchor, constant: -KCDesign.Space.lg),
+            // Pin chrome inside the home-indicator safe area with a little breathing room.
             bottomBar.bottomAnchor.constraint(equalTo: guide.bottomAnchor, constant: -KCDesign.Space.md),
         ])
 
@@ -144,15 +158,26 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
     }
 
     private func makePageView(_ page: Page, index: Int) -> UIView {
+        // Outer page fills the horizontal pager slot.
         let container = UIView()
         container.accessibilityIdentifier = "onboarding.page.\(index)"
 
+        // Inner vertical scroller so SE + large Dynamic Type never push Get started off-screen.
+        let pageScroll = UIScrollView()
+        pageScroll.translatesAutoresizingMaskIntoConstraints = false
+        pageScroll.showsVerticalScrollIndicator = false
+        pageScroll.alwaysBounceVertical = true
+        pageScroll.contentInsetAdjustmentBehavior = .never
+        container.addSubview(pageScroll)
+
         let stack = UIStackView()
         stack.axis = .vertical
-        stack.alignment = .center
+        // `.fill` + centered text: labels take the full width. `.center` was the
+        // root cause of the 2–3-word narrow column (intrinsic UILabel width).
+        stack.alignment = .fill
         stack.spacing = KCDesign.Space.lg
         stack.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(stack)
+        pageScroll.addSubview(stack)
 
         if page.usesBrandMark {
             let brand = UIImageView(image: UIImage(named: "BrandMark"))
@@ -161,7 +186,7 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
             brand.isAccessibilityElement = false
             brand.heightAnchor.constraint(equalToConstant: 96).isActive = true
             brand.widthAnchor.constraint(equalToConstant: 96).isActive = true
-            stack.addArrangedSubview(brand)
+            stack.addArrangedSubview(centeredRow(brand))
         } else {
             let symbolConfig = UIImage.SymbolConfiguration(pointSize: 56, weight: .medium)
             let icon = UIImageView(image: UIImage(systemName: page.symbolName, withConfiguration: symbolConfig))
@@ -192,7 +217,7 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
                 icon.centerXAnchor.constraint(equalTo: iconWrap.centerXAnchor),
                 icon.centerYAnchor.constraint(equalTo: iconWrap.centerYAnchor),
             ])
-            stack.addArrangedSubview(iconWrap)
+            stack.addArrangedSubview(centeredRow(iconWrap))
         }
 
         let title = UILabel()
@@ -201,9 +226,23 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
         title.font = page.usesBrandMark ? KCDesign.displayTitle() : KCDesign.screenTitle()
         title.textAlignment = .center
         title.textColor = .label
-        title.numberOfLines = 0
         title.adjustsFontForContentSizeCategory = true
         title.accessibilityTraits = .header
+        title.accessibilityIdentifier = page.usesBrandMark ? "onboarding.wordmark" : "onboarding.title.\(index)"
+        if page.usesBrandMark {
+            // Always one line / one word — shrink instead of wrapping or hyphenating.
+            title.numberOfLines = 1
+            title.lineBreakMode = .byClipping
+            title.adjustsFontSizeToFitWidth = true
+            title.minimumScaleFactor = 0.6
+            title.allowsDefaultTighteningForTruncation = true
+            // No soft hyphens / hyphenation — keep the glyph run intact.
+            title.setContentCompressionResistancePriority(.required, for: .vertical)
+        } else {
+            title.numberOfLines = 0
+            title.lineBreakMode = .byWordWrapping
+            title.setContentHuggingPriority(.required, for: .vertical)
+        }
 
         let body = UILabel()
         body.text = page.body
@@ -211,7 +250,10 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
         body.textColor = .secondaryLabel
         body.textAlignment = .center
         body.numberOfLines = 0
+        body.lineBreakMode = .byWordWrapping
         body.adjustsFontForContentSizeCategory = true
+        body.accessibilityIdentifier = "onboarding.body.\(index)"
+        body.setContentHuggingPriority(.required, for: .vertical)
 
         stack.addArrangedSubview(title)
         stack.addArrangedSubview(body)
@@ -222,20 +264,41 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
         container.accessibilityHint = page.accessibilityHint
         container.accessibilityTraits = .staticText
 
+        let sidePad = KCDesign.Space.xl // 32pt — full-width text with normal padding
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: container.layoutMarginsGuide.leadingAnchor),
-            stack.trailingAnchor.constraint(equalTo: container.layoutMarginsGuide.trailingAnchor),
-            stack.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-            stack.topAnchor.constraint(greaterThanOrEqualTo: container.layoutMarginsGuide.topAnchor),
-            stack.bottomAnchor.constraint(lessThanOrEqualTo: container.layoutMarginsGuide.bottomAnchor),
+            pageScroll.topAnchor.constraint(equalTo: container.topAnchor),
+            pageScroll.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            pageScroll.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            pageScroll.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+
+            stack.topAnchor.constraint(greaterThanOrEqualTo: pageScroll.contentLayoutGuide.topAnchor, constant: KCDesign.Space.lg),
+            stack.leadingAnchor.constraint(equalTo: pageScroll.frameLayoutGuide.leadingAnchor, constant: sidePad),
+            stack.trailingAnchor.constraint(equalTo: pageScroll.frameLayoutGuide.trailingAnchor, constant: -sidePad),
+            stack.bottomAnchor.constraint(lessThanOrEqualTo: pageScroll.contentLayoutGuide.bottomAnchor, constant: -KCDesign.Space.lg),
+            stack.widthAnchor.constraint(equalTo: pageScroll.frameLayoutGuide.widthAnchor, constant: -(sidePad * 2)),
+            // Vertically center when content is short; contentLayoutGuide grows when tall.
+            stack.centerYAnchor.constraint(equalTo: pageScroll.frameLayoutGuide.centerYAnchor).withPriority(.defaultHigh),
+            pageScroll.contentLayoutGuide.heightAnchor.constraint(
+                greaterThanOrEqualTo: pageScroll.frameLayoutGuide.heightAnchor
+            ),
         ])
-        container.layoutMargins = UIEdgeInsets(
-            top: KCDesign.Space.lg,
-            left: KCDesign.Space.xl,
-            bottom: KCDesign.Space.lg,
-            right: KCDesign.Space.xl
-        )
         return container
+    }
+
+    /// Full-width row that centers a fixed-size child (icons / brand) under `.fill` stacks.
+    private func centeredRow(_ child: UIView) -> UIView {
+        let row = UIView()
+        row.translatesAutoresizingMaskIntoConstraints = false
+        child.translatesAutoresizingMaskIntoConstraints = false
+        row.addSubview(child)
+        NSLayoutConstraint.activate([
+            child.centerXAnchor.constraint(equalTo: row.centerXAnchor),
+            child.topAnchor.constraint(equalTo: row.topAnchor),
+            child.bottomAnchor.constraint(equalTo: row.bottomAnchor),
+            child.leadingAnchor.constraint(greaterThanOrEqualTo: row.leadingAnchor),
+            child.trailingAnchor.constraint(lessThanOrEqualTo: row.trailingAnchor),
+        ])
+        return row
     }
 
     private func updateChrome(animated: Bool) {
@@ -252,6 +315,7 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
                 self.currentPageIndex + 1,
                 self.pages.count
             )
+            self.view.layoutIfNeeded()
         }
         if animated {
             UIView.animate(withDuration: 0.22, animations: changes)
@@ -261,7 +325,7 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
     }
 
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        guard pageWidth > 0 else { return }
+        guard scrollView === self.scrollView, pageWidth > 0 else { return }
         let page = Int(round(scrollView.contentOffset.x / pageWidth))
         let clamped = max(0, min(pages.count - 1, page))
         if clamped != currentPageIndex {
@@ -287,17 +351,21 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
     var testing_pageCount: Int { pages.count }
     var testing_skipTitle: String? { skipButton.title(for: .normal) }
     var testing_startTitle: String? { startButton.configuration?.title ?? startButton.title(for: .normal) }
-    var testing_pageTitle: String? {
-        guard currentPageIndex < scrollView.subviews.count else { return nil }
-        return scrollView.subviews[currentPageIndex]
-            .subviews
-            .compactMap { $0 as? UIStackView }
-            .first?
-            .arrangedSubviews
-            .compactMap { $0 as? UILabel }
-            .first?
-            .text
+    var testing_bottomBarFrameInView: CGRect { bottomBar.convert(bottomBar.bounds, to: view) }
+    var testing_startButtonFrameInView: CGRect { startButton.convert(startButton.bounds, to: view) }
+    var testing_skipButtonFrameInView: CGRect { skipButton.convert(skipButton.bounds, to: view) }
+    var testing_safeAreaInsets: UIEdgeInsets { view.safeAreaInsets }
+    var testing_wordmarkLabel: UILabel? {
+        firstLabel(in: scrollView, matching: { $0.accessibilityIdentifier == "onboarding.wordmark" })
     }
+    var testing_currentBodyLabel: UILabel? {
+        firstLabel(in: scrollView, matching: { $0.accessibilityIdentifier == "onboarding.body.\(currentPageIndex)" })
+    }
+    var testing_currentTitleLabel: UILabel? {
+        if currentPageIndex == 0 { return testing_wordmarkLabel }
+        return firstLabel(in: scrollView, matching: { $0.accessibilityIdentifier == "onboarding.title.\(currentPageIndex)" })
+    }
+    var testing_pageTitle: String? { testing_currentTitleLabel?.text }
 
     func testing_goToPage(_ index: Int, animated: Bool = false) {
         goToPage(index, animated: animated)
@@ -316,5 +384,20 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
         }
         scrollView.setContentOffset(CGPoint(x: CGFloat(clamped) * width, y: 0), animated: animated)
         updateChrome(animated: animated)
+    }
+
+    private func firstLabel(in root: UIView, matching: (UILabel) -> Bool) -> UILabel? {
+        if let label = root as? UILabel, matching(label) { return label }
+        for child in root.subviews {
+            if let found = firstLabel(in: child, matching: matching) { return found }
+        }
+        return nil
+    }
+}
+
+private extension NSLayoutConstraint {
+    func withPriority(_ priority: UILayoutPriority) -> NSLayoutConstraint {
+        self.priority = priority
+        return self
     }
 }

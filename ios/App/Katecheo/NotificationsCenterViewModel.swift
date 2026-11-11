@@ -34,6 +34,12 @@ enum KCNotificationsBadge {
         setUnreadCount(0)
     }
 
+    static func applyLocalDelete(wasUnread: Bool) {
+        if wasUnread {
+            applyLocalRead(count: 1)
+        }
+    }
+
     @MainActor
     @discardableResult
     static func refreshFromServer() async -> Int {
@@ -198,6 +204,62 @@ final class NotificationsCenterViewModel {
             try await NativeAPIClient.markNotificationsRead(id: nil)
             return true
         } catch {
+            return false
+        }
+    }
+
+    // MARK: - Delete / clear
+
+    @discardableResult
+    func deleteNotification(id: String) async -> Bool {
+        guard !id.isEmpty else { return false }
+        guard let idx = items.firstIndex(where: { $0.id == id }) else { return false }
+        let snapshot = items[idx]
+        let previousUnread = unreadCount
+        let wasUnread = !snapshot.read
+
+        items.remove(at: idx)
+        if wasUnread, unreadCount > 0 { unreadCount -= 1 }
+        KCNotificationsBadge.applyLocalDelete(wasUnread: wasUnread)
+        KCActivityStore.acknowledgeNotificationIds([id])
+        notifyChanged()
+
+        do {
+            try await NativeAPIClient.deleteNotification(id: id)
+            return true
+        } catch {
+            // Rollback optimistic removal so a failed delete doesn't lose the row.
+            let insertAt = min(idx, items.count)
+            items.insert(snapshot, at: insertAt)
+            unreadCount = previousUnread
+            KCNotificationsBadge.setUnreadCount(previousUnread)
+            notifyChanged()
+            return false
+        }
+    }
+
+    @discardableResult
+    func clearAll() async -> Bool {
+        let snapshot = items
+        let previousUnread = unreadCount
+        let removedIds = snapshot.map(\.id)
+
+        items = []
+        nextCursor = nil
+        unreadCount = 0
+        KCNotificationsBadge.applyLocalMarkAllRead()
+        KCActivityStore.acknowledgeNotificationIds(removedIds)
+        KCActivityStore.acknowledgeAllInboxNotifications()
+        notifyChanged()
+
+        do {
+            try await NativeAPIClient.clearNotifications()
+            return true
+        } catch {
+            items = snapshot
+            unreadCount = previousUnread
+            KCNotificationsBadge.setUnreadCount(previousUnread)
+            notifyChanged()
             return false
         }
     }

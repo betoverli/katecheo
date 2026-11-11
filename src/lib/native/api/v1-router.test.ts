@@ -25,6 +25,11 @@ describe("matchNativeV1Route", () => {
     assert.deepEqual(matchNativeV1Route("notifications"), { kind: "notifications" });
     assert.deepEqual(matchNativeV1Route("notifications/summary"), { kind: "notifications-summary" });
     assert.deepEqual(matchNativeV1Route("notifications/read"), { kind: "notifications-read" });
+    assert.deepEqual(matchNativeV1Route("notifications/clear"), { kind: "notifications-clear" });
+    assert.deepEqual(matchNativeV1Route("notifications/n1"), {
+      kind: "notifications",
+      notificationId: "n1",
+    });
   });
 
   it("maps speakers and apns device", () => {
@@ -116,7 +121,7 @@ describe("matchNativeV1Route", () => {
     assert.equal(matchNativeV1Route("account").kind, "not-found");
     assert.equal(matchNativeV1Route("bible").kind, "not-found");
     assert.equal(matchNativeV1Route("links/other").kind, "not-found");
-    assert.equal(matchNativeV1Route("notifications/other").kind, "not-found");
+    assert.equal(matchNativeV1Route("notifications/a/b").kind, "not-found");
   });
 });
 
@@ -139,9 +144,15 @@ describe("methodAllowed", () => {
     assert.equal(methodAllowed({ kind: "links-remove" }, "GET"), false);
     assert.equal(methodAllowed({ kind: "links-request" }, "POST"), true);
     assert.equal(methodAllowed({ kind: "notifications" }, "GET"), true);
+    assert.equal(methodAllowed({ kind: "notifications" }, "DELETE"), false);
+    assert.equal(methodAllowed({ kind: "notifications", notificationId: "n1" }, "DELETE"), true);
+    assert.equal(methodAllowed({ kind: "notifications", notificationId: "n1" }, "GET"), false);
     assert.equal(methodAllowed({ kind: "notifications-summary" }, "GET"), true);
     assert.equal(methodAllowed({ kind: "notifications-read" }, "POST"), true);
     assert.equal(methodAllowed({ kind: "notifications-read" }, "GET"), false);
+    assert.equal(methodAllowed({ kind: "notifications-clear" }, "POST"), true);
+    assert.equal(methodAllowed({ kind: "notifications-clear" }, "DELETE"), true);
+    assert.equal(methodAllowed({ kind: "notifications-clear" }, "GET"), false);
   });
 
   it("allows auth POSTs and GET providers", () => {

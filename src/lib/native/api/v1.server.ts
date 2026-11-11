@@ -428,6 +428,8 @@ export function nativeV1Catalog() {
         returns: "{ unread, byKind, items, nextCursor }",
       },
       { method: "POST", path: "/notifications/read", auth: true, body: "{ id? }" },
+      { method: "DELETE", path: "/notifications/:id", auth: true },
+      { method: "POST", path: "/notifications/clear", auth: true },
       { method: "GET", path: "/speakers", auth: true },
       { method: "POST", path: "/speakers", auth: true, body: "Speaker" },
       { method: "DELETE", path: "/speakers/:id", auth: true },

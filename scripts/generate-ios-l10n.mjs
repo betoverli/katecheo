@@ -564,6 +564,14 @@ const MANUAL = {
   "Páginas da introdução": ["Intro pages", "Páginas de la introducción"],
   "Página %lld de %lld": ["Page %lld of %lld", "Página %lld de %lld"],
 
+  // Notification Center — delete / clear all
+  "Limpar tudo": ["Clear all", "Borrar todo"],
+  "Limpar todos os avisos?": ["Clear all alerts?", "¿Borrar todos los avisos?"],
+  "Isso remove os avisos da lista. Pedidos de amizade continuam em Amigos.": [
+    "This removes alerts from the list. Friend requests stay in Friends.",
+    "Esto elimina los avisos de la lista. Las solicitudes de amistad siguen en Amigos.",
+  ],
+
 };
 
 /** Keys owned by the MANUAL table (safe to add into an existing hand catalog). */

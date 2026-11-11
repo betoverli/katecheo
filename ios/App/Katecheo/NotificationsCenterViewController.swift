@@ -7,10 +7,13 @@ final class NotificationsCenterViewController: UIViewController, UITableViewDele
     private let emptyState = KCEmptyStateView()
     private let viewModel = NotificationsCenterViewModel()
     private var markAllButton: UIBarButtonItem?
+    private var clearAllButton: UIBarButtonItem?
 
     /// Test hook — drives the same VM the UI uses.
     var testing_viewModel: NotificationsCenterViewModel { viewModel }
     var testing_tableView: UITableView { tableView }
+    var testing_markAllButton: UIBarButtonItem? { markAllButton }
+    var testing_clearAllButton: UIBarButtonItem? { clearAllButton }
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -29,7 +32,19 @@ final class NotificationsCenterViewController: UIViewController, UITableViewDele
         )
         markAll.accessibilityLabel = String(localized: "Marcar todas como lidas")
         markAllButton = markAll
-        navigationItem.rightBarButtonItem = markAll
+
+        let clearAll = UIBarButtonItem(
+            title: String(localized: "Limpar tudo"),
+            style: .plain,
+            target: self,
+            action: #selector(clearAllTapped)
+        )
+        clearAll.accessibilityLabel = String(localized: "Limpar tudo")
+        clearAll.tintColor = KCDesign.danger
+        clearAllButton = clearAll
+
+        // rightBarButtonItems[0] is trailing-most — keep Mark all as the primary action.
+        navigationItem.rightBarButtonItems = [markAll, clearAll]
 
         tableView.translatesAutoresizingMaskIntoConstraints = false
         KCChrome.styleGroupedTable(tableView)
@@ -79,10 +94,34 @@ final class NotificationsCenterViewController: UIViewController, UITableViewDele
         }
     }
 
+    @objc private func clearAllTapped() {
+        guard !viewModel.items.isEmpty else { return }
+        KCHaptics.light()
+        let sheet = UIAlertController(
+            title: String(localized: "Limpar todos os avisos?"),
+            message: String(localized: "Isso remove os avisos da lista. Pedidos de amizade continuam em Amigos."),
+            preferredStyle: .actionSheet
+        )
+        sheet.addAction(UIAlertAction(title: String(localized: "Limpar tudo"), style: .destructive) { [weak self] _ in
+            Task {
+                _ = await self?.viewModel.clearAll()
+            }
+        })
+        sheet.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
+        KCConfirmation.presentActionSheet(
+            sheet,
+            from: self,
+            barButtonItem: clearAllButton
+        )
+    }
+
     private func render() {
         tableView.reloadData()
         markAllButton?.isEnabled = viewModel.hasUnread
         markAllButton?.tintColor = viewModel.hasUnread ? KCDesign.accent : .tertiaryLabel
+        let hasItems = !viewModel.items.isEmpty
+        clearAllButton?.isEnabled = hasItems
+        clearAllButton?.tintColor = hasItems ? KCDesign.danger : .tertiaryLabel
 
         if viewModel.isLoading && viewModel.items.isEmpty {
             emptyState.showLoading(message: String(localized: "Carregando…"))
@@ -167,19 +206,36 @@ final class NotificationsCenterViewController: UIViewController, UITableViewDele
         trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath
     ) -> UISwipeActionsConfiguration? {
         let item = viewModel.sections[indexPath.section].items[indexPath.row]
-        guard !item.read else { return nil }
-        let action = UIContextualAction.kcIconOnly(
-            style: .normal,
-            systemName: "checkmark.circle",
-            accessibilityLabel: String(localized: "Marcar como lida"),
-            backgroundColor: KCDesign.accent
+        var actions: [UIContextualAction] = []
+
+        let delete = UIContextualAction.kcIconOnly(
+            style: .destructive,
+            systemName: "trash",
+            accessibilityLabel: String(localized: "Excluir")
         ) { [weak self] _, _, completion in
             Task {
-                _ = await self?.viewModel.markRead(id: item.id)
-                await MainActor.run { completion(true) }
+                let ok = await self?.viewModel.deleteNotification(id: item.id) ?? false
+                await MainActor.run { completion(ok) }
             }
         }
-        let config = UISwipeActionsConfiguration(actions: [action])
+        actions.append(delete)
+
+        if !item.read {
+            let markRead = UIContextualAction.kcIconOnly(
+                style: .normal,
+                systemName: "checkmark.circle",
+                accessibilityLabel: String(localized: "Marcar como lida"),
+                backgroundColor: KCDesign.accent
+            ) { [weak self] _, _, completion in
+                Task {
+                    _ = await self?.viewModel.markRead(id: item.id)
+                    await MainActor.run { completion(true) }
+                }
+            }
+            actions.append(markRead)
+        }
+
+        let config = UISwipeActionsConfiguration(actions: actions)
         config.performsFirstActionWithFullSwipe = true
         return config
     }

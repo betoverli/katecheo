@@ -22,6 +22,8 @@ describe("native social routes (auth + methods)", () => {
     assert.equal(isPublicNativeAuthRoute({ kind: "notifications" }), false);
     assert.equal(isPublicNativeAuthRoute({ kind: "notifications-summary" }), false);
     assert.equal(isPublicNativeAuthRoute({ kind: "notifications-read" }), false);
+    assert.equal(isPublicNativeAuthRoute({ kind: "notifications-clear" }), false);
+    assert.equal(isPublicNativeAuthRoute({ kind: "notifications", notificationId: "n1" }), false);
   });
 
   it("maps stable paths used by iOS (not colliding with notes/:id)", () => {
@@ -29,6 +31,11 @@ describe("native social routes (auth + methods)", () => {
     assert.notEqual(matchNativeV1Route("notes/granted").kind, "notes");
     assert.deepEqual(matchNativeV1Route("notifications/read"), { kind: "notifications-read" });
     assert.deepEqual(matchNativeV1Route("notifications/summary"), { kind: "notifications-summary" });
+    assert.deepEqual(matchNativeV1Route("notifications/clear"), { kind: "notifications-clear" });
+    assert.deepEqual(matchNativeV1Route("notifications/n1"), {
+      kind: "notifications",
+      notificationId: "n1",
+    });
     assert.deepEqual(matchNativeV1Route("links/request"), { kind: "links-request" });
     assert.deepEqual(matchNativeV1Route("links/remove"), { kind: "links-remove" });
   });
@@ -43,8 +50,18 @@ describe("native social routes (auth + methods)", () => {
     assert.equal(methodAllowed({ kind: "links-search" }, "GET"), true);
     assert.equal(methodAllowed({ kind: "notes-granted" }, "GET"), true);
     assert.equal(methodAllowed({ kind: "notifications" }, "GET"), true);
+    assert.equal(methodAllowed({ kind: "notifications", notificationId: "n1" }, "DELETE"), true);
     assert.equal(methodAllowed({ kind: "notifications-summary" }, "GET"), true);
     assert.equal(methodAllowed({ kind: "notifications-read" }, "POST"), true);
+    assert.equal(methodAllowed({ kind: "notifications-clear" }, "POST"), true);
+  });
+
+  it("ships delete/clear notification helpers used by Alerts", () => {
+    assert.match(socialSrc, /export async function deleteNotificationForUser/);
+    assert.match(socialSrc, /export async function clearNotificationsForUser/);
+    assert.match(clientSrc, /func deleteNotification\(id:/);
+    assert.match(clientSrc, /func clearNotifications\(/);
+    assert.match(clientSrc, /notifications\/clear/);
   });
 
   it("ships removeLinkForUser that deletes the pair for both users", () => {

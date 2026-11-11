@@ -416,6 +416,9 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
 
     if (route.kind === "notifications") {
       const social = await import("./v1-social.server");
+      if (route.notificationId) {
+        return respond(await social.deleteNotificationForUser(user.id, route.notificationId));
+      }
       const url = new URL(request.url);
       const cursor = url.searchParams.get("cursor");
       const limit = clampNotificationLimit(url.searchParams.get("limit"));
@@ -441,6 +444,11 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
       const id = typeof payload.id === "string" && payload.id.trim() ? payload.id.trim() : undefined;
       const social = await import("./v1-social.server");
       return respond(await social.markNotificationsReadForUser(user.id, id));
+    }
+
+    if (route.kind === "notifications-clear") {
+      const social = await import("./v1-social.server");
+      return respond(await social.clearNotificationsForUser(user.id));
     }
 
     if (route.kind === "speakers") {

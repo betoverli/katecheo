@@ -136,6 +136,70 @@ final class NotificationsCenterTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(MockNativeURLProtocol.readBodies.count, 2)
     }
 
+    func testViewModel_deleteNotification_optimisticAndPersists() async throws {
+        MockNativeURLProtocol.notificationsJSON = Self.page1Payload
+        MockNativeURLProtocol.notificationsDeleteJSON = ##"{"ok":true,"deleted":true}"##
+        let vm = NotificationsCenterViewModel()
+        await vm.loadInitial()
+        XCTAssertEqual(vm.items.count, 2)
+        XCTAssertEqual(vm.unreadCount, 3)
+        XCTAssertEqual(KCNotificationsBadge.unreadCount, 3)
+
+        let ok = await vm.deleteNotification(id: "n1")
+        XCTAssertTrue(ok)
+        XCTAssertEqual(vm.items.map(\.id), ["n2"])
+        XCTAssertEqual(vm.unreadCount, 2)
+        XCTAssertEqual(KCNotificationsBadge.unreadCount, 2)
+        XCTAssertEqual(MockNativeURLProtocol.deletedNotificationIds, ["n1"])
+    }
+
+    func testViewModel_deleteNotification_rollsBackOnError() async {
+        MockNativeURLProtocol.notificationsJSON = Self.page1Payload
+        MockNativeURLProtocol.notificationsDeleteJSON = nil // mock miss → 404
+        let vm = NotificationsCenterViewModel()
+        await vm.loadInitial()
+        let before = vm.items
+        let unreadBefore = vm.unreadCount
+
+        let ok = await vm.deleteNotification(id: "n1")
+        XCTAssertFalse(ok)
+        XCTAssertEqual(vm.items.map(\.id), before.map(\.id))
+        XCTAssertEqual(vm.unreadCount, unreadBefore)
+        XCTAssertEqual(KCNotificationsBadge.unreadCount, unreadBefore)
+    }
+
+    func testViewModel_clearAll_optimisticAndPersists() async {
+        MockNativeURLProtocol.notificationsJSON = Self.page1Payload
+        MockNativeURLProtocol.notificationsClearJSON = ##"{"ok":true}"##
+        let vm = NotificationsCenterViewModel()
+        await vm.loadInitial()
+        XCTAssertFalse(vm.items.isEmpty)
+
+        let ok = await vm.clearAll()
+        XCTAssertTrue(ok)
+        XCTAssertTrue(vm.items.isEmpty)
+        XCTAssertEqual(vm.unreadCount, 0)
+        XCTAssertNil(KCNotificationsBadge.displayText)
+        XCTAssertEqual(MockNativeURLProtocol.clearNotificationsHits, 1)
+        XCTAssertTrue(vm.showsEmpty)
+    }
+
+    func testViewModel_clearAll_rollsBackOnError() async {
+        MockNativeURLProtocol.notificationsJSON = Self.page1Payload
+        MockNativeURLProtocol.notificationsClearJSON = nil
+        let vm = NotificationsCenterViewModel()
+        await vm.loadInitial()
+        let beforeCount = vm.items.count
+        let unreadBefore = vm.unreadCount
+
+        // Force a failure by leaving clear fixture nil — first clear hits 404.
+        let ok = await vm.clearAll()
+        XCTAssertFalse(ok)
+        XCTAssertEqual(vm.items.count, beforeCount)
+        XCTAssertEqual(vm.unreadCount, unreadBefore)
+        XCTAssertEqual(KCNotificationsBadge.unreadCount, unreadBefore)
+    }
+
     func testViewModel_errorState_thenRetry() async {
         MockNativeURLProtocol.notificationsJSON = nil
         let vm = NotificationsCenterViewModel()
@@ -189,9 +253,22 @@ final class NotificationsCenterTests: XCTestCase {
         vc.loadViewIfNeeded()
         await vc.testing_viewModel.loadInitial()
         XCTAssertEqual(vc.title, String(localized: "Avisos"))
-        XCTAssertEqual(vc.navigationItem.rightBarButtonItem?.title, String(localized: "Marcar todas como lidas"))
+        let rightTitles = vc.navigationItem.rightBarButtonItems?.compactMap(\.title) ?? []
+        XCTAssertEqual(vc.testing_markAllButton?.title, String(localized: "Marcar todas como lidas"))
+        XCTAssertEqual(vc.testing_clearAllButton?.title, String(localized: "Limpar tudo"))
+        XCTAssertTrue(rightTitles.contains(String(localized: "Marcar todas como lidas")))
+        XCTAssertTrue(rightTitles.contains(String(localized: "Limpar tudo")))
+        XCTAssertTrue(vc.testing_clearAllButton?.isEnabled == true)
         XCTAssertGreaterThan(vc.testing_tableView.numberOfSections, 0)
         XCTAssertEqual(vc.testing_viewModel.items.count, 2)
+
+        // Swipe-to-delete is available on every row (read or unread).
+        let deleteConfig = vc.tableView(
+            vc.testing_tableView,
+            trailingSwipeActionsConfigurationForRowAt: IndexPath(row: 0, section: 0)
+        )
+        XCTAssertEqual(deleteConfig?.actions.first?.accessibilityLabel, String(localized: "Excluir"))
+        XCTAssertEqual(deleteConfig?.actions.first?.style, .destructive)
         window.isHidden = true
     }
 
