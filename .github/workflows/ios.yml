@@ -81,7 +81,7 @@ jobs:
           set -e
           # KatecheoTests write PNGs inside the Simulator app sandbox — harvest even on failure.
           # Per-pattern finds (no shared head) so b238 is not crowded out by older tf/b234 PNGs.
-          for pat in 'tf222-*.png' 'tab-bg-*.png' 'b234-*.png' 'b238-*.png'; do
+          for pat in 'tf222-*.png' 'tab-bg-*.png' 'b234-*.png' 'b238-*.png' 'confirm-*.png'; do
             find \
               "${HOME}/Library/Developer/CoreSimulator" \
               "${RUNNER_TEMP}/katecheo-ios" \
@@ -120,6 +120,13 @@ jobs:
         with:
           name: build-238-feedback
           path: artifacts/b238-*.png
+          if-no-files-found: error
+      - name: Upload confirmation dialog screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: confirmation-dialogs
+          path: artifacts/confirm-*.png
           if-no-files-found: error
 
   testflight:

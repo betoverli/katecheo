@@ -348,17 +348,16 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
                 }
             }
         })
-        if let pop = alert.popoverPresentationController {
-            if let source {
-                pop.sourceView = source
-                pop.sourceRect = source.bounds
-            } else {
-                pop.sourceView = tableView
-                pop.sourceRect = tableView.rectForRow(at: indexPath)
-            }
-            pop.permittedArrowDirections = [.up, .down]
+        if let source {
+            KCConfirmation.presentActionSheet(alert, from: self, sourceView: source, sourceRect: source.bounds)
+        } else {
+            KCConfirmation.presentActionSheet(
+                alert,
+                from: self,
+                sourceView: tableView,
+                sourceRect: tableView.rectForRow(at: indexPath)
+            )
         }
-        present(alert, animated: true)
     }
 
     @objc private func presentSignInTapped() {

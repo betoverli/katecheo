@@ -584,6 +584,18 @@ enum NativeAPIClient {
         }
     }
 
+    /// Unfriend — deletes the accepted link for both users (+ shared grants).
+    static func removeLink(handle: String) async throws {
+        struct Body: Encodable { let handle: String }
+        let body = try JSONEncoder().encode(Body(handle: handle))
+        let request = try authorizedRequest(path: "api/native/v1/links/remove", method: "POST", body: body)
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+    }
+
     /// Web `requestLink` — by @handle. Errors: missing / limit / rate (no user enumeration beyond web).
     @discardableResult
     static func requestLink(handle: String) async throws -> String {

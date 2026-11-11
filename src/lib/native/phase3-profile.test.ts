@@ -57,7 +57,27 @@ describe("Phase 3 native Profile UI", () => {
     assert.match(profile, /getMe/);
     assert.match(profile, /signOut/);
     assert.match(profile, /deleteAccount/);
+    assert.match(profile, /KCConfirmation\.presentActionSheet/);
+    assert.match(profile, /String\(localized:\s*"Sair"\)/);
+    assert.doesNotMatch(profile, /popoverPresentationController/);
     assert.doesNotMatch(profile, /utilizador|Terminar sessão|Gerir |Activa|Definições/);
+  });
+
+  it("ships KCConfirmation helper and Friends redesign (list-first, inline actions)", () => {
+    const confirmation = read("ios/App/Katecheo/KCConfirmation.swift");
+    assert.match(confirmation, /needsPopoverAnchor/);
+    assert.match(confirmation, /presentActionSheet/);
+    assert.match(confirmation, /horizontalSizeClass == \.regular/);
+    const friends = read("ios/App/Katecheo/FriendsActivityViewController.swift");
+    assert.match(friends, /incomingAccessory/);
+    assert.match(friends, /Remover amigo/);
+    assert.match(friends, /removeLink/);
+    assert.match(friends, /KCConfirmation\.presentActionSheet/);
+    assert.doesNotMatch(friends, /Nenhum pedido pendente/);
+    assert.doesNotMatch(friends, /popoverPresentationController/);
+    const project = read("ios/App/Katecheo.xcodeproj/project.pbxproj");
+    assert.match(project, /KCConfirmation\.swift in Sources/);
+    assert.match(project, /ConfirmationDialogTests\.swift in Sources/);
   });
 
   it("ships edit + theme + language + bible + notify screens", () => {

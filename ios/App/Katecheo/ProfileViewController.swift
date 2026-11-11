@@ -440,7 +440,7 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
             preferredStyle: .actionSheet
         )
         alert.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
-        alert.addAction(UIAlertAction(title: String(localized: "Sair da conta"), style: .destructive) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: String(localized: "Sair"), style: .destructive) { [weak self] _ in
             Task { @MainActor in
                 await NativeLoginService.shared.signOut()
                 NotificationCenter.default.post(name: .nativeSessionDidChange, object: nil)
@@ -450,11 +450,14 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
                 self?.presentSignIn()
             }
         })
-        if let pop = alert.popoverPresentationController {
-            pop.sourceView = tableView
-            pop.sourceRect = tableView.bounds
-        }
-        present(alert, animated: true)
+        let indexPath = IndexPath(row: AccountRow.signOut.rawValue, section: Section.account.rawValue)
+        let rect = tableView.rectForRow(at: indexPath)
+        KCConfirmation.presentActionSheet(
+            alert,
+            from: self,
+            sourceView: tableView,
+            sourceRect: rect.isEmpty ? nil : rect
+        )
     }
 
     private func exportData() {
@@ -464,11 +467,14 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
                 let url = FileManager.default.temporaryDirectory.appendingPathComponent("katecheo-dados.json")
                 try data.write(to: url, options: .atomic)
                 let activity = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-                if let pop = activity.popoverPresentationController {
-                    pop.sourceView = tableView
-                    pop.sourceRect = tableView.bounds
-                }
-                present(activity, animated: true)
+                let indexPath = IndexPath(row: AccountRow.exportData.rawValue, section: Section.account.rawValue)
+                let rect = tableView.rectForRow(at: indexPath)
+                KCConfirmation.presentActivity(
+                    activity,
+                    from: self,
+                    sourceView: tableView,
+                    sourceRect: rect.isEmpty ? nil : rect
+                )
             } catch {
                 presentError(error.localizedDescription)
             }
@@ -485,11 +491,14 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
         alert.addAction(UIAlertAction(title: String(localized: "Excluir conta"), style: .destructive) { [weak self] _ in
             self?.performDeleteAccount()
         })
-        if let pop = alert.popoverPresentationController {
-            pop.sourceView = tableView
-            pop.sourceRect = tableView.bounds
-        }
-        present(alert, animated: true)
+        let indexPath = IndexPath(row: AccountRow.deleteAccount.rawValue, section: Section.account.rawValue)
+        let rect = tableView.rectForRow(at: indexPath)
+        KCConfirmation.presentActionSheet(
+            alert,
+            from: self,
+            sourceView: tableView,
+            sourceRect: rect.isEmpty ? nil : rect
+        )
     }
 
     private func performDeleteAccount() {

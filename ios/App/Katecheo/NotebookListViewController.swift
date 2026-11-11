@@ -577,8 +577,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 }
             }
         })
-        anchorActionSheet(alert, from: source, at: indexPath)
-        present(alert, animated: true)
+        presentActionSheet(alert, from: source, at: indexPath)
     }
 
     private func confirmDelete(
@@ -611,21 +610,21 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 }
             }
         })
-        anchorActionSheet(alert, from: source, at: indexPath)
-        present(alert, animated: true)
+        presentActionSheet(alert, from: source, at: indexPath)
     }
 
-    /// iPhone: standard action sheet. iPad: popover anchored to the swiped row/action.
-    private func anchorActionSheet(_ alert: UIAlertController, from source: UIView?, at indexPath: IndexPath) {
-        guard let pop = alert.popoverPresentationController else { return }
+    /// iPhone: bottom action sheet. iPad: popover anchored to the swiped row/action.
+    private func presentActionSheet(_ alert: UIAlertController, from source: UIView?, at indexPath: IndexPath) {
         if let source {
-            pop.sourceView = source
-            pop.sourceRect = source.bounds
+            KCConfirmation.presentActionSheet(alert, from: self, sourceView: source, sourceRect: source.bounds)
         } else {
-            pop.sourceView = tableView
-            pop.sourceRect = tableView.rectForRow(at: indexPath)
+            KCConfirmation.presentActionSheet(
+                alert,
+                from: self,
+                sourceView: tableView,
+                sourceRect: tableView.rectForRow(at: indexPath)
+            )
         }
-        pop.permittedArrowDirections = [.up, .down]
     }
 
     private func share(_ note: NativeAPIClient.NoteDocument, from source: UIView) {
@@ -633,11 +632,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
         let text = note.preview
         let url = NativeAPIClient.baseURL.appendingPathComponent("n/\(note.id)")
         let vc = UIActivityViewController(activityItems: [title, text, url], applicationActivities: nil)
-        if let pop = vc.popoverPresentationController {
-            pop.sourceView = source
-            pop.sourceRect = source.bounds
-        }
-        present(vc, animated: true)
+        KCConfirmation.presentActivity(vc, from: self, sourceView: source, sourceRect: source.bounds)
     }
 
     @objc private func composeNote() {
@@ -709,10 +704,11 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             }
         }
         sheet.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
-        if let pop = sheet.popoverPresentationController {
-            pop.barButtonItem = navigationItem.rightBarButtonItems?.last
-        }
-        present(sheet, animated: true)
+        KCConfirmation.presentActionSheet(
+            sheet,
+            from: self,
+            barButtonItem: navigationItem.rightBarButtonItems?.last
+        )
     }
 
     private func promptRenameGroup() {
@@ -762,10 +758,11 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 }
             }
         })
-        if let pop = alert.popoverPresentationController {
-            pop.barButtonItem = navigationItem.rightBarButtonItems?.last
-        }
-        present(alert, animated: true)
+        KCConfirmation.presentActionSheet(
+            alert,
+            from: self,
+            barButtonItem: navigationItem.rightBarButtonItems?.last
+        )
     }
 
 
@@ -811,10 +808,11 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
         let url = NativeAPIClient.baseURL.appendingPathComponent("groups/\(group.id)")
         let text = String(format: String(localized: "Entre no grupo «%@» no Katecheo"), group.name)
         let vc = UIActivityViewController(activityItems: [text, url], applicationActivities: nil)
-        if let pop = vc.popoverPresentationController {
-            pop.barButtonItem = navigationItem.rightBarButtonItems?.last
-        }
-        present(vc, animated: true)
+        KCConfirmation.presentActivity(
+            vc,
+            from: self,
+            barButtonItem: navigationItem.rightBarButtonItems?.last
+        )
     }
 
     private func noteIncludesSpeaker(_ note: NativeAPIClient.NoteDocument, speakerId: String?) -> Bool {
@@ -856,10 +854,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             })
         }
         sheet.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
-        if let pop = sheet.popoverPresentationController {
-            pop.sourceView = filterChips
-        }
-        present(sheet, animated: true)
+        KCConfirmation.presentActionSheet(sheet, from: self, sourceView: filterChips)
     }
 
     private func presentSpeakerFilter() {
@@ -879,10 +874,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             })
         }
         sheet.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
-        if let pop = sheet.popoverPresentationController {
-            pop.sourceView = filterChips
-        }
-        present(sheet, animated: true)
+        KCConfirmation.presentActionSheet(sheet, from: self, sourceView: filterChips)
     }
 
     /// Button / selector entry — must not overload `showSignIn(auto:)` (Swift `#selector` ambiguity).

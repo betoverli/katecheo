@@ -358,10 +358,7 @@ final class VerseActionsViewController: UITableViewController {
             var items: [Any] = [text]
             if let url { items.append(url) }
             let vc = UIActivityViewController(activityItems: items, applicationActivities: nil)
-            if let pop = vc.popoverPresentationController {
-                pop.sourceView = tableView
-            }
-            present(vc, animated: true)
+            KCConfirmation.presentActivity(vc, from: self, sourceView: tableView)
         }
     }
 
@@ -435,10 +432,7 @@ final class VerseActionsViewController: UITableViewController {
                     self?.promptNewList()
                 })
                 sheet.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
-                if let pop = sheet.popoverPresentationController {
-                    pop.sourceView = tableView
-                }
-                present(sheet, animated: true)
+                KCConfirmation.presentActionSheet(sheet, from: self, sourceView: tableView)
             } catch {
                 presentAlert(title: String(localized: "Listas"), message: error.localizedDescription)
             }

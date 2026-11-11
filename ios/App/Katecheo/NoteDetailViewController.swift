@@ -470,10 +470,11 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
             self?.confirmDelete()
         })
         sheet.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
-        if let pop = sheet.popoverPresentationController {
-            pop.barButtonItem = navigationItem.rightBarButtonItems?.first
-        }
-        present(sheet, animated: true)
+        KCConfirmation.presentActionSheet(
+            sheet,
+            from: self,
+            barButtonItem: navigationItem.rightBarButtonItems?.first
+        )
     }
 
     private func moveToGroup() {
@@ -500,10 +501,11 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
                     })
                 }
                 sheet.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
-                if let pop = sheet.popoverPresentationController {
-                    pop.barButtonItem = navigationItem.rightBarButtonItems?.first
-                }
-                present(sheet, animated: true)
+                KCConfirmation.presentActionSheet(
+                    sheet,
+                    from: self,
+                    barButtonItem: navigationItem.rightBarButtonItems?.first
+                )
             } catch {
                 presentBriefAlert(error.localizedDescription)
             }
@@ -583,10 +585,11 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         let title = note.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? String(localized: "Reunião") : note.title
         let url = NativeAPIClient.baseURL.appendingPathComponent("n/\(note.id)")
         let vc = UIActivityViewController(activityItems: [title, note.preview, url], applicationActivities: nil)
-        if let pop = vc.popoverPresentationController {
-            pop.barButtonItem = navigationItem.rightBarButtonItems?.first
-        }
-        present(vc, animated: true)
+        KCConfirmation.presentActivity(
+            vc,
+            from: self,
+            barButtonItem: navigationItem.rightBarButtonItems?.first
+        )
     }
 
     private func confirmDelete() {
@@ -609,9 +612,10 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
                 }
             }
         })
-        if let pop = alert.popoverPresentationController {
-            pop.barButtonItem = navigationItem.rightBarButtonItems?.first
-        }
-        present(alert, animated: true)
+        KCConfirmation.presentActionSheet(
+            alert,
+            from: self,
+            barButtonItem: navigationItem.rightBarButtonItems?.first
+        )
     }
 }

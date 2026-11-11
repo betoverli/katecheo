@@ -931,9 +931,52 @@ if (!project.includes("VersesHomeViewController.swift in Sources") || !project.i
 }
 
 try {
+  const confirmation = read("ios/App/Katecheo/KCConfirmation.swift");
+  if (!confirmation.includes("needsPopoverAnchor") || !confirmation.includes("presentActionSheet")) {
+    errors.push("KCConfirmation tem de apresentar action sheets sem popover no iPhone.");
+  }
+  if (!project.includes("KCConfirmation.swift in Sources")) {
+    errors.push("KCConfirmation.swift tem de estar no target Xcode.");
+  }
+  if (!project.includes("ConfirmationDialogTests.swift in Sources")) {
+    errors.push("ConfirmationDialogTests têm de estar no target.");
+  }
+  const friends = read("ios/App/Katecheo/FriendsActivityViewController.swift");
+  if (!friends.includes("KCConfirmation.presentActionSheet")) {
+    errors.push("Friends tem de usar KCConfirmation para confirmações nativas.");
+  }
+  if (!friends.includes("incomingAccessory") || !friends.includes("Remover amigo") || !friends.includes("removeLink")) {
+    errors.push("Friends tem de ter Aceitar/Recusar inline, Remover amigo e removeLink.");
+  }
+  if (friends.includes("Nenhum pedido pendente") || friends.includes("Pedidos só saem da lista")) {
+    errors.push("Friends não pode mostrar empty states verbosos de pedidos vazios.");
+  }
+  for (const rel of [
+    "ios/App/Katecheo/ProfileViewController.swift",
+    "ios/App/Katecheo/FriendsActivityViewController.swift",
+    "ios/App/Katecheo/NotebookListViewController.swift",
+    "ios/App/Katecheo/NoteDetailViewController.swift",
+    "ios/App/Katecheo/GroupsListViewController.swift",
+    "ios/App/Katecheo/GroupMembersViewController.swift",
+    "ios/App/Katecheo/ReadingScreens.swift",
+    "ios/App/Katecheo/VersesScreens.swift",
+  ]) {
+    const src = read(rel);
+    if (src.includes("popoverPresentationController")) {
+      errors.push(`${rel} não pode configurar popoverPresentationController diretamente (usar KCConfirmation).`);
+    }
+  }
+} catch (err) {
+  errors.push(`Falha na auditoria de confirmações: ${err instanceof Error ? err.message : String(err)}`);
+}
+
+try {
   const profile = read("ios/App/Katecheo/ProfileViewController.swift");
   if (!profile.includes("Sair da conta") || !(profile.includes("Apagar conta") || profile.includes("Excluir conta")) || !profile.includes("getMe")) {
     errors.push("ProfileViewController tem de mostrar perfil, sair da conta e excluir conta.");
+  }
+  if (!profile.includes("KCConfirmation.presentActionSheet") || !profile.includes('String(localized: "Sair")')) {
+    errors.push("Sign out tem de usar KCConfirmation + botão destrutivo «Sair».");
   }
   const settings = read("ios/App/Katecheo/ProfileSettingsScreens.swift");
   if (
@@ -1065,8 +1108,8 @@ try {
     errors.push("AppAppearance tem de persistir keepEditorInLightMode (build-238).");
   }
   const notebook = read("ios/App/Katecheo/NotebookListViewController.swift");
-  if (!notebook.includes("anchorActionSheet") || !notebook.includes("rectForRow")) {
-    errors.push("Confirmação de exclusão de nota tem de ancorar no row/swipe (build-238).");
+  if (!notebook.includes("KCConfirmation.presentActionSheet") || !notebook.includes("rectForRow")) {
+    errors.push("Confirmação de exclusão de nota tem de ancorar no row/swipe via KCConfirmation (build-238).");
   }
   const groups = read("ios/App/Katecheo/GroupsListViewController.swift");
   if (!groups.includes("rectForRow") && !groups.includes("source.bounds")) {
@@ -1108,9 +1151,15 @@ try {
   if (!api.includes("links/request") || !api.includes("links/search") || !api.includes("notifications/summary")) {
     errors.push("NativeAPIClient tem de chamar links/request, links/search e notifications/summary (build-238 limits).");
   }
+  if (!api.includes("links/remove") || !api.includes("func removeLink")) {
+    errors.push("NativeAPIClient tem de chamar links/remove (unfriend).");
+  }
   const friends = read("ios/App/Katecheo/FriendsActivityViewController.swift");
   if (!friends.includes("acceptLink") || !friends.includes("declineLink") || !friends.includes("requestLink")) {
     errors.push("Amigos tem de pedir/aceitar/recusar via API nativa (build-238).");
+  }
+  if (!friends.includes("removeLink") || !friends.includes("incomingAccessory")) {
+    errors.push("Amigos tem de ter Aceitar/Recusar inline e removeLink (unfriend).");
   }
   const push = read("ios/App/Katecheo/NativePushService.swift");
   if (push.includes("ingestPush") && !push.includes("handlePushHint") && !push.includes("refreshFromServer")) {

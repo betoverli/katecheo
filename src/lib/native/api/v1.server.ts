@@ -393,6 +393,7 @@ export function nativeV1Catalog() {
       { method: "POST", path: "/links/request", auth: true, body: "{ handle }" },
       { method: "POST", path: "/links/accept", auth: true, body: "{ handle }" },
       { method: "POST", path: "/links/decline", auth: true, body: "{ handle }", note: "also cancels outgoing" },
+      { method: "POST", path: "/links/remove", auth: true, body: "{ handle }", note: "unfriend both sides + grants" },
       {
         method: "GET",
         path: "/notifications",
