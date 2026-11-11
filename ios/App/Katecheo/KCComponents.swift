@@ -93,6 +93,9 @@ final class KCEmptyStateView: UIView {
         actionTitle: String? = nil,
         action: (() -> Void)? = nil
     ) {
+        // Empty/error states must be static — clear any leftover loading spin
+        // (Avisos empty icon was left rotating after showLoading → show).
+        stopIconAnimation()
         iconView.image = UIImage(systemName: symbol)
         titleLabel.text = title
         messageLabel.text = message
@@ -120,8 +123,8 @@ final class KCEmptyStateView: UIView {
 
     func showLoading(message: String = String(localized: "Carregando…")) {
         show(symbol: "arrow.triangle.2.circlepath", title: message, message: "")
-        // Gentle pulse while loading.
-        iconView.layer.removeAnimation(forKey: "spin")
+        // One-shot loading spinner only — cleared again by show()/hide().
+        stopIconAnimation()
         let spin = CABasicAnimation(keyPath: "transform.rotation.z")
         spin.fromValue = 0
         spin.toValue = CGFloat.pi * 2
@@ -131,10 +134,20 @@ final class KCEmptyStateView: UIView {
     }
 
     func hide() {
-        iconView.layer.removeAnimation(forKey: "spin")
+        stopIconAnimation()
         isHidden = true
         alpha = 1
         transform = .identity
+    }
+
+    /// Test/read hook — true while the loading spin is attached.
+    var testing_isIconSpinning: Bool {
+        iconView.layer.animation(forKey: "spin") != nil
+    }
+
+    private func stopIconAnimation() {
+        iconView.layer.removeAnimation(forKey: "spin")
+        iconView.layer.transform = CATransform3DIdentity
     }
 
     @objc private func tapAction() {

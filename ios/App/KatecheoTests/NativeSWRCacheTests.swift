@@ -295,11 +295,18 @@ final class MockNativeURLProtocol: URLProtocol {
     static var notificationsDeleteJSON: String?
     static var notificationsClearJSON: String?
     static var providersJSON: String?
+    static var groupNotesJSON: String?
+    static var groupNotesETag: String?
+    static var groupNotesStatus: Int?
+    static var groupJSON: String?
     static var artificialDelayMs: UInt64 = 0
     private(set) static var readBodies: [[String: Any]] = []
     private(set) static var deletedNotificationIds: [String] = []
     private(set) static var clearNotificationsHits = 0
     private(set) static var notificationsListHits = 0
+    private(set) static var groupNotesHits = 0
+    private(set) static var lastIfNoneMatch: String?
+    private(set) static var lastUpdatedSince: String?
     private static var registered = false
 
     static func register() {
@@ -336,11 +343,18 @@ final class MockNativeURLProtocol: URLProtocol {
         notificationsDeleteJSON = nil
         notificationsClearJSON = nil
         providersJSON = nil
+        groupNotesJSON = nil
+        groupNotesETag = nil
+        groupNotesStatus = nil
+        groupJSON = nil
         artificialDelayMs = 0
         readBodies = []
         deletedNotificationIds = []
         clearNotificationsHits = 0
         notificationsListHits = 0
+        groupNotesHits = 0
+        lastIfNoneMatch = nil
+        lastUpdatedSince = nil
     }
 
     static func makeSession() -> URLSession {
@@ -418,16 +432,43 @@ final class MockNativeURLProtocol: URLProtocol {
             }
         } else if path.contains("/auth/providers") {
             body = Self.providersJSON
+        } else if path.range(of: #"/groups/[^/]+/notes$"#, options: .regularExpression) != nil, method == "GET" {
+            Self.groupNotesHits += 1
+            Self.lastIfNoneMatch = request.value(forHTTPHeaderField: "If-None-Match")
+            Self.lastUpdatedSince = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?
+                .queryItems?
+                .first(where: { $0.name == "updatedSince" })?
+                .value
+            body = Self.groupNotesJSON
+        } else if path.range(of: #"/groups/[^/]+$"#, options: .regularExpression) != nil, method == "GET" {
+            body = Self.groupJSON
         }
 
         // Missing fixture → 404 (don't hit the real network / don't look like success).
-        let status = body == nil ? 404 : 200
-        let data = (body ?? ##"{"ok":false,"error":"mock_miss"}"##).data(using: .utf8)!
+        var status = body == nil ? 404 : 200
+        if path.range(of: #"/groups/[^/]+/notes$"#, options: .regularExpression) != nil,
+           method == "GET",
+           let override = Self.groupNotesStatus
+        {
+            status = override
+        }
+        let data: Data
+        if status == 304 {
+            data = Data()
+        } else {
+            data = (body ?? ##"{"ok":false,"error":"mock_miss"}"##).data(using: .utf8)!
+        }
+        var headers: [String: String] = ["Content-Type": "application/json"]
+        if let etag = Self.groupNotesETag,
+           path.range(of: #"/groups/[^/]+/notes$"#, options: .regularExpression) != nil
+        {
+            headers["ETag"] = etag
+        }
         let response = HTTPURLResponse(
             url: request.url!,
             statusCode: status,
             httpVersion: nil,
-            headerFields: ["Content-Type": "application/json"]
+            headerFields: headers
         )!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
 

@@ -289,6 +289,8 @@ enum NativeAPIClient {
     struct GroupNotesResponse: Decodable {
         let ok: Bool?
         let notes: [GroupNoteCardDTO]?
+        /// When true, `notes` is a delta since `updatedSince` — merge into cache.
+        let incremental: Bool?
         let error: String?
     }
 
@@ -416,13 +418,19 @@ enum NativeAPIClient {
     }
 
     private static func perform(_ request: URLRequest) async throws -> (Int, Data) {
+        let (status, data, _) = try await performDetailed(request)
+        return (status, data)
+    }
+
+    private static func performDetailed(_ request: URLRequest) async throws -> (Int, Data, HTTPURLResponse?) {
         if let path = request.url?.path {
             NativeSWR.recordNetworkHit(path)
         }
         do {
             let (data, response) = try await session.data(for: request)
-            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-            return (status, data)
+            let http = response as? HTTPURLResponse
+            let status = http?.statusCode ?? 0
+            return (status, data, http)
         } catch {
             // katecheo.app is the only API host — no legacy-domain retry.
             _ = AppSite.considerFallback(after: error, for: request.url)
@@ -906,17 +914,90 @@ enum NativeAPIClient {
         NativeSWR.invalidate(.groups)
     }
 
-    static func listGroupNotes(groupId: String) async throws -> [GroupNoteCardDTO] {
-        let request = try authorizedRequest(path: "api/native/v1/groups/\(groupId)/notes", method: "GET")
-        let (status, data) = try await perform(request)
+    /// Group notes with on-device SWR (~30s throttle), ETag/304, and optional `updatedSince`.
+    /// Pull-to-refresh passes `force: true`. Cache is keyed by signed-in user + group id.
+    static func listGroupNotes(groupId: String, force: Bool = false) async throws -> [GroupNoteCardDTO] {
+        let userId = LocalSessionCache.loadMe()?.id ?? ""
+        return try await NativeSWR.fetch(
+            key: .groupNotes(groupId),
+            ttl: NativeSWR.TTL.groupNotes,
+            force: force,
+            loadDisk: { LocalGroupNotesCache.load(userId: userId, groupId: groupId) },
+            saveDisk: { notes in
+                let etag = LocalGroupNotesCache.etag(userId: userId, groupId: groupId)
+                LocalGroupNotesCache.save(userId: userId, groupId: groupId, notes: notes, etag: etag)
+            },
+            network: { try await listGroupNotesUncached(groupId: groupId, force: force) }
+        )
+    }
+
+    private static func listGroupNotesUncached(groupId: String, force: Bool) async throws -> [GroupNoteCardDTO] {
+        let userId = LocalSessionCache.loadMe()?.id ?? ""
+        let cachedEntry = LocalGroupNotesCache.loadEntry(userId: userId, groupId: groupId)
+        var query: [URLQueryItem] = []
+        // Conditional: ask only for notes newer than the cached watermark (server may still
+        // return the full list; client merges by note id).
+        if !force, let since = cachedEntry.flatMap({ entry -> String? in
+            entry.notes.map(\.note.updatedAt).max()
+        }), !since.isEmpty {
+            query.append(URLQueryItem(name: "updatedSince", value: since))
+        }
+
+        var request = try authorizedRequest(
+            path: "api/native/v1/groups/\(groupId)/notes",
+            method: "GET",
+            query: query
+        )
+        if !force, let etag = cachedEntry?.etag, !etag.isEmpty {
+            request.setValue(etag, forHTTPHeaderField: "If-None-Match")
+        }
+
+        let (status, data, http) = try await performDetailed(request)
         try throwIfUnauthorized(status)
+
+        // Unchanged — keep disk cache, refresh SWR freshness.
+        if status == 304, let cached = cachedEntry?.notes {
+            return cached
+        }
+
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
         guard let decoded = try? JSONDecoder().decode(GroupNotesResponse.self, from: data),
-              let notes = decoded.notes
+              let remote = decoded.notes
         else { throw APIError.decoding }
-        return notes
+
+        let merged: [GroupNoteCardDTO]
+        if decoded.incremental == true, let prior = cachedEntry?.notes {
+            merged = mergeGroupNotes(prior: prior, delta: remote)
+        } else {
+            merged = remote
+        }
+
+        let responseEtag = http?.value(forHTTPHeaderField: "ETag")
+        LocalGroupNotesCache.save(
+            userId: userId,
+            groupId: groupId,
+            notes: merged,
+            etag: responseEtag ?? cachedEntry?.etag
+        )
+        return merged
+    }
+
+    /// Merge incremental group-note deltas into the prior cache (by note id), newest first.
+    static func mergeGroupNotes(
+        prior: [GroupNoteCardDTO],
+        delta: [GroupNoteCardDTO]
+    ) -> [GroupNoteCardDTO] {
+        var byId: [String: GroupNoteCardDTO] = [:]
+        for card in prior { byId[card.note.id] = card }
+        for card in delta { byId[card.note.id] = card }
+        return byId.values.sorted { lhs, rhs in
+            if lhs.note.happenedAt != rhs.note.happenedAt {
+                return lhs.note.happenedAt > rhs.note.happenedAt
+            }
+            return lhs.note.updatedAt > rhs.note.updatedAt
+        }
     }
 
     static func publishNote(noteId: String, toGroupId groupId: String) async throws {
@@ -928,6 +1009,7 @@ enum NativeAPIClient {
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
+        NativeSWR.invalidate(.groupNotes(groupId))
     }
 
     static func unpublishNote(noteId: String, fromGroupId groupId: String) async throws {
@@ -936,6 +1018,19 @@ enum NativeAPIClient {
         try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        NativeSWR.invalidate(.groupNotes(groupId))
+        if let userId = LocalSessionCache.loadMe()?.id {
+            // Drop the removed card from disk so next open doesn't flash a ghost row.
+            if var cached = LocalGroupNotesCache.load(userId: userId, groupId: groupId) {
+                cached.removeAll { $0.note.id == noteId }
+                LocalGroupNotesCache.save(
+                    userId: userId,
+                    groupId: groupId,
+                    notes: cached,
+                    etag: nil
+                )
+            }
         }
     }
 

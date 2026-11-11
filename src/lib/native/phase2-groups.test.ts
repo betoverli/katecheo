@@ -64,6 +64,25 @@ describe("Phase 2 native Groups UI", () => {
     assert.match(notebook, /Renomear grupo/);
     assert.match(notebook, /Excluir grupo|Apagar grupo/);
     assert.match(notebook, /publishNote/);
+    assert.match(notebook, /LocalGroupNotesCache/);
+  });
+
+  it("caches group notes on device with conditional GET support", () => {
+    const cache = read("ios/App/Katecheo/LocalGroupNotesCache.swift");
+    assert.match(cache, /clearAll/);
+    assert.match(cache, /userId/);
+    assert.match(cache, /groupId/);
+    const client = read("ios/App/Katecheo/NativeAPIClient.swift");
+    assert.match(client, /If-None-Match/);
+    assert.match(client, /updatedSince/);
+    assert.match(client, /mergeGroupNotes/);
+    const groups = read("src/lib/native/api/v1-groups.server.ts");
+    assert.match(groups, /groupNotesEtag|updatedSince/);
+    assert.match(read("src/lib/native/api/group-notes-etag.ts"), /groupNotesEtag/);
+    assert.match(groups, /updatedSince/);
+    const http = read("src/lib/native/api/v1-http.ts");
+    assert.match(http, /if-none-match/i);
+    assert.match(http, /304/);
   });
 
   it("moves a note to a group from the note ⋯ menu", () => {

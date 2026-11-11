@@ -24,22 +24,25 @@ final class NotificationsCenterViewController: UIViewController, UITableViewDele
             KCChrome.style(navigationController: nav)
         }
 
+        // Compact SF Symbol buttons — text labels overflow the trailing nav on iPhone.
         let markAll = UIBarButtonItem(
-            title: String(localized: "Marcar todas como lidas"),
+            image: UIImage(systemName: "checkmark.circle"),
             style: .plain,
             target: self,
             action: #selector(markAllTapped)
         )
         markAll.accessibilityLabel = String(localized: "Marcar todas como lidas")
+        markAll.accessibilityIdentifier = "notifications.markAllRead"
         markAllButton = markAll
 
         let clearAll = UIBarButtonItem(
-            title: String(localized: "Limpar tudo"),
+            image: UIImage(systemName: "trash"),
             style: .plain,
             target: self,
             action: #selector(clearAllTapped)
         )
         clearAll.accessibilityLabel = String(localized: "Limpar tudo")
+        clearAll.accessibilityIdentifier = "notifications.clearAll"
         clearAll.tintColor = KCDesign.danger
         clearAllButton = clearAll
 
