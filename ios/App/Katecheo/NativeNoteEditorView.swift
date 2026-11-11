@@ -66,6 +66,10 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         )
         textView.alwaysBounceVertical = true
         textView.keyboardDismissMode = .interactive
+        // Keyboard / accessory insets are applied manually in `applyKeyboard` —
+        // never let the system add a second bottom inset on top (that makes
+        // `scrollRangeToVisible` pin the caret line to the top of the viewport).
+        textView.contentInsetAdjustmentBehavior = .never
         textView.adjustsFontForContentSizeCategory = true
         textView.allowsEditingTextAttributes = true
         textView.tintColor = KCDesign.accent
@@ -355,15 +359,47 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         tagsStrip.frame = CGRect(x: inset.left + 5, y: y, width: width, height: height)
     }
 
+    /// Keep the caret on-screen with the smallest possible contentOffset change.
+    /// Never use `scrollRangeToVisible` here: with a large keyboard+accessory
+    /// `contentInset.bottom` it pins the caret line to the top of the viewport
+    /// and leaves a blank gap above the toolbar (Enter / Backspace jump).
     private func scrollCaretVisible(animated: Bool) {
-        guard textView.isFirstResponder else { return }
-        let range = textView.selectedRange
+        guard textView.isFirstResponder || testing_forceCaretScroll else { return }
+        applyMinimalCaretScroll(animated: animated)
+    }
+
+    /// Test seam: allow caret-scroll without first responder (AppTests host).
+    var testing_forceCaretScroll = false
+
+    private func applyMinimalCaretScroll(animated: Bool) {
+        textView.layoutManager.ensureLayout(for: textView.textContainer)
+        textView.layoutIfNeeded()
+
+        guard let selected = textView.selectedTextRange else { return }
+        let caret = textView.caretRect(for: selected.start)
+        guard caret.origin.x.isFinite, caret.origin.y.isFinite, caret.height.isFinite, !caret.isNull else { return }
+
+        let insets = textView.adjustedContentInset
+        let targetY = NoteEditorCaretScroll.contentOffsetY(
+            caretRectInBounds: caret,
+            boundsHeight: textView.bounds.height,
+            contentInset: insets,
+            contentSizeHeight: textView.contentSize.height,
+            currentOffsetY: textView.contentOffset.y
+        )
+        let current = textView.contentOffset
+        guard abs(targetY - current.y) > 0.5 else { return }
+
+        let next = CGPoint(x: current.x, y: targetY)
+        let apply = {
+            self.textView.setContentOffset(next, animated: false)
+        }
         if animated {
-            textView.scrollRangeToVisible(range)
-        } else {
-            UIView.performWithoutAnimation {
-                textView.scrollRangeToVisible(range)
+            UIView.animate(withDuration: 0.2, delay: 0, options: [.beginFromCurrentState, .allowUserInteraction]) {
+                apply()
             }
+        } else {
+            UIView.performWithoutAnimation(apply)
         }
     }
 
@@ -442,9 +478,9 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         emitChange()
         refreshSpeakerRails()
         refreshPlaceholders()
+        _ = textView.becomeFirstResponder()
         refreshEditingChrome()
         scrollCaretVisible(animated: true)
-        _ = textView.becomeFirstResponder()
     }
 
     /// Reassign the catalog speaker for an existing section (header is not typed text).
@@ -1826,6 +1862,72 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     func testing_refreshAttachmentAppearances() {
         refreshAttachmentAppearances()
     }
+
+    func testing_contentOffset() -> CGPoint {
+        textView.contentOffset
+    }
+
+    func testing_setContentOffset(_ offset: CGPoint) {
+        textView.setContentOffset(offset, animated: false)
+    }
+
+    func testing_contentSize() -> CGSize {
+        textView.layoutManager.ensureLayout(for: textView.textContainer)
+        textView.layoutIfNeeded()
+        return textView.contentSize
+    }
+
+    func testing_boundsHeight() -> CGFloat {
+        textView.bounds.height
+    }
+
+    func testing_contentInset() -> UIEdgeInsets {
+        textView.contentInset
+    }
+
+    /// Simulate keyboard + accessory bottom inset without posting notifications.
+    func testing_setKeyboardBottomInset(_ bottom: CGFloat) {
+        keyboardOverlap = max(0, bottom)
+        let accessoryPad: CGFloat = bottom > 0 ? KCDesign.Space.md : 0
+        textView.contentInset.bottom = bottom + accessoryPad
+        textView.verticalScrollIndicatorInsets.bottom = bottom + accessoryPad
+        textView.textContainerInset.bottom = baseBottomInset + (bottom > 0 ? KCDesign.Space.sm : 0)
+        textView.layoutIfNeeded()
+    }
+
+    func testing_scrollCaretVisible(animated: Bool = false) {
+        let previous = testing_forceCaretScroll
+        testing_forceCaretScroll = true
+        defer { testing_forceCaretScroll = previous }
+        applyMinimalCaretScroll(animated: animated)
+    }
+
+    func testing_caretRectInBounds() -> CGRect {
+        textView.layoutManager.ensureLayout(for: textView.textContainer)
+        textView.layoutIfNeeded()
+        guard let selected = textView.selectedTextRange else { return .null }
+        return textView.caretRect(for: selected.start)
+    }
+
+    /// Delete backward one character/selection the way the keyboard does (Backspace).
+    func testing_deleteBackward() {
+        var range = textView.selectedRange
+        if range.length == 0 {
+            guard range.location > 0 else { return }
+            range = NSRange(location: range.location - 1, length: 1)
+        }
+        let allowed = textView(textView, shouldChangeTextIn: range, replacementText: "")
+        guard allowed else { return }
+        textView.textStorage.replaceCharacters(in: range, with: "")
+        textView.selectedRange = NSRange(location: range.location, length: 0)
+        textView.typingAttributes = typingAttributesForCaret()
+        textViewDidChange(textView)
+    }
+
+    @discardableResult
+    func testing_becomeFirstResponder() -> Bool {
+        textView.becomeFirstResponder()
+    }
 }
 
 extension NativeNoteEditorView: UIGestureRecognizerDelegate {
@@ -1861,6 +1963,44 @@ extension NoteDocumentCodec {
         speakers: [String: NativeAPIClient.SpeakerDTO]
     ) -> [NSAttributedString.Key: Any] {
         baseAttributes(type: type, id: id, checked: checked, speakerId: speakerId, speakers: speakers)
+    }
+}
+
+// MARK: - Caret scroll (unit-tested)
+
+/// Minimal contentOffset math so Enter/Backspace never pin the caret line to the
+/// top of the viewport (the `UITextView.scrollRangeToVisible` + keyboard inset bug).
+enum NoteEditorCaretScroll {
+    /// `caretRectInBounds` is UITextView's caret rect (view coordinates, not content).
+    static func contentOffsetY(
+        caretRectInBounds: CGRect,
+        boundsHeight: CGFloat,
+        contentInset: UIEdgeInsets,
+        contentSizeHeight: CGFloat,
+        currentOffsetY: CGFloat,
+        padding: CGFloat = 4
+    ) -> CGFloat {
+        let minOffset = -contentInset.top
+        let maxOffset = max(minOffset, contentSizeHeight - boundsHeight + contentInset.bottom)
+
+        // Visible band inside the text view frame, above the keyboard/accessory inset.
+        let visibleTop = contentInset.top + padding
+        let visibleBottom = boundsHeight - contentInset.bottom - padding
+
+        var target = currentOffsetY
+        let caretTop = caretRectInBounds.minY
+        let caretBottom = caretRectInBounds.maxY
+
+        if caretBottom > visibleBottom {
+            // Caret below the usable area — scroll down just enough.
+            target = currentOffsetY + (caretBottom - visibleBottom)
+        } else if caretTop < visibleTop {
+            // Caret above the usable area — scroll up just enough.
+            target = currentOffsetY + (caretTop - visibleTop)
+        }
+        // else: already visible — preserve contentOffset (then clamp for shrinks).
+
+        return min(max(target, minOffset), maxOffset)
     }
 }
 

@@ -1182,6 +1182,18 @@ if (!project.includes("NativeNoteEditorTF219Tests.swift in Sources")) {
 if (!project.includes("NativeNoteEditorTF222Tests.swift in Sources")) {
   errors.push("AppTests TF222 (NativeNoteEditorTF222Tests) têm de estar no target.");
 }
+if (!project.includes("NativeNoteEditorCaretScrollTests.swift in Sources")) {
+  errors.push("AppTests de scroll do caret (NativeNoteEditorCaretScrollTests) têm de estar no target.");
+}
+{
+  const editorSrc = read("ios/App/Katecheo/NativeNoteEditorView.swift");
+  if (!editorSrc.includes("NoteEditorCaretScroll") || !editorSrc.includes("contentInsetAdjustmentBehavior = .never")) {
+    errors.push("NativeNoteEditorView tem de usar NoteEditorCaretScroll + contentInsetAdjustmentBehavior.never (sem scrollRangeToVisible no caret).");
+  }
+  if (/scrollCaretVisible[\s\S]{0,400}scrollRangeToVisible/.test(editorSrc)) {
+    errors.push("scrollCaretVisible não pode chamar scrollRangeToVisible (jump Enter/Backspace).");
+  }
+}
 if (!project.includes("Build234FeedbackTests.swift in Sources")) {
   errors.push("AppTests Build234 (Build234FeedbackTests) têm de estar no target.");
 }
