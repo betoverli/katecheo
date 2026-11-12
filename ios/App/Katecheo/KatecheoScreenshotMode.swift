@@ -81,14 +81,16 @@ enum KatecheoScreenshotMode {
         NativeSWR.markFetched(.speakers, value: speakers)
         NativeSWR.markFetched(.groups, value: groups)
         NativeSWR.markFetched(.granted, value: [NativeAPIClient.NoteDocument]())
+        NativeSWR.saveGranted([])
+        NativeSWR.savePrefs(me.prefs)
         if let editor = notes.first(where: { $0.id == editorNoteId }) {
             NativeSWR.markFetched(
                 .note(editorNoteId),
                 value: NativeAPIClient.NotePack(note: editor, speakers: speakers, via: "owned")
             )
         }
-
-        AppAppearance.sync(from: me.prefs)
+        // Appearance is applied from LocalSessionCache in AppDelegate / SceneDelegate
+        // (avoid calling @MainActor AppAppearance from this nonisolated bootstrap).
     }
 
     /// After the window root is the tab shell, jump to the requested marketing scene.
