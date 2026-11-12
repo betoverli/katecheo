@@ -67,6 +67,14 @@ final class NativeRootTabBarController: UITabBarController {
     }
 
     @objc private func refreshActivityDots() {
+        // App Store screenshots: clean tab bar (no activity dots).
+        if KatecheoScreenshotMode.isEnabled {
+            applyDot(at: 0, on: false, label: "")
+            applyDot(at: 1, on: false, label: "")
+            applyDot(at: 2, on: false, label: "")
+            applyDot(at: 3, on: false, label: "")
+            return
+        }
         applyDot(at: 0, on: KCActivityStore.notebookDot, label: String(localized: "Caderno com itens não lidos"))
         applyDot(at: 1, on: KCActivityStore.groupsDot, label: String(localized: "Grupos com atividade não lida"))
         applyDot(at: 2, on: KCActivityStore.toolsDot, label: String(localized: "Ferramentas com leitura pendente"))

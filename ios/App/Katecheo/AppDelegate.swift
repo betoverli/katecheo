@@ -6,10 +6,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        // Screenshot fixtures must arm before any session/network work (launch-arg only).
+        KatecheoScreenshotMode.prepareIfNeeded()
         KCChrome.applyAppWide()
         // Seed Appearance from cache early so SceneDelegate windows inherit the right style.
         AppAppearance.syncFromCacheAndApply()
-        NativePushService.shared.configure()
+        if !KatecheoScreenshotMode.isEnabled {
+            NativePushService.shared.configure()
+        }
         return true
     }
 

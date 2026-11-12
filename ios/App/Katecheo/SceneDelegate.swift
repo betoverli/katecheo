@@ -19,7 +19,13 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // Apply saved Appearance BEFORE the first frame (TF219) — never force system.
         AppAppearance.syncFromCacheAndApply()
         AppAppearance.apply(to: window)
-        window.rootViewController = AppRoot.makeRootViewController()
+        if KatecheoScreenshotMode.isEnabled {
+            // Marketing shots: skip onboarding and land on the native shell with fixtures.
+            OnboardingStore.markSeen()
+            window.rootViewController = AppRoot.makeMainShell()
+        } else {
+            window.rootViewController = AppRoot.makeRootViewController()
+        }
         window.makeKeyAndVisible()
         self.window = window
 
@@ -31,6 +37,11 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
         // Re-assert after the window is key (covers late scene attachment).
         AppAppearance.apply(to: window)
+
+        if KatecheoScreenshotMode.isEnabled {
+            KatecheoScreenshotMode.presentSceneIfNeeded(in: window)
+            return
+        }
 
         // Existing Cap users: cookie → Keychain, then one-time localStorage import.
         // Must stay on main — WebKit data-store / importer init off-main crashes.
@@ -112,6 +123,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     func sceneDidBecomeActive(_ scene: UIScene) {
         // Keep Appearance on every window (sheets / late scene windows) — TF219.
         AppAppearance.apply(to: window)
+        if KatecheoScreenshotMode.isEnabled { return }
         Task { @MainActor in
             await NativeOutbox.flushIfPossible()
             // Debounced unless TTL elapsed (push path forces separately).

@@ -1,0 +1,142 @@
+name: iOS App Store screenshots
+
+# Manual only — never runs on PR/push, never archives or uploads builds.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref to capture (branch, tag, or SHA). Empty = the ref you dispatch from.
+        required: false
+        type: string
+
+jobs:
+  screenshots:
+    name: Capture App Store screenshots
+    runs-on: macos-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Dependências
+        run: npm ci
+
+      - name: Xcode com SDK do iOS 26
+        run: node scripts/select-xcode.mjs
+
+      - name: Verificar o projeto
+        run: npm run ios:check
+
+      - name: Capture screenshots (iPhone 16 Pro Max + iPhone 16 Pro)
+        env:
+          SCREENSHOT_ROOT: ${{ runner.temp }}/appstore-screenshots
+        run: |
+          set -euo pipefail
+          mkdir -p "$SCREENSHOT_ROOT"
+
+          pick_udid() {
+            local preferred="$1"
+            node -e '
+              const preferred = process.argv[1];
+              const {execSync} = require("child_process");
+              const data = JSON.parse(execSync("xcrun simctl list devices available -j", {encoding:"utf8"}));
+              const found = [];
+              for (const [runtime, devices] of Object.entries(data.devices || {})) {
+                if (!/iOS|iPhone/i.test(runtime)) continue;
+                for (const d of devices) {
+                  if (d.isAvailable && String(d.name || "") === preferred) {
+                    found.push({ name: d.name, udid: d.udid, runtime });
+                  }
+                }
+              }
+              // Prefer the newest runtime when duplicates exist.
+              found.sort((a, b) => String(b.runtime).localeCompare(String(a.runtime)));
+              if (!found[0]) {
+                console.error("Simulator not available: " + preferred);
+                process.exit(1);
+              }
+              process.stdout.write(found[0].udid);
+            ' "$preferred"
+          }
+
+          override_status_bar() {
+            local udid="$1"
+            xcrun simctl bootstatus "$udid" -b >/dev/null
+            # Clean App Store chrome: 9:41, full battery, clear cellular bars.
+            xcrun simctl status_bar "$udid" override \
+              --time "9:41" \
+              --dataNetwork wifi \
+              --wifiBars 3 \
+              --cellularMode active \
+              --cellularBars 4 \
+              --operatorName "" \
+              --batteryState charged \
+              --batteryLevel 100 \
+              --batteryMode none || true
+          }
+
+          DEVICES=(
+            "iPhone 16 Pro Max|iphone-16-pro-max|1320x2868"
+            "iPhone 16 Pro|iphone-16-pro|1206x2622"
+          )
+          LOCALES=(pt-BR en es)
+
+          DERIVED="${RUNNER_TEMP}/katecheo-ios-screenshots"
+          mkdir -p "$DERIVED"
+
+          for entry in "${DEVICES[@]}"; do
+            IFS='|' read -r DEVICE_NAME DEVICE_SLUG DEVICE_SIZE <<< "$entry"
+            echo "::group::Device $DEVICE_NAME ($DEVICE_SIZE)"
+            UDID="$(pick_udid "$DEVICE_NAME")"
+            echo "UDID=$UDID"
+            xcrun simctl boot "$UDID" 2>/dev/null || true
+            override_status_bar "$UDID"
+            DEST="platform=iOS Simulator,id=$UDID"
+
+            for LOCALE in "${LOCALES[@]}"; do
+              echo "Capturing locale=$LOCALE device=$DEVICE_SLUG"
+              export SCREENSHOT_OUTPUT_DIR="$SCREENSHOT_ROOT"
+              export SCREENSHOT_LOCALE="$LOCALE"
+              export SCREENSHOT_DEVICE_SLUG="$DEVICE_SLUG"
+              xcodebuild \
+                -project ios/App/Katecheo.xcodeproj \
+                -scheme Katecheo \
+                -configuration Debug \
+                -sdk iphonesimulator \
+                -destination "$DEST" \
+                -derivedDataPath "$DERIVED" \
+                -parallel-testing-enabled NO \
+                -only-testing:KatecheoScreenshotTests/KatecheoScreenshotTests/testCaptureAppStoreScenes \
+                CODE_SIGNING_ALLOWED=NO \
+                CODE_SIGNING_REQUIRED=NO \
+                CODE_SIGN_IDENTITY="" \
+                DEVELOPMENT_TEAM="" \
+                test
+            done
+
+            xcrun simctl status_bar "$UDID" clear 2>/dev/null || true
+            echo "::endgroup::"
+          done
+
+          echo "Tree:"
+          find "$SCREENSHOT_ROOT" -type f -name '*.png' | sort
+          COUNT="$(find "$SCREENSHOT_ROOT" -type f -name '*.png' | wc -l | tr -d ' ')"
+          # 2 devices × 3 locales × 5 scenes = 30
+          if [ "$COUNT" -lt 30 ]; then
+            echo "Expected at least 30 PNGs, found $COUNT"
+            exit 1
+          fi
+
+      - name: Upload appstore-screenshots artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: appstore-screenshots
+          path: ${{ runner.temp }}/appstore-screenshots/
+          if-no-files-found: error
+          retention-days: 30
