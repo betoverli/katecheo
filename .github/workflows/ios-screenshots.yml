@@ -5,6 +5,8 @@ name: iOS App Store screenshots
 # before it exists on the default branch (GitHub only lists dispatchable
 # workflows that are already on the default branch). Safe: does not feed
 # into signing / TestFlight jobs.
+# After #105: captures include speaker-gap + bible preview label fixes,
+# then compose-appstore-screenshots.py adds localized marketing captions.
 on:
   workflow_dispatch:
     inputs:
