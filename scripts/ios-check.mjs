@@ -576,12 +576,29 @@ if (!codec.includes("listMarkerWidth") || !codec.includes("titleTagsReservedSpac
 try {
   const api = read("ios/App/Katecheo/NativeAPIClient.swift");
   const spanIdx = api.indexOf("private func spanText");
-  const spanText = spanIdx >= 0 ? api.slice(spanIdx, spanIdx + 450) : "";
-  if (!spanText.includes('span.type == "bibleRef"') || !spanText.includes("return nil")) {
-    errors.push("NativeAPIClient.preview/spanText tem de saltar bibleRef (só texto plano).");
+  const spanText = spanIdx >= 0 ? api.slice(spanIdx, spanIdx + 650) : "";
+  if (
+    !spanText.includes('span.type == "bibleRef"') ||
+    !api.includes("bibleRefPreviewLabel") ||
+    !spanText.includes("bibleRefPreviewLabel")
+  ) {
+    errors.push("NativeAPIClient.preview/spanText tem de renderizar bibleRef como rótulo legível (não saltar).");
+  }
+  if (spanText.includes("return nil") && !api.includes("bibleRefPreviewLabel")) {
+    errors.push("NativeAPIClient.preview não pode saltar bibleRef sem rótulo.");
   }
 } catch {
   errors.push("Falta NativeAPIClient.swift");
+}
+try {
+  const noteRowSource = read("ios/App/Katecheo/KCComponents.swift");
+  const noteRowIdx = noteRowSource.indexOf("func configure(title: String, subtitle: String, tags: [String], speakerName");
+  const noteRow = noteRowIdx >= 0 ? noteRowSource.slice(noteRowIdx, noteRowIdx + 1800) : "";
+  if (!noteRow.includes("removeArrangedSubview(speakerPill)") || !noteRow.includes("insertArrangedSubview(speakerPill")) {
+    errors.push("KCNoteRowCell tem de remover/inserir speakerPill no metaRow (evitar gap com isHidden).");
+  }
+} catch {
+  errors.push("Falta KCComponents.swift");
 }
 try {
   const cache = read("ios/App/Katecheo/LocalNoteCache.swift");
