@@ -24,6 +24,7 @@ import {
   groupMemberRoleSchema,
   groupNotePublishSchema,
   groupUpdateSchema,
+  contentReportSchema,
   handleBodySchema,
   mePatchSchema,
   notePatchSchema,
@@ -413,6 +414,39 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
       const url = new URL(request.url);
       const q = url.searchParams.get("q") ?? "";
       return respond({ ok: true, people: await social.searchPeopleForUser(user.id, q) });
+    }
+
+    if (route.kind === "report") {
+      const payload = await readAndParse(request, contentReportSchema, respond);
+      if (payload instanceof Response) return payload;
+      const moderation = await import("./v1-moderation.server");
+      const result = await moderation.reportContentForUser(user.id, payload);
+      if (!result.ok) {
+        const status =
+          result.error === "rate" ? 429 : result.error === "self" ? 400 : 400;
+        return respond(result, status);
+      }
+      return respond(result, 201);
+    }
+
+    if (route.kind === "blocks") {
+      const moderation = await import("./v1-moderation.server");
+      return respond({ ok: true, blocks: await moderation.listBlocksForUser(user.id) });
+    }
+
+    if (route.kind === "block") {
+      const moderation = await import("./v1-moderation.server");
+      if (method === "POST") {
+        const result = await moderation.blockUserForUser(user.id, route.userId);
+        if (!result.ok) {
+          const status =
+            result.error === "rate" ? 429 : result.error === "self" ? 400 : 404;
+          return respond(result, status);
+        }
+        return respond(result);
+      }
+      const result = await moderation.unblockUserForUser(user.id, route.userId);
+      return respond(result, result.ok ? 200 : result.error === "rate" ? 429 : 404);
     }
 
     if (

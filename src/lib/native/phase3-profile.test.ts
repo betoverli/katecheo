@@ -53,6 +53,8 @@ describe("Phase 3 native Profile UI", () => {
     const profile = read("ios/App/Katecheo/ProfileViewController.swift");
     assert.match(profile, /Contas conectadas/);
     assert.match(profile, /ConnectedIdentitiesViewController/);
+    assert.match(profile, /Usuários bloqueados/);
+    assert.match(profile, /BlockedUsersViewController/);
     assert.match(profile, /Sair da conta/);
     assert.match(profile, /Apagar conta|Excluir conta/);
     assert.match(profile, /Baixar meus dados/);

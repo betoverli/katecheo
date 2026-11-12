@@ -151,13 +151,14 @@ final class GroupMembersViewController: UIViewController, UITableViewDelegate, U
         config.imageProperties.tintColor = KCDesign.accent
         cell.contentConfiguration = config
         cell.backgroundColor = KCDesign.surface
-        cell.accessoryType = canManage(member) ? .disclosureIndicator : .none
+        cell.accessoryType = (member.userId != meId || canManage(member)) ? .disclosureIndicator : .none
         return cell
     }
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
         let member = members(in: indexPath.section)[indexPath.row]
+        if member.userId == meId, !canManage(member) { return }
         presentActions(for: member, at: indexPath)
     }
 
@@ -168,30 +169,44 @@ final class GroupMembersViewController: UIViewController, UITableViewDelegate, U
     }
 
     private func presentActions(for member: NativeAPIClient.GroupMemberDTO, at indexPath: IndexPath) {
-        guard canManage(member) else { return }
         let sheet = UIAlertController(title: member.displayName, message: nil, preferredStyle: .actionSheet)
-        if member.isPending, group.isAdmin {
-            sheet.addAction(UIAlertAction(title: String(localized: "Aceitar"), style: .default) { [weak self] _ in
-                self?.decide(member, accept: true)
-            })
-            sheet.addAction(UIAlertAction(title: String(localized: "Recusar"), style: .destructive) { [weak self] _ in
-                self?.decide(member, accept: false)
-            })
-        } else if group.isAdmin, member.userId != meId {
-            let roleTitle = member.isAdmin
-                ? String(localized: "Tornar membro")
-                : String(localized: "Tornar admin")
-            sheet.addAction(UIAlertAction(title: roleTitle, style: .default) { [weak self] _ in
-                self?.setRole(member, role: member.isAdmin ? "member" : "admin")
-            })
-            sheet.addAction(UIAlertAction(title: String(localized: "Remover do grupo"), style: .destructive) { [weak self] _ in
-                self?.remove(member)
-            })
-        } else if member.userId == meId {
-            sheet.addAction(UIAlertAction(title: String(localized: "Sair do grupo"), style: .destructive) { [weak self] _ in
-                self?.remove(member)
-            })
+        if member.userId != meId {
+            for action in ReportBlockSupport.personMenuActions(
+                userId: member.userId,
+                displayName: member.displayName,
+                host: self,
+                sourceView: tableView,
+                sourceRect: tableView.rectForRow(at: indexPath),
+                onBlocked: { [weak self] in self?.reload() }
+            ) {
+                sheet.addAction(action)
+            }
         }
+        if canManage(member) {
+            if member.isPending, group.isAdmin {
+                sheet.addAction(UIAlertAction(title: String(localized: "Aceitar"), style: .default) { [weak self] _ in
+                    self?.decide(member, accept: true)
+                })
+                sheet.addAction(UIAlertAction(title: String(localized: "Recusar"), style: .destructive) { [weak self] _ in
+                    self?.decide(member, accept: false)
+                })
+            } else if group.isAdmin, member.userId != meId {
+                let roleTitle = member.isAdmin
+                    ? String(localized: "Tornar membro")
+                    : String(localized: "Tornar admin")
+                sheet.addAction(UIAlertAction(title: roleTitle, style: .default) { [weak self] _ in
+                    self?.setRole(member, role: member.isAdmin ? "member" : "admin")
+                })
+                sheet.addAction(UIAlertAction(title: String(localized: "Remover do grupo"), style: .destructive) { [weak self] _ in
+                    self?.remove(member)
+                })
+            } else if member.userId == meId {
+                sheet.addAction(UIAlertAction(title: String(localized: "Sair do grupo"), style: .destructive) { [weak self] _ in
+                    self?.remove(member)
+                })
+            }
+        }
+        if sheet.actions.isEmpty, member.userId == meId { return }
         sheet.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
         KCConfirmation.presentActionSheet(
             sheet,

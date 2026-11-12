@@ -516,13 +516,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
         if isGroupMode {
             let card = filteredCards[indexPath.row]
             guard card.owned, let doc = card.document else {
-                let alert = UIAlertController(
-                    title: card.note.title.isEmpty ? String(localized: "Reunião") : card.note.title,
-                    message: String(localized: "Nota de \(card.author.displayName). Só o autor pode editar nesta tela nativa."),
-                    preferredStyle: .alert
-                )
-                alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
-                present(alert, animated: true)
+                presentGroupNoteActions(card, at: indexPath)
                 return
             }
             let detail = NoteDetailViewController(noteId: doc.id, initial: doc)
@@ -534,7 +528,13 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
         if isGranted {
             KCActivityStore.markSharedNoteOpened(note.id)
         }
-        let detail = NoteDetailViewController(noteId: note.id, initial: note, grantedReadOnly: isGranted)
+        let detail = NoteDetailViewController(
+            noteId: note.id,
+            initial: note,
+            grantedReadOnly: isGranted,
+            sharedAuthorUserId: nil,
+            sharedAuthorName: isGranted ? String(localized: "Nota compartilhada") : nil
+        )
         navigationController?.pushViewController(detail, animated: true)
     }
 
@@ -571,6 +571,81 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
 
     func tableView(
         _ tableView: UITableView,
+        contextMenuConfigurationForRowAt indexPath: IndexPath,
+        point: CGPoint
+    ) -> UIContextMenuConfiguration? {
+        if isGroupMode {
+            let card = filteredCards[indexPath.row]
+            guard !card.owned else { return nil }
+            return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { [weak self] _ in
+                guard let self else { return UIMenu(children: []) }
+                let report = UIAction(
+                    title: String(localized: "Denunciar"),
+                    image: UIImage(systemName: "exclamationmark.bubble")
+                ) { [weak self] _ in
+                    guard let self else { return }
+                    ReportBlockSupport.presentReport(
+                        target: .note(
+                            noteId: card.note.id,
+                            authorUserId: card.author.userId,
+                            authorName: card.author.displayName
+                        ),
+                        from: self,
+                        sourceView: self.tableView,
+                        sourceRect: self.tableView.rectForRow(at: indexPath)
+                    )
+                }
+                var children: [UIMenuElement] = [report]
+                if !card.author.userId.isEmpty {
+                    let block = UIAction(
+                        title: String(localized: "Bloquear"),
+                        image: UIImage(systemName: "hand.raised"),
+                        attributes: .destructive
+                    ) { [weak self] _ in
+                        guard let self else { return }
+                        ReportBlockSupport.confirmBlock(
+                            userId: card.author.userId,
+                            displayName: card.author.displayName,
+                            from: self,
+                            sourceView: self.tableView,
+                            sourceRect: self.tableView.rectForRow(at: indexPath)
+                        ) {
+                            self.groupCards.removeAll { $0.author.userId == card.author.userId }
+                            self.applyFilter()
+                        }
+                    }
+                    children.append(block)
+                }
+                return UIMenu(children: children)
+            }
+        }
+        let note = filtered[indexPath.row]
+        let isGranted = noteFilter == .shared || grantedNotes.contains(where: { $0.id == note.id })
+        guard isGranted else { return nil }
+        return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { [weak self] _ in
+            guard let self else { return UIMenu(children: []) }
+            let report = UIAction(
+                title: String(localized: "Denunciar"),
+                image: UIImage(systemName: "exclamationmark.bubble")
+            ) { [weak self] _ in
+                guard let self else { return }
+                ReportBlockSupport.presentReport(
+                    target: .note(
+                        noteId: note.id,
+                        authorUserId: nil,
+                        authorName: String(localized: "Nota compartilhada")
+                    ),
+                    from: self,
+                    sourceView: self.tableView,
+                    sourceRect: self.tableView.rectForRow(at: indexPath)
+                )
+            }
+            return UIMenu(children: [report])
+        }
+    }
+
+    func tableView(
+        _ tableView: UITableView,
         leadingSwipeActionsConfigurationForRowAt indexPath: IndexPath
     ) -> UISwipeActionsConfiguration? {
         if isGroupMode {
@@ -597,6 +672,50 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             done(true)
         }
         return UISwipeActionsConfiguration(actions: [share])
+    }
+
+    private func presentGroupNoteActions(_ card: NativeAPIClient.GroupNoteCardDTO, at indexPath: IndexPath) {
+        let title = card.note.title.isEmpty ? String(localized: "Reunião") : card.note.title
+        let sheet = UIAlertController(
+            title: title,
+            message: String(localized: "Nota de \(card.author.displayName). Só o autor pode editar nesta tela nativa."),
+            preferredStyle: .actionSheet
+        )
+        sheet.addAction(UIAlertAction(title: String(localized: "Denunciar"), style: .default) { [weak self] _ in
+            guard let self else { return }
+            ReportBlockSupport.presentReport(
+                target: .note(
+                    noteId: card.note.id,
+                    authorUserId: card.author.userId,
+                    authorName: card.author.displayName
+                ),
+                from: self,
+                sourceView: self.tableView,
+                sourceRect: self.tableView.rectForRow(at: indexPath)
+            )
+        })
+        if !card.author.userId.isEmpty {
+            sheet.addAction(UIAlertAction(title: String(localized: "Bloquear"), style: .destructive) { [weak self] _ in
+                guard let self else { return }
+                ReportBlockSupport.confirmBlock(
+                    userId: card.author.userId,
+                    displayName: card.author.displayName,
+                    from: self,
+                    sourceView: self.tableView,
+                    sourceRect: self.tableView.rectForRow(at: indexPath)
+                ) {
+                    self.groupCards.removeAll { $0.author.userId == card.author.userId }
+                    self.applyFilter()
+                }
+            })
+        }
+        sheet.addAction(UIAlertAction(title: String(localized: "OK"), style: .cancel))
+        KCConfirmation.presentActionSheet(
+            sheet,
+            from: self,
+            sourceView: tableView,
+            sourceRect: tableView.rectForRow(at: indexPath)
+        )
     }
 
     private func confirmUnpublish(

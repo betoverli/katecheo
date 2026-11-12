@@ -448,6 +448,16 @@ export function nativeV1Catalog() {
       { method: "POST", path: "/links/decline", auth: true, body: "{ handle }", note: "also cancels outgoing" },
       { method: "POST", path: "/links/remove", auth: true, body: "{ handle }", note: "unfriend both sides + grants" },
       {
+        method: "POST",
+        path: "/report",
+        auth: true,
+        body: "{ targetType: user|note|group, targetId, reason, details? }",
+        note: "UGC report → Neon + email contato@katecheo.app",
+      },
+      { method: "GET", path: "/blocks", auth: true, returns: "{ blocks: blocked users }" },
+      { method: "POST", path: "/block/:userId", auth: true, note: "block + unfriend + revoke grants" },
+      { method: "DELETE", path: "/block/:userId", auth: true, note: "unblock" },
+      {
         method: "GET",
         path: "/notifications",
         auth: true,

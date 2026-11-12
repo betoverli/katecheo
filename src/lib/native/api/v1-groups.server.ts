@@ -268,6 +268,9 @@ export async function listNotesInGroupForUser(
   const mine = await memberOf(sql, groupId, userId);
   if (mine?.status !== "accepted") return { ok: false, error: "forbidden" };
 
+  const { blockedIdsForUser } = await import("./v1-moderation.server");
+  const blocked = await blockedIdsForUser(userId, sql);
+
   const rows = await sql<
     NoteRow & {
       user_id: string;
@@ -287,7 +290,7 @@ export async function listNotesInGroupForUser(
     limit 80
   `;
 
-  const allNotes: NativeGroupNoteCard[] = rows.map((row) => {
+  const allNotes: NativeGroupNoteCard[] = rows.filter((row) => !blocked.has(row.user_id)).map((row) => {
     const owned = row.user_id === userId;
     const document = owned ? noteToDocument(noteFromRow(row) as LegacyNote) : null;
     const happened =

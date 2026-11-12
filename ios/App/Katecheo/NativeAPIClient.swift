@@ -207,6 +207,35 @@ enum NativeAPIClient {
         let status: String?
     }
 
+    struct BlockedPersonDTO: Codable, Equatable {
+        var userId: String
+        var handle: String
+        var firstName: String
+        var lastName: String
+        var avatarId: String
+        var avatarUrl: String
+        var blockedAt: String
+
+        var displayName: String {
+            let name = [firstName, lastName].filter { !$0.isEmpty }.joined(separator: " ")
+            if !name.isEmpty { return name }
+            if !handle.isEmpty { return "@\(handle)" }
+            return String(localized: "Usuário")
+        }
+    }
+
+    struct BlocksResponse: Decodable {
+        let ok: Bool?
+        let blocks: [BlockedPersonDTO]?
+        let error: String?
+    }
+
+    struct ReportResponse: Decodable {
+        let ok: Bool?
+        let id: String?
+        let error: String?
+    }
+
     struct SpeakersResponse: Decodable {
         let ok: Bool?
         let speakers: [SpeakerDTO]?
@@ -618,6 +647,60 @@ enum NativeAPIClient {
             throw APIError.http(status, err)
         }
         return decoded?.status ?? "outgoing"
+    }
+
+    static func reportContent(
+        targetType: String,
+        targetId: String,
+        reason: String,
+        details: String = ""
+    ) async throws {
+        struct Body: Encodable {
+            let targetType: String
+            let targetId: String
+            let reason: String
+            let details: String
+        }
+        let body = try JSONEncoder().encode(
+            Body(targetType: targetType, targetId: targetId, reason: reason, details: details)
+        )
+        let request = try authorizedRequest(path: "api/native/v1/report", method: "POST", body: body)
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+    }
+
+    static func blockUser(userId: String) async throws {
+        let request = try authorizedRequest(path: "api/native/v1/block/\(userId)", method: "POST")
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+    }
+
+    static func unblockUser(userId: String) async throws {
+        let request = try authorizedRequest(path: "api/native/v1/block/\(userId)", method: "DELETE")
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+    }
+
+    static func listBlockedUsers() async throws -> [BlockedPersonDTO] {
+        let request = try authorizedRequest(path: "api/native/v1/blocks", method: "GET")
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(BlocksResponse.self, from: data),
+              let blocks = decoded.blocks
+        else { throw APIError.decoding }
+        return blocks
     }
 
     static func searchPeople(query: String) async throws -> [PeopleHitDTO] {
