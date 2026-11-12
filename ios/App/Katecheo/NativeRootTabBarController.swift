@@ -3,6 +3,8 @@ import UIKit
 /// Root tabs: Caderno · Grupos · Ferramentas · Perfil.
 /// Leitura / Temas / Listas / Livros live under Ferramentas (Tools).
 final class NativeRootTabBarController: UITabBarController {
+    private var didScheduleSettingsGuide = false
+
     override func viewDidLoad() {
         super.viewDidLoad()
         KCChrome.styleScreen(view)
@@ -63,7 +65,57 @@ final class NativeRootTabBarController: UITabBarController {
             name: KCActivityStore.didChangeNotification,
             object: nil
         )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(sessionDidChange),
+            name: .nativeSessionDidChange,
+            object: nil
+        )
         refreshActivityDots()
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        presentSettingsGuideIfNeeded()
+    }
+
+    @objc private func sessionDidChange() {
+        presentSettingsGuideIfNeeded(forceSchedule: true)
+    }
+
+    /// Once per account/device after sign-in (also for existing TestFlight testers).
+    private func presentSettingsGuideIfNeeded(forceSchedule: Bool = false) {
+        guard NativeAPIClient.hasBearer else { return }
+        guard OnboardingStore.shouldShowSettingsGuide else { return }
+        if didScheduleSettingsGuide, !forceSchedule { return }
+
+        // Don't cover an active sign-in sheet — wait until the stack is clear.
+        var top: UIViewController = self
+        while let presented = top.presentedViewController { top = presented }
+        if top is NativeSignInViewController { return }
+        if let nav = top as? UINavigationController, nav.viewControllers.first is NativeSignInViewController {
+            return
+        }
+        if top is SettingsGuideViewController { return }
+
+        didScheduleSettingsGuide = true
+        // Let sign-in dismiss / first layout settle before presenting.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+            self?.presentSettingsGuideNow()
+        }
+    }
+
+    private func presentSettingsGuideNow() {
+        guard NativeAPIClient.hasBearer else { return }
+        guard OnboardingStore.shouldShowSettingsGuide else { return }
+        var top: UIViewController = self
+        while let presented = top.presentedViewController { top = presented }
+        if top is SettingsGuideViewController { return }
+        if top is NativeSignInViewController { return }
+
+        let guide = SettingsGuideViewController()
+        guide.modalPresentationStyle = .fullScreen
+        top.present(guide, animated: true)
     }
 
     @objc private func refreshActivityDots() {

@@ -2,7 +2,7 @@ import { BIBLE_APPS, appById, buildDeepLink } from "@/lib/bible/apps";
 import type { Locale } from "@/lib/bible/books";
 import { parseReference } from "@/lib/bible/parse";
 import { formatPassageById, type Passage } from "@/lib/bible/passage";
-import { DEFAULT_TRANSLATION, TRANSLATIONS, translationById } from "@/lib/bible/translations";
+import { normalizeTranslationId, translationById } from "@/lib/bible/translations";
 import { buildCopyPayload, buildListPayload } from "@/lib/copy-rich";
 import { allowRequest, clientKey } from "@/lib/rate-limit";
 import {
@@ -108,16 +108,12 @@ export function resolveLinks(query: LinkQuery): LinkResult {
     };
   }
 
-  if (query.translation && !TRANSLATIONS.some((item) => item.id === query.translation)) {
-    return {
-      ok: false,
-      error: `Unknown translation "${query.translation}".`,
-      usage: LINK_USAGE,
-    };
-  }
-
   const app = appById(query.app || "youversion");
-  const translation = translationById(query.translation || DEFAULT_TRANSLATION[locale]);
+  // Tolerate legacy numeric YouVersion ids stored in prefs (`"111"` → `niv`).
+  const translation = translationById(
+    normalizeTranslationId(query.translation, locale),
+    locale,
+  );
   const native = Boolean(query.native);
   const items: LinkItem[] = [];
 

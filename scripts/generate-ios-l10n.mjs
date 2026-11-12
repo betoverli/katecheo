@@ -633,6 +633,35 @@ const MANUAL = {
   "Páginas da introdução": ["Intro pages", "Páginas de la introducción"],
   "Página %lld de %lld": ["Page %lld of %lld", "Página %lld de %lld"],
 
+  // Post-sign-in settings guide
+  "Passo %lld de %lld": ["Step %lld of %lld", "Paso %lld de %lld"],
+  "Usa os padrões e continua": [
+    "Uses the defaults and continues",
+    "Usa los valores predeterminados y continúa",
+  ],
+  Continuar: ["Continue", "Continuar"],
+  Concluir: ["Done", "Listo"],
+  "Agora não": ["Not now", "Ahora no"],
+  "Ativar notificações": ["Enable notifications", "Activar notificaciones"],
+  "Escolha onde abrir as referências. Você pode mudar depois em Perfil.": [
+    "Choose where to open references. You can change this later in Profile.",
+    "Elige dónde abrir las referencias. Puedes cambiarlo después en Perfil.",
+  ],
+  "Usamos esta tradução nos links da Bíblia. Pode alterar a qualquer momento.": [
+    "We use this translation for Bible links. You can change it anytime.",
+    "Usamos esta traducción en los enlaces de la Biblia. Puedes cambiarla en cualquier momento.",
+  ],
+  "Avisos de planos de leitura, amigos, compartilhamentos e grupos. Você controla isso em Perfil.": [
+    "Alerts for reading plans, friends, shares, and groups. You control this in Profile.",
+    "Avisos de planes de lectura, amigos, compartidos y grupos. Lo controlas en Perfil.",
+  ],
+  "Não foi possível gerar o link agora. Tente de novo.": [
+    "Couldn’t generate the link right now. Try again.",
+    "No se pudo generar el enlace ahora. Inténtalo de nuevo.",
+  ],
+  "Link pronto": ["Link ready", "Enlace listo"],
+  "Conclui a configuração": ["Finishes setup", "Termina la configuración"],
+
   // Notification Center — delete / clear all
   "Limpar tudo": ["Clear all", "Borrar todo"],
   "Limpar todos os avisos?": ["Clear all alerts?", "¿Borrar todos los avisos?"],

@@ -387,10 +387,13 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
                     verseStart: ref.verseStart,
                     verseEnd: ref.verseEnd
                 )
+                let translationId = prefs.map {
+                    ProfileBibleCatalog.canonicalTranslationId($0.translationId, locale: $0.locale)
+                }
                 let link = try await NativeAPIClient.resolveBibleLink(
                     passage: passage,
                     appId: prefs?.appId,
-                    translationId: prefs?.translationId,
+                    translationId: translationId,
                     preferNative: prefs?.preferNative
                 )
                 guard let url = URL(string: link.url) else {
@@ -399,7 +402,10 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
                 }
                 await UIApplication.shared.open(url)
             } catch {
-                presentBriefAlert(String(localized: "Não abriu a Bíblia: \(error.localizedDescription)"))
+                #if DEBUG
+                print("[NoteDetail] openBibleRef failed: \(error)")
+                #endif
+                presentBriefAlert(String(localized: "Não foi possível gerar o link agora. Tente de novo."))
             }
         }
     }

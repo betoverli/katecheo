@@ -311,14 +311,24 @@ final class KCNoteRowCell: UITableViewCell {
         titleLabel.text = title
         subtitleLabel.text = subtitle
         subtitleLabel.isHidden = subtitle.isEmpty
+        // UIStackView often keeps reserved width when only toggling `isHidden` on an
+        // arranged subview that was already hidden (classic reuse bug → ~80pt gap).
+        // Remove the pill from the stack when absent so the subtitle aligns with the title.
         if let speakerName, !speakerName.isEmpty {
-            speakerPill.isHidden = false
+            if speakerPill.superview !== metaRow {
+                metaRow.insertArrangedSubview(speakerPill, at: 0)
+            }
+            if speakerPill.isHidden { speakerPill.isHidden = false }
             speakerPill.text = "  \(speakerName)  "
         } else {
-            speakerPill.isHidden = true
             speakerPill.text = nil
+            if !speakerPill.isHidden { speakerPill.isHidden = true }
+            if speakerPill.superview != nil {
+                metaRow.removeArrangedSubview(speakerPill)
+                speakerPill.removeFromSuperview()
+            }
         }
-        metaRow.isHidden = speakerPill.isHidden && subtitleLabel.isHidden
+        metaRow.isHidden = (speakerPill.superview == nil) && subtitleLabel.isHidden
         if tags.isEmpty {
             tagsLabel.isHidden = true
             tagsLabel.text = nil
@@ -335,11 +345,22 @@ final class KCNoteRowCell: UITableViewCell {
         subtitleLabel.text = nil
         subtitleLabel.isHidden = false
         speakerPill.text = nil
-        speakerPill.isHidden = true
+        if !speakerPill.isHidden { speakerPill.isHidden = true }
+        if speakerPill.superview != nil {
+            metaRow.removeArrangedSubview(speakerPill)
+            speakerPill.removeFromSuperview()
+        }
         tagsLabel.text = nil
         tagsLabel.isHidden = true
         metaRow.isHidden = false
     }
+
+    // MARK: - Testing hooks
+
+    var testing_titleLabel: UILabel { titleLabel }
+    var testing_subtitleLabel: UILabel { subtitleLabel }
+    var testing_speakerPill: UILabel { speakerPill }
+    var testing_speakerPillInMetaRow: Bool { speakerPill.superview === metaRow }
 }
 
 /// Group row with icon badge + warm surface.
