@@ -221,6 +221,10 @@ export async function notifySocial(
 ) {
   if (!actorId || !targetId || actorId === targetId) return;
   const sql = await getSql();
+  // Guideline 1.2: blocker must not see friend activity from a blocked user.
+  const { blockedIdsForUser } = await import("@/lib/native/api/v1-moderation.server");
+  const blocked = await blockedIdsForUser(targetId, sql);
+  if (blocked.has(actorId)) return;
   const locale = await userLocale(sql, targetId);
   const name = await actorName(sql, actorId, locale);
   await deliver(targetId, kind, locale, titleKey, bodyKey, { name, ...extra });
@@ -234,10 +238,13 @@ export async function notifyGroupNote(actorId: string, groupId: string, groupNam
     where group_id = ${groupId} and status = 'accepted' and user_id <> ${actorId}
   `;
   if (!members.length) return;
+  const { blockedIdsForUser } = await import("@/lib/native/api/v1-moderation.server");
   const locale = await userLocale(sql, members[0]!.user_id);
   const name = await actorName(sql, actorId, locale);
   const push = await allowRequest(`gnote-push:${groupId}`, 1, 15 * 60 * 1000);
   for (const member of members) {
+    const blocked = await blockedIdsForUser(member.user_id, sql);
+    if (blocked.has(actorId)) continue;
     const loc = await userLocale(sql, member.user_id);
     const who = loc === locale ? name : await actorName(sql, actorId, loc);
     await deliver(

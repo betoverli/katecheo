@@ -65,6 +65,9 @@ describe("native report & block (Guideline 1.2)", () => {
     assert.match(socialSrc, /isEitherBlocked/);
     assert.match(socialSrc, /blockedIdsForUser/);
     assert.match(groupsSrc, /blockedIdsForUser/);
+    const notifySrc = readFileSync(new URL("../../notify.server.ts", import.meta.url), "utf8");
+    assert.match(notifySrc, /blockedIdsForUser/);
+    assert.match(notifySrc, /if \(blocked\.has\(actorId\)\) return/);
   });
 
   it("ships iOS client + Report/Bloquear UI helpers", () => {
