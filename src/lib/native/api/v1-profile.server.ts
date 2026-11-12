@@ -6,6 +6,7 @@ import { isAvatarId } from "@/lib/avatars";
 import { appById } from "@/lib/bible/apps";
 import type { Locale } from "@/lib/bible/books";
 import type { CiteBook, CiteSep } from "@/lib/bible/passage";
+import { DEFAULT_TRANSLATION, normalizeTranslationId } from "@/lib/bible/translations";
 import type { CopyFormat } from "@/lib/copy-rich";
 import { getSql, withTransaction } from "@/lib/db";
 import { pictureFromJwt } from "@/lib/oauth-photo";
@@ -116,12 +117,12 @@ function cleanAvatarUrl(value: string) {
   return "";
 }
 
-function defaultPrefs(): NativePrefs {
+function defaultPrefs(locale: Locale = "pt"): NativePrefs {
   return {
-    locale: "pt",
-    copyLocale: "pt",
+    locale,
+    copyLocale: locale,
     appId: "youversion",
-    translationId: "111",
+    translationId: DEFAULT_TRANSLATION[locale],
     preferNative: true,
     copyFormat: "rich",
     citeBook: "name",
@@ -140,11 +141,12 @@ function defaultPrefs(): NativePrefs {
 }
 
 function fromRow(row: PrefsRow): NativePrefs {
+  const locale = asLocale(row.locale);
   return {
-    locale: asLocale(row.locale),
+    locale,
     copyLocale: asLocale(row.copy_locale || row.locale),
     appId: row.app_id,
-    translationId: row.translation_id,
+    translationId: normalizeTranslationId(row.translation_id, locale),
     preferNative: Boolean(row.prefer_native),
     copyFormat: asFormat(row.copy_format),
     citeBook: asCiteBook(row.cite_book),
@@ -279,11 +281,13 @@ export async function savePrefsForUser(
   const data = raw as Record<string, unknown>;
   const current = await getPrefsForUser(userId);
 
+  const locale = asLocale(pickString(data, "locale") ?? current.locale);
+  const rawTranslation = (pickString(data, "translationId") ?? current.translationId).slice(0, 40);
   const merged: NativePrefs = {
-    locale: asLocale(pickString(data, "locale") ?? current.locale),
+    locale,
     copyLocale: asLocale(pickString(data, "copyLocale") ?? current.copyLocale),
     appId: pickString(data, "appId") ?? current.appId,
-    translationId: (pickString(data, "translationId") ?? current.translationId).slice(0, 40),
+    translationId: normalizeTranslationId(rawTranslation, locale),
     preferNative: pickBool(data, "preferNative") ?? current.preferNative,
     copyFormat: asFormat(pickString(data, "copyFormat") ?? current.copyFormat),
     citeBook: asCiteBook(pickString(data, "citeBook") ?? current.citeBook),
@@ -318,9 +322,9 @@ export async function savePrefsForUser(
     [...new Set(merged.activePlans)].filter((id) => planById(id)).slice(0, 20),
   );
   const avatarId = isAvatarId(merged.avatarId) ? merged.avatarId : "book";
-  const locale = merged.locale;
   const copyLocale = merged.copyLocale || merged.locale;
   const appId = appById(merged.appId) ? merged.appId : "youversion";
+  const translationId = normalizeTranslationId(merged.translationId, locale);
   const copyFormat = merged.copyFormat;
   const citeBook = merged.citeBook;
   const citeSep = merged.citeSep;
@@ -336,7 +340,7 @@ export async function savePrefsForUser(
         user_id, locale, copy_locale, app_id, translation_id, prefer_native, copy_format, cite_book, cite_sep, books_compact, theme,
         active_plans, plan_progress, avatar_id, avatar_url, handle, first_name, last_name, email, updated_at
       ) values (
-        ${userId}, ${locale}, ${copyLocale}, ${appId}, ${merged.translationId}, ${Boolean(merged.preferNative)},
+        ${userId}, ${locale}, ${copyLocale}, ${appId}, ${translationId}, ${Boolean(merged.preferNative)},
         ${copyFormat}, ${citeBook}, ${citeSep}, ${Boolean(merged.booksCompact)}, ${theme}, ${active}, ${progress},
         ${avatarId}, ${avatarUrl}, ${handle}, ${firstName}, ${lastName}, ${profileEmail}, now()
       )

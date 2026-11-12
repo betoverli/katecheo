@@ -276,19 +276,31 @@ final class VerseActionsViewController: UITableViewController {
             if prefs == nil, NativeAPIClient.hasBearer {
                 prefs = try? await NativeAPIClient.getPrefs()
             }
+            // Never send a legacy numeric YouVersion id to the link API.
+            let translationId = prefs.map {
+                ProfileBibleCatalog.canonicalTranslationId($0.translationId, locale: $0.locale)
+            }
             linkItem = try await NativeAPIClient.resolveBibleLink(
                 passage: passage,
                 appId: prefs?.appId,
-                translationId: prefs?.translationId,
+                translationId: translationId,
                 preferNative: prefs?.preferNative
             )
             await MainActor.run {
                 statusLabel.text = linkItem?.url ?? String(localized: "Link pronto")
+                statusLabel.textColor = .secondaryLabel
                 tableView.reloadData()
             }
         } catch {
+            #if DEBUG
+            print("[VerseActions] resolveLink failed: \(error)")
+            #endif
             await MainActor.run {
-                statusLabel.text = String(localized: "Link indisponível: \(error.localizedDescription)")
+                // Friendly copy only — never surface raw HTTP/JSON to the user.
+                statusLabel.text = String(localized: "Não foi possível gerar o link agora. Tente de novo.")
+                statusLabel.textColor = .secondaryLabel
+                // Keep action rows usable (open/share will retry resolveLink).
+                tableView.reloadData()
             }
         }
     }

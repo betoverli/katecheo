@@ -31,8 +31,54 @@ enum ProfileBibleCatalog {
         ("rvr1960", "RVR1960"),
     ]
 
+    /// Legacy YouVersion numeric ids that may still be stored in prefs.
+    private static let youVersionToId: [String: String] = [
+        "129": "nvi-pt",
+        "211": "ntlh",
+        "1608": "arc",
+        "1840": "naa",
+        "212": "ara",
+        "111": "niv",
+        "59": "esv",
+        "1": "kjv",
+        "116": "nlt",
+        "114": "nkjv",
+        "100": "nasb",
+        "1713": "csb",
+        "206": "web",
+        "128": "rvr1960",
+        "103": "nvi-es",
+        "149": "ntv",
+    ]
+
     static func name(for appId: String) -> String {
         apps.first(where: { $0.id == appId })?.name ?? appId
+    }
+
+    /// Default translation slug for a device / prefs locale (`pt` / `en` / `es`).
+    static func defaultTranslationId(for locale: String = AppLocale.apiCode) -> String {
+        switch locale {
+        case "en": return "niv"
+        case "es": return "rvr1960"
+        default: return "nvi-pt"
+        }
+    }
+
+    /// Map a stored prefs value onto a known picker id (slug or legacy YouVersion number).
+    static func canonicalTranslationId(_ raw: String, locale: String = AppLocale.apiCode) -> String {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if translations.contains(where: { $0.id == trimmed }) { return trimmed }
+        if let mapped = youVersionToId[trimmed] {
+            // Prefer a picker-listed id; otherwise keep the mapped slug for the API.
+            if translations.contains(where: { $0.id == mapped }) { return mapped }
+            return mapped
+        }
+        return defaultTranslationId(for: locale)
+    }
+
+    static func translationName(for id: String) -> String {
+        let canonical = canonicalTranslationId(id)
+        return translations.first(where: { $0.id == canonical })?.name ?? canonical
     }
 }
 
@@ -443,6 +489,7 @@ final class ProfileBibleViewController: UIViewController, UICollectionViewDelega
 
         buildHeader()
         tableView.tableHeaderView = headerContainer
+        migrateUnknownTranslationIfNeeded()
     }
 
     private func buildHeader() {
@@ -590,13 +637,28 @@ final class ProfileBibleViewController: UIViewController, UICollectionViewDelega
         section == 0 ? String(localized: "Tradução") : String(localized: "Abertura")
     }
 
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        migrateUnknownTranslationIfNeeded()
+    }
+
+    /// Unknown / legacy numeric ids get a checkmark on the canonical row and a silent prefs rewrite.
+    private func migrateUnknownTranslationIfNeeded() {
+        let canonical = ProfileBibleCatalog.canonicalTranslationId(prefs.translationId)
+        guard canonical != prefs.translationId else { return }
+        prefs.translationId = canonical
+        tableView.reloadData()
+        patchPrefs(["translationId": canonical])
+    }
+
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "opt", for: indexPath)
         var config = cell.defaultContentConfiguration()
         if indexPath.section == 0 {
             let tr = ProfileBibleCatalog.translations[indexPath.row]
             config.text = tr.name
-            cell.accessoryType = prefs.translationId == tr.id ? .checkmark : .none
+            let selected = ProfileBibleCatalog.canonicalTranslationId(prefs.translationId)
+            cell.accessoryType = selected == tr.id ? .checkmark : .none
         } else if indexPath.row == 0 {
             config.text = String(localized: "Preferir o app")
             cell.accessoryType = prefs.preferNative ? .checkmark : .none
