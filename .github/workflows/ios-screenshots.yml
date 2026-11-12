@@ -1,6 +1,10 @@
 name: iOS App Store screenshots
 
-# Manual only — never runs on PR/push, never archives or uploads builds.
+# Intended trigger is workflow_dispatch only (never archives / TestFlight).
+# pull_request is included so the workflow can run from a feature-branch PR
+# before it exists on the default branch (GitHub only lists dispatchable
+# workflows that are already on the default branch). Safe: does not feed
+# into signing / TestFlight jobs.
 on:
   workflow_dispatch:
     inputs:
@@ -8,6 +12,13 @@ on:
         description: Git ref to capture (branch, tag, or SHA). Empty = the ref you dispatch from.
         required: false
         type: string
+  pull_request:
+    paths:
+      - ".github/workflows/ios-screenshots.yml"
+      - "ios/App/KatecheoScreenshotTests/**"
+      - "ios/App/Katecheo/KatecheoScreenshotMode.swift"
+      - "ios/App/Katecheo/KatecheoScreenshotMode.swift"
+      - "ios/App/KatecheoTests/KatecheoScreenshotModeTests.swift"
 
 jobs:
   screenshots:
@@ -17,7 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
 
       - uses: actions/setup-node@v4
         with:

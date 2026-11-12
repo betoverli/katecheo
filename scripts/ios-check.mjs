@@ -401,9 +401,11 @@ if (!project.includes("KatecheoUITests") || !project.includes("OnboardingGetStar
     if (!/on:\s*\n\s*workflow_dispatch:/.test(shotWorkflow) && !shotWorkflow.includes("workflow_dispatch:")) {
       errors.push("ios-screenshots.yml tem de ser workflow_dispatch.");
     }
-    if (/^\s+push:/m.test(shotWorkflow) || /^\s+pull_request:/m.test(shotWorkflow)) {
-      errors.push("ios-screenshots.yml não pode correr em push/pull_request.");
+    if (/^\s+push:/m.test(shotWorkflow)) {
+      errors.push("ios-screenshots.yml não pode correr em push.");
     }
+    // pull_request is allowed so the workflow can execute from a feature-branch PR
+    // before it exists on the default branch; it must never archive/sign.
     if (!shotWorkflow.includes("appstore-screenshots")) {
       errors.push("ios-screenshots.yml tem de fazer upload do artifact appstore-screenshots.");
     }
