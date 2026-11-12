@@ -17,7 +17,6 @@ on:
       - ".github/workflows/ios-screenshots.yml"
       - "ios/App/KatecheoScreenshotTests/**"
       - "ios/App/Katecheo/KatecheoScreenshotMode.swift"
-      - "ios/App/Katecheo/KatecheoScreenshotMode.swift"
       - "ios/App/KatecheoTests/KatecheoScreenshotModeTests.swift"
 
 jobs:
@@ -51,29 +50,66 @@ jobs:
           set -euo pipefail
           mkdir -p "$SCREENSHOT_ROOT"
 
+          # Prefer App Store v1 sizes (16 Pro Max 1320×2868 / 16 Pro 1206×2622).
+          # macos-latest with iOS 26 may only ship iPhone 17 Pro Max / Pro — same
+          # logical sizes — so accept those as fallbacks. Artifact folders keep the
+          # App Store size-class slugs (iphone-16-pro-max / iphone-16-pro).
           pick_udid() {
-            local preferred="$1"
+            local candidates="$1"
             node -e '
-              const preferred = process.argv[1];
+              const candidates = process.argv[1].split("|").map((s) => s.trim()).filter(Boolean);
               const {execSync} = require("child_process");
               const data = JSON.parse(execSync("xcrun simctl list devices available -j", {encoding:"utf8"}));
-              const found = [];
+              const byName = new Map();
               for (const [runtime, devices] of Object.entries(data.devices || {})) {
                 if (!/iOS|iPhone/i.test(runtime)) continue;
                 for (const d of devices) {
-                  if (d.isAvailable && String(d.name || "") === preferred) {
-                    found.push({ name: d.name, udid: d.udid, runtime });
-                  }
+                  if (!d.isAvailable || !String(d.name || "").startsWith("iPhone")) continue;
+                  const list = byName.get(d.name) || [];
+                  list.push({ name: d.name, udid: d.udid, runtime });
+                  byName.set(d.name, list);
                 }
               }
-              // Prefer the newest runtime when duplicates exist.
-              found.sort((a, b) => String(b.runtime).localeCompare(String(a.runtime)));
-              if (!found[0]) {
-                console.error("Simulator not available: " + preferred);
-                process.exit(1);
+              for (const name of candidates) {
+                const list = byName.get(name) || [];
+                list.sort((a, b) => String(b.runtime).localeCompare(String(a.runtime)));
+                if (list[0]) {
+                  console.error("Using simulator: " + list[0].name + " (" + list[0].runtime + ")");
+                  process.stdout.write(list[0].udid);
+                  process.exit(0);
+                }
               }
-              process.stdout.write(found[0].udid);
-            ' "$preferred"
+              // Last resort: create from a matching device type on the newest runtime.
+              try {
+                const {spawnSync} = require("child_process");
+                const runtimes = JSON.parse(execSync("xcrun simctl list runtimes -j", {encoding:"utf8"}));
+                const ios = (runtimes.runtimes || [])
+                  .filter((r) => r.isAvailable && /iOS/i.test(r.name || ""))
+                  .sort((a, b) => String(b.version || "").localeCompare(String(a.version || "")));
+                const types = JSON.parse(execSync("xcrun simctl list devicetypes -j", {encoding:"utf8"}));
+                for (const name of candidates) {
+                  const dt = (types.devicetypes || []).find((t) => t.name === name);
+                  if (!dt || !ios[0]) continue;
+                  const created = spawnSync(
+                    "xcrun",
+                    ["simctl", "create", name, dt.identifier, ios[0].identifier],
+                    {encoding: "utf8"},
+                  );
+                  if (created.status === 0 && created.stdout.trim()) {
+                    console.error("Created simulator: " + name + " → " + created.stdout.trim());
+                    process.stdout.write(created.stdout.trim());
+                    process.exit(0);
+                  }
+                  if (created.stderr) console.error(created.stderr.trim());
+                }
+              } catch (err) {
+                console.error(String(err && err.stderr || err));
+              }
+              console.error("No simulator for candidates: " + candidates.join(", "));
+              console.error("Available iPhone sims:");
+              for (const name of [...byName.keys()].sort()) console.error(" - " + name);
+              process.exit(1);
+            ' "$candidates"
           }
 
           override_status_bar() {
@@ -92,9 +128,10 @@ jobs:
               --batteryMode none || true
           }
 
+          # name candidates (prefer 16, fallback 17) | artifact slug | size class
           DEVICES=(
-            "iPhone 16 Pro Max|iphone-16-pro-max|1320x2868"
-            "iPhone 16 Pro|iphone-16-pro|1206x2622"
+            "iPhone 16 Pro Max|iPhone 17 Pro Max|iphone-16-pro-max|1320x2868"
+            "iPhone 16 Pro|iPhone 17 Pro|iphone-16-pro|1206x2622"
           )
           LOCALES=(pt-BR en es)
 
@@ -102,9 +139,9 @@ jobs:
           mkdir -p "$DERIVED"
 
           for entry in "${DEVICES[@]}"; do
-            IFS='|' read -r DEVICE_NAME DEVICE_SLUG DEVICE_SIZE <<< "$entry"
-            echo "::group::Device $DEVICE_NAME ($DEVICE_SIZE)"
-            UDID="$(pick_udid "$DEVICE_NAME")"
+            IFS='|' read -r PRIMARY FALLBACK DEVICE_SLUG DEVICE_SIZE <<< "$entry"
+            echo "::group::Device $PRIMARY / $FALLBACK ($DEVICE_SIZE)"
+            UDID="$(pick_udid "${PRIMARY}|${FALLBACK}")"
             echo "UDID=$UDID"
             xcrun simctl boot "$UDID" 2>/dev/null || true
             override_status_bar "$UDID"
