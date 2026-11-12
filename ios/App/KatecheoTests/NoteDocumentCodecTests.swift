@@ -46,7 +46,7 @@ final class NoteDocumentCodecTests: XCTestCase {
         XCTAssertEqual(insetStyle.headIndent, inset + bulletW, accuracy: 0.5)
     }
 
-    func testPreview_stripsBibleRefs() {
+    func testPreview_keepsReadableBibleRefLabels() {
         var note = NativeAPIClient.emptyNote()
         note.title = "Culto"
         note.body.blocks = [
@@ -64,9 +64,10 @@ final class NoteDocumentCodecTests: XCTestCase {
                 blocks: nil
             ),
         ]
-        XCTAssertEqual(note.preview, "amar a Deus")
+        // Caderno list preview keeps the readable label (not a raw OSIS id).
+        XCTAssertEqual(note.preview, "Lc 14:26 amar a Deus")
+        XCTAssertTrue(note.preview.contains("Lc 14:26"))
         XCTAssertFalse(note.preview.contains("LUK"))
-        XCTAssertFalse(note.preview.contains("14:26"))
     }
 
     func testRoundTripPreservesParagraphTextAndTypes() {
