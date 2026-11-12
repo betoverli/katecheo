@@ -18,6 +18,7 @@ on:
       - "ios/App/KatecheoScreenshotTests/**"
       - "ios/App/Katecheo/KatecheoScreenshotMode.swift"
       - "ios/App/KatecheoTests/KatecheoScreenshotModeTests.swift"
+      - "scripts/compose-appstore-screenshots.py"
 
 jobs:
   screenshots:
@@ -199,6 +200,18 @@ jobs:
           if [ "$FAILED" -ne 0 ]; then
             echo "Some xcodebuild invocations failed, but all 30 PNGs are present."
           fi
+
+      - name: Compose marketing frames (captions)
+        env:
+          SCREENSHOT_ROOT: ${{ runner.temp }}/appstore-screenshots
+        run: |
+          set -euo pipefail
+          python3 -m pip install --user Pillow
+          python3 scripts/compose-appstore-screenshots.py \
+            --input "$SCREENSHOT_ROOT" \
+            --output "$SCREENSHOT_ROOT"
+          echo "Marketing tree:"
+          find "$SCREENSHOT_ROOT" -type f -name '*.png' | sort
 
       - name: Upload appstore-screenshots artifact
         if: always()

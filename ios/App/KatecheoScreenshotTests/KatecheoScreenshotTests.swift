@@ -41,6 +41,8 @@ final class KatecheoScreenshotTests: XCTestCase {
                 "-KatecheoScreenshotMode",
                 "-KatecheoScreenshotScene", scene.name,
                 "-katecheoSkipOnboarding",
+                // Harmless until #105 lands; then keeps the settings guide off demo launches.
+                "-katecheoSkipSettingsGuide",
                 "-AppleLanguages", "(\(appleLanguages))",
                 "-AppleLocale", appleLocale,
                 // Cut spring animations that keep the app from going idle.
