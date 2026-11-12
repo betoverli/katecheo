@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		RPTBLK12FED7965001685RB /* ReportBlockSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = RPTBLK11FED7965001685RB /* ReportBlockSupport.swift */; };
+		RPTBLK22FED7965001685RB /* ReportBlockTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = RPTBLK21FED7965001685RB /* ReportBlockTests.swift */; };
 		T8TF21422FED7965001685T8 /* NativeNoteEditorTF214Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T8TF21421FED7965001685T8 /* NativeNoteEditorTF214Tests.swift */; };
 		T9TF21922FED7965001685T9 /* NativeNoteEditorTF219Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T9TF21921FED7965001685T9 /* NativeNoteEditorTF219Tests.swift */; };
 		TATF22222FED7965001685TA /* NativeNoteEditorTF222Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TATF22221FED7965001685TA /* NativeNoteEditorTF222Tests.swift */; };
@@ -105,6 +107,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		RPTBLK11FED7965001685RB /* ReportBlockSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportBlockSupport.swift; sourceTree = "<group>"; };
+		RPTBLK21FED7965001685RB /* ReportBlockTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportBlockTests.swift; sourceTree = "<group>"; };
 		504EC3041FED79650016851F /* Katecheo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Katecheo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		504EC3071FED79650016851F /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		504EC30C1FED79650016851F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
@@ -318,6 +322,7 @@
 				F5A3D0132FED796500168580 /* ProfileSettingsScreens.swift */,
 				CIIDENT11FED7965001685CI /* ConnectedIdentitiesModels.swift */,
 				CIIDENT21FED7965001685CI /* ConnectedIdentitiesViewController.swift */,
+				RPTBLK11FED7965001685RB /* ReportBlockSupport.swift */,
 				F5A4E0112FED796500168590 /* VersesHomeViewController.swift */,
 				F5A4E0132FED796500168590 /* VersesScreens.swift */,
 				C9D0E0112FED7965001685E0 /* ReadingScreens.swift */,
@@ -362,6 +367,7 @@
 				GNCACHE21FED7965001685GN /* GroupNotesCacheTests.swift */,
 				TBNTC11FED7965001685TB /* NotificationsCenterTests.swift */,
 				CIIDENT31FED7965001685CI /* ConnectedIdentitiesTests.swift */,
+				RPTBLK21FED7965001685RB /* ReportBlockTests.swift */,
 			);
 			path = KatecheoTests;
 			sourceTree = "<group>";
@@ -605,6 +611,7 @@
 				F5A3D0122FED796500168580 /* ProfileSettingsScreens.swift in Sources */,
 				CIIDENT12FED7965001685CI /* ConnectedIdentitiesModels.swift in Sources */,
 				CIIDENT22FED7965001685CI /* ConnectedIdentitiesViewController.swift in Sources */,
+				RPTBLK12FED7965001685RB /* ReportBlockSupport.swift in Sources */,
 				F5A4E0102FED796500168590 /* VersesHomeViewController.swift in Sources */,
 				F5A4E0122FED796500168590 /* VersesScreens.swift in Sources */,
 				C9D0E0102FED7965001685E0 /* ReadingScreens.swift in Sources */,
@@ -641,6 +648,7 @@
 				GNCACHE22FED7965001685GN /* GroupNotesCacheTests.swift in Sources */,
 				TBNTC12FED7965001685TB /* NotificationsCenterTests.swift in Sources */,
 				CIIDENT32FED7965001685CI /* ConnectedIdentitiesTests.swift in Sources */,
+				RPTBLK22FED7965001685RB /* ReportBlockTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -805,7 +813,7 @@
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OBJC_BRIDGING_HEADER = "Katecheo/App-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -830,7 +838,7 @@
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
 				SWIFT_OBJC_BRIDGING_HEADER = "Katecheo/App-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
@@ -853,7 +861,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.verse2note.app.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Katecheo.app/Katecheo";
 			};
 			name = Debug;
@@ -877,7 +885,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.verse2note.app.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Katecheo.app/Katecheo";
 			};
 			name = Release;
@@ -900,7 +908,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.verse2note.app.uitests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				TEST_TARGET_NAME = Katecheo;
 			};
 			name = Debug;
@@ -923,7 +931,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.verse2note.app.uitests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				TEST_TARGET_NAME = Katecheo;
 			};
 			name = Release;

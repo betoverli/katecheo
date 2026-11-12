@@ -7,6 +7,7 @@ import { allowRequest } from "@/lib/rate-limit";
 import { noteSpeakerIds, type Note, type Speaker } from "@/lib/notebook";
 import { type NoteDocumentV1 } from "./note-document";
 import { documentFromRow, speakerFromRow } from "./v1.server";
+import { blockedIdsForUser, isEitherBlocked } from "./v1-moderation.server";
 
 export type NativeLinkPerson = {
   userId: string;
@@ -99,6 +100,7 @@ async function friendCount(sql: Sql, userId: string) {
 /** Same shape as web `listLinks`. Scoped to the authenticated user. */
 export async function listLinksForUser(userId: string): Promise<NativeLinksPayload> {
   const sql = await getSql();
+  const blocked = await blockedIdsForUser(userId, sql);
   const rows = await sql<{ requester_id: string; addressee_id: string; status: string }>`
     select requester_id, addressee_id, status
     from user_links
@@ -110,6 +112,7 @@ export async function listLinksForUser(userId: string): Promise<NativeLinksPaylo
   const outgoing: NativeLinkPerson[] = [];
   for (const row of rows) {
     const otherId = row.requester_id === userId ? row.addressee_id : row.requester_id;
+    if (blocked.has(otherId)) continue;
     const pref = await prefsById(sql, otherId);
     if (!pref) continue;
     const item = person(pref);
@@ -166,6 +169,9 @@ export async function requestLinkForUser(
   if (!other || other.user_id === userId) {
     return { ok: false, error: "missing", status: "none" };
   }
+  if (await isEitherBlocked(userId, other.user_id, sql)) {
+    return { ok: false, error: "missing", status: "none" };
+  }
   const current = await pairStatus(sql, userId, other.user_id);
   if (current === "accepted") return { ok: true, error: null, status: current };
   if (current === "outgoing") return { ok: true, error: null, status: current };
@@ -215,6 +221,7 @@ export async function searchPeopleForUser(userId: string, qRaw: string): Promise
   const sql = await getSql();
   const like = `${q}%`;
   const name = `%${q}%`;
+  const blocked = await blockedIdsForUser(userId, sql);
   const rows = await sql<
     PrefRow & { link_status: string | null; requester_id: string | null }
   >`
@@ -231,13 +238,15 @@ export async function searchPeopleForUser(userId: string, qRaw: string): Promise
     order by p.handle
     limit 20
   `;
-  return rows.map((row) => {
-    let status: NativePeopleHit["status"] = "none";
-    if (row.link_status === "accepted") status = "accepted";
-    else if (row.link_status === "pending" && row.requester_id === userId) status = "outgoing";
-    else if (row.link_status === "pending") status = "incoming";
-    return { ...person(row), status };
-  });
+  return rows
+    .filter((row) => !blocked.has(row.user_id))
+    .map((row) => {
+      let status: NativePeopleHit["status"] = "none";
+      if (row.link_status === "accepted") status = "accepted";
+      else if (row.link_status === "pending" && row.requester_id === userId) status = "outgoing";
+      else if (row.link_status === "pending") status = "incoming";
+      return { ...person(row), status };
+    });
 }
 
 /** Same semantics as web `acceptLink` (by handle, addressee = me). */
@@ -252,6 +261,7 @@ export async function acceptLinkForUser(
   const sql = await getSql();
   const other = handle ? await prefsByHandle(sql, handle) : null;
   if (!other) return { ok: false, error: "missing" };
+  if (await isEitherBlocked(userId, other.user_id, sql)) return { ok: false, error: "missing" };
   if ((await friendCount(sql, userId)) >= MAX_FRIENDS) return { ok: false, error: "limit" };
   const rows = await sql<{ id: string }>`
     update user_links set status = 'accepted'
@@ -321,15 +331,19 @@ async function deletePairLink(
 /** Same SQL as web `listGrantedNotes`, returned as NoteDocumentV1 for native clients. */
 export async function listGrantedNotesForUser(userId: string): Promise<NoteDocumentV1[]> {
   const sql = await getSql();
-  const rows = await sql<NoteRow>`
-    select n.id, n.title, n.happened_at::text, n.tags, n.blocks, n.blocks_backup, n.visibility, n.updated_at, n.speaker_id
+  const blocked = await blockedIdsForUser(userId, sql);
+  const rows = await sql<NoteRow & { from_id: string }>`
+    select n.id, n.title, n.happened_at::text, n.tags, n.blocks, n.blocks_backup, n.visibility, n.updated_at, n.speaker_id,
+           g.from_id
     from notebook_notes n
     join note_grants g on g.note_id = n.id
     where g.user_id = ${userId}
     order by n.happened_at desc
     limit 80
   `;
-  return rows.map((row) => documentFromRow(row).document);
+  return rows
+    .filter((row) => !blocked.has(row.from_id))
+    .map((row) => documentFromRow(row).document);
 }
 
 /** Grant-or-own access for GET /notes/:id (read). Never returns another user's private note. */
@@ -349,14 +363,17 @@ export async function getAccessibleNoteForUser(
     const speakers = await listOwnerSpeakersForNote(sql, userId, document);
     return { note: document, speakers, via: "owned" };
   }
-  const granted = await sql<NoteRow>`
-    select n.id, n.title, n.happened_at::text, n.tags, n.blocks, n.blocks_backup, n.visibility, n.updated_at, n.speaker_id
+  const granted = await sql<NoteRow & { from_id: string }>`
+    select n.id, n.title, n.happened_at::text, n.tags, n.blocks, n.blocks_backup, n.visibility, n.updated_at, n.speaker_id,
+           g.from_id
     from notebook_notes n
     join note_grants g on g.note_id = n.id
     where n.id = ${noteId} and g.user_id = ${userId}
     limit 1
   `;
   if (!granted[0]) return null;
+  const blocked = await blockedIdsForUser(userId, sql);
+  if (blocked.has(granted[0].from_id)) return null;
   const document = documentFromRow(granted[0]).document;
   const owner = await sql<{ user_id: string }>`
     select user_id from notebook_notes where id = ${noteId} limit 1

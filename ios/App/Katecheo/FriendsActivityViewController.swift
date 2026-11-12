@@ -321,14 +321,43 @@ final class FriendsActivityViewController: UITableViewController, UISearchResult
         guard section(at: indexPath.section) == .friends, !friends.isEmpty else { return nil }
         let person = friends[indexPath.row]
         return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { [weak self] _ in
+            guard let self else { return UIMenu(children: []) }
+            let report = UIAction(
+                title: String(localized: "Denunciar"),
+                image: UIImage(systemName: "exclamationmark.bubble")
+            ) { [weak self] _ in
+                guard let self else { return }
+                ReportBlockSupport.presentReport(
+                    target: .user(userId: person.userId, displayName: person.displayName),
+                    from: self,
+                    sourceView: self.tableView,
+                    sourceRect: self.tableView.rectForRow(at: indexPath)
+                )
+            }
+            let block = UIAction(
+                title: String(localized: "Bloquear"),
+                image: UIImage(systemName: "hand.raised"),
+                attributes: .destructive
+            ) { [weak self] _ in
+                guard let self else { return }
+                ReportBlockSupport.confirmBlock(
+                    userId: person.userId,
+                    displayName: person.displayName,
+                    from: self,
+                    sourceView: self.tableView,
+                    sourceRect: self.tableView.rectForRow(at: indexPath)
+                ) {
+                    Task { await self.reload(force: true) }
+                }
+            }
             let remove = UIAction(
                 title: String(localized: "Remover amigo"),
                 image: UIImage(systemName: "person.badge.minus"),
                 attributes: .destructive
-            ) { _ in
+            ) { [weak self] _ in
                 self?.confirmRemoveFriend(person, at: indexPath)
             }
-            return UIMenu(children: [remove])
+            return UIMenu(children: [report, block, remove])
         }
     }
 
@@ -412,6 +441,16 @@ final class FriendsActivityViewController: UITableViewController, UISearchResult
         switch hit.status {
         case "accepted":
             sheet.message = String(localized: "Vocês já são amigos.")
+            for action in ReportBlockSupport.personMenuActions(
+                userId: person.userId,
+                displayName: person.displayName,
+                host: self,
+                sourceView: tableView,
+                sourceRect: tableView.rectForRow(at: indexPath),
+                onBlocked: { [weak self] in Task { await self?.reload(force: true) } }
+            ) {
+                sheet.addAction(action)
+            }
             sheet.addAction(UIAlertAction(title: String(localized: "Remover amigo"), style: .destructive) { [weak self] _ in
                 self?.confirmRemoveFriend(person, at: indexPath)
             })
@@ -438,6 +477,16 @@ final class FriendsActivityViewController: UITableViewController, UISearchResult
 
     private func presentFriendMenu(for person: NativeAPIClient.LinkPersonDTO, at indexPath: IndexPath) {
         let sheet = UIAlertController(title: person.displayName, message: nil, preferredStyle: .actionSheet)
+        for action in ReportBlockSupport.personMenuActions(
+            userId: person.userId,
+            displayName: person.displayName,
+            host: self,
+            sourceView: tableView,
+            sourceRect: tableView.rectForRow(at: indexPath),
+            onBlocked: { [weak self] in Task { await self?.reload(force: true) } }
+        ) {
+            sheet.addAction(action)
+        }
         sheet.addAction(UIAlertAction(title: String(localized: "Remover amigo"), style: .destructive) { [weak self] _ in
             self?.confirmRemoveFriend(person, at: indexPath)
         })

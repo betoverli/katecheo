@@ -26,6 +26,7 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
 
     private enum AccountRow: Int, CaseIterable {
         case connectedIdentities
+        case blockedUsers
         case signOut
         case exportData
         case deleteAccount
@@ -380,6 +381,11 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
                 config.secondaryText = String(localized: "Apple, Google, email e senha")
                 config.image = UIImage(systemName: "person.crop.circle.badge.checkmark")
                 cell.accessoryType = .disclosureIndicator
+            case .blockedUsers:
+                config.text = String(localized: "Usuários bloqueados")
+                config.secondaryText = String(localized: "Gerenciar bloqueios")
+                config.image = UIImage(systemName: "hand.raised")
+                cell.accessoryType = .disclosureIndicator
             case .signOut:
                 config.text = String(localized: "Sair da conta")
                 config.textProperties.color = .label
@@ -453,6 +459,8 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
             case .connectedIdentities:
                 let vc = ConnectedIdentitiesViewController { [weak self] in self?.reload() }
                 navigationController?.pushViewController(vc, animated: true)
+            case .blockedUsers:
+                navigationController?.pushViewController(BlockedUsersViewController(), animated: true)
             case .signOut: confirmSignOut()
             case .exportData: exportData()
             case .deleteAccount: confirmDeleteAccount()

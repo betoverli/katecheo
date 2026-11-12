@@ -237,6 +237,16 @@ export const notifyPrefsSchema = z
   })
   .passthrough();
 
+/** POST /report — App Store UGC moderation. */
+export const contentReportSchema = z
+  .object({
+    targetType: z.enum(["user", "note", "group"]),
+    targetId: z.string().min(1).max(80),
+    reason: z.enum(["spam", "offensive", "inappropriate", "other"]),
+    details: z.string().max(2000).optional(),
+  })
+  .passthrough();
+
 export const versesAppendSchema = objectBody;
 export const collectionCreateSchema = objectBody;
 export const collectionUpdateSchema = objectBody;

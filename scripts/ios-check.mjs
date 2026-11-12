@@ -818,11 +818,50 @@ if (!forgotForm.includes("codeLength = 6") || !forgotForm.includes("resendCooldo
   errors.push("NativeForgotPasswordForm tem de validar código de 6 dígitos e cooldown de reenvio.");
 }
 
+// iPhone-only v1 (App Store device family) + Guideline 1.2 report/block.
+{
+  if (/TARGETED_DEVICE_FAMILY\s*=\s*"1,2"/.test(project) || /TARGETED_DEVICE_FAMILY\s*=\s*2/.test(project)) {
+    errors.push("TARGETED_DEVICE_FAMILY tem de ser 1 (iPhone-only) em todos os targets.");
+  }
+  if (!/TARGETED_DEVICE_FAMILY\s*=\s*1;/.test(project)) {
+    errors.push("Falta TARGETED_DEVICE_FAMILY = 1 no project.pbxproj.");
+  }
+  if (plist.includes("UISupportedInterfaceOrientations~ipad")) {
+    errors.push("Info.plist não pode ter UISupportedInterfaceOrientations~ipad (iPhone-only).");
+  }
+  const reportUi = read("ios/App/Katecheo/ReportBlockSupport.swift");
+  if (
+    !reportUi.includes("Denunciar") ||
+    !reportUi.includes("Bloquear") ||
+    !reportUi.includes("BlockedUsersViewController") ||
+    !reportUi.includes("Usuários bloqueados")
+  ) {
+    errors.push("ReportBlockSupport tem de ter Denunciar/Bloquear e Usuários bloqueados.");
+  }
+  if (!project.includes("ReportBlockSupport.swift in Sources")) {
+    errors.push("ReportBlockSupport.swift tem de estar no target App.");
+  }
+  if (!project.includes("ReportBlockTests.swift in Sources")) {
+    errors.push("ReportBlockTests.swift tem de estar no target KatecheoTests.");
+  }
+  const client = read("ios/App/Katecheo/NativeAPIClient.swift");
+  if (
+    !client.includes("api/native/v1/report") ||
+    !client.includes("api/native/v1/blocks") ||
+    !client.includes("api/native/v1/block/")
+  ) {
+    errors.push("NativeAPIClient tem de chamar /report, /blocks e /block/:id.");
+  }
+}
+
 // Contas conectadas (link Apple/Google/password without replacing the session).
 {
   const profile = read("ios/App/Katecheo/ProfileViewController.swift");
   if (!profile.includes("Contas conectadas") || !profile.includes("ConnectedIdentitiesViewController")) {
     errors.push("Perfil → Conta tem de abrir Contas conectadas (ConnectedIdentitiesViewController).");
+  }
+  if (!profile.includes("Usuários bloqueados") || !profile.includes("BlockedUsersViewController")) {
+    errors.push("Perfil → Conta tem de abrir Usuários bloqueados (BlockedUsersViewController).");
   }
   const connected = read("ios/App/Katecheo/ConnectedIdentitiesViewController.swift");
   if (

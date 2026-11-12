@@ -22,6 +22,9 @@ describe("matchNativeV1Route", () => {
     assert.deepEqual(matchNativeV1Route("links/remove"), { kind: "links-remove" });
     assert.deepEqual(matchNativeV1Route("links/request"), { kind: "links-request" });
     assert.deepEqual(matchNativeV1Route("links/search"), { kind: "links-search" });
+    assert.deepEqual(matchNativeV1Route("report"), { kind: "report" });
+    assert.deepEqual(matchNativeV1Route("blocks"), { kind: "blocks" });
+    assert.deepEqual(matchNativeV1Route("block/u1"), { kind: "block", userId: "u1" });
     assert.deepEqual(matchNativeV1Route("notifications"), { kind: "notifications" });
     assert.deepEqual(matchNativeV1Route("notifications/summary"), { kind: "notifications-summary" });
     assert.deepEqual(matchNativeV1Route("notifications/read"), { kind: "notifications-read" });
@@ -161,6 +164,10 @@ describe("methodAllowed", () => {
     assert.equal(methodAllowed({ kind: "links-remove" }, "POST"), true);
     assert.equal(methodAllowed({ kind: "links-remove" }, "GET"), false);
     assert.equal(methodAllowed({ kind: "links-request" }, "POST"), true);
+    assert.equal(methodAllowed({ kind: "report" }, "POST"), true);
+    assert.equal(methodAllowed({ kind: "blocks" }, "GET"), true);
+    assert.equal(methodAllowed({ kind: "block", userId: "u1" }, "POST"), true);
+    assert.equal(methodAllowed({ kind: "block", userId: "u1" }, "DELETE"), true);
     assert.equal(methodAllowed({ kind: "notifications" }, "GET"), true);
     assert.equal(methodAllowed({ kind: "notifications" }, "DELETE"), false);
     assert.equal(methodAllowed({ kind: "notifications", notificationId: "n1" }, "DELETE"), true);

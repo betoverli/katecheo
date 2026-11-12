@@ -24,11 +24,22 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
     private var hasLocalEdits = false
     /// Granted (Shared) notes are readable; mutations stay with the owner.
     private var isGrantedReadOnly: Bool
+    /// Author of a granted / group note — used for report & block.
+    private var sharedAuthorUserId: String?
+    private var sharedAuthorName: String?
 
-    init(noteId: String, initial: NativeAPIClient.NoteDocument?, grantedReadOnly: Bool = false) {
+    init(
+        noteId: String,
+        initial: NativeAPIClient.NoteDocument?,
+        grantedReadOnly: Bool = false,
+        sharedAuthorUserId: String? = nil,
+        sharedAuthorName: String? = nil
+    ) {
         self.noteId = noteId
         self.note = initial ?? NativeAPIClient.emptyNote(id: noteId)
         self.isGrantedReadOnly = grantedReadOnly
+        self.sharedAuthorUserId = sharedAuthorUserId
+        self.sharedAuthorName = sharedAuthorName
         super.init(nibName: nil, bundle: nil)
         // Hide the root tab bar for the whole push/pop transition (no flicker).
         hidesBottomBarWhenPushed = true
@@ -475,6 +486,43 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
 
     @objc private func openMore() {
         let sheet = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
+        if isGrantedReadOnly {
+            sheet.addAction(UIAlertAction(title: String(localized: "Denunciar"), style: .default) { [weak self] _ in
+                guard let self else { return }
+                ReportBlockSupport.presentReport(
+                    target: .note(
+                        noteId: self.noteId,
+                        authorUserId: self.sharedAuthorUserId,
+                        authorName: self.sharedAuthorName ?? String(localized: "Nota compartilhada")
+                    ),
+                    from: self,
+                    barButtonItem: self.navigationItem.rightBarButtonItems?.first
+                )
+            })
+            if let authorId = sharedAuthorUserId, !authorId.isEmpty {
+                sheet.addAction(UIAlertAction(title: String(localized: "Bloquear"), style: .destructive) { [weak self] _ in
+                    guard let self else { return }
+                    ReportBlockSupport.confirmBlock(
+                        userId: authorId,
+                        displayName: self.sharedAuthorName ?? String(localized: "esta pessoa"),
+                        from: self,
+                        barButtonItem: self.navigationItem.rightBarButtonItems?.first
+                    ) {
+                        self.navigationController?.popViewController(animated: true)
+                    }
+                })
+            }
+            sheet.addAction(UIAlertAction(title: String(localized: "Compartilhar"), style: .default) { [weak self] _ in
+                self?.shareNote()
+            })
+            sheet.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
+            KCConfirmation.presentActionSheet(
+                sheet,
+                from: self,
+                barButtonItem: navigationItem.rightBarButtonItems?.first
+            )
+            return
+        }
         sheet.addAction(UIAlertAction(title: String(localized: "Configurações"), style: .default) { [weak self] _ in
             self?.openSettings()
         })
