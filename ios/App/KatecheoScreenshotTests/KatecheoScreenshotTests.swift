@@ -8,11 +8,16 @@ final class KatecheoScreenshotTests: XCTestCase {
     }
 
     func testCaptureAppStoreScenes() throws {
-        let locale = ProcessInfo.processInfo.environment["SCREENSHOT_LOCALE"] ?? "pt-BR"
-        let deviceSlug = ProcessInfo.processInfo.environment["SCREENSHOT_DEVICE_SLUG"] ?? "iphone-16-pro"
-        let root = ProcessInfo.processInfo.environment["SCREENSHOT_OUTPUT_DIR"]
-            ?? (NSTemporaryDirectory() as String) + "/katecheo-screenshots"
-        let outDir = URL(fileURLWithPath: root)
+        let env = ProcessInfo.processInfo.environment
+        // Prefer TEST_RUNNER_-injected values (Xcode strips the prefix into XCTest).
+        let locale = env["SCREENSHOT_LOCALE"] ?? "pt-BR"
+        let deviceSlug = env["SCREENSHOT_DEVICE_SLUG"] ?? "iphone-16-pro"
+        let root = env["SCREENSHOT_OUTPUT_DIR"]
+            ?? (FileManager.default.temporaryDirectory
+                .appendingPathComponent("katecheo-screenshots", isDirectory: true)
+                .path)
+        NSLog("[KatecheoScreenshotTests] locale=%@ device=%@ out=%@", locale, deviceSlug, root)
+        let outDir = URL(fileURLWithPath: root, isDirectory: true)
             .appendingPathComponent(locale, isDirectory: true)
             .appendingPathComponent(deviceSlug, isDirectory: true)
         try FileManager.default.createDirectory(at: outDir, withIntermediateDirectories: true)

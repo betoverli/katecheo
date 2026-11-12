@@ -124,8 +124,7 @@ jobs:
               --cellularBars 4 \
               --operatorName "" \
               --batteryState charged \
-              --batteryLevel 100 \
-              --batteryMode none || true
+              --batteryLevel 100 || true
           }
 
           # name candidates (prefer 16, fallback 17) | artifact slug | size class
@@ -149,6 +148,11 @@ jobs:
 
             for LOCALE in "${LOCALES[@]}"; do
               echo "Capturing locale=$LOCALE device=$DEVICE_SLUG"
+              # Xcode strips the TEST_RUNNER_ prefix when injecting env into XCTest.
+              export TEST_RUNNER_SCREENSHOT_OUTPUT_DIR="$SCREENSHOT_ROOT"
+              export TEST_RUNNER_SCREENSHOT_LOCALE="$LOCALE"
+              export TEST_RUNNER_SCREENSHOT_DEVICE_SLUG="$DEVICE_SLUG"
+              # Also set unprefixed vars for any host-side tooling.
               export SCREENSHOT_OUTPUT_DIR="$SCREENSHOT_ROOT"
               export SCREENSHOT_LOCALE="$LOCALE"
               export SCREENSHOT_DEVICE_SLUG="$DEVICE_SLUG"
@@ -159,6 +163,7 @@ jobs:
                 -sdk iphonesimulator \
                 -destination "$DEST" \
                 -derivedDataPath "$DERIVED" \
+                -resultBundlePath "$DERIVED/screenshots-${DEVICE_SLUG}-${LOCALE}.xcresult" \
                 -parallel-testing-enabled NO \
                 -only-testing:KatecheoScreenshotTests/KatecheoScreenshotTests/testCaptureAppStoreScenes \
                 CODE_SIGNING_ALLOWED=NO \
