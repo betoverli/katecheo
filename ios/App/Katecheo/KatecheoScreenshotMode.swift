@@ -59,6 +59,9 @@ enum KatecheoScreenshotMode {
         guard isEnabled, !didPrepare else { return }
         didPrepare = true
 
+        // Marketing shots: kill springs so XCUITest does not wait forever for "idle".
+        UIView.setAnimationsEnabled(false)
+
         OnboardingStore.markSeen()
         LocalSessionCache.showOfflineHint = false
         KCActivityStore.clearAccount("screenshot-user")
@@ -107,8 +110,8 @@ enum KatecheoScreenshotMode {
         }
         guard let tabs = window.rootViewController as? NativeRootTabBarController else { return }
 
-        // Let first layout settle, then navigate.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+        // Navigate on the next turn of the run loop (after first layout).
+        DispatchQueue.main.async {
             apply(scene: requestedScene, tabs: tabs)
         }
     }
@@ -120,7 +123,7 @@ enum KatecheoScreenshotMode {
             tabs.selectedIndex = 0
             if let nav = tabs.selectedViewController as? UINavigationController {
                 nav.popToRootViewController(animated: false)
-                nav.topViewController?.view.accessibilityIdentifier = scene.accessibilityIdentifier
+                markAccessible(nav.topViewController?.view, id: scene.accessibilityIdentifier)
             }
         case .editor:
             tabs.selectedIndex = 0
@@ -134,7 +137,7 @@ enum KatecheoScreenshotMode {
                 initial: note,
                 grantedReadOnly: false
             )
-            detail.view.accessibilityIdentifier = scene.accessibilityIdentifier
+            markAccessible(detail.view, id: scene.accessibilityIdentifier)
             nav.pushViewController(detail, animated: false)
         case .lists:
             tabs.selectedIndex = 2
@@ -142,21 +145,28 @@ enum KatecheoScreenshotMode {
                let home = nav.viewControllers.first as? VersesHomeViewController
             {
                 home.selectHomeFilter("lists")
-                home.view.accessibilityIdentifier = scene.accessibilityIdentifier
+                markAccessible(home.view, id: scene.accessibilityIdentifier)
             }
         case .groups:
             tabs.selectedIndex = 1
             if let nav = tabs.selectedViewController as? UINavigationController {
                 nav.popToRootViewController(animated: false)
-                nav.topViewController?.view.accessibilityIdentifier = scene.accessibilityIdentifier
+                markAccessible(nav.topViewController?.view, id: scene.accessibilityIdentifier)
             }
         case .profile:
             tabs.selectedIndex = 3
             if let nav = tabs.selectedViewController as? UINavigationController {
                 nav.popToRootViewController(animated: false)
-                nav.topViewController?.view.accessibilityIdentifier = scene.accessibilityIdentifier
+                markAccessible(nav.topViewController?.view, id: scene.accessibilityIdentifier)
             }
         }
+    }
+
+    private static func markAccessible(_ view: UIView?, id: String) {
+        guard let view else { return }
+        view.accessibilityIdentifier = id
+        view.isAccessibilityElement = true
+        view.accessibilityLabel = id
     }
 
     // MARK: - Network short-circuit

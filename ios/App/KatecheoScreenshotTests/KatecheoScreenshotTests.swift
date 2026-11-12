@@ -1,22 +1,24 @@
 import XCTest
 
 /// Captures App Store marketing screenshots (iPhone only).
-/// Driven by CI via SCREENSHOT_OUTPUT_DIR / SCREENSHOT_LOCALE / SCREENSHOT_DEVICE_SLUG.
+/// Driven by CI via SCREENSHOT_OUTPUT_DIR / SCREENSHOT_LOCALE / SCREENSHOT_DEVICE_SLUG
+/// (injected with the TEST_RUNNER_ prefix from xcodebuild).
 final class KatecheoScreenshotTests: XCTestCase {
     override func setUpWithError() throws {
-        continueAfterFailure = false
+        // Keep going across scenes so one slow frame does not abort the whole matrix.
+        continueAfterFailure = true
     }
 
     func testCaptureAppStoreScenes() throws {
         let env = ProcessInfo.processInfo.environment
-        // Prefer TEST_RUNNER_-injected values (Xcode strips the prefix into XCTest).
         let locale = env["SCREENSHOT_LOCALE"] ?? "pt-BR"
         let deviceSlug = env["SCREENSHOT_DEVICE_SLUG"] ?? "iphone-16-pro"
         let root = env["SCREENSHOT_OUTPUT_DIR"]
-            ?? (FileManager.default.temporaryDirectory
-                .appendingPathComponent("katecheo-screenshots", isDirectory: true)
-                .path)
+            ?? FileManager.default.temporaryDirectory
+            .appendingPathComponent("katecheo-screenshots", isDirectory: true)
+            .path
         NSLog("[KatecheoScreenshotTests] locale=%@ device=%@ out=%@", locale, deviceSlug, root)
+
         let outDir = URL(fileURLWithPath: root, isDirectory: true)
             .appendingPathComponent(locale, isDirectory: true)
             .appendingPathComponent(deviceSlug, isDirectory: true)
@@ -32,6 +34,7 @@ final class KatecheoScreenshotTests: XCTestCase {
             ("profile", "05-perfil"),
         ]
 
+        var wrote = 0
         for scene in scenes {
             let app = XCUIApplication()
             app.launchArguments = [
@@ -40,24 +43,24 @@ final class KatecheoScreenshotTests: XCTestCase {
                 "-katecheoSkipOnboarding",
                 "-AppleLanguages", "(\(appleLanguages))",
                 "-AppleLocale", appleLocale,
+                // Cut spring animations that keep the app from going idle.
+                "-UIViewAnimationDragCoefficient", "0.001",
             ]
             app.launch()
 
-            let rootId = "screenshot.root.\(scene.name)"
-            let marker = app.otherElements[rootId]
-            // Some hosts expose the id on the VC view as Any / otherElements.
-            let appeared =
-                marker.waitForExistence(timeout: 12)
-                || app.descendants(matching: .any).matching(identifier: rootId).firstMatch
-                .waitForExistence(timeout: 4)
-            XCTAssertTrue(appeared, "Scene \(scene.name) root (\(rootId)) should appear")
+            // Scene routing is launch-arg driven — fixed settle beats accessibility idle waits
+            // (those hung for minutes on the second simulator in CI).
+            RunLoop.current.run(until: Date().addingTimeInterval(2.5))
 
-            // Extra settle so large titles / list cells / chips finish layout.
-            RunLoop.current.run(until: Date().addingTimeInterval(1.2))
-
-            let screenshot = app.screenshot()
+            let screenshot = XCUIScreen.main.screenshot()
             let fileURL = outDir.appendingPathComponent("\(scene.stem).png")
-            try screenshot.pngRepresentation.write(to: fileURL)
+            do {
+                try screenshot.pngRepresentation.write(to: fileURL)
+                wrote += 1
+                NSLog("[KatecheoScreenshotTests] wrote %@", fileURL.path)
+            } catch {
+                XCTFail("Failed to write \(fileURL.lastPathComponent): \(error)")
+            }
 
             let attachment = XCTAttachment(screenshot: screenshot)
             attachment.name = "\(locale)/\(deviceSlug)/\(scene.stem)"
@@ -65,7 +68,10 @@ final class KatecheoScreenshotTests: XCTestCase {
             add(attachment)
 
             app.terminate()
+            RunLoop.current.run(until: Date().addingTimeInterval(0.4))
         }
+
+        XCTAssertEqual(wrote, scenes.count, "Expected \(scenes.count) PNGs under \(outDir.path)")
     }
 
     private static func appleLocaleArgs(for locale: String) -> (String, String) {

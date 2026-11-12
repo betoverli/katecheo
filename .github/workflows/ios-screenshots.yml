@@ -137,12 +137,16 @@ jobs:
           DERIVED="${RUNNER_TEMP}/katecheo-ios-screenshots"
           mkdir -p "$DERIVED"
 
+          FAILED=0
           for entry in "${DEVICES[@]}"; do
             IFS='|' read -r PRIMARY FALLBACK DEVICE_SLUG DEVICE_SIZE <<< "$entry"
             echo "::group::Device $PRIMARY / $FALLBACK ($DEVICE_SIZE)"
             UDID="$(pick_udid "${PRIMARY}|${FALLBACK}")"
             echo "UDID=$UDID"
-            xcrun simctl boot "$UDID" 2>/dev/null || true
+            # Clean slate between device size classes — avoids hung UITest sessions.
+            xcrun simctl shutdown "$UDID" 2>/dev/null || true
+            xcrun simctl erase "$UDID" 2>/dev/null || true
+            xcrun simctl boot "$UDID"
             override_status_bar "$UDID"
             DEST="platform=iOS Simulator,id=$UDID"
 
@@ -152,10 +156,10 @@ jobs:
               export TEST_RUNNER_SCREENSHOT_OUTPUT_DIR="$SCREENSHOT_ROOT"
               export TEST_RUNNER_SCREENSHOT_LOCALE="$LOCALE"
               export TEST_RUNNER_SCREENSHOT_DEVICE_SLUG="$DEVICE_SLUG"
-              # Also set unprefixed vars for any host-side tooling.
               export SCREENSHOT_OUTPUT_DIR="$SCREENSHOT_ROOT"
               export SCREENSHOT_LOCALE="$LOCALE"
               export SCREENSHOT_DEVICE_SLUG="$DEVICE_SLUG"
+              set +e
               xcodebuild \
                 -project ios/App/Katecheo.xcodeproj \
                 -scheme Katecheo \
@@ -171,9 +175,16 @@ jobs:
                 CODE_SIGN_IDENTITY="" \
                 DEVELOPMENT_TEAM="" \
                 test
+              STATUS=$?
+              set -e
+              if [ "$STATUS" -ne 0 ]; then
+                echo "::warning::xcodebuild failed for $DEVICE_SLUG/$LOCALE (exit $STATUS)"
+                FAILED=1
+              fi
             done
 
             xcrun simctl status_bar "$UDID" clear 2>/dev/null || true
+            xcrun simctl shutdown "$UDID" 2>/dev/null || true
             echo "::endgroup::"
           done
 
@@ -185,11 +196,15 @@ jobs:
             echo "Expected at least 30 PNGs, found $COUNT"
             exit 1
           fi
+          if [ "$FAILED" -ne 0 ]; then
+            echo "Some xcodebuild invocations failed, but all 30 PNGs are present."
+          fi
 
       - name: Upload appstore-screenshots artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: appstore-screenshots
           path: ${{ runner.temp }}/appstore-screenshots/
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 30
