@@ -104,12 +104,29 @@ enum NativeAPIClient {
         }
 
         private func spanText(_ spans: [TextSpan]?) -> String {
-            // Caderno preview: plain body text only — strip reference pills (TF210).
+            // Caderno preview: keep readable bible labels (e.g. "João 15:1–8"), not raw pills.
             (spans ?? []).compactMap { span in
-                if span.type == "bibleRef" { return nil }
+                if span.type == "bibleRef" {
+                    return Self.bibleRefPreviewLabel(span)
+                }
                 let text = span.text ?? ""
                 return text.isEmpty ? nil : text
             }.joined()
+        }
+
+        /// Prefer stored display text; otherwise format from bookId / chapter / verses.
+        static func bibleRefPreviewLabel(_ span: TextSpan) -> String? {
+            if let text = span.text?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty {
+                return text
+            }
+            guard let bookId = span.bookId, let chapter = span.chapter else { return nil }
+            let formatted = BibleBookCatalog.formatPassage(
+                bookId: bookId,
+                chapter: chapter,
+                verseStart: span.verseStart,
+                verseEnd: span.verseEnd
+            )
+            return formatted.isEmpty ? nil : formatted
         }
     }
 

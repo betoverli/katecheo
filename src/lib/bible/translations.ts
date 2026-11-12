@@ -250,8 +250,31 @@ export const DEFAULT_TRANSLATION: Record<Locale, string> = {
   es: "rvr1960",
 };
 
-export function translationById(id: string): Translation {
-  return TRANSLATIONS.find((t) => t.id === id) ?? TRANSLATIONS[0];
+/**
+ * Map a prefs / API translation value onto a known TRANSLATIONS id.
+ * Accepts modern slug ids (`niv`, `nvi-pt`) and legacy YouVersion numeric
+ * strings (`"111"` → `niv`). Unknown values fall back to the locale default.
+ */
+export function normalizeTranslationId(
+  raw: string | undefined | null,
+  locale: Locale = "pt",
+): string {
+  const fallback = DEFAULT_TRANSLATION[locale] ?? DEFAULT_TRANSLATION.pt;
+  if (raw == null) return fallback;
+  const trimmed = String(raw).trim();
+  if (!trimmed) return fallback;
+  if (TRANSLATIONS.some((item) => item.id === trimmed)) return trimmed;
+  if (/^\d+$/.test(trimmed)) {
+    const youVersion = Number(trimmed);
+    const match = TRANSLATIONS.find((item) => item.youVersion === youVersion);
+    if (match) return match.id;
+  }
+  return fallback;
+}
+
+export function translationById(id: string, locale: Locale = "pt"): Translation {
+  const normalized = normalizeTranslationId(id, locale);
+  return TRANSLATIONS.find((t) => t.id === normalized) ?? TRANSLATIONS[0];
 }
 
 export function translationsFor(locale: Locale): Translation[] {

@@ -8,7 +8,11 @@ import { resolveCollections, type CollectionQuery } from "@/lib/bible/collection
 import { resolveLinks, type LinkQuery } from "@/lib/bible/link-api";
 import type { Passage } from "@/lib/bible/passage";
 import { formatPassageById } from "@/lib/bible/passage";
-import { DEFAULT_TRANSLATION, TRANSLATIONS } from "@/lib/bible/translations";
+import {
+  DEFAULT_TRANSLATION,
+  normalizeTranslationId,
+  TRANSLATIONS,
+} from "@/lib/bible/translations";
 import { getSql } from "@/lib/db";
 import { appendPassageToBlocks, todayKey, type Note } from "@/lib/notebook";
 import { cleanPassages } from "@/lib/user-collections";
@@ -165,11 +169,12 @@ export async function resolveNativeLink(
       // Prefs optional for public link resolution.
     }
   }
+  const resolvedLocale = asLocale(locale);
   return resolveLinks({
     refs: query.refs,
     app,
-    translation,
-    locale,
+    translation: normalizeTranslationId(translation, resolvedLocale),
+    locale: resolvedLocale,
     native,
   });
 }

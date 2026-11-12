@@ -77,12 +77,52 @@ describe("noteToDocument / documentToNote", () => {
 });
 
 describe("documentPreview", () => {
-  it("flattens plain text only — strips bible refs for list rows", () => {
+  it("keeps readable bible ref labels in list rows (no dangling Passagem:)", () => {
     const doc = noteToDocument(sampleLegacy);
     const preview = documentPreview(doc);
     assert.match(preview, /Hello/);
-    assert.doesNotMatch(preview, /JHN/);
-    assert.doesNotMatch(preview, /3:16/);
+    // Legacy refs lack stored display text → compact bookId fallback.
+    assert.match(preview, /JHN 3:16/);
+
+    const withLabel = noteToDocument(sampleLegacy);
+    const line = withLabel.body.blocks[0];
+    assert.ok(line && "spans" in line);
+    const ref = line.spans.find((s) => s.type === "bibleRef");
+    assert.ok(ref && ref.type === "bibleRef");
+    ref.text = "João 3:16";
+    const labeled = documentPreview(withLabel);
+    assert.match(labeled, /João 3:16/);
+    assert.match(labeled, /Hello/);
+  });
+
+  it("renders stored labels after Passagem: / Referência: prefixes", () => {
+    const doc = noteToDocument(sampleLegacy);
+    const line = doc.body.blocks[0];
+    assert.ok(line && "spans" in line);
+    line.spans = [
+      { type: "text", text: "Passagem: " },
+      {
+        type: "bibleRef",
+        bookId: "PSA",
+        chapter: 23,
+        verseStart: null,
+        verseEnd: null,
+        text: "Salmos 23",
+      },
+      { type: "text", text: " · Referência: " },
+      {
+        type: "bibleRef",
+        bookId: "JHN",
+        chapter: 15,
+        verseStart: 1,
+        verseEnd: 8,
+        text: "João 15:1–8",
+      },
+    ];
+    const preview = documentPreview(doc);
+    assert.match(preview, /Passagem: Salmos 23/);
+    assert.match(preview, /Referência: João 15:1–8/);
+    assert.doesNotMatch(preview, /Passagem:\s*$/);
   });
 });
 

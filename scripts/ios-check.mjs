@@ -324,6 +324,30 @@ if (!onboardingStore.includes("katecheo.hasSeenOnboarding") || !onboardingStore.
 if (!onboardingStore.includes("-katecheoSkipOnboarding")) {
   errors.push("OnboardingStore tem de aceitar -katecheoSkipOnboarding para testes existentes.");
 }
+if (!onboardingStore.includes("katecheo.hasSeenSettingsGuide") || !onboardingStore.includes("shouldShowSettingsGuide")) {
+  errors.push("OnboardingStore tem de persistir o guia de ajustes pós-login (hasSeenSettingsGuide).");
+}
+if (!onboardingStore.includes("-katecheoSkipSettingsGuide")) {
+  errors.push("OnboardingStore tem de aceitar -katecheoSkipSettingsGuide para CI.");
+}
+
+try {
+  const settingsGuide = read("ios/App/Katecheo/SettingsGuideViewController.swift");
+  if (!settingsGuide.includes("App de Bíblia") || !settingsGuide.includes("Tradução") || !settingsGuide.includes("Notificações")) {
+    errors.push("SettingsGuideViewController tem de ter os 3 passos (app, tradução, notificações).");
+  }
+  if (!settingsGuide.includes("Agora não") || !settingsGuide.includes("NativePushService") || !settingsGuide.includes("patchPrefs")) {
+    errors.push("SettingsGuide: notificações + Agora não + patchPrefs imediatos.");
+  }
+  if (!settingsGuide.includes("ProfileBibleCatalog") || !settingsGuide.includes("Pular")) {
+    errors.push("SettingsGuide tem de reutilizar ProfileBibleCatalog e permitir Pular.");
+  }
+  if (!settingsGuide.includes('String(localized: "Katecheo")') && /["'`]Kate["'`]/.test(settingsGuide)) {
+    errors.push('SettingsGuide: "Katecheo" tem de ser uma só palavra.');
+  }
+} catch {
+  errors.push("Falta SettingsGuideViewController.swift (guia pós-login).");
+}
 
 const onboardingVC = read("ios/App/Katecheo/OnboardingViewController.swift");
 if (!onboardingVC.includes("Pular") || !onboardingVC.includes("Começar")) {
@@ -442,8 +466,14 @@ if (!profileForOnboarding.includes("Ver introdução") || !profileForOnboarding.
 if (!project.includes("OnboardingStore.swift in Sources") || !project.includes("OnboardingViewController.swift in Sources")) {
   errors.push("OnboardingStore/OnboardingViewController têm de estar no target Xcode.");
 }
+if (!project.includes("SettingsGuideViewController.swift in Sources")) {
+  errors.push("SettingsGuideViewController tem de estar no target Xcode.");
+}
 if (!project.includes("OnboardingFlowTests.swift in Sources")) {
   errors.push("OnboardingFlowTests tem de estar no target KatecheoTests.");
+}
+if (!project.includes("SettingsGuideTests.swift in Sources")) {
+  errors.push("SettingsGuideTests tem de estar no target KatecheoTests.");
 }
 
 const mainStoryboard = read("ios/App/Katecheo/Base.lproj/Main.storyboard");
@@ -605,12 +635,29 @@ if (!codec.includes("listMarkerWidth") || !codec.includes("titleTagsReservedSpac
 try {
   const api = read("ios/App/Katecheo/NativeAPIClient.swift");
   const spanIdx = api.indexOf("private func spanText");
-  const spanText = spanIdx >= 0 ? api.slice(spanIdx, spanIdx + 450) : "";
-  if (!spanText.includes('span.type == "bibleRef"') || !spanText.includes("return nil")) {
-    errors.push("NativeAPIClient.preview/spanText tem de saltar bibleRef (só texto plano).");
+  const spanText = spanIdx >= 0 ? api.slice(spanIdx, spanIdx + 650) : "";
+  if (
+    !spanText.includes('span.type == "bibleRef"') ||
+    !api.includes("bibleRefPreviewLabel") ||
+    !spanText.includes("bibleRefPreviewLabel")
+  ) {
+    errors.push("NativeAPIClient.preview/spanText tem de renderizar bibleRef como rótulo legível (não saltar).");
+  }
+  if (spanText.includes("return nil") && !api.includes("bibleRefPreviewLabel")) {
+    errors.push("NativeAPIClient.preview não pode saltar bibleRef sem rótulo.");
   }
 } catch {
   errors.push("Falta NativeAPIClient.swift");
+}
+try {
+  const noteRowSource = read("ios/App/Katecheo/KCComponents.swift");
+  const noteRowIdx = noteRowSource.indexOf("func configure(title: String, subtitle: String, tags: [String], speakerName");
+  const noteRow = noteRowIdx >= 0 ? noteRowSource.slice(noteRowIdx, noteRowIdx + 1800) : "";
+  if (!noteRow.includes("removeArrangedSubview(speakerPill)") || !noteRow.includes("insertArrangedSubview(speakerPill")) {
+    errors.push("KCNoteRowCell tem de remover/inserir speakerPill no metaRow (evitar gap com isHidden).");
+  }
+} catch {
+  errors.push("Falta KCComponents.swift");
 }
 try {
   const cache = read("ios/App/Katecheo/LocalNoteCache.swift");
@@ -1052,6 +1099,9 @@ if (!notebookList.includes("convenience init(group:") || !notebookList.includes(
 }
 
 const rootTabs = read("ios/App/Katecheo/NativeRootTabBarController.swift");
+if (!rootTabs.includes("SettingsGuideViewController") || !rootTabs.includes("presentSettingsGuide")) {
+  errors.push("NativeRootTabBarController tem de apresentar o SettingsGuide após o login.");
+}
 if (!rootTabs.includes("GroupsListViewController") || rootTabs.includes('titleText: "Grupos"')) {
   errors.push("Phase 2: o separador Grupos tem de usar GroupsListViewController.");
 }
@@ -1191,6 +1241,15 @@ try {
   ) {
     errors.push("Faltam telas nativas de ações de versículo / adicionar à nota.");
   }
+  if (!versesScreens.includes("Não foi possível gerar o link agora. Tente de novo.")) {
+    errors.push("Verse detail: statusLabel tem de mostrar mensagem amigável (sem HTTP/JSON cru).");
+  }
+  if (versesScreens.includes("Link indisponível: \\(error.localizedDescription)")) {
+    errors.push("Verse detail não pode mostrar error.localizedDescription cru no statusLabel.");
+  }
+  if (!versesScreens.includes("canonicalTranslationId")) {
+    errors.push("Verse detail tem de normalizar translationId legado antes do link API.");
+  }
   if (!versesScreens.includes("KCNumberCell") || !versesScreens.includes("KCNumberGridLayout")) {
     errors.push("Picker de capítulo/versículo tem de usar grelha numérica.");
   }
@@ -1203,6 +1262,9 @@ try {
   const bibleSettings = read("ios/App/Katecheo/ProfileSettingsScreens.swift");
   if (!bibleSettings.includes("KCBibleAppLogoCell") || !bibleSettings.includes("BibleApp_")) {
     errors.push("App de Bíblia: grelha de logos (KCBibleAppLogoCell + assets).");
+  }
+  if (!bibleSettings.includes("canonicalTranslationId") || !bibleSettings.includes("defaultTranslationId")) {
+    errors.push("ProfileBibleCatalog tem de mapear ids YouVersion legados e defaults por locale.");
   }
   if (!bibleSettings.includes("kcApplyTabBarScrollClearance") || !bibleSettings.includes("tableHeaderView")) {
     errors.push("App de Bíblia: scroll único + clearance da tab bar (TF214).");

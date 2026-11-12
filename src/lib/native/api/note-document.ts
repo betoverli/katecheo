@@ -581,11 +581,26 @@ export function documentPreview(doc: NoteDocumentV1, maxLen = 160): string {
   return text.length > maxLen ? `${text.slice(0, maxLen - 1)}…` : text;
 }
 
+/** Readable bible label for list/Caderno previews (prefer stored display text). */
+export function bibleRefPreviewLabel(span: NoteDocBibleRefSpan): string {
+  const stored = span.text?.trim();
+  if (stored) return stored;
+  let label = `${span.bookId} ${span.chapter}`;
+  if (span.verseStart != null) {
+    label += `:${span.verseStart}`;
+    if (span.verseEnd != null && span.verseEnd !== span.verseStart) {
+      label += `–${span.verseEnd}`;
+    }
+  }
+  return label;
+}
+
 function spansToPlain(spans: NoteDocSpan[]): string {
   return spans
     .map((span) => {
-      // List/Caderno preview: plain body only — never surface bibleRef pills.
-      if (span.type === "bibleRef") return "";
+      // Keep readable reference labels (e.g. "João 15:1–8") so prefixes like
+      // "Passagem:" / "Referência:" are not left dangling after a stripped pill.
+      if (span.type === "bibleRef") return bibleRefPreviewLabel(span);
       if (span.type === "link") return span.text || span.href;
       return span.text;
     })

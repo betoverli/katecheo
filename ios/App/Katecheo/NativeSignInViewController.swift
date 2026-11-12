@@ -405,7 +405,11 @@ final class NativeSignInViewController: UIViewController {
         KCHaptics.success()
         NotificationCenter.default.post(name: .nativeSessionDidChange, object: nil)
         Task { @MainActor in
-            _ = await NativePushService.shared.enable()
+            // Defer the system push prompt to the post-sign-in settings guide
+            // the first time; otherwise request immediately (returning users).
+            if OnboardingStore.hasSeenSettingsGuide {
+                _ = await NativePushService.shared.enable()
+            }
             await LegacyWebStorageImporter.runIfNeeded()
             await NativeOutbox.flushIfPossible()
         }

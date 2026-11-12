@@ -92,7 +92,9 @@ enum NoteDocumentCodec {
                 for child in children {
                     let text = (child.spans ?? [])
                         .compactMap { span -> String? in
-                            if span.type == "bibleRef" { return nil }
+                            if span.type == "bibleRef" {
+                                return NativeAPIClient.NoteDocument.bibleRefPreviewLabel(span)
+                            }
                             return span.text
                         }
                         .joined()

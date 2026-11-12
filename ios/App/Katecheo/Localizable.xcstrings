@@ -18815,692 +18815,209 @@
         }
       }
     },
-    "screenshot.profile.firstName": {
+    "Escolha onde abrir as referências. Você pode mudar depois em Perfil.": {
       "extractionState": "manual",
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ana"
+            "value": "Escolha onde abrir as referências. Você pode mudar depois em Perfil."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ana"
+            "value": "Choose where to open references. You can change this later in Profile."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ana"
+            "value": "Elige dónde abrir las referencias. Puedes cambiarlo después en Perfil."
           }
         }
       }
     },
-    "screenshot.profile.lastName": {
+    "Avisos de planos de leitura, amigos, compartilhamentos e grupos. Você controla isso em Perfil.": {
       "extractionState": "manual",
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ribeiro"
+            "value": "Avisos de planos de leitura, amigos, compartilhamentos e grupos. Você controla isso em Perfil."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ribeiro"
+            "value": "Alerts for reading plans, friends, shares, and groups. You control this in Profile."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ribeiro"
+            "value": "Avisos de planes de lectura, amigos, compartidos y grupos. Lo controlas en Perfil."
           }
         }
       }
     },
-    "screenshot.speaker.pastor": {
+    "Conclui a configuração": {
       "extractionState": "manual",
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pr. Marcos"
+            "value": "Conclui a configuração"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pastor Mark"
+            "value": "Finishes setup"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pr. Marcos"
+            "value": "Termina la configuración"
           }
         }
       }
     },
-    "screenshot.speaker.self": {
+    "Ativar notificações": {
       "extractionState": "manual",
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Eu"
+            "value": "Ativar notificações"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Me"
+            "value": "Enable notifications"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Yo"
+            "value": "Activar notificaciones"
           }
         }
       }
     },
-    "screenshot.note.editor.title": {
+    "Usa os padrões e continua": {
       "extractionState": "manual",
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Preparação — João 15"
+            "value": "Usa os padrões e continua"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sermon prep — John 15"
+            "value": "Uses the defaults and continues"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Preparación — Juan 15"
+            "value": "Usa los valores predeterminados y continúa"
           }
         }
       }
     },
-    "screenshot.note.editor.h1": {
+    "Não foi possível gerar o link agora. Tente de novo.": {
       "extractionState": "manual",
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Permanecer na videira"
+            "value": "Não foi possível gerar o link agora. Tente de novo."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Abide in the vine"
+            "value": "Couldn’t generate the link right now. Try again."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Permanecer en la vid"
+            "value": "No se pudo generar el enlace ahora. Inténtalo de nuevo."
           }
         }
       }
     },
-    "screenshot.note.editor.intro": {
+    "Concluir": {
       "extractionState": "manual",
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Texto central da manhã sobre permanecer na videira."
+            "value": "Concluir"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Morning’s main text on abiding in the vine."
+            "value": "Done"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Texto central de la mañana sobre permanecer en la vid."
+            "value": "Listo"
           }
         }
       }
     },
-    "screenshot.note.editor.h2": {
+    "Passo %lld de %lld": {
       "extractionState": "manual",
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pontos para o sermão"
+            "value": "Passo %lld de %lld"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sermon outline"
+            "value": "Step %lld of %lld"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Puntos del sermón"
+            "value": "Paso %lld de %lld"
           }
         }
       }
     },
-    "screenshot.note.editor.b1": {
+    "Usamos esta tradução nos links da Bíblia. Pode alterar a qualquer momento.": {
       "extractionState": "manual",
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "A videira verdadeira — união com Cristo"
+            "value": "Usamos esta tradução nos links da Bíblia. Pode alterar a qualquer momento."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The true vine — union with Christ"
+            "value": "We use this translation for Bible links. You can change it anytime."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "La vid verdadera — unión con Cristo"
-          }
-        }
-      }
-    },
-    "screenshot.note.editor.b2": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "A poda do Pai — crescimento com propósito"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The Father’s pruning — purposeful growth"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "La poda del Padre — crecimiento con propósito"
-          }
-        }
-      }
-    },
-    "screenshot.note.editor.b3": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sem Ele, nada podemos."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Apart from Him we can do nothing."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sin Él nada podemos."
-          }
-        }
-      }
-    },
-    "screenshot.note.editor.h3": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aplicação pastoral"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pastoral application"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aplicación pastoral"
-          }
-        }
-      }
-    },
-    "screenshot.note.editor.close": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Fruto do Espírito para viver nesta semana."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Fruit of the Spirit to live this week."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Fruto del Espíritu para vivir esta semana."
-          }
-        }
-      }
-    },
-    "screenshot.note.sermon.title": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sermão — Paz que guarda"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sermon — Peace that guards"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sermón — Paz que guarda"
-          }
-        }
-      }
-    },
-    "screenshot.note.sermon.body": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Esboço para o culto de domingo com oração e resposta."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Outline for Sunday’s service with prayer and response."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Esbozo para el culto del domingo con oración y respuesta."
-          }
-        }
-      }
-    },
-    "screenshot.note.devotion.title": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Devocional matinal"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Morning devotion"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Devocional matutino"
-          }
-        }
-      }
-    },
-    "screenshot.note.devotion.body": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "O Senhor é o meu pastor — descanso e direção para o dia."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The Lord is my shepherd — rest and direction for the day."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "El Señor es mi pastor — descanso y dirección para el día."
-          }
-        }
-      }
-    },
-    "screenshot.note.group.title": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Estudo do grupo — Comunhão"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Small group study — Fellowship"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Estudio del grupo — Comunión"
-          }
-        }
-      }
-    },
-    "screenshot.note.group.body": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Perguntas para a célula desta semana sobre comunhão."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Questions for this week’s cell group on fellowship."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Preguntas para la célula de esta semana sobre comunión."
-          }
-        }
-      }
-    },
-    "screenshot.tag.sermon": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "sermão"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "sermon"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "sermón"
-          }
-        }
-      }
-    },
-    "screenshot.tag.prep": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "preparação"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "prep"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "preparación"
-          }
-        }
-      }
-    },
-    "screenshot.tag.sunday": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "domingo"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "sunday"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "domingo"
-          }
-        }
-      }
-    },
-    "screenshot.tag.devotion": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "devocional"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "devotion"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "devocional"
-          }
-        }
-      }
-    },
-    "screenshot.tag.group": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "grupo"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "group"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "grupo"
-          }
-        }
-      }
-    },
-    "screenshot.tag.study": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "estudo"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "study"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "estudio"
-          }
-        }
-      }
-    },
-    "screenshot.group.cell.name": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Célula Norte"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "North Cell Group"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Célula Norte"
-          }
-        }
-      }
-    },
-    "screenshot.group.cell.desc": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Estudo semanal e oração em família"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Weekly study and family prayer"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Estudio semanal y oración en familia"
-          }
-        }
-      }
-    },
-    "screenshot.group.leaders.name": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Liderança de louvor"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Worship leadership"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Liderazgo de alabanza"
-          }
-        }
-      }
-    },
-    "screenshot.group.leaders.desc": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ensaios e preparação do culto"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rehearsals and service prep"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ensayos y preparación del culto"
-          }
-        }
-      }
-    },
-    "screenshot.member.2.first": {
-      "extractionState": "manual",
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pedro"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Peter"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pedro"
+            "value": "Usamos esta traducción en los enlaces de la Biblia. Puedes cambiarla en cualquier momento."
           }
         }
       }
@@ -19528,48 +19045,209 @@
         }
       }
     },
-    "screenshot.member.3.first": {
+    "screenshot.tag.devotion": {
       "extractionState": "manual",
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sofia"
+            "value": "devocional"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sophia"
+            "value": "devotion"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sofía"
+            "value": "devocional"
           }
         }
       }
     },
-    "screenshot.member.3.last": {
+    "screenshot.note.group.body": {
       "extractionState": "manual",
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lima"
+            "value": "Perguntas para a célula desta semana sobre comunhão."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lane"
+            "value": "Questions for this week’s cell group on fellowship."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lima"
+            "value": "Preguntas para la célula de esta semana sobre comunión."
+          }
+        }
+      }
+    },
+    "screenshot.note.editor.intro": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Texto central da manhã sobre permanecer na videira."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Morning’s main text on abiding in the vine."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Texto central de la mañana sobre permanecer en la vid."
+          }
+        }
+      }
+    },
+    "screenshot.member.2.first": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pedro"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Peter"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pedro"
+          }
+        }
+      }
+    },
+    "screenshot.note.editor.b3": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sem Ele, nada podemos."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apart from Him we can do nothing."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sin Él nada podemos."
+          }
+        }
+      }
+    },
+    "screenshot.group.leaders.name": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Liderança de louvor"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Worship leadership"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Liderazgo de alabanza"
+          }
+        }
+      }
+    },
+    "screenshot.note.devotion.body": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O Senhor é o meu pastor — descanso e direção para o dia."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Lord is my shepherd — rest and direction for the day."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El Señor es mi pastor — descanso y dirección para el día."
+          }
+        }
+      }
+    },
+    "screenshot.tag.sunday": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "domingo"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "sunday"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "domingo"
+          }
+        }
+      }
+    },
+    "screenshot.tag.study": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "estudo"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "study"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "estudio"
           }
         }
       }
@@ -19597,48 +19275,117 @@
         }
       }
     },
-    "screenshot.member.4.last": {
+    "screenshot.speaker.pastor": {
       "extractionState": "manual",
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Alves"
+            "value": "Pr. Marcos"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Allen"
+            "value": "Pastor Mark"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Álvarez"
+            "value": "Pr. Marcos"
           }
         }
       }
     },
-    "screenshot.list.psalms": {
+    "screenshot.member.3.last": {
       "extractionState": "manual",
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Memorização — Salmos"
+            "value": "Lima"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Memorization — Psalms"
+            "value": "Lane"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Memorización — Salmos"
+            "value": "Lima"
+          }
+        }
+      }
+    },
+    "screenshot.profile.lastName": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ribeiro"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ribeiro"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ribeiro"
+          }
+        }
+      }
+    },
+    "screenshot.note.editor.h2": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pontos para o sermão"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sermon outline"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Puntos del sermón"
+          }
+        }
+      }
+    },
+    "screenshot.note.sermon.body": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esboço para o culto de domingo com oração e resposta."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Outline for Sunday’s service with prayer and response."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esbozo para el culto del domingo con oración y respuesta."
           }
         }
       }
@@ -19666,6 +19413,443 @@
         }
       }
     },
+    "screenshot.speaker.self": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eu"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Me"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yo"
+          }
+        }
+      }
+    },
+    "screenshot.note.editor.h1": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permanecer na videira"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abide in the vine"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permanecer en la vid"
+          }
+        }
+      }
+    },
+    "screenshot.member.4.last": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alves"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Álvarez"
+          }
+        }
+      }
+    },
+    "screenshot.note.editor.h3": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aplicação pastoral"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pastoral application"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aplicación pastoral"
+          }
+        }
+      }
+    },
+    "screenshot.tag.prep": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "preparação"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "prep"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "preparación"
+          }
+        }
+      }
+    },
+    "screenshot.group.cell.desc": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estudo semanal e oração em família"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weekly study and family prayer"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estudio semanal y oración en familia"
+          }
+        }
+      }
+    },
+    "screenshot.note.sermon.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sermão — Paz que guarda"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sermon — Peace that guards"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sermón — Paz que guarda"
+          }
+        }
+      }
+    },
+    "screenshot.note.editor.close": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fruto do Espírito para viver nesta semana."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fruit of the Spirit to live this week."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fruto del Espíritu para vivir esta semana."
+          }
+        }
+      }
+    },
+    "screenshot.note.group.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estudo do grupo — Comunhão"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Small group study — Fellowship"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estudio del grupo — Comunión"
+          }
+        }
+      }
+    },
+    "screenshot.note.devotion.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Devocional matinal"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Morning devotion"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Devocional matutino"
+          }
+        }
+      }
+    },
+    "screenshot.note.editor.b1": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A videira verdadeira — união com Cristo"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The true vine — union with Christ"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La vid verdadera — unión con Cristo"
+          }
+        }
+      }
+    },
+    "screenshot.note.editor.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparação — João 15"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sermon prep — John 15"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparación — Juan 15"
+          }
+        }
+      }
+    },
+    "screenshot.list.psalms": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memorização — Salmos"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memorization — Psalms"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memorización — Salmos"
+          }
+        }
+      }
+    },
+    "screenshot.tag.sermon": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "sermão"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "sermon"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "sermón"
+          }
+        }
+      }
+    },
+    "screenshot.note.editor.b2": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A poda do Pai — crescimento com propósito"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Father’s pruning — purposeful growth"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La poda del Padre — crecimiento con propósito"
+          }
+        }
+      }
+    },
+    "screenshot.group.leaders.desc": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ensaios e preparação do culto"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rehearsals and service prep"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ensayos y preparación del culto"
+          }
+        }
+      }
+    },
+    "screenshot.member.3.first": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sofia"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sophia"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sofía"
+          }
+        }
+      }
+    },
+    "screenshot.profile.firstName": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ana"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ana"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ana"
+          }
+        }
+      }
+    },
+    "screenshot.tag.group": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "grupo"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "group"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "grupo"
+          }
+        }
+      }
+    },
     "screenshot.list.quarter": {
       "extractionState": "manual",
       "localizations": {
@@ -19685,6 +19869,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Estudios del trimestre"
+          }
+        }
+      }
+    },
+    "screenshot.group.cell.name": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Célula Norte"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "North Cell Group"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Célula Norte"
           }
         }
       }
