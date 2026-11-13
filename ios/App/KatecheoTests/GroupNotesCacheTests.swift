@@ -173,6 +173,45 @@ final class GroupNotesCacheTests: XCTestCase {
         XCTAssertEqual(merged.first(where: { $0.note.id == "n1" })?.note.title, "New")
     }
 
+    func testRememberPublishedNote_insertsLocallyAndClearsEtag() {
+        LocalGroupNotesCache.save(
+            userId: userId,
+            groupId: groupId,
+            notes: [sampleCard(id: "n-old", title: "Antiga")],
+            etag: "W/\"stale\""
+        )
+        var note = NativeAPIClient.emptyNote(id: "n-new")
+        note.title = "Do grupo"
+        NativeAPIClient.rememberPublishedNote(note, inGroupId: groupId)
+
+        let cached = LocalGroupNotesCache.load(userId: userId, groupId: groupId) ?? []
+        XCTAssertEqual(cached.first?.note.id, "n-new")
+        XCTAssertEqual(cached.first?.note.title, "Do grupo")
+        XCTAssertTrue(cached.contains(where: { $0.note.id == "n-old" }))
+        XCTAssertNil(LocalGroupNotesCache.etag(userId: userId, groupId: groupId), "etag cleared so next GET cannot 304 a pre-publish list")
+        let mem: [NativeAPIClient.GroupNoteCardDTO]? = NativeSWR.cachedValue(.groupNotes(groupId))
+        XCTAssertEqual(mem?.first?.note.id, "n-new")
+    }
+
+    func testUpsertNote_withPublishToGroupId_sendsGroupIdAndMirrorsCache() async throws {
+        var note = NativeAPIClient.emptyNote(id: "n-group-create")
+        note.title = "Célula"
+        MockNativeURLProtocol.upsertNoteJSON = ##"""
+        {"ok":true,"note":{"schemaVersion":1,"id":"n-group-create","title":"Célula","happenedAt":"2026-11-13","tags":[],"noteSpeakerId":null,"visibility":"private","updatedAt":"2026-11-13T12:00:00Z","body":{"blocks":[{"id":"b1","type":"paragraph","spans":[]}]}}}
+        """##
+
+        let saved = try await NativeAPIClient.upsertNote(note, publishToGroupId: groupId)
+        XCTAssertEqual(saved.id, "n-group-create")
+
+        let bodies = MockNativeURLProtocol.requestBodies()
+        XCTAssertTrue(
+            bodies.contains(where: { ($0["groupId"] as? String) == groupId }),
+            "create/sync body must carry groupId"
+        )
+        let cached = LocalGroupNotesCache.load(userId: userId, groupId: groupId) ?? []
+        XCTAssertTrue(cached.contains(where: { $0.note.id == "n-group-create" }))
+    }
+
     func testEmptyStateIcon_stopsSpinningAfterLoading() {
         let empty = KCEmptyStateView()
         empty.showLoading(message: String(localized: "Carregando…"))

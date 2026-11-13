@@ -15733,6 +15733,29 @@
         }
       }
     },
+    "Toque em + para criar uma nota neste grupo, ou peça para alguém compartilhar.": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toque em + para criar uma nota neste grupo, ou peça para alguém compartilhar."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap + to create a note in this group, or ask someone to share."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toca + para crear una nota en este grupo, o pide a alguien que comparta."
+          }
+        }
+      }
+    },
     "As notas deste grupo ficam disponíveis após o login.": {
       "extractionState": "manual",
       "localizations": {

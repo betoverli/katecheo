@@ -134,6 +134,27 @@ async function readAndParse<T>(
   return parsed.data;
 }
 
+/** Optional `groupId` on note create/sync → publish into that notebook group. */
+async function publishNoteToGroupIfRequested(
+  userId: string,
+  body: unknown,
+  noteId: string,
+  respond: Respond,
+): Promise<Response | null> {
+  if (!body || typeof body !== "object") return null;
+  const raw = (body as { groupId?: unknown }).groupId;
+  const groupId = typeof raw === "string" ? raw.trim() : "";
+  if (!groupId) return null;
+  const groupsApi = await import("./v1-groups.server");
+  const result = await groupsApi.publishNoteIdToGroup(userId, groupId, noteId);
+  if (!result.ok) {
+    const status =
+      result.error === "missing" ? 404 : result.error === "limit" ? 409 : 403;
+    return respond(result, status);
+  }
+  return null;
+}
+
 /**
  * Dispatch a native v1 request. Dynamic-imports the server module so tests can
  * exercise the router without loading Postgres.
@@ -372,6 +393,8 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
         if (body instanceof Response) return body;
         const result = await upsertNoteForUser(user.id, body);
         if (!result.ok) return respond(result, result.error === "limit" || result.error === "conflict" ? 409 : 400);
+        const published = await publishNoteToGroupIfRequested(user.id, body, result.note.id, respond);
+        if (published instanceof Response) return published;
         return respond(result, 201);
       }
       if (method === "GET") {
@@ -398,6 +421,8 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
       };
       const result = await upsertNoteForUser(user.id, merged);
       if (!result.ok) return respond(result, result.error === "conflict" ? 409 : result.error === "limit" ? 409 : 400);
+      const published = await publishNoteToGroupIfRequested(user.id, patch, result.note.id, respond);
+      if (published instanceof Response) return published;
       return respond(result);
     }
 

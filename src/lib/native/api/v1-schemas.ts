@@ -55,6 +55,8 @@ export const noteUpsertSchema = z
     speakerId: z.union([z.string().max(40), z.null()]).optional(),
     visibility: z.string().max(32).optional(),
     updatedAt: z.string().max(64).optional(),
+    /** Optional: create/sync already belonging to this notebook group (publish). */
+    groupId: z.string().min(1).max(40).optional(),
     body: z
       .object({
         blocks: z.array(z.unknown()).max(200).optional(),

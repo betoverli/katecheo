@@ -301,6 +301,7 @@ final class MockNativeURLProtocol: URLProtocol {
     static var groupJSON: String?
     static var artificialDelayMs: UInt64 = 0
     private(set) static var readBodies: [[String: Any]] = []
+    private(set) static var postBodies: [[String: Any]] = []
     private(set) static var deletedNotificationIds: [String] = []
     private(set) static var clearNotificationsHits = 0
     private(set) static var notificationsListHits = 0
@@ -308,6 +309,8 @@ final class MockNativeURLProtocol: URLProtocol {
     private(set) static var lastIfNoneMatch: String?
     private(set) static var lastUpdatedSince: String?
     private static var registered = false
+
+    static func requestBodies() -> [[String: Any]] { postBodies }
 
     static func register() {
         if !registered {
@@ -349,6 +352,7 @@ final class MockNativeURLProtocol: URLProtocol {
         groupJSON = nil
         artificialDelayMs = 0
         readBodies = []
+        postBodies = []
         deletedNotificationIds = []
         clearNotificationsHits = 0
         notificationsListHits = 0
@@ -391,6 +395,11 @@ final class MockNativeURLProtocol: URLProtocol {
             body = Self.notesJSON
         } else if path.hasSuffix("/notes"), method == "POST" {
             body = Self.upsertNoteJSON ?? Self.noteByIdJSON
+            if let payload = Self.requestBodyData(from: request),
+               let obj = try? JSONSerialization.jsonObject(with: payload) as? [String: Any]
+            {
+                Self.postBodies.append(obj)
+            }
         } else if path.hasSuffix("/speakers") {
             body = Self.speakersJSON
         } else if path.hasSuffix("/me") {
