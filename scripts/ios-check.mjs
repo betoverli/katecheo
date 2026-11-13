@@ -1560,6 +1560,36 @@ try {
   if (!friends.includes("removeLink") || !friends.includes("incomingAccessory")) {
     errors.push("Amigos tem de ter Aceitar/Recusar inline e removeLink (unfriend).");
   }
+  if (!friends.includes("PublicProfileViewController") || !friends.includes("openPublicProfile")) {
+    errors.push("Amigos: tocar num amigo tem de abrir o perfil público.");
+  }
+  if (friends.includes("presentFriendMenu")) {
+    errors.push("Amigos não pode abrir o menu antigo inline no toque da linha (usar perfil + ⋯ / context menu).");
+  }
+  if (!friends.includes('String(localized: "Remover")')) {
+    errors.push('Amigos: swipe destrutivo tem de mostrar o título "Remover".');
+  }
+  const publicProfile = read("ios/App/Katecheo/PublicProfileViewController.swift");
+  if (
+    !publicProfile.includes("ellipsis.circle") ||
+    !publicProfile.includes("Denunciar") ||
+    !publicProfile.includes("Bloquear") ||
+    !publicProfile.includes("Remover amigo")
+  ) {
+    errors.push("PublicProfile tem de ter ⋯ com Denunciar / Bloquear / Remover amigo.");
+  }
+  if (!publicProfile.includes("KCAvatarView") || !publicProfile.includes("getPublicProfile")) {
+    errors.push("PublicProfile tem de usar KCAvatarView e GET /users/:id.");
+  }
+  if (!api.includes("getPublicProfile") || !api.includes("users/")) {
+    errors.push("NativeAPIClient tem de chamar GET /users/:userId (perfil público).");
+  }
+  if (!project.includes("PublicProfileViewController.swift in Sources")) {
+    errors.push("PublicProfileViewController tem de estar no target App.");
+  }
+  if (!project.includes("PublicProfileTests.swift in Sources")) {
+    errors.push("PublicProfileTests têm de estar no target.");
+  }
   const push = read("ios/App/Katecheo/NativePushService.swift");
   if (push.includes("ingestPush") && !push.includes("handlePushHint") && !push.includes("refreshFromServer")) {
     errors.push("Push não pode acender bolinha sem reconciliar servidor (build-238).");

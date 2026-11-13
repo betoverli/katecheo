@@ -416,6 +416,13 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
       return respond({ ok: true, people: await social.searchPeopleForUser(user.id, q) });
     }
 
+    if (route.kind === "user-profile") {
+      const social = await import("./v1-social.server");
+      const profile = await social.getPublicProfileForUser(user.id, route.userId);
+      if (!profile) return respond({ ok: false, error: "missing" }, 404);
+      return respond({ ok: true, user: profile });
+    }
+
     if (route.kind === "report") {
       const payload = await readAndParse(request, contentReportSchema, respond);
       if (payload instanceof Response) return payload;

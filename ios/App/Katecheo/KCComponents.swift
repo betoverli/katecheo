@@ -1468,3 +1468,115 @@ final class KCNamedCreateViewController: UIViewController, UITextFieldDelegate {
         dismiss(animated: true)
     }
 }
+
+// MARK: - Person avatar (photo or initials)
+
+/// Pure initials helper — unit-tested (Amigos → public profile).
+enum KCPersonAvatarLogic {
+    /// Up to two letters from display name; falls back to handle; else "?".
+    static func initials(displayName: String, handle: String = "") -> String {
+        let name = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let parts = name
+            .split(whereSeparator: { $0.isWhitespace || $0 == "@" })
+            .map(String.init)
+            .filter { !$0.isEmpty }
+        if parts.count >= 2 {
+            let a = parts[0].first.map(String.init) ?? ""
+            let b = parts[1].first.map(String.init) ?? ""
+            let pair = (a + b).uppercased()
+            if !pair.isEmpty { return pair }
+        }
+        if let first = parts.first, let ch = first.first {
+            return String(ch).uppercased()
+        }
+        let handleClean = handle.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "@", with: "")
+        if let ch = handleClean.first {
+            return String(ch).uppercased()
+        }
+        return "?"
+    }
+}
+
+/// Circular avatar matching Perfil chrome: photo when available, otherwise initials.
+final class KCAvatarView: UIView {
+    private let imageView = UIImageView()
+    private let initialsLabel = UILabel()
+    private var loadTask: Task<Void, Never>?
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        clipsToBounds = true
+        backgroundColor = KCDesign.accentSoft
+        layer.borderWidth = 2
+        layer.borderColor = KCDesign.spine.withAlphaComponent(0.35).cgColor
+        isAccessibilityElement = true
+        accessibilityLabel = String(localized: "Foto do perfil")
+
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        imageView.contentMode = .scaleAspectFill
+        imageView.clipsToBounds = true
+        addSubview(imageView)
+
+        initialsLabel.translatesAutoresizingMaskIntoConstraints = false
+        initialsLabel.textAlignment = .center
+        initialsLabel.textColor = KCDesign.accent
+        initialsLabel.font = KCDesign.preferred(.title1, weight: .semibold)
+        initialsLabel.adjustsFontForContentSizeCategory = true
+        initialsLabel.isHidden = true
+        addSubview(initialsLabel)
+
+        NSLayoutConstraint.activate([
+            imageView.topAnchor.constraint(equalTo: topAnchor),
+            imageView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            imageView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            imageView.bottomAnchor.constraint(equalTo: bottomAnchor),
+            initialsLabel.centerXAnchor.constraint(equalTo: centerXAnchor),
+            initialsLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+            initialsLabel.leadingAnchor.constraint(greaterThanOrEqualTo: leadingAnchor, constant: 4),
+            initialsLabel.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -4),
+        ])
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        layer.cornerRadius = min(bounds.width, bounds.height) / 2
+        let side = min(bounds.width, bounds.height)
+        if side > 0 {
+            let pointSize = max(14, side * 0.36)
+            initialsLabel.font = .systemFont(ofSize: pointSize, weight: .semibold)
+        }
+    }
+
+    func configure(displayName: String, handle: String, avatarUrl: String) {
+        loadTask?.cancel()
+        let initials = KCPersonAvatarLogic.initials(displayName: displayName, handle: handle)
+        initialsLabel.text = initials
+        showInitials()
+
+        let trimmed = avatarUrl.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let url = URL(string: trimmed), !trimmed.isEmpty else { return }
+        loadTask = Task { [weak self] in
+            do {
+                let (data, _) = try await URLSession.shared.data(from: url)
+                guard !Task.isCancelled, let image = UIImage(data: data) else { return }
+                await MainActor.run {
+                    guard let self, !Task.isCancelled else { return }
+                    self.imageView.image = image
+                    self.imageView.isHidden = false
+                    self.initialsLabel.isHidden = true
+                }
+            } catch {
+                // Keep initials.
+            }
+        }
+    }
+
+    private func showInitials() {
+        imageView.image = nil
+        imageView.isHidden = true
+        initialsLabel.isHidden = false
+    }
+}

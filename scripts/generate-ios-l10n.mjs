@@ -670,6 +670,13 @@ const MANUAL = {
     "Esto elimina los avisos de la lista. Las solicitudes de amistad siguen en Amigos.",
   ],
 
+  // Friends → public profile
+  "Perfil indisponível": ["Profile unavailable", "Perfil no disponible"],
+  "Não é possível ver este perfil.": [
+    "This profile can’t be viewed.",
+    "No es posible ver este perfil.",
+  ],
+
 };
 
 /** Keys owned by the MANUAL table (safe to add into an existing hand catalog). */

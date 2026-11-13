@@ -448,6 +448,13 @@ export function nativeV1Catalog() {
       { method: "POST", path: "/links/decline", auth: true, body: "{ handle }", note: "also cancels outgoing" },
       { method: "POST", path: "/links/remove", auth: true, body: "{ handle }", note: "unfriend both sides + grants" },
       {
+        method: "GET",
+        path: "/users/:userId",
+        auth: true,
+        returns: "{ user: public profile + friendship status }",
+        note: "404 when missing or either-side block",
+      },
+      {
         method: "POST",
         path: "/report",
         auth: true,

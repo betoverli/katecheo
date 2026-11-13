@@ -213,6 +213,33 @@ export type NativePeopleHit = NativeLinkPerson & {
   status: "none" | "self" | "incoming" | "outgoing" | "accepted";
 };
 
+export type NativePublicProfile = NativeLinkPerson & {
+  status: "none" | "self" | "incoming" | "outgoing" | "accepted";
+};
+
+/**
+ * Read-only public profile for another user (Amigos → profile).
+ * Missing user or either-side block → null (caller returns 404; no existence leak beyond search).
+ */
+export async function getPublicProfileForUser(
+  viewerId: string,
+  targetUserIdRaw: string,
+): Promise<NativePublicProfile | null> {
+  const targetUserId = String(targetUserIdRaw ?? "").trim();
+  if (!targetUserId || targetUserId.length > 80) return null;
+  if (targetUserId === viewerId) {
+    const self = await prefsById(await getSql(), viewerId);
+    if (!self) return null;
+    return { ...person(self), status: "self" };
+  }
+  const sql = await getSql();
+  if (await isEitherBlocked(viewerId, targetUserId, sql)) return null;
+  const pref = await prefsById(sql, targetUserId);
+  if (!pref) return null;
+  const status = await pairStatus(sql, viewerId, targetUserId);
+  return { ...person(pref), status };
+}
+
 /** Same as web `searchPeople` (handle/name, min 2 chars, shared Neon rate limit). Hides users without a handle (L1). */
 export async function searchPeopleForUser(userId: string, qRaw: string): Promise<NativePeopleHit[]> {
   if (!(await allowRequest(`people:${userId}`, 30, 60_000))) return [];
