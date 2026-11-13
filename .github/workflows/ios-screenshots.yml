@@ -1,0 +1,229 @@
+name: iOS App Store screenshots
+
+# Intended trigger is workflow_dispatch only (never archives / TestFlight).
+# pull_request is included so the workflow can run from a feature-branch PR
+# before it exists on the default branch (GitHub only lists dispatchable
+# workflows that are already on the default branch). Safe: does not feed
+# into signing / TestFlight jobs.
+# After #105: captures include speaker-gap + bible preview label fixes,
+# then compose-appstore-screenshots.py adds localized marketing captions.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref to capture (branch, tag, or SHA). Empty = the ref you dispatch from.
+        required: false
+        type: string
+  pull_request:
+    paths:
+      - ".github/workflows/ios-screenshots.yml"
+      - "ios/App/KatecheoScreenshotTests/**"
+      - "ios/App/Katecheo/KatecheoScreenshotMode.swift"
+      - "ios/App/KatecheoTests/KatecheoScreenshotModeTests.swift"
+      - "scripts/compose-appstore-screenshots.py"
+
+jobs:
+  screenshots:
+    name: Capture App Store screenshots
+    runs-on: macos-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Dependências
+        run: npm ci
+
+      - name: Xcode com SDK do iOS 26
+        run: node scripts/select-xcode.mjs
+
+      - name: Verificar o projeto
+        run: npm run ios:check
+
+      - name: Capture screenshots (iPhone 16 Pro Max + iPhone 16 Pro)
+        env:
+          SCREENSHOT_ROOT: ${{ runner.temp }}/appstore-screenshots
+        run: |
+          set -euo pipefail
+          mkdir -p "$SCREENSHOT_ROOT"
+
+          # Prefer App Store v1 sizes (16 Pro Max 1320×2868 / 16 Pro 1206×2622).
+          # macos-latest with iOS 26 may only ship iPhone 17 Pro Max / Pro — same
+          # logical sizes — so accept those as fallbacks. Artifact folders keep the
+          # App Store size-class slugs (iphone-16-pro-max / iphone-16-pro).
+          pick_udid() {
+            local candidates="$1"
+            node -e '
+              const candidates = process.argv[1].split("|").map((s) => s.trim()).filter(Boolean);
+              const {execSync} = require("child_process");
+              const data = JSON.parse(execSync("xcrun simctl list devices available -j", {encoding:"utf8"}));
+              const byName = new Map();
+              for (const [runtime, devices] of Object.entries(data.devices || {})) {
+                if (!/iOS|iPhone/i.test(runtime)) continue;
+                for (const d of devices) {
+                  if (!d.isAvailable || !String(d.name || "").startsWith("iPhone")) continue;
+                  const list = byName.get(d.name) || [];
+                  list.push({ name: d.name, udid: d.udid, runtime });
+                  byName.set(d.name, list);
+                }
+              }
+              for (const name of candidates) {
+                const list = byName.get(name) || [];
+                list.sort((a, b) => String(b.runtime).localeCompare(String(a.runtime)));
+                if (list[0]) {
+                  console.error("Using simulator: " + list[0].name + " (" + list[0].runtime + ")");
+                  process.stdout.write(list[0].udid);
+                  process.exit(0);
+                }
+              }
+              // Last resort: create from a matching device type on the newest runtime.
+              try {
+                const {spawnSync} = require("child_process");
+                const runtimes = JSON.parse(execSync("xcrun simctl list runtimes -j", {encoding:"utf8"}));
+                const ios = (runtimes.runtimes || [])
+                  .filter((r) => r.isAvailable && /iOS/i.test(r.name || ""))
+                  .sort((a, b) => String(b.version || "").localeCompare(String(a.version || "")));
+                const types = JSON.parse(execSync("xcrun simctl list devicetypes -j", {encoding:"utf8"}));
+                for (const name of candidates) {
+                  const dt = (types.devicetypes || []).find((t) => t.name === name);
+                  if (!dt || !ios[0]) continue;
+                  const created = spawnSync(
+                    "xcrun",
+                    ["simctl", "create", name, dt.identifier, ios[0].identifier],
+                    {encoding: "utf8"},
+                  );
+                  if (created.status === 0 && created.stdout.trim()) {
+                    console.error("Created simulator: " + name + " → " + created.stdout.trim());
+                    process.stdout.write(created.stdout.trim());
+                    process.exit(0);
+                  }
+                  if (created.stderr) console.error(created.stderr.trim());
+                }
+              } catch (err) {
+                console.error(String(err && err.stderr || err));
+              }
+              console.error("No simulator for candidates: " + candidates.join(", "));
+              console.error("Available iPhone sims:");
+              for (const name of [...byName.keys()].sort()) console.error(" - " + name);
+              process.exit(1);
+            ' "$candidates"
+          }
+
+          override_status_bar() {
+            local udid="$1"
+            xcrun simctl bootstatus "$udid" -b >/dev/null
+            # Clean App Store chrome: 9:41, full battery, clear cellular bars.
+            xcrun simctl status_bar "$udid" override \
+              --time "9:41" \
+              --dataNetwork wifi \
+              --wifiBars 3 \
+              --cellularMode active \
+              --cellularBars 4 \
+              --operatorName "" \
+              --batteryState charged \
+              --batteryLevel 100 || true
+          }
+
+          # name candidates (prefer 16, fallback 17) | artifact slug | size class
+          DEVICES=(
+            "iPhone 16 Pro Max|iPhone 17 Pro Max|iphone-16-pro-max|1320x2868"
+            "iPhone 16 Pro|iPhone 17 Pro|iphone-16-pro|1206x2622"
+          )
+          LOCALES=(pt-BR en es)
+
+          DERIVED="${RUNNER_TEMP}/katecheo-ios-screenshots"
+          mkdir -p "$DERIVED"
+
+          FAILED=0
+          for entry in "${DEVICES[@]}"; do
+            IFS='|' read -r PRIMARY FALLBACK DEVICE_SLUG DEVICE_SIZE <<< "$entry"
+            echo "::group::Device $PRIMARY / $FALLBACK ($DEVICE_SIZE)"
+            UDID="$(pick_udid "${PRIMARY}|${FALLBACK}")"
+            echo "UDID=$UDID"
+            # Clean slate between device size classes — avoids hung UITest sessions.
+            xcrun simctl shutdown "$UDID" 2>/dev/null || true
+            xcrun simctl erase "$UDID" 2>/dev/null || true
+            xcrun simctl boot "$UDID"
+            override_status_bar "$UDID"
+            DEST="platform=iOS Simulator,id=$UDID"
+
+            for LOCALE in "${LOCALES[@]}"; do
+              echo "Capturing locale=$LOCALE device=$DEVICE_SLUG"
+              # Xcode strips the TEST_RUNNER_ prefix when injecting env into XCTest.
+              export TEST_RUNNER_SCREENSHOT_OUTPUT_DIR="$SCREENSHOT_ROOT"
+              export TEST_RUNNER_SCREENSHOT_LOCALE="$LOCALE"
+              export TEST_RUNNER_SCREENSHOT_DEVICE_SLUG="$DEVICE_SLUG"
+              export SCREENSHOT_OUTPUT_DIR="$SCREENSHOT_ROOT"
+              export SCREENSHOT_LOCALE="$LOCALE"
+              export SCREENSHOT_DEVICE_SLUG="$DEVICE_SLUG"
+              set +e
+              xcodebuild \
+                -project ios/App/Katecheo.xcodeproj \
+                -scheme Katecheo \
+                -configuration Debug \
+                -sdk iphonesimulator \
+                -destination "$DEST" \
+                -derivedDataPath "$DERIVED" \
+                -resultBundlePath "$DERIVED/screenshots-${DEVICE_SLUG}-${LOCALE}.xcresult" \
+                -parallel-testing-enabled NO \
+                -only-testing:KatecheoScreenshotTests/KatecheoScreenshotTests/testCaptureAppStoreScenes \
+                CODE_SIGNING_ALLOWED=NO \
+                CODE_SIGNING_REQUIRED=NO \
+                CODE_SIGN_IDENTITY="" \
+                DEVELOPMENT_TEAM="" \
+                test
+              STATUS=$?
+              set -e
+              if [ "$STATUS" -ne 0 ]; then
+                echo "::warning::xcodebuild failed for $DEVICE_SLUG/$LOCALE (exit $STATUS)"
+                FAILED=1
+              fi
+            done
+
+            xcrun simctl status_bar "$UDID" clear 2>/dev/null || true
+            xcrun simctl shutdown "$UDID" 2>/dev/null || true
+            echo "::endgroup::"
+          done
+
+          echo "Tree:"
+          find "$SCREENSHOT_ROOT" -type f -name '*.png' | sort
+          COUNT="$(find "$SCREENSHOT_ROOT" -type f -name '*.png' | wc -l | tr -d ' ')"
+          # 2 devices × 3 locales × 5 scenes = 30
+          if [ "$COUNT" -lt 30 ]; then
+            echo "Expected at least 30 PNGs, found $COUNT"
+            exit 1
+          fi
+          if [ "$FAILED" -ne 0 ]; then
+            echo "Some xcodebuild invocations failed, but all 30 PNGs are present."
+          fi
+
+      - name: Compose marketing frames (captions)
+        env:
+          SCREENSHOT_ROOT: ${{ runner.temp }}/appstore-screenshots
+        run: |
+          set -euo pipefail
+          # macos-latest ships a PEP 668–managed Python; use a throwaway venv.
+          python3 -m venv "${RUNNER_TEMP}/katecheo-pillow-venv"
+          # shellcheck disable=SC1091
+          source "${RUNNER_TEMP}/katecheo-pillow-venv/bin/activate"
+          python -m pip install --upgrade pip Pillow
+          python scripts/compose-appstore-screenshots.py \
+            --input "$SCREENSHOT_ROOT" \
+            --output "$SCREENSHOT_ROOT"
+          echo "Marketing tree:"
+          find "$SCREENSHOT_ROOT" -type f -name '*.png' | sort
+
+      - name: Upload appstore-screenshots artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: appstore-screenshots
+          path: ${{ runner.temp }}/appstore-screenshots/
+          if-no-files-found: warn
+          retention-days: 30

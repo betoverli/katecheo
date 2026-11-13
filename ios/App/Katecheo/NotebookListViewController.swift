@@ -353,6 +353,11 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     }
 
     private func setBannerStatus(_ text: String?, kind: KCStatusBanner.Kind = .neutral) {
+        // Marketing screenshots: never show offline / debug status chrome.
+        if KatecheoScreenshotMode.isEnabled {
+            statusBanner.setStatus(nil)
+            return
+        }
         statusBanner.setStatus(text, kind: kind)
         installTableHeader()
     }

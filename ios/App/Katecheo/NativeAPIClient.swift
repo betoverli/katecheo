@@ -570,6 +570,13 @@ enum NativeAPIClient {
     }
 
     private static func performDetailed(_ request: URLRequest) async throws -> (Int, Data, HTTPURLResponse?) {
+        // App Store screenshot mode: local fixtures only — never hit the network.
+        if KatecheoScreenshotMode.isEnabled {
+            if let path = request.url?.path {
+                NativeSWR.recordNetworkHit(path)
+            }
+            return try KatecheoScreenshotMode.fixtureResponse(for: request)
+        }
         if let path = request.url?.path {
             NativeSWR.recordNetworkHit(path)
         }

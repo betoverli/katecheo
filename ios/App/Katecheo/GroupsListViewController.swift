@@ -121,7 +121,9 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
                 groups = try await NativeAPIClient.listGroups(force: force)
                 // Success: no persistent "sincronizado" banner (was leaking across screens).
                 statusBanner.setStatus(nil)
-                await refreshPendingActivityDots()
+                if !KatecheoScreenshotMode.isEnabled {
+                    await refreshPendingActivityDots()
+                }
                 applyFilter()
             } catch NativeAPIClient.APIError.unauthorized {
                 statusBanner.setStatus(String(localized: "Sessão expirada. Entre novamente."), kind: .error)
@@ -132,8 +134,12 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
                 if groups.isEmpty {
                     groups = LocalSessionCache.loadGroups()
                 }
-                LocalSessionCache.showOfflineHint = true
-                statusBanner.setStatus(String(localized: "Offline — mostrando grupos em cache."), kind: .warning)
+                if KatecheoScreenshotMode.isEnabled {
+                    statusBanner.setStatus(nil)
+                } else {
+                    LocalSessionCache.showOfflineHint = true
+                    statusBanner.setStatus(String(localized: "Offline — mostrando grupos em cache."), kind: .warning)
+                }
                 applyFilter()
             }
         }
