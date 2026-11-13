@@ -27,19 +27,23 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
     /// Author of a granted / group note — used for report & block.
     private var sharedAuthorUserId: String?
     private var sharedAuthorName: String?
+    /// When set (compose from a notebook group), every sync keeps the note published to that group.
+    private let publishGroupId: String?
 
     init(
         noteId: String,
         initial: NativeAPIClient.NoteDocument?,
         grantedReadOnly: Bool = false,
         sharedAuthorUserId: String? = nil,
-        sharedAuthorName: String? = nil
+        sharedAuthorName: String? = nil,
+        publishGroupId: String? = nil
     ) {
         self.noteId = noteId
         self.note = initial ?? NativeAPIClient.emptyNote(id: noteId)
         self.isGrantedReadOnly = grantedReadOnly
         self.sharedAuthorUserId = sharedAuthorUserId
         self.sharedAuthorName = sharedAuthorName
+        self.publishGroupId = publishGroupId
         super.init(nibName: nil, bundle: nil)
         // Hide the root tab bar for the whole push/pop transition (no flicker).
         hidesBottomBarWhenPushed = true
@@ -470,7 +474,7 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
     private func persist() async {
         guard !isGrantedReadOnly else { return }
         do {
-            let saved = try await NativeAPIClient.upsertNote(note)
+            let saved = try await NativeAPIClient.upsertNote(note, publishToGroupId: publishGroupId)
             await MainActor.run {
                 // Don't pushNote after save — that would reset caret / undo / IME.
                 self.note.updatedAt = saved.updatedAt

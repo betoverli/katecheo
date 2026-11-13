@@ -66,6 +66,9 @@ enum NativeSWR {
     private static var fetchedAt: [String: Date] = [:]
     private static var memory: [String: Any] = [:]
     private static var inFlight: [String: Any] = [:]
+    /// Bumped on `invalidate` so in-flight GETs started before a mutation cannot
+    /// `markFetched` / `saveDisk` with a pre-mutation snapshot (coalesce race).
+    private static var epoch: [String: UInt64] = [:]
     private static var activityLastForceAt: Date?
     private static var activityLastSuccessAt: Date?
 
@@ -117,8 +120,13 @@ enum NativeSWR {
     static func invalidate(_ keys: Key...) {
         lock.lock(); defer { lock.unlock() }
         for key in keys {
-            fetchedAt.removeValue(forKey: key.description)
-            memory.removeValue(forKey: key.description)
+            let k = key.description
+            fetchedAt.removeValue(forKey: k)
+            memory.removeValue(forKey: k)
+            // Drop coalesce handle so the next fetch starts a post-mutation GET.
+            // The old Task may still finish; `epoch` prevents it from writing cache.
+            inFlight.removeValue(forKey: k)
+            epoch[k, default: 0] &+= 1
         }
     }
 
@@ -161,6 +169,7 @@ enum NativeSWR {
         fetchedAt.removeAll()
         memory.removeAll()
         inFlight.removeAll()
+        epoch.removeAll()
         activityLastForceAt = nil
         activityLastSuccessAt = nil
         networkHits = []
@@ -216,12 +225,25 @@ enum NativeSWR {
                 lock.unlock()
                 return existing
             }
+            let startEpoch = epoch[key.description, default: 0]
             let created = Task<T, Error> {
                 do {
                     let value = try await network()
-                    markFetched(key, value: value)
-                    saveDisk?(value)
-                    lock.lock(); inFlight.removeValue(forKey: key.description); lock.unlock()
+                    lock.lock()
+                    let stale = epoch[key.description, default: 0] != startEpoch
+                    inFlight.removeValue(forKey: key.description)
+                    if !stale {
+                        fetchedAt[key.description] = Date()
+                        memory[key.description] = value
+                    }
+                    lock.unlock()
+                    if !stale {
+                        saveDisk?(value)
+                        return value
+                    }
+                    // Mutation won the race — keep post-mutation memory/disk.
+                    if let mem: T = cachedValue(key) { return mem }
+                    if let disk = loadDisk?() { return disk }
                     return value
                 } catch {
                     lock.lock(); inFlight.removeValue(forKey: key.description); lock.unlock()

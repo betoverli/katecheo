@@ -412,7 +412,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                     showEmpty(
                         symbol: "tray",
                         title: String(localized: "Nenhuma nota neste grupo"),
-                        message: String(localized: "Publique uma nota ou peça para alguém compartilhar.")
+                        message: String(localized: "Toque em + para criar uma nota neste grupo, ou peça para alguém compartilhar.")
                     )
                 } else {
                     showEmpty(symbol: "magnifyingglass", title: String(localized: "Nenhum resultado"), message: String(localized: "Tente outro termo de busca."))
@@ -812,15 +812,22 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 return
             }
             do {
-                let created = try await NativeAPIClient.upsertNote(NativeAPIClient.emptyNote())
+                // Inside a group: create already belonging to that group (wire `groupId` + publish).
+                let created = try await NativeAPIClient.upsertNote(
+                    NativeAPIClient.emptyNote(),
+                    publishToGroupId: group?.id
+                )
                 if let group {
-                    try await NativeAPIClient.publishNote(noteId: created.id, toGroupId: group.id)
-                    reload()
+                    insertCreatedGroupNoteLocally(created, group: group)
                 } else {
                     notes.insert(created, at: 0)
                     applyFilter()
                 }
-                let detail = NoteDetailViewController(noteId: created.id, initial: created)
+                let detail = NoteDetailViewController(
+                    noteId: created.id,
+                    initial: created,
+                    publishGroupId: group?.id
+                )
                 navigationController?.pushViewController(detail, animated: true)
             } catch {
                 let err = UIAlertController(title: String(localized: "Não foi possível criar"), message: error.localizedDescription, preferredStyle: .alert)
@@ -828,6 +835,27 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 present(err, animated: true)
             }
         }
+    }
+
+    /// Paint the new note in the group list immediately (disk/SWR already updated by upsert).
+    private func insertCreatedGroupNoteLocally(_ note: NativeAPIClient.NoteDocument, group: NativeAPIClient.GroupDTO) {
+        // upsert(publishToGroupId:) already mirrored the card; re-read so the table matches disk.
+        if let userId = LocalSessionCache.loadMe()?.id,
+           let cached = LocalGroupNotesCache.load(userId: userId, groupId: group.id),
+           !cached.isEmpty
+        {
+            groupCards = cached
+        } else {
+            NativeAPIClient.rememberPublishedNote(note, inGroupId: group.id)
+            if let userId = LocalSessionCache.loadMe()?.id,
+               let cached = LocalGroupNotesCache.load(userId: userId, groupId: group.id)
+            {
+                groupCards = cached
+            }
+        }
+        notes = groupCards.compactMap(\.document)
+        groupNotesAwaitingFirstPaint = false
+        applyFilter()
     }
 
     @objc private func moreMenu() {

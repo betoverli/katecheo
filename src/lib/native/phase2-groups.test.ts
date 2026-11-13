@@ -84,8 +84,26 @@ describe("Phase 2 native Groups UI", () => {
     assert.match(notebook, /listGroupNotes/);
     assert.match(notebook, /Renomear grupo/);
     assert.match(notebook, /Excluir grupo|Apagar grupo/);
-    assert.match(notebook, /publishNote/);
+    assert.match(notebook, /publishNote|publishToGroupId/);
     assert.match(notebook, /LocalGroupNotesCache/);
+  });
+
+  it("creates notes inside a group already belonging to that group", () => {
+    const notebook = read("ios/App/Katecheo/NotebookListViewController.swift");
+    assert.match(notebook, /publishToGroupId:\s*group\?\.id/);
+    assert.match(notebook, /insertCreatedGroupNoteLocally/);
+    assert.match(notebook, /publishGroupId:\s*group\?\.id/);
+    const detail = read("ios/App/Katecheo/NoteDetailViewController.swift");
+    assert.match(detail, /publishGroupId/);
+    assert.match(detail, /upsertNote\(note,\s*publishToGroupId:\s*publishGroupId\)/);
+    const client = read("ios/App/Katecheo/NativeAPIClient.swift");
+    assert.match(client, /publishToGroupId/);
+    assert.match(client, /rememberPublishedNote/);
+    assert.match(client, /obj\["groupId"\]/);
+    const http = read("src/lib/native/api/v1-http.ts");
+    assert.match(http, /publishNoteToGroupIfRequested/);
+    const schemas = read("src/lib/native/api/v1-schemas.ts");
+    assert.match(schemas, /groupId:\s*z\.string\(\)/);
   });
 
   it("caches group notes on device with conditional GET support", () => {

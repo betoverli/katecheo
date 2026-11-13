@@ -61,6 +61,25 @@ describe("native v1 schemas (M1)", () => {
     assert.equal(parsed.ok, true);
   });
 
+  it("accepts optional groupId on note upsert (create inside a notebook group)", () => {
+    const doc = {
+      schemaVersion: 1 as const,
+      id: "noteingroup1",
+      title: "",
+      happenedAt: "2026-11-13",
+      tags: [],
+      visibility: "private",
+      updatedAt: new Date().toISOString(),
+      groupId: "groupabc123",
+      body: { blocks: [{ type: "paragraph", id: "b1", spans: [] }] },
+    };
+    const parsed = parseWithSchema(noteUpsertSchema, doc);
+    assert.equal(parsed.ok, true);
+    if (parsed.ok) {
+      assert.equal((parsed.data as { groupId?: string }).groupId, "groupabc123");
+    }
+  });
+
   it("rejects empty / non-object note bodies with clear issues", () => {
     const parsed = parseWithSchema(noteUpsertSchema, {});
     assert.equal(parsed.ok, false);

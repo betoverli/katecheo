@@ -943,11 +943,25 @@ enum NativeAPIClient {
         }
     }
 
-    static func upsertNote(_ note: NoteDocument) async throws -> NoteDocument {
+    /// Creates/updates a note. When `publishToGroupId` is set, the note is associated with
+    /// that notebook group in the same sync (body `groupId` + local group-notes cache).
+    static func upsertNote(_ note: NoteDocument, publishToGroupId: String? = nil) async throws -> NoteDocument {
         var payload = note
         payload.schemaVersion = 1
         payload.updatedAt = ISO8601DateFormatter().string(from: Date())
-        let body = try JSONEncoder().encode(payload)
+        let groupId = publishToGroupId?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let body: Data
+        if let groupId, !groupId.isEmpty {
+            // NoteDocument stays free of group fields; attach groupId only on the wire.
+            guard var obj = try JSONSerialization.jsonObject(with: JSONEncoder().encode(payload)) as? [String: Any] else {
+                throw APIError.decoding
+            }
+            obj["groupId"] = groupId
+            body = try JSONSerialization.data(withJSONObject: obj)
+        } else {
+            body = try JSONEncoder().encode(payload)
+        }
         let request = try authorizedRequest(path: "api/native/v1/notes", method: "POST", body: body)
         let (status, data) = try await perform(request)
         try throwIfUnauthorized(status)
@@ -961,6 +975,11 @@ enum NativeAPIClient {
         NativeSWR.invalidateNotesSubtree(noteId: saved.id)
         NativeSWR.markFetched(.note(saved.id), value: NotePack(note: saved, speakers: [], via: "owned"))
         NativeSWR.invalidate(.notes)
+        if let groupId, !groupId.isEmpty {
+            // Server associates via body `groupId` when supported; confirm with publish
+            // (idempotent) so older backends and racey caches still land in the group.
+            try await publishNote(noteId: saved.id, toGroupId: groupId, document: saved)
+        }
         return saved
     }
 
@@ -1219,7 +1238,7 @@ enum NativeAPIClient {
         }
     }
 
-    static func publishNote(noteId: String, toGroupId groupId: String) async throws {
+    static func publishNote(noteId: String, toGroupId groupId: String, document: NoteDocument? = nil) async throws {
         struct Body: Encodable { let noteId: String }
         let body = try JSONEncoder().encode(Body(noteId: noteId))
         let request = try authorizedRequest(path: "api/native/v1/groups/\(groupId)/notes", method: "POST", body: body)
@@ -1228,7 +1247,50 @@ enum NativeAPIClient {
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
+        let doc = document ?? LocalNoteCache.loadNotes().first(where: { $0.id == noteId })
+        if let doc {
+            rememberPublishedNote(doc, inGroupId: groupId)
+        } else {
+            NativeSWR.invalidate(.groupNotes(groupId))
+            // Clear ETag so the next GET cannot 304 against a pre-publish snapshot.
+            if let userId = LocalSessionCache.loadMe()?.id,
+               let cached = LocalGroupNotesCache.load(userId: userId, groupId: groupId)
+            {
+                LocalGroupNotesCache.save(userId: userId, groupId: groupId, notes: cached, etag: nil)
+            }
+        }
+    }
+
+    /// Insert/replace a group note card on disk + SWR memory so the group list paints immediately.
+    static func rememberPublishedNote(_ note: NoteDocument, inGroupId groupId: String) {
+        guard let me = LocalSessionCache.loadMe() else {
+            NativeSWR.invalidate(.groupNotes(groupId))
+            return
+        }
+        let card = GroupNoteCardDTO(
+            note: .init(
+                id: note.id,
+                title: note.title,
+                happenedAt: note.happenedAt,
+                updatedAt: note.updatedAt
+            ),
+            author: .init(
+                userId: me.id,
+                handle: me.prefs.handle,
+                firstName: me.prefs.firstName,
+                lastName: me.prefs.lastName
+            ),
+            owned: true,
+            document: note
+        )
+        var cards = LocalGroupNotesCache.load(userId: me.id, groupId: groupId) ?? []
+        cards.removeAll { $0.note.id == note.id }
+        cards.insert(card, at: 0)
+        cards = mergeGroupNotes(prior: cards, delta: [])
+        // etag nil → next conditional GET cannot 304 a pre-publish list.
+        LocalGroupNotesCache.save(userId: me.id, groupId: groupId, notes: cards, etag: nil)
         NativeSWR.invalidate(.groupNotes(groupId))
+        NativeSWR.markFetched(.groupNotes(groupId), value: cards)
     }
 
     static func unpublishNote(noteId: String, fromGroupId groupId: String) async throws {
