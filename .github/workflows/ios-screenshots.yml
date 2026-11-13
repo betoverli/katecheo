@@ -208,8 +208,12 @@ jobs:
           SCREENSHOT_ROOT: ${{ runner.temp }}/appstore-screenshots
         run: |
           set -euo pipefail
-          python3 -m pip install --user Pillow
-          python3 scripts/compose-appstore-screenshots.py \
+          # macos-latest ships a PEP 668–managed Python; use a throwaway venv.
+          python3 -m venv "${RUNNER_TEMP}/katecheo-pillow-venv"
+          # shellcheck disable=SC1091
+          source "${RUNNER_TEMP}/katecheo-pillow-venv/bin/activate"
+          python -m pip install --upgrade pip Pillow
+          python scripts/compose-appstore-screenshots.py \
             --input "$SCREENSHOT_ROOT" \
             --output "$SCREENSHOT_ROOT"
           echo "Marketing tree:"
