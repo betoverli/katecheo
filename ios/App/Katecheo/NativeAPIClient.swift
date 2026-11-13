@@ -218,6 +218,38 @@ enum NativeAPIClient {
         let error: String?
     }
 
+    /// Read-only public profile (`GET /users/:userId`). Blocks → 404 / missing.
+    struct PublicProfileDTO: Codable, Equatable {
+        var userId: String
+        var handle: String
+        var firstName: String
+        var lastName: String
+        var avatarId: String
+        var avatarUrl: String
+        /// `none` | `self` | `incoming` | `outgoing` | `accepted`
+        var status: String
+
+        var displayName: String {
+            let name = [firstName, lastName].filter { !$0.isEmpty }.joined(separator: " ")
+            if !name.isEmpty { return name }
+            if !handle.isEmpty { return "@\(handle)" }
+            return String(localized: "Usuário")
+        }
+
+        var asPerson: LinkPersonDTO {
+            LinkPersonDTO(
+                userId: userId, handle: handle, firstName: firstName, lastName: lastName,
+                avatarId: avatarId, avatarUrl: avatarUrl
+            )
+        }
+    }
+
+    struct PublicProfileResponse: Decodable {
+        let ok: Bool?
+        let user: PublicProfileDTO?
+        let error: String?
+    }
+
     struct LinkActionResponse: Decodable {
         let ok: Bool?
         let error: String?
@@ -735,6 +767,24 @@ enum NativeAPIClient {
             throw APIError.decoding
         }
         return decoded.people ?? []
+    }
+
+    /// Public profile for another user. Missing / blocked → `APIError.http(404, …)`.
+    static func getPublicProfile(userId: String) async throws -> PublicProfileDTO {
+        let encoded = userId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? userId
+        let request = try authorizedRequest(path: "api/native/v1/users/\(encoded)", method: "GET")
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        if status == 404 {
+            throw APIError.http(404, String(data: data, encoding: .utf8) ?? "missing")
+        }
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(PublicProfileResponse.self, from: data),
+              let user = decoded.user
+        else { throw APIError.decoding }
+        return user
     }
 
     static func listNotifications(

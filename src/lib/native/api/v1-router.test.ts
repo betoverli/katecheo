@@ -107,6 +107,7 @@ describe("matchNativeV1Route", () => {
     assert.deepEqual(matchNativeV1Route("notify-prefs"), { kind: "notify-prefs" });
     assert.deepEqual(matchNativeV1Route("account/export"), { kind: "account-export" });
     assert.deepEqual(matchNativeV1Route("account/delete"), { kind: "account-delete" });
+    assert.deepEqual(matchNativeV1Route("users/abc"), { kind: "user-profile", userId: "abc" });
   });
 
   it("maps bible catalog, append, and my-collections", () => {
@@ -168,6 +169,8 @@ describe("methodAllowed", () => {
     assert.equal(methodAllowed({ kind: "blocks" }, "GET"), true);
     assert.equal(methodAllowed({ kind: "block", userId: "u1" }, "POST"), true);
     assert.equal(methodAllowed({ kind: "block", userId: "u1" }, "DELETE"), true);
+    assert.equal(methodAllowed({ kind: "user-profile", userId: "u1" }, "GET"), true);
+    assert.equal(methodAllowed({ kind: "user-profile", userId: "u1" }, "POST"), false);
     assert.equal(methodAllowed({ kind: "notifications" }, "GET"), true);
     assert.equal(methodAllowed({ kind: "notifications" }, "DELETE"), false);
     assert.equal(methodAllowed({ kind: "notifications", notificationId: "n1" }, "DELETE"), true);

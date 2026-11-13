@@ -38,6 +38,8 @@ describe("native social routes (auth + methods)", () => {
     });
     assert.deepEqual(matchNativeV1Route("links/request"), { kind: "links-request" });
     assert.deepEqual(matchNativeV1Route("links/remove"), { kind: "links-remove" });
+    assert.deepEqual(matchNativeV1Route("users/u1"), { kind: "user-profile", userId: "u1" });
+    assert.notEqual(matchNativeV1Route("users/u1").kind, "not-found");
   });
 
   it("only allows the intended verbs", () => {
@@ -48,6 +50,8 @@ describe("native social routes (auth + methods)", () => {
     assert.equal(methodAllowed({ kind: "links-remove" }, "POST"), true);
     assert.equal(methodAllowed({ kind: "links-request" }, "POST"), true);
     assert.equal(methodAllowed({ kind: "links-search" }, "GET"), true);
+    assert.equal(methodAllowed({ kind: "user-profile", userId: "u1" }, "GET"), true);
+    assert.equal(methodAllowed({ kind: "user-profile", userId: "u1" }, "POST"), false);
     assert.equal(methodAllowed({ kind: "notes-granted" }, "GET"), true);
     assert.equal(methodAllowed({ kind: "notifications" }, "GET"), true);
     assert.equal(methodAllowed({ kind: "notifications", notificationId: "n1" }, "DELETE"), true);
@@ -76,5 +80,16 @@ describe("native social routes (auth + methods)", () => {
     assert.match(friendsSrc, /incomingAccessory/);
     assert.doesNotMatch(friendsSrc, /Pedidos só saem da lista/);
     assert.doesNotMatch(friendsSrc, /Nenhum pedido pendente/);
+  });
+
+  it("ships public profile endpoint that respects blocks", () => {
+    assert.match(socialSrc, /export async function getPublicProfileForUser/);
+    assert.match(socialSrc, /isEitherBlocked/);
+    assert.match(clientSrc, /func getPublicProfile\(userId:/);
+    assert.match(clientSrc, /api\/native\/v1\/users\//);
+    assert.match(friendsSrc, /PublicProfileViewController/);
+    assert.match(friendsSrc, /openPublicProfile/);
+    assert.doesNotMatch(friendsSrc, /presentFriendMenu/);
+    assert.equal(isPublicNativeAuthRoute({ kind: "user-profile", userId: "u1" }), false);
   });
 });

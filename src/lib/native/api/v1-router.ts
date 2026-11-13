@@ -17,6 +17,7 @@ export type NativeV1Route =
   | { kind: "report" }
   | { kind: "blocks" }
   | { kind: "block"; userId: string }
+  | { kind: "user-profile"; userId: string }
   | { kind: "notifications"; notificationId?: string }
   | { kind: "notifications-read" }
   | { kind: "notifications-summary" }
@@ -92,6 +93,8 @@ export function matchNativeV1Route(splat: string): NativeV1Route {
   if (a === "report" && parts.length === 1) return { kind: "report" };
   if (a === "blocks" && parts.length === 1) return { kind: "blocks" };
   if (a === "block" && parts.length === 2 && b) return { kind: "block", userId: b };
+  // Public read-only profile (blocks respected). Must not collide with /me.
+  if (a === "users" && parts.length === 2 && b) return { kind: "user-profile", userId: b };
   if (a === "notifications" && parts.length === 1) return { kind: "notifications" };
   if (a === "notifications" && b === "summary" && parts.length === 2) {
     return { kind: "notifications-summary" };
@@ -242,6 +245,8 @@ export function methodAllowed(route: NativeV1Route, method: string): boolean {
       return m === "GET";
     case "block":
       return m === "POST" || m === "DELETE";
+    case "user-profile":
+      return m === "GET";
     case "notifications":
       if (route.notificationId) return m === "DELETE";
       return m === "GET";

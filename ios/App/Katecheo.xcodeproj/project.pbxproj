@@ -17,6 +17,8 @@
 		TBTLAP12FED7965001685TB /* NativeNoteEditorTitleAppearanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TBTLAP11FED7965001685TB /* NativeNoteEditorTitleAppearanceTests.swift */; };
 		T9APPAPP2FED7965001685T9 /* AppAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = T9APPAPP1FED7965001685T9 /* AppAppearance.swift */; };
 		KCFRN12FED7965001685V2 /* FriendsActivityViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCFRN11FED7965001685V2 /* FriendsActivityViewController.swift */; };
+		PUPRF12FED7965001685PP /* PublicProfileViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = PUPRF11FED7965001685PP /* PublicProfileViewController.swift */; };
+		PUPRF22FED7965001685PP /* PublicProfileTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = PUPRF21FED7965001685PP /* PublicProfileTests.swift */; };
 		KCACT12FED7965001685V2 /* KCActivityStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCACT11FED7965001685V2 /* KCActivityStore.swift */; };
 		KCSYNC2FED7965001685V2 /* KCActivitySync.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCSYNC1FED7965001685V2 /* KCActivitySync.swift */; };
 		KCNTC12FED7965001685V2 /* NotificationsCenterViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCNTC11FED7965001685V2 /* NotificationsCenterViewModel.swift */; };
@@ -127,6 +129,8 @@
 		T4HEAD11FED7965001685T4 /* SpeakerHeaderAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerHeaderAttachment.swift; sourceTree = "<group>"; };
 		T9APPAPP1FED7965001685T9 /* AppAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAppearance.swift; sourceTree = "<group>"; };
 		KCFRN11FED7965001685V2 /* FriendsActivityViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendsActivityViewController.swift; sourceTree = "<group>"; };
+		PUPRF11FED7965001685PP /* PublicProfileViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicProfileViewController.swift; sourceTree = "<group>"; };
+		PUPRF21FED7965001685PP /* PublicProfileTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicProfileTests.swift; sourceTree = "<group>"; };
 		KCACT11FED7965001685V2 /* KCActivityStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KCActivityStore.swift; sourceTree = "<group>"; };
 		KCSYNC1FED7965001685V2 /* KCActivitySync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KCActivitySync.swift; sourceTree = "<group>"; };
 		KCNTC11FED7965001685V2 /* NotificationsCenterViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsCenterViewModel.swift; sourceTree = "<group>"; };
@@ -284,6 +288,7 @@
 				T4HEAD11FED7965001685T4 /* SpeakerHeaderAttachment.swift */,
 				T9APPAPP1FED7965001685T9 /* AppAppearance.swift */,
 				KCFRN11FED7965001685V2 /* FriendsActivityViewController.swift */,
+				PUPRF11FED7965001685PP /* PublicProfileViewController.swift */,
 				KCACT11FED7965001685V2 /* KCActivityStore.swift */,
 				KCSYNC1FED7965001685V2 /* KCActivitySync.swift */,
 				KCNTC11FED7965001685V2 /* NotificationsCenterViewModel.swift */,
@@ -377,6 +382,7 @@
 				TBNTC11FED7965001685TB /* NotificationsCenterTests.swift */,
 				CIIDENT31FED7965001685CI /* ConnectedIdentitiesTests.swift */,
 				RPTBLK21FED7965001685RB /* ReportBlockTests.swift */,
+				PUPRF21FED7965001685PP /* PublicProfileTests.swift */,
 			);
 			path = KatecheoTests;
 			sourceTree = "<group>";
@@ -575,6 +581,7 @@
 				T4HEAD12FED7965001685T4 /* SpeakerHeaderAttachment.swift in Sources */,
 				T9APPAPP2FED7965001685T9 /* AppAppearance.swift in Sources */,
 				KCFRN12FED7965001685V2 /* FriendsActivityViewController.swift in Sources */,
+				PUPRF12FED7965001685PP /* PublicProfileViewController.swift in Sources */,
 				KCACT12FED7965001685V2 /* KCActivityStore.swift in Sources */,
 				KCSYNC2FED7965001685V2 /* KCActivitySync.swift in Sources */,
 				KCNTC12FED7965001685V2 /* NotificationsCenterViewModel.swift in Sources */,
@@ -661,6 +668,7 @@
 				TBNTC12FED7965001685TB /* NotificationsCenterTests.swift in Sources */,
 				CIIDENT32FED7965001685CI /* ConnectedIdentitiesTests.swift in Sources */,
 				RPTBLK22FED7965001685RB /* ReportBlockTests.swift in Sources */,
+				PUPRF22FED7965001685PP /* PublicProfileTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
