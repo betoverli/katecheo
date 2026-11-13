@@ -184,7 +184,8 @@ export async function requestLinkForUser(
     if (!rows[0]) return { ok: false, error: "missing", status: "none" };
     void import("@/lib/notify.server").then((mod) =>
       mod.notifySocial(userId, other.user_id, "friends", "notifyLinkAcceptedTitle", "notifyLinkAcceptedBody", {
-        href: "/profile/friends",
+        // Accepted → Perfil (not the requests list).
+        href: "/profile",
       }),
     );
     return { ok: true, error: null, status: "accepted" };
@@ -203,6 +204,7 @@ export async function requestLinkForUser(
   `;
   void import("@/lib/notify.server").then((mod) =>
     mod.notifySocial(userId, other.user_id, "friends", "notifyLinkTitle", "notifyLinkBody", {
+      // Pending request → Amigos so the recipient can Aceitar / Recusar.
       href: "/profile/friends",
     }),
   );
@@ -298,7 +300,7 @@ export async function acceptLinkForUser(
   if (!rows[0]) return { ok: false, error: "missing" };
   void import("@/lib/notify.server").then((mod) =>
     mod.notifySocial(userId, other.user_id, "friends", "notifyLinkAcceptedTitle", "notifyLinkAcceptedBody", {
-      href: "/profile/friends",
+      href: "/profile",
     }),
   );
   return { ok: true };

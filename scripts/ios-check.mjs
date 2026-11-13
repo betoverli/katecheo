@@ -782,6 +782,9 @@ const deep = read("ios/App/Katecheo/NativeDeepLinkRouter.swift");
 if (!deep.includes("destination(for") || !deep.includes("notebook") || !deep.includes("NoteDetailViewController")) {
   errors.push("NativeDeepLinkRouter tem de mapear paths para ecrãs nativos.");
 }
+if (!deep.includes("case friends") || !deep.includes('parts[1] == "friends"') || !deep.includes("FriendsActivityViewController")) {
+  errors.push("NativeDeepLinkRouter tem de abrir Amigos para /profile/friends (pedido de amizade).");
+}
 
 const comingSoon = read("ios/App/Katecheo/ComingSoonTabViewController.swift");
 if (comingSoon.includes("capacitorSite") || comingSoon.includes("KatecheoBridge") || comingSoon.includes("Usar app clássico")) {
@@ -1264,6 +1267,15 @@ try {
   }
   if (!friends.includes("incomingAccessory") || !friends.includes("Remover amigo") || !friends.includes("removeLink")) {
     errors.push("Friends tem de ter Aceitar/Recusar inline, Remover amigo e removeLink.");
+  }
+  if (!friends.includes("pillButton") || !friends.includes("systemLayoutSizeFitting") || !friends.includes("Manual layout")) {
+    errors.push("Friends: Aceitar/Recusar/Cancelar têm de ser pills com frame explícito no trailing (sem overlap no ícone).");
+  }
+  if (!friends.includes("confirmCancelOutgoing")) {
+    errors.push("Friends: Cancelar pedido enviado tem de pedir confirmação.");
+  }
+  if (!project.includes("FriendsRequestRowTests.swift in Sources")) {
+    errors.push("FriendsRequestRowTests têm de estar no target.");
   }
   if (friends.includes("Nenhum pedido pendente") || friends.includes("Pedidos só saem da lista")) {
     errors.push("Friends não pode mostrar empty states verbosos de pedidos vazios.");

@@ -211,7 +211,7 @@ export const requestLink = createServerFn({ method: "POST" })
       if (!rows[0]) return { ok: false as const, error: "missing" as const, status: "none" as const };
       void import("@/lib/notify.server").then((mod) =>
         mod.notifySocial(context.userId, other.user_id, "friends", "notifyLinkAcceptedTitle", "notifyLinkAcceptedBody", {
-          href: "/profile/friends",
+          href: "/profile",
         }),
       );
       return { ok: true as const, error: null, status: "accepted" as const };
@@ -256,7 +256,7 @@ export const acceptLink = createServerFn({ method: "POST" })
     if (!rows[0]) return { ok: false as const };
     void import("@/lib/notify.server").then((mod) =>
       mod.notifySocial(context.userId, other.user_id, "friends", "notifyLinkAcceptedTitle", "notifyLinkAcceptedBody", {
-        href: "/profile/friends",
+        href: "/profile",
       }),
     );
     return { ok: true as const };

@@ -14,6 +14,8 @@ enum NativeDeepLinkRouter {
         case readingPlan(id: String)
         case readingInvite(groupId: String)
         case profile
+        /// Profile → Amigos (pending / sent requests + friends list).
+        case friends
         case signIn
         case unknown
     }
@@ -55,7 +57,13 @@ enum NativeDeepLinkRouter {
                 return .readingPlan(id: parts[1])
             }
             return .reading
-        case "profile", "u", "inbox":
+        case "profile":
+            // Friend-request pushes use `/profile/friends` so the person can accept/decline.
+            if parts.count >= 2, parts[1] == "friends" {
+                return .friends
+            }
+            return .profile
+        case "u", "inbox":
             return .profile
         case "login", "auth":
             return .signIn
@@ -173,6 +181,15 @@ enum NativeDeepLinkRouter {
                         // Stay on Leitura (Ferramentas → Leitura) if join fails.
                     }
                 }
+            }
+        case .friends:
+            tabs.selectedIndex = Tab.profile.rawValue
+            if let nav = tabs.selectedViewController as? UINavigationController {
+                nav.popToRootViewController(animated: false)
+                if nav.topViewController is FriendsActivityViewController {
+                    return
+                }
+                nav.pushViewController(FriendsActivityViewController(), animated: animated)
             }
         case .profile, .signIn:
             tabs.selectedIndex = Tab.profile.rawValue
