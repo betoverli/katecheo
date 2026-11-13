@@ -79,6 +79,9 @@ describe("Phase 5 — remove Capacitor site host", () => {
     assert.equal(NativeDeepLinkRouterShim("/app"), "verses");
     assert.equal(NativeDeepLinkRouterShim("/reading"), "reading");
     assert.equal(NativeDeepLinkRouterShim("/profile"), "profile");
+    assert.equal(NativeDeepLinkRouterShim("/profile/friends"), "friends");
+    assert.match(deep, /case friends/);
+    assert.match(deep, /FriendsActivityViewController/);
     const client = read("ios/App/Katecheo/NativeAPIClient.swift");
     assert.match(client, /func saveApnsDevice/);
     assert.match(client, /func dropApnsDevice/);
@@ -126,6 +129,10 @@ function NativeDeepLinkRouterShim(path: string): string {
   if (parts[0] === "app" || parts[0] === "c") return "verses";
   if (parts[0] === "collections") return "themes";
   if (parts[0] === "reading") return "reading";
-  if (parts[0] === "profile" || parts[0] === "u" || parts[0] === "inbox") return "profile";
+  if (parts[0] === "profile") {
+    if (parts[1] === "friends") return "friends";
+    return "profile";
+  }
+  if (parts[0] === "u" || parts[0] === "inbox") return "profile";
   return "notebook";
 }

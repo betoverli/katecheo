@@ -223,14 +223,22 @@ final class FriendsActivityViewController: UITableViewController, UISearchResult
             config.text = person.displayName
             config.secondaryText = person.handle.isEmpty ? nil : "@\(person.handle)"
             config.image = UIImage(systemName: "person.badge.plus")
+            // Set accessoryView after contentConfiguration — UITableView only honors
+            // accessoryView.frame (Auto Layout stacks paint over the leading icon).
+            cell.contentConfiguration = config
             cell.accessoryView = incomingAccessory(for: person)
+            cell.kcApplyThemedGroupedCell()
+            return cell
 
         case .outgoing:
             let person = outgoing[indexPath.row]
             config.text = person.displayName
             config.secondaryText = person.handle.isEmpty ? nil : "@\(person.handle)"
             config.image = UIImage(systemName: "paperplane")
+            cell.contentConfiguration = config
             cell.accessoryView = outgoingAccessory(for: person)
+            cell.kcApplyThemedGroupedCell()
+            return cell
 
         case .friends:
             if friends.isEmpty {
@@ -374,8 +382,12 @@ final class FriendsActivityViewController: UITableViewController, UISearchResult
     private func compactConfig() -> UIListContentConfiguration {
         var config = UIListContentConfiguration.subtitleCell()
         config.textProperties.font = .preferredFont(forTextStyle: .body)
+        config.textProperties.numberOfLines = 1
+        config.textProperties.lineBreakMode = .byTruncatingTail
         config.secondaryTextProperties.font = .preferredFont(forTextStyle: .footnote)
         config.secondaryTextProperties.color = .secondaryLabel
+        config.secondaryTextProperties.numberOfLines = 1
+        config.secondaryTextProperties.lineBreakMode = .byTruncatingTail
         config.imageProperties.preferredSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: 22, weight: .regular)
         config.imageProperties.tintColor = KCDesign.accent
         config.directionalLayoutMargins = NSDirectionalEdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 8)
@@ -384,16 +396,15 @@ final class FriendsActivityViewController: UITableViewController, UISearchResult
     }
 
     private func incomingAccessory(for person: NativeAPIClient.LinkPersonDTO) -> UIView {
-        let decline = compactButton(
+        let decline = pillButton(
             title: String(localized: "Recusar"),
-            color: .systemRed
+            style: .secondary
         ) { [weak self] in
             Task { await self?.decide(person: person, accept: false) }
         }
-        let accept = compactButton(
+        let accept = pillButton(
             title: String(localized: "Aceitar"),
-            color: KCDesign.accent,
-            emphasized: true
+            style: .accent
         ) { [weak self] in
             Task { await self?.decide(person: person, accept: true) }
         }
@@ -401,9 +412,9 @@ final class FriendsActivityViewController: UITableViewController, UISearchResult
     }
 
     private func outgoingAccessory(for person: NativeAPIClient.LinkPersonDTO) -> UIView {
-        let cancel = compactButton(
+        let cancel = pillButton(
             title: String(localized: "Cancelar"),
-            color: .systemRed
+            style: .destructive
         ) { [weak self] in
             guard let self else { return }
             let index = self.outgoing.firstIndex(where: { $0.userId == person.userId }) ?? 0
@@ -413,32 +424,68 @@ final class FriendsActivityViewController: UITableViewController, UISearchResult
         return accessoryStack([cancel])
     }
 
-    private func compactButton(title: String, color: UIColor, emphasized: Bool = false, action: @escaping () -> Void) -> UIButton {
-        var config = UIButton.Configuration.plain()
+    private enum PillStyle {
+        case accent
+        case secondary
+        case destructive
+    }
+
+    /// Compact capsule trailing actions. Must bake an explicit frame — `accessoryView`
+    /// ignores Auto Layout, which previously painted labels over the leading SF Symbol.
+    private func pillButton(title: String, style: PillStyle, action: @escaping () -> Void) -> UIButton {
+        var config = UIButton.Configuration.filled()
+        config.cornerStyle = .capsule
         config.title = title
-        config.baseForegroundColor = color
-        config.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 6, bottom: 4, trailing: 6)
+        config.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12)
+        switch style {
+        case .accent:
+            config.baseBackgroundColor = KCDesign.accent
+            config.baseForegroundColor = .white
+        case .secondary:
+            config.baseBackgroundColor = KCDesign.accentSoft
+            config.baseForegroundColor = .label
+        case .destructive:
+            config.baseBackgroundColor = KCDesign.danger.withAlphaComponent(0.16)
+            config.baseForegroundColor = KCDesign.danger
+        }
         config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
             var outgoing = incoming
-            outgoing.font = .preferredFont(forTextStyle: .subheadline)
-            if emphasized {
-                outgoing.font = .preferredFont(forTextStyle: .subheadline).withWeight(.semibold)
-                    ?? outgoing.font
-            }
+            let weight: UIFont.Weight = (style == .accent) ? .semibold : .medium
+            outgoing.font = .preferredFont(forTextStyle: .footnote).withWeight(weight)
+                ?? .preferredFont(forTextStyle: .footnote)
             return outgoing
         }
         let button = UIButton(configuration: config, primaryAction: UIAction { _ in action() })
+        button.accessibilityLabel = title
         button.setContentCompressionResistancePriority(.required, for: .horizontal)
+        let fitted = button.systemLayoutSizeFitting(
+            CGSize(width: UIView.layoutFittingCompressedSize.width, height: 32),
+            withHorizontalFittingPriority: .fittingSizeLevel,
+            verticalFittingPriority: .required
+        )
+        let width = max(ceil(fitted.width), 44)
+        let height = max(ceil(fitted.height), 28)
+        button.bounds = CGRect(x: 0, y: 0, width: width, height: height)
         return button
     }
 
     private func accessoryStack(_ buttons: [UIView]) -> UIView {
-        let stack = UIStackView(arrangedSubviews: buttons)
-        stack.axis = .horizontal
-        stack.alignment = .center
-        stack.spacing = 2
-        stack.sizeToFit()
-        return stack
+        // Manual layout: UITableView only honors accessoryView.frame (not Auto Layout).
+        let spacing: CGFloat = 8
+        var x: CGFloat = 0
+        var height: CGFloat = 32
+        for button in buttons {
+            button.frame.origin = CGPoint(x: x, y: 0)
+            x += button.bounds.width + spacing
+            height = max(height, button.bounds.height)
+        }
+        let width = max(x - spacing, 1)
+        for button in buttons {
+            button.center.y = height / 2
+        }
+        let container = UIView(frame: CGRect(x: 0, y: 0, width: width, height: height))
+        buttons.forEach { container.addSubview($0) }
+        return container
     }
 
     // MARK: - Actions / confirmations

@@ -19,6 +19,7 @@
 		KCFRN12FED7965001685V2 /* FriendsActivityViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCFRN11FED7965001685V2 /* FriendsActivityViewController.swift */; };
 		PUPRF12FED7965001685PP /* PublicProfileViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = PUPRF11FED7965001685PP /* PublicProfileViewController.swift */; };
 		PUPRF22FED7965001685PP /* PublicProfileTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = PUPRF21FED7965001685PP /* PublicProfileTests.swift */; };
+		FRFROW22FED7965001685FR /* FriendsRequestRowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FRFROW21FED7965001685FR /* FriendsRequestRowTests.swift */; };
 		KCACT12FED7965001685V2 /* KCActivityStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCACT11FED7965001685V2 /* KCActivityStore.swift */; };
 		KCSYNC2FED7965001685V2 /* KCActivitySync.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCSYNC1FED7965001685V2 /* KCActivitySync.swift */; };
 		KCNTC12FED7965001685V2 /* NotificationsCenterViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCNTC11FED7965001685V2 /* NotificationsCenterViewModel.swift */; };
@@ -131,6 +132,7 @@
 		KCFRN11FED7965001685V2 /* FriendsActivityViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendsActivityViewController.swift; sourceTree = "<group>"; };
 		PUPRF11FED7965001685PP /* PublicProfileViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicProfileViewController.swift; sourceTree = "<group>"; };
 		PUPRF21FED7965001685PP /* PublicProfileTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicProfileTests.swift; sourceTree = "<group>"; };
+		FRFROW21FED7965001685FR /* FriendsRequestRowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendsRequestRowTests.swift; sourceTree = "<group>"; };
 		KCACT11FED7965001685V2 /* KCActivityStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KCActivityStore.swift; sourceTree = "<group>"; };
 		KCSYNC1FED7965001685V2 /* KCActivitySync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KCActivitySync.swift; sourceTree = "<group>"; };
 		KCNTC11FED7965001685V2 /* NotificationsCenterViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsCenterViewModel.swift; sourceTree = "<group>"; };
@@ -383,6 +385,7 @@
 				CIIDENT31FED7965001685CI /* ConnectedIdentitiesTests.swift */,
 				RPTBLK21FED7965001685RB /* ReportBlockTests.swift */,
 				PUPRF21FED7965001685PP /* PublicProfileTests.swift */,
+				FRFROW21FED7965001685FR /* FriendsRequestRowTests.swift */,
 			);
 			path = KatecheoTests;
 			sourceTree = "<group>";
@@ -669,6 +672,7 @@
 				CIIDENT32FED7965001685CI /* ConnectedIdentitiesTests.swift in Sources */,
 				RPTBLK22FED7965001685RB /* ReportBlockTests.swift in Sources */,
 				PUPRF22FED7965001685PP /* PublicProfileTests.swift in Sources */,
+				FRFROW22FED7965001685FR /* FriendsRequestRowTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
