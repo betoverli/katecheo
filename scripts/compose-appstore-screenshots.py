@@ -2,9 +2,9 @@
 """Compose App Store marketing frames from raw iPhone screenshots.
 
 Layout (exact App Store sizes preserved):
-  - Warm paper background matching KCDesign.screenBackground (#F1E8DA)
-  - Localized headline caption centered in the top band
-  - Device screenshot scaled down below the caption
+  - Dark warm background (Katecheo palette, ~#2B2118 with a subtle vertical gradient)
+  - Localized cream headline caption centered in the top band
+  - Device screenshot scaled down below the caption, with soft shadow + thin border
   - Wordmark rule: "Katecheo" is always one unbroken word in one style
     (captions do not split or restyle the brand name)
 
@@ -27,10 +27,13 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
-# KCDesign.screenBackground (light) / accent (light)
-BG = (0xF1, 0xE8, 0xDA, 255)
-TEXT = (0x3A, 0x2E, 0x24, 255)  # warm near-black for paper
-ACCENT = (0xB0, 0x7A, 0x45, 255)
+# Dark warm Katecheo frame (contrasts with the light app UI).
+BG_TOP = (0x2B, 0x21, 0x18, 255)  # #2B2118
+BG_BOTTOM = (0x14, 0x0F, 0x0B, 255)  # deeper near-black warm
+TEXT = (0xF1, 0xE8, 0xDA, 255)  # cream — KCDesign.screenBackground (light)
+ACCENT = (0xD4, 0xA5, 0x74, 255)  # #D4A574 — KCDesign.accent (dark)
+BORDER = (0xF1, 0xE8, 0xDA, 55)  # thin cream hairline around the phone
+SHADOW = (0, 0, 0, 160)
 
 DEVICE_SIZES = {
     "iphone-16-pro-max": (1320, 2868),
@@ -85,6 +88,22 @@ def load_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     return ImageFont.load_default()
 
 
+def make_vertical_gradient(width: int, height: int, top: tuple[int, int, int, int], bottom: tuple[int, int, int, int]) -> Image.Image:
+    """Subtle top→bottom warm dark gradient."""
+    grad = Image.new("RGBA", (1, height))
+    px = grad.load()
+    for y in range(height):
+        t = y / max(1, height - 1)
+        # Ease slightly so the caption band stays closer to BG_TOP.
+        t = t * t * (3 - 2 * t)
+        r = int(top[0] + (bottom[0] - top[0]) * t)
+        g = int(top[1] + (bottom[1] - top[1]) * t)
+        b = int(top[2] + (bottom[2] - top[2]) * t)
+        a = int(top[3] + (bottom[3] - top[3]) * t)
+        px[0, y] = (r, g, b, a)
+    return grad.resize((width, height), Image.Resampling.BILINEAR)
+
+
 def wrap_text(text: str, font: ImageFont.ImageFont, max_width: int, draw: ImageDraw.ImageDraw) -> list[str]:
     words = text.split()
     if not words:
@@ -125,7 +144,7 @@ def compose_one(
     if raw.size != (target_w, target_h):
         raw = raw.resize((target_w, target_h), Image.Resampling.LANCZOS)
 
-    canvas = Image.new("RGBA", (target_w, target_h), BG)
+    canvas = make_vertical_gradient(target_w, target_h, BG_TOP, BG_BOTTOM)
     draw = ImageDraw.Draw(canvas)
 
     # Caption band ~ top 16%; phone ~ 78% of canvas height with side inset.
@@ -146,21 +165,33 @@ def compose_one(
     rounded = Image.new("RGBA", (phone_w, phone_h), (0, 0, 0, 0))
     rounded.paste(phone, (0, 0), mask=mask)
 
-    # Drop shadow under the phone.
-    shadow = Image.new("RGBA", (phone_w + 40, phone_h + 40), (0, 0, 0, 0))
+    # Soft drop shadow (stronger on dark frames so the phone still lifts).
+    pad = 48
+    shadow = Image.new("RGBA", (phone_w + pad * 2, phone_h + pad * 2), (0, 0, 0, 0))
     ImageDraw.Draw(shadow).rounded_rectangle(
-        (20, 24, phone_w + 20, phone_h + 28),
+        (pad, pad + 6, pad + phone_w, pad + phone_h + 10),
         radius=radius + 4,
-        fill=(58, 46, 36, 55),
+        fill=SHADOW,
     )
-    # Simple blur via downsample/upsample.
-    shadow = shadow.resize((shadow.width // 4, shadow.height // 4), Image.Resampling.BILINEAR)
-    shadow = shadow.resize((phone_w + 40, phone_h + 40), Image.Resampling.BILINEAR)
+    shadow = shadow.resize((shadow.width // 5, shadow.height // 5), Image.Resampling.BILINEAR)
+    shadow = shadow.resize((phone_w + pad * 2, phone_h + pad * 2), Image.Resampling.BILINEAR)
+
+    # Thin cream hairline border around the rounded phone.
+    border = Image.new("RGBA", (phone_w, phone_h), (0, 0, 0, 0))
+    border_draw = ImageDraw.Draw(border)
+    border_w = max(2, int(min(phone_w, phone_h) * 0.0035))
+    border_draw.rounded_rectangle(
+        (border_w // 2, border_w // 2, phone_w - 1 - border_w // 2, phone_h - 1 - border_w // 2),
+        radius=radius,
+        outline=BORDER,
+        width=border_w,
+    )
 
     phone_x = (target_w - phone_w) // 2
     phone_y = caption_band + max(0, (target_h - caption_band - phone_h - int(target_h * 0.04)) // 2)
-    canvas.alpha_composite(shadow, (phone_x - 20, phone_y - 16))
+    canvas.alpha_composite(shadow, (phone_x - pad, phone_y - pad))
     canvas.alpha_composite(rounded, (phone_x, phone_y))
+    canvas.alpha_composite(border, (phone_x, phone_y))
 
     # Headline typography scales with device class.
     font_size = int(target_w * 0.062)
@@ -182,7 +213,7 @@ def compose_one(
     draw.rounded_rectangle(
         (target_w // 2 - rule_half, rule_y, target_w // 2 + rule_half, rule_y + 4),
         radius=2,
-        fill=(ACCENT[0], ACCENT[1], ACCENT[2], 180),
+        fill=(ACCENT[0], ACCENT[1], ACCENT[2], 200),
     )
 
     dst.parent.mkdir(parents=True, exist_ok=True)
