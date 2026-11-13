@@ -243,6 +243,7 @@ export async function deleteGroupForUser(
   const current = await loadGroup(sql, groupId, userId);
   if (!current) return { ok: false, error: "missing" };
   await sql`delete from notebook_group_notes where group_id = ${groupId}`;
+  await sql`delete from notebook_group_invites where group_id = ${groupId}`;
   await sql`delete from notebook_group_members where group_id = ${groupId}`;
   await sql`delete from notebook_groups where id = ${groupId}`;
   return { ok: true };
@@ -532,4 +533,357 @@ export async function removeGroupMemberForUser(
   }
   await sql`delete from notebook_group_members where group_id = ${groupId} and user_id = ${targetUserId}`;
   return { ok: true };
+}
+
+export type NativeGroupInvitePerson = {
+  userId: string;
+  handle: string;
+  firstName: string;
+  lastName: string;
+  avatarId: string;
+  avatarUrl: string;
+};
+
+export type NativeGroupInvite = {
+  id: string;
+  groupId: string;
+  groupName: string;
+  status: "pending" | "accepted" | "declined";
+  createdAt: string;
+  inviter: NativeGroupInvitePerson;
+};
+
+const MAX_INVITES_PER_REQUEST = 20;
+
+async function areFriends(sql: Sql, a: string, b: string) {
+  const rows = await sql<{ id: string }>`
+    select id from user_links
+    where status = 'accepted'
+      and (
+        (requester_id = ${a} and addressee_id = ${b})
+        or (requester_id = ${b} and addressee_id = ${a})
+      )
+    limit 1
+  `;
+  return Boolean(rows[0]);
+}
+
+function personFromPrefs(row: {
+  user_id: string;
+  handle: string;
+  first_name: string;
+  last_name: string;
+  avatar_id: string;
+  avatar_url: string;
+}): NativeGroupInvitePerson {
+  return {
+    userId: row.user_id,
+    handle: row.handle ?? "",
+    firstName: row.first_name ?? "",
+    lastName: row.last_name ?? "",
+    avatarId: row.avatar_id || "book",
+    avatarUrl: row.avatar_url ?? "",
+  };
+}
+
+/** Friends who can be invited: accepted friends, not members, not already pending-invited. */
+export async function listGroupInviteFriendsForUser(
+  userId: string,
+  groupId: string,
+  query = "",
+): Promise<
+  | { ok: true; friends: NativeGroupInvitePerson[] }
+  | { ok: false; error: "forbidden" | "missing" }
+> {
+  const sql = await getSql();
+  const mine = await memberOf(sql, groupId, userId);
+  // Same invite surface as share-link today: any accepted member.
+  if (!mine || mine.status !== "accepted") return { ok: false, error: "forbidden" };
+  const group = await loadGroup(sql, groupId, userId);
+  if (!group) return { ok: false, error: "missing" };
+
+  const q = query.trim().replace(/[%_\\]/g, "").slice(0, 40).toLowerCase();
+  const rows = await sql<{
+    user_id: string;
+    handle: string;
+    first_name: string;
+    last_name: string;
+    avatar_id: string;
+    avatar_url: string;
+  }>`
+    select p.user_id, coalesce(p.handle, '') as handle, coalesce(p.first_name, '') as first_name,
+           coalesce(p.last_name, '') as last_name, coalesce(p.avatar_id, '') as avatar_id,
+           coalesce(p.avatar_url, '') as avatar_url
+    from user_links l
+    join user_prefs p on p.user_id = case
+      when l.requester_id = ${userId} then l.addressee_id
+      else l.requester_id
+    end
+    where l.status = 'accepted'
+      and (l.requester_id = ${userId} or l.addressee_id = ${userId})
+      and not exists (
+        select 1 from notebook_group_members m
+        where m.group_id = ${groupId} and m.user_id = p.user_id
+      )
+      and not exists (
+        select 1 from notebook_group_invites i
+        where i.group_id = ${groupId} and i.invitee_id = p.user_id and i.status = 'pending'
+      )
+      and (
+        ${q} = ''
+        or lower(coalesce(p.handle, '')) like ${"%" + q + "%"}
+        or lower(coalesce(p.first_name, '')) like ${"%" + q + "%"}
+        or lower(coalesce(p.last_name, '')) like ${"%" + q + "%"}
+      )
+    order by p.first_name, p.handle
+    limit 80
+  `;
+  return { ok: true, friends: rows.map(personFromPrefs) };
+}
+
+export async function createGroupInvitesForUser(
+  userId: string,
+  groupId: string,
+  raw: unknown,
+): Promise<
+  | { ok: true; invited: number; inviteIds: string[] }
+  | { ok: false; error: "forbidden" | "missing" | "invalid" | "limit" }
+> {
+  const body = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const rawIds = Array.isArray(body.userIds) ? body.userIds : [];
+  const userIds = [
+    ...new Set(
+      rawIds
+        .filter((id): id is string => typeof id === "string")
+        .map((id) => id.trim())
+        .filter((id) => id.length > 0 && id.length <= 80 && id !== userId),
+    ),
+  ].slice(0, MAX_INVITES_PER_REQUEST);
+  if (!userIds.length) return { ok: false, error: "invalid" };
+  if (!(await allowRequest(`ginvite:${userId}`, 60, 86_400_000))) {
+    return { ok: false, error: "limit" };
+  }
+
+  const sql = await getSql();
+  const mine = await memberOf(sql, groupId, userId);
+  if (!mine || mine.status !== "accepted") return { ok: false, error: "forbidden" };
+  const group = await loadGroup(sql, groupId, userId);
+  if (!group) return { ok: false, error: "missing" };
+
+  const { blockedIdsForUser } = await import("./v1-moderation.server");
+  const blocked = await blockedIdsForUser(userId, sql);
+
+  const inviteIds: string[] = [];
+  for (const inviteeId of userIds) {
+    if (blocked.has(inviteeId)) continue;
+    if (!(await areFriends(sql, userId, inviteeId))) continue;
+    const existing = await memberOf(sql, groupId, inviteeId);
+    if (existing) continue;
+    const pending = await sql<{ id: string }>`
+      select id from notebook_group_invites
+      where group_id = ${groupId} and invitee_id = ${inviteeId} and status = 'pending'
+      limit 1
+    `;
+    if (pending[0]) continue;
+
+    const memberships = await sql<{ n: number }>`
+      select count(*)::int as n from notebook_group_members
+      where user_id = ${inviteeId} and status = 'accepted'
+    `;
+    if (Number(memberships[0]?.n ?? 0) >= MAX_MEMBERSHIPS) continue;
+
+    const id = newId();
+    await sql`
+      insert into notebook_group_invites (id, group_id, inviter_id, invitee_id, status)
+      values (${id}, ${groupId}, ${userId}, ${inviteeId}, ${"pending"})
+    `;
+    inviteIds.push(id);
+    void import("@/lib/notify.server").then((mod) =>
+      mod.notifySocial(
+        userId,
+        inviteeId,
+        "groups",
+        "notifyGroupInviteTitle",
+        "notifyGroupInviteBody",
+        {
+          plan: group.name,
+          href: `/groups/invite/${id}`,
+        },
+      ),
+    );
+  }
+
+  return { ok: true, invited: inviteIds.length, inviteIds };
+}
+
+export async function listMyGroupInvitesForUser(
+  userId: string,
+): Promise<NativeGroupInvite[]> {
+  const sql = await getSql();
+  const rows = await sql<{
+    id: string;
+    group_id: string;
+    group_name: string;
+    status: string;
+    created_at: string;
+    user_id: string;
+    handle: string;
+    first_name: string;
+    last_name: string;
+    avatar_id: string;
+    avatar_url: string;
+  }>`
+    select i.id, i.group_id, g.name as group_name, i.status, i.created_at::text,
+           p.user_id, coalesce(p.handle, '') as handle, coalesce(p.first_name, '') as first_name,
+           coalesce(p.last_name, '') as last_name, coalesce(p.avatar_id, '') as avatar_id,
+           coalesce(p.avatar_url, '') as avatar_url
+    from notebook_group_invites i
+    join notebook_groups g on g.id = i.group_id
+    join user_prefs p on p.user_id = i.inviter_id
+    where i.invitee_id = ${userId} and i.status = 'pending'
+    order by i.created_at desc
+    limit 50
+  `;
+  return rows.map((row) => ({
+    id: row.id,
+    groupId: row.group_id,
+    groupName: row.group_name,
+    status: "pending" as const,
+    createdAt: String(row.created_at ?? ""),
+    inviter: personFromPrefs(row),
+  }));
+}
+
+export async function getGroupInviteForUser(
+  userId: string,
+  inviteId: string,
+): Promise<NativeGroupInvite | null> {
+  const sql = await getSql();
+  const rows = await sql<{
+    id: string;
+    group_id: string;
+    group_name: string;
+    status: string;
+    created_at: string;
+    user_id: string;
+    handle: string;
+    first_name: string;
+    last_name: string;
+    avatar_id: string;
+    avatar_url: string;
+  }>`
+    select i.id, i.group_id, g.name as group_name, i.status, i.created_at::text,
+           p.user_id, coalesce(p.handle, '') as handle, coalesce(p.first_name, '') as first_name,
+           coalesce(p.last_name, '') as last_name, coalesce(p.avatar_id, '') as avatar_id,
+           coalesce(p.avatar_url, '') as avatar_url
+    from notebook_group_invites i
+    join notebook_groups g on g.id = i.group_id
+    join user_prefs p on p.user_id = i.inviter_id
+    where i.id = ${inviteId} and i.invitee_id = ${userId}
+    limit 1
+  `;
+  const row = rows[0];
+  if (!row) return null;
+  const status =
+    row.status === "accepted" || row.status === "declined" ? row.status : "pending";
+  return {
+    id: row.id,
+    groupId: row.group_id,
+    groupName: row.group_name,
+    status,
+    createdAt: String(row.created_at ?? ""),
+    inviter: personFromPrefs(row),
+  };
+}
+
+export async function respondGroupInviteForUser(
+  userId: string,
+  inviteId: string,
+  accept: boolean,
+): Promise<
+  | { ok: true; group: NativeGroup | null }
+  | { ok: false; error: "forbidden" | "missing" | "limit" }
+> {
+  const sql = await getSql();
+  const rows = await sql<{
+    id: string;
+    group_id: string;
+    invitee_id: string;
+    inviter_id: string;
+    status: string;
+    group_name: string;
+  }>`
+    select i.id, i.group_id, i.invitee_id, i.inviter_id, i.status, g.name as group_name
+    from notebook_group_invites i
+    join notebook_groups g on g.id = i.group_id
+    where i.id = ${inviteId}
+    limit 1
+  `;
+  const invite = rows[0];
+  if (!invite || invite.invitee_id !== userId) return { ok: false, error: "missing" };
+  if (invite.status !== "pending") return { ok: false, error: "missing" };
+
+  if (!accept) {
+    await sql`
+      update notebook_group_invites
+      set status = 'declined', responded_at = now()
+      where id = ${inviteId}
+    `;
+    return { ok: true, group: null };
+  }
+
+  const memberships = await sql<{ n: number }>`
+    select count(*)::int as n from notebook_group_members
+    where user_id = ${userId} and status = 'accepted'
+  `;
+  if (Number(memberships[0]?.n ?? 0) >= MAX_MEMBERSHIPS) {
+    return { ok: false, error: "limit" };
+  }
+
+  const existing = await memberOf(sql, invite.group_id, userId);
+  if (existing?.status === "accepted") {
+    await sql`
+      update notebook_group_invites
+      set status = 'accepted', responded_at = now()
+      where id = ${inviteId}
+    `;
+    const group = await loadGroup(sql, invite.group_id, userId);
+    return { ok: true, group };
+  }
+
+  await sql`
+    insert into notebook_group_members (group_id, user_id, "role", status)
+    values (${invite.group_id}, ${userId}, ${"member"}, ${"accepted"})
+    on conflict (group_id, user_id) do update
+      set status = 'accepted', "role" = excluded."role"
+  `;
+  await sql`
+    update notebook_group_invites
+    set status = 'accepted', responded_at = now()
+    where id = ${inviteId}
+  `;
+  // Drop any other pending invites for this user+group.
+  await sql`
+    update notebook_group_invites
+    set status = 'declined', responded_at = now()
+    where group_id = ${invite.group_id} and invitee_id = ${userId}
+      and status = 'pending' and id <> ${inviteId}
+  `;
+
+  void import("@/lib/notify.server").then((mod) =>
+    mod.notifySocial(
+      userId,
+      invite.inviter_id,
+      "groups",
+      "notifyGroupInviteAcceptedTitle",
+      "notifyGroupInviteAcceptedBody",
+      {
+        plan: invite.group_name,
+        href: `/groups/${invite.group_id}`,
+      },
+    ),
+  );
+
+  const group = await loadGroup(sql, invite.group_id, userId);
+  return { ok: true, group };
 }

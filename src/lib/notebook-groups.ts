@@ -381,6 +381,7 @@ export const deleteNotebookGroup = createServerFn({ method: "POST" })
     const mine = await memberOf(sql, data.id, context.userId);
     if (mine?.role !== "admin" || mine.status !== "accepted") return { ok: false as const, error: "forbidden" as const };
     await sql`delete from notebook_group_notes where group_id = ${data.id}`;
+    await sql`delete from notebook_group_invites where group_id = ${data.id}`;
     await sql`delete from notebook_group_members where group_id = ${data.id}`;
     await sql`delete from notebook_groups where id = ${data.id}`;
     return { ok: true as const };

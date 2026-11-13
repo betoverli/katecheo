@@ -1099,6 +1099,31 @@ if (!versesScreens.includes("kcApplyBrandListStyle") || !versesScreens.includes(
 if (!project.includes("LocalSessionCache.swift in Sources") || !project.includes("GroupMembersViewController.swift in Sources")) {
   errors.push("LocalSessionCache / GroupMembersViewController têm de estar no target Xcode.");
 }
+if (
+  !project.includes("GroupInviteFriendsViewController.swift in Sources") ||
+  !project.includes("GroupInviteDetailViewController.swift in Sources")
+) {
+  errors.push("GroupInviteFriends / GroupInviteDetail têm de estar no target Xcode.");
+}
+try {
+  const inviteFriends = read("ios/App/Katecheo/GroupInviteFriendsViewController.swift");
+  const inviteDetail = read("ios/App/Katecheo/GroupInviteDetailViewController.swift");
+  const deepLink = read("ios/App/Katecheo/NativeDeepLinkRouter.swift");
+  if (!inviteFriends.includes("createGroupInvites") || !inviteFriends.includes("Convidar amigos")) {
+    errors.push("GroupInviteFriendsViewController tem de convidar amigos via API nativa.");
+  }
+  if (!inviteDetail.includes("respondGroupInvite") || !inviteDetail.includes("Aceitar convite")) {
+    errors.push("GroupInviteDetailViewController tem de aceitar/recusar convites.");
+  }
+  if (!deepLink.includes("groupInvite") || !deepLink.includes('parts[1] == "invite"')) {
+    errors.push("NativeDeepLinkRouter tem de abrir /groups/invite/:id (não o perfil).");
+  }
+  if (!notebookList.includes("Convidar amigos") || !notebookList.includes("openInviteFriends")) {
+    errors.push("Menu do grupo tem de incluir Convidar amigos (picker in-app).");
+  }
+} catch {
+  errors.push("Ficheiros de convite de grupo em falta (GroupInviteFriends/Detail).");
+}
 
 try {
   const groupsList = read("ios/App/Katecheo/GroupsListViewController.swift");

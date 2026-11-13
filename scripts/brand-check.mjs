@@ -89,6 +89,7 @@ function brandWarningsOnDisk({
   const sitePath = join(workspaceRoot, OG_SITE_REL_PATH);
   const site = readOgSite(workspaceRoot);
   const cardPath = [
+    join(workspaceRoot, "public/og-katecheo-v2.png"),
     join(workspaceRoot, "public/og.jpg"),
     join(workspaceRoot, "public/og.png"),
   ].find(existsSync);

@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		GINVTST2FED7965001685GI /* GroupInviteDeepLinkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = GINVTST1FED7965001685GI /* GroupInviteDeepLinkTests.swift */; };
+		GINVDT12FED7965001685GI /* GroupInviteDetailViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = GINVDT11FED7965001685GI /* GroupInviteDetailViewController.swift */; };
+		GINVFR12FED7965001685GI /* GroupInviteFriendsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = GINVFR11FED7965001685GI /* GroupInviteFriendsViewController.swift */; };
 		RPTBLK12FED7965001685RB /* ReportBlockSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = RPTBLK11FED7965001685RB /* ReportBlockSupport.swift */; };
 		RPTBLK22FED7965001685RB /* ReportBlockTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = RPTBLK21FED7965001685RB /* ReportBlockTests.swift */; };
 		T8TF21422FED7965001685T8 /* NativeNoteEditorTF214Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T8TF21421FED7965001685T8 /* NativeNoteEditorTF214Tests.swift */; };
@@ -113,6 +116,9 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		GINVTST1FED7965001685GI /* GroupInviteDeepLinkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupInviteDeepLinkTests.swift; sourceTree = "<group>"; };
+		GINVDT11FED7965001685GI /* GroupInviteDetailViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupInviteDetailViewController.swift; sourceTree = "<group>"; };
+		GINVFR11FED7965001685GI /* GroupInviteFriendsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupInviteFriendsViewController.swift; sourceTree = "<group>"; };
 		RPTBLK11FED7965001685RB /* ReportBlockSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportBlockSupport.swift; sourceTree = "<group>"; };
 		RPTBLK21FED7965001685RB /* ReportBlockTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportBlockTests.swift; sourceTree = "<group>"; };
 		504EC3041FED79650016851F /* Katecheo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Katecheo.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -311,6 +317,8 @@
 				E4F1A0132FED796500168550 /* LocalNoteCache.swift */,
 				GNCACHE11FED7965001685GN /* LocalGroupNotesCache.swift */,
 				A1B2C0132FED7965001685F2 /* GroupMembersViewController.swift */,
+				GINVFR11FED7965001685GI /* GroupInviteFriendsViewController.swift */,
+				GINVDT11FED7965001685GI /* GroupInviteDetailViewController.swift */,
 				A1B2C0112FED7965001685F1 /* LocalSessionCache.swift */,
 				F6A6E0112FED7965001685B0 /* LegacyNoteConverter.swift */,
 				F6A6E0132FED7965001685B0 /* NativeOutbox.swift */,
@@ -386,6 +394,7 @@
 				RPTBLK21FED7965001685RB /* ReportBlockTests.swift */,
 				PUPRF21FED7965001685PP /* PublicProfileTests.swift */,
 				FRFROW21FED7965001685FR /* FriendsRequestRowTests.swift */,
+				GINVTST1FED7965001685GI /* GroupInviteDeepLinkTests.swift */,
 			);
 			path = KatecheoTests;
 			sourceTree = "<group>";
@@ -606,6 +615,8 @@
 				E4F1A0122FED796500168550 /* LocalNoteCache.swift in Sources */,
 				GNCACHE12FED7965001685GN /* LocalGroupNotesCache.swift in Sources */,
 				A1B2C0122FED7965001685F2 /* GroupMembersViewController.swift in Sources */,
+				GINVFR12FED7965001685GI /* GroupInviteFriendsViewController.swift in Sources */,
+				GINVDT12FED7965001685GI /* GroupInviteDetailViewController.swift in Sources */,
 				A1B2C0102FED7965001685F1 /* LocalSessionCache.swift in Sources */,
 				F6A6E0102FED7965001685B0 /* LegacyNoteConverter.swift in Sources */,
 				F6A6E0122FED7965001685B0 /* NativeOutbox.swift in Sources */,
@@ -673,6 +684,7 @@
 				RPTBLK22FED7965001685RB /* ReportBlockTests.swift in Sources */,
 				PUPRF22FED7965001685PP /* PublicProfileTests.swift in Sources */,
 				FRFROW22FED7965001685FR /* FriendsRequestRowTests.swift in Sources */,
+				GINVTST2FED7965001685GI /* GroupInviteDeepLinkTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

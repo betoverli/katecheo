@@ -20,6 +20,8 @@ import {
   devicesApnsDeleteSchema,
   devicesApnsPostSchema,
   groupCreateSchema,
+  groupInviteRespondSchema,
+  groupInvitesCreateSchema,
   groupMemberDecideSchema,
   groupMemberRoleSchema,
   groupNotePublishSchema,
@@ -694,6 +696,61 @@ export async function handleNativeV1Request(request: Request, splat: string): Pr
       if (!result.ok) {
         const status =
           result.error === "missing" ? 404 : result.error === "lastAdmin" ? 409 : 403;
+        return respond(result, status);
+      }
+      return respond(result);
+    }
+
+    if (route.kind === "group-invite-friends") {
+      const url = new URL(request.url);
+      const q = url.searchParams.get("q") ?? "";
+      const result = await groupsApi.listGroupInviteFriendsForUser(user.id, route.groupId, q);
+      if (!result.ok) {
+        return respond(result, result.error === "missing" ? 404 : 403);
+      }
+      return respond(result);
+    }
+
+    if (route.kind === "group-invites") {
+      const body = await readAndParse(request, groupInvitesCreateSchema, respond);
+      if (body instanceof Response) return body;
+      const result = await groupsApi.createGroupInvitesForUser(user.id, route.groupId, body);
+      if (!result.ok) {
+        const status =
+          result.error === "missing"
+            ? 404
+            : result.error === "forbidden"
+              ? 403
+              : result.error === "limit"
+                ? 429
+                : 400;
+        return respond(result, status);
+      }
+      return respond(result, 201);
+    }
+
+    if (route.kind === "group-invites-inbox") {
+      const invites = await groupsApi.listMyGroupInvitesForUser(user.id);
+      return respond({ ok: true, invites });
+    }
+
+    if (route.kind === "group-invite") {
+      const invite = await groupsApi.getGroupInviteForUser(user.id, route.inviteId);
+      if (!invite) return respond({ ok: false, error: "missing" }, 404);
+      return respond({ ok: true, invite });
+    }
+
+    if (route.kind === "group-invite-respond") {
+      const payload = await readAndParse(request, groupInviteRespondSchema, respond);
+      if (payload instanceof Response) return payload;
+      const result = await groupsApi.respondGroupInviteForUser(
+        user.id,
+        route.inviteId,
+        payload.accept === true,
+      );
+      if (!result.ok) {
+        const status =
+          result.error === "missing" ? 404 : result.error === "limit" ? 409 : 403;
         return respond(result, status);
       }
       return respond(result);

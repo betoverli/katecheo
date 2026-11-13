@@ -519,6 +519,7 @@ export async function deleteAccountForUser(
     await sql`delete from notebook_group_notes where note_id in (select id from notebook_notes where user_id = ${id})`;
     await sql`delete from notebook_notes where user_id = ${id}`;
     await sql`delete from notebook_speakers where user_id = ${id}`;
+    await sql`delete from notebook_group_invites where invitee_id = ${id} or inviter_id = ${id}`;
     await sql`delete from notebook_group_members where user_id = ${id}`;
     await sql`
       delete from notebook_groups g
@@ -527,6 +528,7 @@ export async function deleteAccountForUser(
           select 1 from notebook_group_members m where m.group_id = g.id and m.status = 'accepted'
         )
     `;
+    await sql`delete from notebook_group_invites where group_id not in (select id from notebook_groups)`;
     await sql`delete from collection_grants where user_id = ${id} or from_id = ${id}`;
     await sql`delete from user_collections where user_id = ${id}`;
     await sql`delete from user_links where requester_id = ${id} or addressee_id = ${id}`;

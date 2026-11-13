@@ -159,6 +159,18 @@ export const groupMemberRoleSchema = z
   })
   .passthrough();
 
+export const groupInvitesCreateSchema = z
+  .object({
+    userIds: z.array(z.string().min(1).max(80)).min(1).max(20),
+  })
+  .passthrough();
+
+export const groupInviteRespondSchema = z
+  .object({
+    accept: z.boolean(),
+  })
+  .passthrough();
+
 export const authClaimSchema = z
   .object({
     code: z.string().min(1).max(200),

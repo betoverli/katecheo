@@ -34,13 +34,34 @@ describe("Phase 2 native groups API", () => {
     assert.match(groups, /listNotesInGroupForUser/);
     assert.match(groups, /publishNoteIdToGroup/);
     assert.match(groups, /listGroupsForNote/);
+    assert.match(groups, /createGroupInvitesForUser/);
+    assert.match(groups, /respondGroupInviteForUser/);
+    assert.match(groups, /listGroupInviteFriendsForUser/);
     const http = read("src/lib/native/api/v1-http.ts");
     assert.match(http, /v1-groups\.server/);
     assert.match(http, /group-notes/);
     assert.match(http, /note-groups/);
+    assert.match(http, /group-invite/);
     const catalog = read("src/lib/native/api/v1.server.ts");
     assert.match(catalog, /\/groups/);
     assert.match(catalog, /\/notes\/:id\/groups/);
+    assert.match(catalog, /\/groups\/:id\/invites/);
+    assert.match(catalog, /\/groups\/invites/);
+  });
+
+  it("ships friend-invite UI + deep link for push taps", () => {
+    const members = read("ios/App/Katecheo/GroupMembersViewController.swift");
+    assert.match(members, /Convidar amigos/);
+    assert.match(members, /GroupInviteFriendsViewController/);
+    const notebook = read("ios/App/Katecheo/NotebookListViewController.swift");
+    assert.match(notebook, /openInviteFriends|GroupInviteFriendsViewController/);
+    const router = read("ios/App/Katecheo/NativeDeepLinkRouter.swift");
+    assert.match(router, /groupInvite/);
+    assert.match(router, /groups\/invite/);
+    const detail = read("ios/App/Katecheo/GroupInviteDetailViewController.swift");
+    assert.match(detail, /respondGroupInvite/);
+    const migration = read("migrations/0030_notebook_group_invites.sql");
+    assert.match(migration, /notebook_group_invites/);
   });
 });
 

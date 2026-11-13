@@ -399,6 +399,75 @@ enum NativeAPIClient {
         let error: String?
     }
 
+    struct GroupInvitePersonDTO: Codable, Equatable {
+        var userId: String
+        var handle: String
+        var firstName: String
+        var lastName: String
+        var avatarId: String
+        var avatarUrl: String
+
+        var displayName: String {
+            let full = "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
+            if !full.isEmpty { return full }
+            if !handle.isEmpty { return "@\(handle)" }
+            return String(localized: "Amigo")
+        }
+
+        var asLinkPerson: LinkPersonDTO {
+            LinkPersonDTO(
+                userId: userId,
+                handle: handle,
+                firstName: firstName,
+                lastName: lastName,
+                avatarId: avatarId,
+                avatarUrl: avatarUrl
+            )
+        }
+    }
+
+    struct GroupInviteDTO: Codable, Equatable {
+        var id: String
+        var groupId: String
+        var groupName: String
+        var status: String
+        var createdAt: String
+        var inviter: GroupInvitePersonDTO
+
+        var isPending: Bool { status == "pending" }
+    }
+
+    struct GroupInviteFriendsResponse: Decodable {
+        let ok: Bool?
+        let friends: [GroupInvitePersonDTO]?
+        let error: String?
+    }
+
+    struct GroupInvitesCreateResponse: Decodable {
+        let ok: Bool?
+        let invited: Int?
+        let inviteIds: [String]?
+        let error: String?
+    }
+
+    struct GroupInvitesInboxResponse: Decodable {
+        let ok: Bool?
+        let invites: [GroupInviteDTO]?
+        let error: String?
+    }
+
+    struct GroupInviteResponse: Decodable {
+        let ok: Bool?
+        let invite: GroupInviteDTO?
+        let error: String?
+    }
+
+    struct GroupInviteRespondResponse: Decodable {
+        let ok: Bool?
+        let group: GroupDTO?
+        let error: String?
+    }
+
     // MARK: - Profile / prefs (Phase 3)
 
     struct PrefsDTO: Codable, Equatable {
@@ -1245,6 +1314,96 @@ enum NativeAPIClient {
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
+    }
+
+    static func listGroupInviteFriends(groupId: String, query: String = "") async throws -> [GroupInvitePersonDTO] {
+        var items: [URLQueryItem] = []
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if q.count >= 1 {
+            items.append(URLQueryItem(name: "q", value: q))
+        }
+        let request = try authorizedRequest(
+            path: "api/native/v1/groups/\(groupId)/invite-friends",
+            method: "GET",
+            query: items
+        )
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(GroupInviteFriendsResponse.self, from: data),
+              let friends = decoded.friends
+        else { throw APIError.decoding }
+        return friends
+    }
+
+    static func createGroupInvites(groupId: String, userIds: [String]) async throws -> Int {
+        struct Body: Encodable { let userIds: [String] }
+        let body = try JSONEncoder().encode(Body(userIds: userIds))
+        let request = try authorizedRequest(
+            path: "api/native/v1/groups/\(groupId)/invites",
+            method: "POST",
+            body: body
+        )
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(GroupInvitesCreateResponse.self, from: data),
+              decoded.ok != false
+        else { throw APIError.decoding }
+        return decoded.invited ?? 0
+    }
+
+    static func listMyGroupInvites() async throws -> [GroupInviteDTO] {
+        let request = try authorizedRequest(path: "api/native/v1/groups/invites", method: "GET")
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(GroupInvitesInboxResponse.self, from: data),
+              let invites = decoded.invites
+        else { throw APIError.decoding }
+        return invites
+    }
+
+    static func getGroupInvite(id: String) async throws -> GroupInviteDTO {
+        let request = try authorizedRequest(path: "api/native/v1/groups/invites/\(id)", method: "GET")
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(GroupInviteResponse.self, from: data),
+              let invite = decoded.invite
+        else { throw APIError.decoding }
+        return invite
+    }
+
+    @discardableResult
+    static func respondGroupInvite(id: String, accept: Bool) async throws -> GroupDTO? {
+        struct Body: Encodable { let accept: Bool }
+        let body = try JSONEncoder().encode(Body(accept: accept))
+        let request = try authorizedRequest(
+            path: "api/native/v1/groups/invites/\(id)/respond",
+            method: "POST",
+            body: body
+        )
+        let (status, data) = try await perform(request)
+        try throwIfUnauthorized(status)
+        guard status >= 200, status < 300 else {
+            throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
+        }
+        guard let decoded = try? JSONDecoder().decode(GroupInviteRespondResponse.self, from: data),
+              decoded.ok != false
+        else { throw APIError.decoding }
+        if accept {
+            NativeSWR.invalidate(.groups)
+        }
+        return decoded.group
     }
 
     // MARK: - Profile (Phase 3)

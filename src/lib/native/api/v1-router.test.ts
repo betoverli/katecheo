@@ -99,6 +99,23 @@ describe("matchNativeV1Route", () => {
       userId: "u1",
     });
     assert.deepEqual(matchNativeV1Route("notes/n1/groups"), { kind: "note-groups", noteId: "n1" });
+    assert.deepEqual(matchNativeV1Route("groups/invites"), { kind: "group-invites-inbox" });
+    assert.deepEqual(matchNativeV1Route("groups/invites/inv1"), {
+      kind: "group-invite",
+      inviteId: "inv1",
+    });
+    assert.deepEqual(matchNativeV1Route("groups/invites/inv1/respond"), {
+      kind: "group-invite-respond",
+      inviteId: "inv1",
+    });
+    assert.deepEqual(matchNativeV1Route("groups/g1/invites"), {
+      kind: "group-invites",
+      groupId: "g1",
+    });
+    assert.deepEqual(matchNativeV1Route("groups/g1/invite-friends"), {
+      kind: "group-invite-friends",
+      groupId: "g1",
+    });
   });
 
   it("maps profile, prefs, and account endpoints", () => {
@@ -220,6 +237,11 @@ describe("methodAllowed", () => {
     assert.equal(methodAllowed({ kind: "group-notes", groupId: "g" }, "POST"), true);
     assert.equal(methodAllowed({ kind: "group-notes", groupId: "g", noteId: "n" }, "DELETE"), true);
     assert.equal(methodAllowed({ kind: "note-groups", noteId: "n" }, "GET"), true);
+    assert.equal(methodAllowed({ kind: "group-invites-inbox" }, "GET"), true);
+    assert.equal(methodAllowed({ kind: "group-invite", inviteId: "i" }, "GET"), true);
+    assert.equal(methodAllowed({ kind: "group-invite-respond", inviteId: "i" }, "POST"), true);
+    assert.equal(methodAllowed({ kind: "group-invites", groupId: "g" }, "POST"), true);
+    assert.equal(methodAllowed({ kind: "group-invite-friends", groupId: "g" }, "GET"), true);
   });
 
   it("allows profile prefs and account delete", () => {
