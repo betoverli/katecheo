@@ -837,7 +837,10 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             sheet.addAction(UIAlertAction(title: String(localized: "Membros"), style: .default) { [weak self] _ in
                 self?.openGroupMembers()
             })
-            sheet.addAction(UIAlertAction(title: String(localized: "Convidar…"), style: .default) { [weak self] _ in
+            sheet.addAction(UIAlertAction(title: String(localized: "Convidar amigos"), style: .default) { [weak self] _ in
+                self?.openInviteFriends()
+            })
+            sheet.addAction(UIAlertAction(title: String(localized: "Compartilhar link"), style: .default) { [weak self] _ in
                 self?.shareGroupInvite()
             })
         }
@@ -970,6 +973,12 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
         guard let group else { return }
         let members = GroupMembersViewController(group: group)
         navigationController?.pushViewController(members, animated: true)
+    }
+
+    private func openInviteFriends() {
+        guard let group, group.isAccepted else { return }
+        let picker = GroupInviteFriendsViewController(group: group)
+        navigationController?.pushViewController(picker, animated: true)
     }
 
     private func shareGroupInvite() {

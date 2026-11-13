@@ -43,6 +43,11 @@ export type NativeV1Route =
   | { kind: "group-members"; groupId: string; userId?: string }
   | { kind: "group-members-decide"; groupId: string }
   | { kind: "group-members-role"; groupId: string }
+  | { kind: "group-invites-inbox" }
+  | { kind: "group-invite"; inviteId: string }
+  | { kind: "group-invite-respond"; inviteId: string }
+  | { kind: "group-invites"; groupId: string }
+  | { kind: "group-invite-friends"; groupId: string }
   | { kind: "me" }
   | { kind: "prefs" }
   | { kind: "notify-prefs" }
@@ -141,6 +146,16 @@ export function matchNativeV1Route(splat: string): NativeV1Route {
   }
 
   if (a === "groups" && parts.length === 1) return { kind: "groups" };
+  // Friend invites inbox / respond — must precede groups/:id.
+  if (a === "groups" && b === "invites" && parts.length === 2) {
+    return { kind: "group-invites-inbox" };
+  }
+  if (a === "groups" && b === "invites" && c && parts.length === 3) {
+    return { kind: "group-invite", inviteId: c };
+  }
+  if (a === "groups" && b === "invites" && c && d === "respond" && parts.length === 4) {
+    return { kind: "group-invite-respond", inviteId: c };
+  }
   if (a === "groups" && parts.length === 2 && b) return { kind: "groups", groupId: b };
   if (a === "groups" && b && c === "notes" && parts.length === 3) {
     return { kind: "group-notes", groupId: b };
@@ -159,6 +174,12 @@ export function matchNativeV1Route(splat: string): NativeV1Route {
   }
   if (a === "groups" && b && c === "members" && d && parts.length === 4) {
     return { kind: "group-members", groupId: b, userId: d };
+  }
+  if (a === "groups" && b && c === "invites" && parts.length === 3) {
+    return { kind: "group-invites", groupId: b };
+  }
+  if (a === "groups" && b && c === "invite-friends" && parts.length === 3) {
+    return { kind: "group-invite-friends", groupId: b };
   }
 
   if (a === "me" && parts.length === 1) return { kind: "me" };
@@ -294,6 +315,16 @@ export function methodAllowed(route: NativeV1Route, method: string): boolean {
     case "group-members-decide":
     case "group-members-role":
       return m === "POST";
+    case "group-invites-inbox":
+      return m === "GET";
+    case "group-invite":
+      return m === "GET";
+    case "group-invite-respond":
+      return m === "POST";
+    case "group-invites":
+      return m === "POST";
+    case "group-invite-friends":
+      return m === "GET";
     case "me":
       return m === "GET" || m === "PATCH" || m === "PUT";
     case "prefs":

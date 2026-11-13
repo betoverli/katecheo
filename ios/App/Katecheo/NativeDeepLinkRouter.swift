@@ -8,6 +8,8 @@ enum NativeDeepLinkRouter {
         case note(id: String)
         case groups
         case group(id: String)
+        /// Friend invite to a notebook group — accept/decline screen (not profile).
+        case groupInvite(id: String)
         case verses
         case themes
         case reading
@@ -44,6 +46,10 @@ enum NativeDeepLinkRouter {
             if parts.count >= 2, !parts[1].isEmpty { return .note(id: parts[1]) }
             return .notebook
         case "groups":
+            // `/groups/invite/:inviteId` opens the invite screen (push tap), not the group notes list.
+            if parts.count >= 3, parts[1] == "invite", !parts[2].isEmpty {
+                return .groupInvite(id: parts[2])
+            }
             if parts.count >= 2, !parts[1].isEmpty { return .group(id: parts[1]) }
             return .groups
         case "g":
@@ -126,8 +132,19 @@ enum NativeDeepLinkRouter {
                     }
                 }
             }
-        case .groups, .group:
+        case .groups, .group, .groupInvite:
             tabs.selectedIndex = Tab.groups.rawValue
+            if case .groupInvite(let inviteId) = destination,
+               let nav = tabs.selectedViewController as? UINavigationController
+            {
+                nav.popToRootViewController(animated: false)
+                if !NativeAPIClient.hasBearer {
+                    NotificationCenter.default.post(name: .nativeOpenSignIn, object: nil)
+                    return
+                }
+                nav.pushViewController(GroupInviteDetailViewController(inviteId: inviteId), animated: animated)
+                return
+            }
             if case .group(let id) = destination,
                let nav = tabs.selectedViewController as? UINavigationController
             {
@@ -138,7 +155,7 @@ enum NativeDeepLinkRouter {
                         let list = NotebookListViewController(group: group)
                         nav.pushViewController(list, animated: animated)
                     } catch {
-                        // Stay on Grupos home if fetch fails (offline).
+                        // Stay on Grupos home if fetch fails (offline / not a member yet).
                     }
                 }
             }

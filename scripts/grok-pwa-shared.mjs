@@ -254,6 +254,8 @@ export function readOgSite(cwd = process.cwd()) {
 
 /** Public path of an on-disk share card, or "" if neither file exists. */
 export function ogCardPublicPath(cwd = process.cwd()) {
+  // Prefer cache-busted Katecheo brand asset, then generic platform names.
+  if (existsSync(join(cwd, "public/og-katecheo-v2.png"))) return "/og-katecheo-v2.png";
   if (existsSync(join(cwd, "public/og.jpg"))) return "/og.jpg";
   if (existsSync(join(cwd, "public/og.png"))) return "/og.png";
   return "";
@@ -277,7 +279,9 @@ export function snapshotOgIdentity(cwd = process.cwd()) {
     if (siteHasCustomCard(site)) delete site.card;
     if (site.image) delete site.image;
   }
-  if (existsSync(join(cwd, "public/x-banner.jpg"))) {
+  if (existsSync(join(cwd, "public/twitter-katecheo-v2.png"))) {
+    site.banner = "/twitter-katecheo-v2.png";
+  } else if (existsSync(join(cwd, "public/x-banner.jpg"))) {
     site.banner = site.banner || "/x-banner.jpg";
   }
   return { site };

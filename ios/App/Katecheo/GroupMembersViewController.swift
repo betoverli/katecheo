@@ -25,13 +25,16 @@ final class GroupMembersViewController: UIViewController, UITableViewDelegate, U
         KCChrome.styleScreen(view)
         title = String(localized: "Membros")
         navigationItem.largeTitleDisplayMode = .never
-        navigationItem.rightBarButtonItem = UIBarButtonItem(
-            title: String(localized: "Convidar"),
-            style: .plain,
-            target: self,
-            action: #selector(invite)
-        )
-        navigationItem.rightBarButtonItem?.accessibilityLabel = String(localized: "Convidar")
+        // Trailing text action only — avoid stacking icon + title that can collide on compact widths.
+        if group.isAccepted {
+            navigationItem.rightBarButtonItem = UIBarButtonItem(
+                title: String(localized: "Convidar amigos"),
+                style: .plain,
+                target: self,
+                action: #selector(inviteFriends)
+            )
+            navigationItem.rightBarButtonItem?.accessibilityLabel = String(localized: "Convidar amigos")
+        }
 
         tableView.translatesAutoresizingMaskIntoConstraints = false
         KCChrome.styleGroupedTable(tableView)
@@ -90,7 +93,26 @@ final class GroupMembersViewController: UIViewController, UITableViewDelegate, U
         }
     }
 
-    @objc private func invite() {
+    @objc private func inviteFriends() {
+        guard group.isAccepted else { return }
+        let sheet = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
+        sheet.addAction(UIAlertAction(title: String(localized: "Convidar amigos"), style: .default) { [weak self] _ in
+            guard let self else { return }
+            let picker = GroupInviteFriendsViewController(group: self.group)
+            self.navigationController?.pushViewController(picker, animated: true)
+        })
+        sheet.addAction(UIAlertAction(title: String(localized: "Compartilhar link"), style: .default) { [weak self] _ in
+            self?.shareLink()
+        })
+        sheet.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
+        KCConfirmation.presentActionSheet(
+            sheet,
+            from: self,
+            barButtonItem: navigationItem.rightBarButtonItem
+        )
+    }
+
+    private func shareLink() {
         let url = NativeAPIClient.baseURL.appendingPathComponent("groups/\(group.id)")
         let text = String(format: String(localized: "Entre no grupo «%@» no Katecheo"), group.name)
         let vc = UIActivityViewController(activityItems: [text, url], applicationActivities: nil)
