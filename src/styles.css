@@ -1068,3 +1068,23 @@ html.light .marketing-atmosphere {
     animation: none;
   }
 }
+
+.app-store-badge-link {
+  display: inline-flex;
+  /* Apple clear space: at least 1/4 of the 48px badge height. */
+  padding: 0.75rem;
+}
+.app-store-badge {
+  height: 48px;
+  width: auto;
+  display: block;
+}
+.app-store-badge-on-light {
+  display: none;
+}
+html.light .app-store-badge-on-dark {
+  display: none;
+}
+html.light .app-store-badge-on-light {
+  display: block;
+}
