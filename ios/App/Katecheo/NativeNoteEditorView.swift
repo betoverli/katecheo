@@ -213,22 +213,53 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         refreshAppearanceForCurrentTraits(forceAttachments: true)
     }
 
-    /// Traits used to bake attachment chrome: prefer the text view's real traits, then the
-    /// in-app Appearance override. Always returns a concrete `.light` / `.dark` style.
+    /// Effective light/dark for this editor surface.
+    ///
+    /// Explicit `overrideUserInterfaceStyle` on the text view / editor / window wins over
+    /// inherited `traitCollection` values — those can still report `.light` for a frame
+    /// after a Dark override is applied (AppTests + first insert), which previously left
+    /// speaker headers black until leave/reopen.
+    func effectiveEditorInterfaceStyle() -> UIUserInterfaceStyle {
+        let overrides: [UIUserInterfaceStyle] = [
+            textView.overrideUserInterfaceStyle,
+            overrideUserInterfaceStyle,
+            window?.overrideUserInterfaceStyle ?? .unspecified,
+        ]
+        if let explicit = overrides.first(where: { $0 == .light || $0 == .dark }) {
+            return explicit
+        }
+        let inherited: [UIUserInterfaceStyle] = [
+            textView.traitCollection.userInterfaceStyle,
+            traitCollection.userInterfaceStyle,
+            window?.traitCollection.userInterfaceStyle ?? .unspecified,
+            AppAppearance.style(forTheme: AppAppearance.storedTheme),
+        ]
+        if let style = inherited.first(where: { $0 == .light || $0 == .dark }) {
+            return style
+        }
+        return SpeakerHeaderAttachment.resolvedBakeStyle(preferred: .unspecified)
+    }
+
+    /// Traits used to bake attachment chrome from the editor's effective interface style.
     private func speakerBakeTraits() -> UITraitCollection {
-        var style = textView.traitCollection.userInterfaceStyle
-        if style == .unspecified {
-            style = traitCollection.userInterfaceStyle
-        }
-        if style == .unspecified {
-            style = window?.traitCollection.userInterfaceStyle ?? .unspecified
-        }
-        style = SpeakerHeaderAttachment.resolvedBakeStyle(preferred: style)
+        let style = effectiveEditorInterfaceStyle()
         return SpeakerHeaderAttachment.bakeTraits(
             style: style,
             scale: textView.traitCollection.displayScale > 0
                 ? textView.traitCollection.displayScale
                 : UIScreen.main.scale
+        )
+    }
+
+    /// Build attributed content already baked for this editor's effective style.
+    private func attributedStringForEditor(
+        from document: NativeAPIClient.NoteDocument,
+        speakers: [NativeAPIClient.SpeakerDTO]
+    ) -> NSAttributedString {
+        NoteDocumentCodec.attributedString(
+            from: document,
+            speakers: speakers,
+            preferredInterfaceStyle: effectiveEditorInterfaceStyle()
         )
     }
 
@@ -413,11 +444,10 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         setEditingChrome(show)
     }
 
+    /// First paragraph is always the note title (Apple Notes style), even when emptied
+    /// down to the body-styled trailing `\n` — attribute checks alone miss that state.
     private func isCaretInTitle() -> Bool {
-        let attrs = paragraphStartAttributes()
-        if (attrs[NoteDocumentCodec.blockIdKey] as? String) == "title" { return true }
-        let range = paragraphRange()
-        return range.location == 0 && (attrs[NoteDocumentCodec.blockTypeKey] as? String) == "heading"
+        paragraphRange().location == 0
     }
 
     private func applyTags(_ tags: [String]) {
@@ -593,7 +623,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         documentBase = note
         self.speakers = speakers
         applyingRemote = true
-        let attributed = NoteDocumentCodec.attributedString(from: note, speakers: speakers)
+        let attributed = attributedStringForEditor(from: note, speakers: speakers)
         // Prefer textStorage mutation over attributedText reassign when possible so we
         // don't thrash selection — but a full load must replace content once.
         textView.textStorage.setAttributedString(attributed)
@@ -655,8 +685,11 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         doc = result.document
         documentBase = doc
         applyingRemote = true
-        let attributed = NoteDocumentCodec.attributedString(from: doc, speakers: speakers)
+        // Bake speaker chrome for this editor's effective style at insert time (not a
+        // Light-seeded offline default that only corrects after leave/reopen).
+        let attributed = attributedStringForEditor(from: doc, speakers: speakers)
         textView.textStorage.setAttributedString(attributed)
+        refreshAppearanceForCurrentTraits(forceAttachments: true)
         placeCaretInSpeakerBody(bodyId: result.focusBodyId, sectionId: result.sectionId)
         applyingRemote = false
         emitChange()
@@ -700,8 +733,12 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         if textView.textStorage.length == 0 {
             reseedEmptyDocument()
             refreshPlaceholders()
+            refreshEditingChrome()
             return
         }
+        // Deleting the last title character can leave only the body-styled `\n` —
+        // restore title chrome so typing attrs / toolbar stay correct without reopen.
+        ensureTitleParagraphChrome()
         // Header is an attachment — never treat it as typed text. Body keeps speakerBodyKey.
         if paragraphBlockType() == "speakerSection" {
             moveCaretOffSpeakerHeaderIfNeeded()
@@ -714,6 +751,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         emitChange()
         refreshSpeakerRails()
         refreshPlaceholders()
+        refreshEditingChrome()
         scrollCaretVisible(animated: false)
     }
 
@@ -981,21 +1019,30 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         return SpeakerSectionEditing.bodyTypingAttributes(blockId: id)
     }
 
+    private func titleTypingAttributes() -> [NSAttributedString.Key: Any] {
+        // Keep dynamic `UIColor.label` (never a once-resolved static color).
+        NoteDocumentCodec.baseAttributesPublic(
+            type: "heading",
+            id: "title",
+            checked: nil,
+            speakerId: nil,
+            speakers: [:]
+        )
+    }
+
     private func typingAttributesForCaret() -> [NSAttributedString.Key: Any] {
-        if textView.textStorage.length == 0 {
-            return NoteDocumentCodec.baseAttributesPublic(
-                type: "heading",
-                id: "title",
-                checked: nil,
-                speakerId: nil,
-                speakers: [:]
-            )
+        if textView.textStorage.length == 0 || isCaretInTitle() {
+            return titleTypingAttributes()
         }
         return baseTypingAttributes()
     }
 
     /// Guarantee font / paragraphStyle / block metadata match the load path.
     private func ensureTypingAttributes() {
+        if isCaretInTitle() {
+            textView.typingAttributes = titleTypingAttributes()
+            return
+        }
         let typing = textView.typingAttributes
         let missingBlock = typing[NoteDocumentCodec.blockTypeKey] == nil
         let missingFont = typing[.font] == nil
@@ -1010,6 +1057,49 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         textView.typingAttributes = typingAttributesForCaret()
     }
 
+    /// When the title is emptied, UIKit often leaves only the body-styled paragraph
+    /// terminator at location 0. Re-seed a ZWSP run with title heading attrs so the
+    /// first paragraph stays the title field (toolbar hidden, title1 + `.label`).
+    private func ensureTitleParagraphChrome() {
+        let storage = textView.textStorage
+        guard storage.length > 0 else { return }
+        let ns = storage.string as NSString
+        let titlePara = ns.paragraphRange(for: NSRange(location: 0, length: 0))
+        guard titlePara.length > 0 else { return }
+
+        let attrs = storage.attributes(at: titlePara.location, effectiveRange: nil)
+        let hasTitleChrome = (attrs[NoteDocumentCodec.blockIdKey] as? String) == "title"
+            || ((attrs[NoteDocumentCodec.blockTypeKey] as? String) == "heading"
+                && titlePara.location == 0
+                && attrs[.attachment] == nil)
+        if hasTitleChrome { return }
+
+        let titleAttrs = titleTypingAttributes()
+        let terminatorLen: Int = {
+            guard titlePara.length > 0 else { return 0 }
+            let last = ns.substring(with: NSRange(location: NSMaxRange(titlePara) - 1, length: 1))
+            return (last == "\n" || last == "\r") ? 1 : 0
+        }()
+        let contentLen = titlePara.length - terminatorLen
+        let contentRange = NSRange(location: titlePara.location, length: max(0, contentLen))
+        let content = contentRange.length > 0 ? ns.substring(with: contentRange) : ""
+        let visuallyEmpty = content
+            .replacingOccurrences(of: "\u{200B}", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .isEmpty
+
+        if visuallyEmpty {
+            let piece = NSAttributedString(string: "\u{200B}", attributes: titleAttrs)
+            storage.replaceCharacters(in: contentRange, with: piece)
+            if textView.selectedRange.location <= titlePara.location + max(contentLen, 0) {
+                textView.selectedRange = NSRange(location: titlePara.location + 1, length: 0)
+            }
+        } else {
+            storage.addAttributes(titleAttrs, range: contentRange)
+        }
+        textView.typingAttributes = titleAttrs
+    }
+
     private func reseedEmptyDocument() {
         applyingRemote = true
         var empty = NativeAPIClient.emptyNote(id: documentBase.id)
@@ -1017,7 +1107,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         empty.tags = documentBase.tags
         empty.noteSpeakerId = documentBase.noteSpeakerId
         empty.visibility = documentBase.visibility
-        let attributed = NoteDocumentCodec.attributedString(from: empty, speakers: speakers)
+        let attributed = attributedStringForEditor(from: empty, speakers: speakers)
         textView.textStorage.setAttributedString(attributed)
         textView.selectedRange = NSRange(location: 0, length: 0)
         textView.typingAttributes = typingAttributesForCaret()
@@ -1358,7 +1448,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     private func applyDocument(_ doc: NativeAPIClient.NoteDocument, preferBlockId: String?) {
         documentBase = doc
         applyingRemote = true
-        let attributed = NoteDocumentCodec.attributedString(from: doc, speakers: speakers)
+        let attributed = attributedStringForEditor(from: doc, speakers: speakers)
         textView.textStorage.setAttributedString(attributed)
         if let preferBlockId, let loc = findBlockLocation(blockId: preferBlockId) {
             textView.selectedRange = NSRange(location: loc, length: 0)
@@ -2102,6 +2192,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         // Always re-seed from the caret paragraph — title typing attrs must not
         // leak into the body after a selection move (TF194 list promote/Enter).
         textView.typingAttributes = typingAttributesForCaret()
+        refreshEditingChrome()
     }
 
     func testing_textStorage() -> NSTextStorage {
@@ -2181,6 +2272,10 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
     func testing_refreshAppearanceForCurrentTraits() {
         refreshAppearanceForCurrentTraits(forceAttachments: true)
+    }
+
+    func testing_effectiveUserInterfaceStyle() -> UIUserInterfaceStyle {
+        effectiveEditorInterfaceStyle()
     }
 
     /// Resolved title (first paragraph) foreground under the given traits — AppTests.
@@ -2270,7 +2365,9 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
     @discardableResult
     func testing_becomeFirstResponder() -> Bool {
-        textView.becomeFirstResponder()
+        let ok = textView.becomeFirstResponder()
+        refreshEditingChrome()
+        return ok
     }
 }
 

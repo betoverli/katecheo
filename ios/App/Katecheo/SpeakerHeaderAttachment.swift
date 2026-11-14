@@ -39,7 +39,8 @@ final class SpeakerHeaderAttachment: NSTextAttachment {
         speakerName: String,
         colorHex: String?,
         collapsed: Bool,
-        preview: String = ""
+        preview: String = "",
+        preferredInterfaceStyle: UIUserInterfaceStyle = .unspecified
     ) {
         self.blockId = blockId
         self.speakerId = speakerId
@@ -48,8 +49,9 @@ final class SpeakerHeaderAttachment: NSTextAttachment {
         self.collapsed = collapsed
         self.preview = preview
         super.init(data: nil, ofType: nil)
-        // Seed from Appearance (falls back to light) — decode often runs before the window exists.
-        let seed = Self.resolvedBakeStyle(preferred: .unspecified)
+        // Prefer the caller's effective style (text view / window). Offline decode without a
+        // view still falls back through Appearance → ambient → light.
+        let seed = Self.resolvedBakeStyle(preferred: preferredInterfaceStyle)
         refreshImage(width: 320, traits: Self.bakeTraits(style: seed))
     }
 
@@ -83,6 +85,7 @@ final class SpeakerHeaderAttachment: NSTextAttachment {
     }
 
     /// Rebuild the chrome image with hard RGB for `traits.userInterfaceStyle`.
+    /// Never dynamic label/secondary colors (those re-resolve under ambient traits — TF222).
     func refreshImage(width: CGFloat, traits: UITraitCollection = .current) {
         let w = max(width, 120)
         let style = Self.resolvedBakeStyle(preferred: traits.userInterfaceStyle)
@@ -230,6 +233,12 @@ final class SpeakerHeaderAttachment: NSTextAttachment {
         if preferred == .light || preferred == .dark { return preferred }
         let fromApp = AppAppearance.style(forTheme: AppAppearance.storedTheme)
         if fromApp == .light || fromApp == .dark { return fromApp }
+        // System theme: follow the concrete ambient style when available. Never invent
+        // Light here — that stamped black speaker names on insert in Dark until reopen.
+        // `attachmentBounds` still passes the last explicit `renderedInterfaceStyle`, so
+        // this fallback does not revive the TF222 ambient-Dark rebake bug.
+        let ambient = UITraitCollection.current.userInterfaceStyle
+        if ambient == .light || ambient == .dark { return ambient }
         return .light
     }
 

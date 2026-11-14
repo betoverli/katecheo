@@ -26,7 +26,7 @@ final class NativeNoteEditorTitleAppearanceTests: XCTestCase {
         editor.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
         window.rootViewController = host
-        window.isHidden = false
+        window.makeKeyAndVisible()
         hostWindow = window
         editor.testing_prepare(size: CGSize(width: 390, height: 720))
     }
@@ -121,5 +121,119 @@ final class NativeNoteEditorTitleAppearanceTests: XCTestCase {
         }
         XCTAssertEqual(header.renderedInterfaceStyle, .light)
         XCTAssertLessThan(headerLuma, 0.45, "speaker header name must be readable on light canvas (luma=\(headerLuma))")
+    }
+
+    /// Inserting a speaker while already in dark mode must bake a light name immediately
+    /// (not wait for leave/reopen → pushNote refresh).
+    func testInsertSpeaker_inDarkMode_bakesLightNameImmediately() {
+        // Real device path: system Appearance + Dark override on the window/view hierarchy
+        // (not AppAppearance.setTheme("dark") — that would hide trait-propagation bugs).
+        AppAppearance.setTheme("system")
+        let host = hostWindow?.rootViewController
+        hostWindow?.overrideUserInterfaceStyle = .dark
+        host?.overrideUserInterfaceStyle = .dark
+        editor.overrideUserInterfaceStyle = .dark
+        hostWindow?.layoutIfNeeded()
+        editor.layoutIfNeeded()
+
+        XCTAssertEqual(
+            editor.testing_effectiveUserInterfaceStyle(),
+            .dark,
+            "precondition: editor must resolve Dark from the window/view hierarchy"
+        )
+
+        var blank = NativeAPIClient.emptyNote(id: "note-insert-dark-speaker")
+        blank.title = "Culto"
+        blank.body.blocks = [
+            NativeAPIClient.LineBlock(
+                id: "p1",
+                type: "paragraph",
+                spans: [],
+                speakerId: nil,
+                title: nil,
+                collapsed: nil,
+                checked: nil,
+                blocks: nil
+            ),
+        ]
+        editor.pushNote(blank, speakers: speakers)
+        editor.testing_refreshAppearanceForCurrentTraits()
+
+        let storage = editor.testing_textStorage()
+        editor.testing_setSelectedRange(NSRange(location: storage.length, length: 0))
+        editor.insertSpeakerSection(speakerId: "sp1", name: "João Bium")
+
+        guard let headerRange = SpeakerSectionEditing.findSpeakerHeaderRange(in: editor.testing_textStorage()),
+              let header = editor.testing_headerAttachment(at: headerRange.location),
+              let luma = header.testing_namePixelLuminance()
+        else {
+            return XCTFail("missing speaker header right after insert")
+        }
+        XCTAssertEqual(header.renderedInterfaceStyle, .dark)
+        XCTAssertGreaterThan(luma, 0.55, "inserted speaker name must be light in dark mode (luma=\(luma))")
+    }
+
+    /// Format toolbar must stay hidden for the title field even after deleting all title text.
+    func testFormattingToolbar_hiddenForTitleEvenAfterClearing() {
+        var note = NativeAPIClient.emptyNote(id: "note-title-toolbar")
+        note.title = ""
+        note.body.blocks = [
+            NativeAPIClient.LineBlock(
+                id: "p1",
+                type: "paragraph",
+                spans: [.init(type: "text", text: "corpo", marks: nil, bookId: nil, chapter: nil, verseStart: nil, verseEnd: nil, href: nil)],
+                speakerId: nil,
+                title: nil,
+                collapsed: nil,
+                checked: nil,
+                blocks: nil
+            ),
+        ]
+        editor.pushNote(note, speakers: speakers)
+        XCTAssertTrue(editor.testing_becomeFirstResponder())
+
+        editor.testing_setSelectedRange(NSRange(location: 0, length: 0))
+        // Selection change refreshes chrome — title must never show the format bar.
+        XCTAssertFalse(
+            editor.testing_isFormattingToolbarVisible(),
+            "empty title on focus must hide the formatting toolbar"
+        )
+
+        editor.testing_insertText("Culto")
+        XCTAssertFalse(
+            editor.testing_isFormattingToolbarVisible(),
+            "typed title must keep the formatting toolbar hidden"
+        )
+
+        // Delete every title character (including any ZWSP seed).
+        for _ in 0..<12 {
+            let storage = editor.testing_textStorage()
+            let titlePara = (storage.string as NSString).paragraphRange(for: NSRange(location: 0, length: 0))
+            let terminator: Int = {
+                guard titlePara.length > 0 else { return 0 }
+                let last = (storage.string as NSString).substring(
+                    with: NSRange(location: NSMaxRange(titlePara) - 1, length: 1)
+                )
+                return (last == "\n" || last == "\r") ? 1 : 0
+            }()
+            let contentLen = titlePara.length - terminator
+            guard contentLen > 0 else { break }
+            editor.testing_setSelectedRange(NSRange(location: contentLen, length: 0))
+            editor.testing_deleteBackward()
+        }
+
+        XCTAssertTrue(editor.testing_titlePlaceholderVisible())
+        XCTAssertFalse(
+            editor.testing_isFormattingToolbarVisible(),
+            "cleared title must still hide the formatting toolbar"
+        )
+
+        // Body still shows the toolbar.
+        let storage = editor.testing_textStorage()
+        editor.testing_setSelectedRange(NSRange(location: storage.length, length: 0))
+        XCTAssertTrue(
+            editor.testing_isFormattingToolbarVisible(),
+            "body caret must still show the formatting toolbar"
+        )
     }
 }
