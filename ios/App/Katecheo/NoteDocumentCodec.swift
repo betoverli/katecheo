@@ -52,11 +52,9 @@ enum NoteDocumentCodec {
     /// Apple Notes style: first paragraph is the title (large), then body blocks.
     /// - Parameter preferredInterfaceStyle: when the editor already knows its effective
     ///   light/dark style, speaker headers bake against it immediately (insert path).
-    static func attributedString(
-        from document: NativeAPIClient.NoteDocument,
-        speakers: [NativeAPIClient.SpeakerDTO] = [],
-        preferredInterfaceStyle: UIUserInterfaceStyle = .unspecified
-    ) -> NSAttributedString {
+    static func attributedString(from document: NativeAPIClient.NoteDocument,
+                                 speakers: [NativeAPIClient.SpeakerDTO] = [],
+                                 preferredInterfaceStyle: UIUserInterfaceStyle = .unspecified) -> NSAttributedString {
         precondition(Thread.isMainThread)
         let speakerMap = Dictionary(uniqueKeysWithValues: speakers.map { ($0.id, $0) })
         let result = NSMutableAttributedString()
