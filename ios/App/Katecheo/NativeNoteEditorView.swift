@@ -213,17 +213,21 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         refreshAppearanceForCurrentTraits(forceAttachments: true)
     }
 
-    /// Traits used to bake attachment chrome: prefer the text view's real traits, then the
-    /// in-app Appearance override. Always returns a concrete `.light` / `.dark` style.
+    /// Traits used to bake attachment chrome: prefer explicit overrides (window / editor /
+    /// Appearance), then inherited trait collections. Always returns a concrete `.light` /
+    /// `.dark` style so insert/load never keeps a Light-seeded bake under Dark.
     private func speakerBakeTraits() -> UITraitCollection {
-        var style = textView.traitCollection.userInterfaceStyle
-        if style == .unspecified {
-            style = traitCollection.userInterfaceStyle
-        }
-        if style == .unspecified {
-            style = window?.traitCollection.userInterfaceStyle ?? .unspecified
-        }
-        style = SpeakerHeaderAttachment.resolvedBakeStyle(preferred: style)
+        let candidates: [UIUserInterfaceStyle] = [
+            textView.overrideUserInterfaceStyle,
+            overrideUserInterfaceStyle,
+            window?.overrideUserInterfaceStyle ?? .unspecified,
+            textView.traitCollection.userInterfaceStyle,
+            traitCollection.userInterfaceStyle,
+            window?.traitCollection.userInterfaceStyle ?? .unspecified,
+            AppAppearance.style(forTheme: AppAppearance.storedTheme),
+        ]
+        let preferred = candidates.first(where: { $0 == .light || $0 == .dark }) ?? .unspecified
+        let style = SpeakerHeaderAttachment.resolvedBakeStyle(preferred: preferred)
         return SpeakerHeaderAttachment.bakeTraits(
             style: style,
             scale: textView.traitCollection.displayScale > 0
