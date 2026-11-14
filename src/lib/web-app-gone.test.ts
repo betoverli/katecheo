@@ -73,9 +73,37 @@ describe("marketing cutover — kept surfaces", () => {
     const cfg = read("src/lib/app-store.ts");
     assert.match(cfg, /export const APP_STORE_URL/);
     assert.match(cfg, /INSTAGRAM_URL/);
+    assert.match(cfg, /APP_STORE_ID = "6826551392"/);
+    assert.match(
+      cfg,
+      /https:\/\/apps\.apple\.com\/app\/id\$\{APP_STORE_ID\}|https:\/\/apps\.apple\.com\/app\/id6826551392/,
+    );
     const landing = read("src/components/landing.tsx");
     assert.match(landing, /APP_STORE_URL|APP_STORE_LIVE/);
     assert.match(landing, /INSTAGRAM_URL/);
+    assert.match(landing, /comingSoon/);
+    assert.match(landing, /download-on-the-app-store-white-pt-br\.svg/);
+    assert.match(landing, /download-on-the-app-store-white-en-us\.svg/);
+    assert.match(landing, /download-on-the-app-store-white-es-es\.svg/);
+    assert.match(landing, /download-on-the-app-store-black-pt-br\.svg/);
+    assert.match(landing, /download-on-the-app-store-black-en-us\.svg/);
+    assert.match(landing, /download-on-the-app-store-black-es-es\.svg/);
+    assert.match(landing, /Baixar na App Store/);
+    assert.match(landing, /Download on the App Store/);
+    assert.match(landing, /Consíguelo en el App Store/);
+    for (const file of [
+      "public/badges/download-on-the-app-store-white-pt-br.svg",
+      "public/badges/download-on-the-app-store-white-en-us.svg",
+      "public/badges/download-on-the-app-store-white-es-es.svg",
+      "public/badges/download-on-the-app-store-black-pt-br.svg",
+      "public/badges/download-on-the-app-store-black-en-us.svg",
+      "public/badges/download-on-the-app-store-black-es-es.svg",
+    ]) {
+      assert.equal(existsSync(new URL(file, root)), true, file);
+    }
+    const rootRoute = read("src/routes/__root.tsx");
+    assert.match(rootRoute, /apple-itunes-app/);
+    assert.match(rootRoute, /app-id=\$\{APP_STORE_ID\}|app-id=6826551392/);
   });
 
   it("exposes contato@katecheo.app as mailto on landing, contact, privacy, and terms", () => {

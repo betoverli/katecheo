@@ -180,6 +180,24 @@ export function Landing({ initialLocale }: { initialLocale?: Locale }) {
   );
 }
 
+const APP_STORE_BADGE: Record<Locale, { alt: string; black: string; white: string }> = {
+  pt: {
+    alt: "Baixar na App Store",
+    black: "/badges/download-on-the-app-store-black-pt-br.svg",
+    white: "/badges/download-on-the-app-store-white-pt-br.svg",
+  },
+  en: {
+    alt: "Download on the App Store",
+    black: "/badges/download-on-the-app-store-black-en-us.svg",
+    white: "/badges/download-on-the-app-store-white-en-us.svg",
+  },
+  es: {
+    alt: "Consíguelo en el App Store",
+    black: "/badges/download-on-the-app-store-black-es-es.svg",
+    white: "/badges/download-on-the-app-store-white-es-es.svg",
+  },
+};
+
 function AppStoreCta({ locale }: { locale: Locale }) {
   const copy = MARKETING[locale];
   if (!APP_STORE_LIVE || !APP_STORE_URL) {
@@ -189,13 +207,25 @@ function AppStoreCta({ locale }: { locale: Locale }) {
       </span>
     );
   }
+  const badge = APP_STORE_BADGE[locale];
   return (
-    <a
-      href={APP_STORE_URL}
-      className="inline-flex min-h-12 items-center rounded-md bg-accent px-5 text-sm font-semibold text-accent-fg transition-transform hover:brightness-110 active:scale-[0.99]"
-      rel="noreferrer"
-    >
-      {copy.openAppStore}
+    <a href={APP_STORE_URL} className="app-store-badge-link" rel="noreferrer" aria-label={badge.alt}>
+      <img
+        src={badge.white}
+        alt=""
+        width={144}
+        height={48}
+        className="app-store-badge app-store-badge-on-dark"
+        aria-hidden="true"
+      />
+      <img
+        src={badge.black}
+        alt=""
+        width={144}
+        height={48}
+        className="app-store-badge app-store-badge-on-light"
+        aria-hidden="true"
+      />
     </a>
   );
 }
