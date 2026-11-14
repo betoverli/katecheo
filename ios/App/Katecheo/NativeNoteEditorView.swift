@@ -213,26 +213,53 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         refreshAppearanceForCurrentTraits(forceAttachments: true)
     }
 
-    /// Traits used to bake attachment chrome: prefer explicit overrides (window / editor /
-    /// Appearance), then inherited trait collections. Always returns a concrete `.light` /
-    /// `.dark` style so insert/load never keeps a Light-seeded bake under Dark.
-    private func speakerBakeTraits() -> UITraitCollection {
-        let candidates: [UIUserInterfaceStyle] = [
+    /// Effective light/dark for this editor surface.
+    ///
+    /// Explicit `overrideUserInterfaceStyle` on the text view / editor / window wins over
+    /// inherited `traitCollection` values — those can still report `.light` for a frame
+    /// after a Dark override is applied (AppTests + first insert), which previously left
+    /// speaker headers black until leave/reopen.
+    func effectiveEditorInterfaceStyle() -> UIUserInterfaceStyle {
+        let overrides: [UIUserInterfaceStyle] = [
             textView.overrideUserInterfaceStyle,
             overrideUserInterfaceStyle,
             window?.overrideUserInterfaceStyle ?? .unspecified,
+        ]
+        if let explicit = overrides.first(where: { $0 == .light || $0 == .dark }) {
+            return explicit
+        }
+        let inherited: [UIUserInterfaceStyle] = [
             textView.traitCollection.userInterfaceStyle,
             traitCollection.userInterfaceStyle,
             window?.traitCollection.userInterfaceStyle ?? .unspecified,
             AppAppearance.style(forTheme: AppAppearance.storedTheme),
         ]
-        let preferred = candidates.first(where: { $0 == .light || $0 == .dark }) ?? .unspecified
-        let style = SpeakerHeaderAttachment.resolvedBakeStyle(preferred: preferred)
+        if let style = inherited.first(where: { $0 == .light || $0 == .dark }) {
+            return style
+        }
+        return SpeakerHeaderAttachment.resolvedBakeStyle(preferred: .unspecified)
+    }
+
+    /// Traits used to bake attachment chrome from the editor's effective interface style.
+    private func speakerBakeTraits() -> UITraitCollection {
+        let style = effectiveEditorInterfaceStyle()
         return SpeakerHeaderAttachment.bakeTraits(
             style: style,
             scale: textView.traitCollection.displayScale > 0
                 ? textView.traitCollection.displayScale
                 : UIScreen.main.scale
+        )
+    }
+
+    /// Build attributed content already baked for this editor's effective style.
+    private func attributedStringForEditor(
+        from document: NativeAPIClient.NoteDocument,
+        speakers: [NativeAPIClient.SpeakerDTO]
+    ) -> NSAttributedString {
+        NoteDocumentCodec.attributedString(
+            from: document,
+            speakers: speakers,
+            preferredInterfaceStyle: effectiveEditorInterfaceStyle()
         )
     }
 
@@ -596,7 +623,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         documentBase = note
         self.speakers = speakers
         applyingRemote = true
-        let attributed = NoteDocumentCodec.attributedString(from: note, speakers: speakers)
+        let attributed = attributedStringForEditor(from: note, speakers: speakers)
         // Prefer textStorage mutation over attributedText reassign when possible so we
         // don't thrash selection — but a full load must replace content once.
         textView.textStorage.setAttributedString(attributed)
@@ -658,11 +685,10 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         doc = result.document
         documentBase = doc
         applyingRemote = true
-        let attributed = NoteDocumentCodec.attributedString(from: doc, speakers: speakers)
+        // Bake speaker chrome for this editor's effective style at insert time (not a
+        // Light-seeded offline default that only corrects after leave/reopen).
+        let attributed = attributedStringForEditor(from: doc, speakers: speakers)
         textView.textStorage.setAttributedString(attributed)
-        // Codec bakes headers offline (often Light-seeded under system theme). Re-bake +
-        // re-stamp dynamic `UIColor.label` under the live text-view traits immediately so
-        // dark mode does not show a black speaker name until leave/reopen.
         refreshAppearanceForCurrentTraits(forceAttachments: true)
         placeCaretInSpeakerBody(bodyId: result.focusBodyId, sectionId: result.sectionId)
         applyingRemote = false
@@ -1081,7 +1107,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         empty.tags = documentBase.tags
         empty.noteSpeakerId = documentBase.noteSpeakerId
         empty.visibility = documentBase.visibility
-        let attributed = NoteDocumentCodec.attributedString(from: empty, speakers: speakers)
+        let attributed = attributedStringForEditor(from: empty, speakers: speakers)
         textView.textStorage.setAttributedString(attributed)
         textView.selectedRange = NSRange(location: 0, length: 0)
         textView.typingAttributes = typingAttributesForCaret()
@@ -1422,7 +1448,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     private func applyDocument(_ doc: NativeAPIClient.NoteDocument, preferBlockId: String?) {
         documentBase = doc
         applyingRemote = true
-        let attributed = NoteDocumentCodec.attributedString(from: doc, speakers: speakers)
+        let attributed = attributedStringForEditor(from: doc, speakers: speakers)
         textView.textStorage.setAttributedString(attributed)
         if let preferBlockId, let loc = findBlockLocation(blockId: preferBlockId) {
             textView.selectedRange = NSRange(location: loc, length: 0)
@@ -2246,6 +2272,10 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
     func testing_refreshAppearanceForCurrentTraits() {
         refreshAppearanceForCurrentTraits(forceAttachments: true)
+    }
+
+    func testing_effectiveUserInterfaceStyle() -> UIUserInterfaceStyle {
+        effectiveEditorInterfaceStyle()
     }
 
     /// Resolved title (first paragraph) foreground under the given traits — AppTests.

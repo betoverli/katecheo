@@ -39,7 +39,8 @@ final class SpeakerHeaderAttachment: NSTextAttachment {
         speakerName: String,
         colorHex: String?,
         collapsed: Bool,
-        preview: String = ""
+        preview: String = "",
+        preferredInterfaceStyle: UIUserInterfaceStyle = .unspecified
     ) {
         self.blockId = blockId
         self.speakerId = speakerId
@@ -48,8 +49,9 @@ final class SpeakerHeaderAttachment: NSTextAttachment {
         self.collapsed = collapsed
         self.preview = preview
         super.init(data: nil, ofType: nil)
-        // Seed from Appearance (falls back to light) — decode often runs before the window exists.
-        let seed = Self.resolvedBakeStyle(preferred: .unspecified)
+        // Prefer the caller's effective style (text view / window). Offline decode without a
+        // view still falls back through Appearance → ambient → light.
+        let seed = Self.resolvedBakeStyle(preferred: preferredInterfaceStyle)
         refreshImage(width: 320, traits: Self.bakeTraits(style: seed))
     }
 
@@ -82,14 +84,15 @@ final class SpeakerHeaderAttachment: NSTextAttachment {
         return .rename
     }
 
-    /// Rebuild the chrome image with hard RGB for `traits.userInterfaceStyle`.
+    /// Rebuild the chrome image for `traits.userInterfaceStyle`.
+    /// Name/muted colors are `UIColor.label` / `secondaryLabel` resolved against those traits
+    /// (never left as dynamic colors that re-resolve under ambient process traits — TF222).
     func refreshImage(width: CGFloat, traits: UITraitCollection = .current) {
         let w = max(width, 120)
         let style = Self.resolvedBakeStyle(preferred: traits.userInterfaceStyle)
         let height: CGFloat = 44
         let nameFont = KCDesign.preferred(.title3, weight: .semibold)
         let previewFont = KCDesign.preferred(.caption1, weight: .regular)
-        let (nameColor, muted) = Self.palette(for: style)
         let name = speakerName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             ? String(localized: "Speaker")
             : speakerName
@@ -110,6 +113,9 @@ final class SpeakerHeaderAttachment: NSTextAttachment {
         format.preferredRange = .standard
 
         let bakeTraits = Self.bakeTraits(style: style, scale: format.scale)
+        // Resolve once against the bake traits — concrete RGB, safe under ambient Dark layout.
+        let nameColor = UIColor.label.resolvedColor(with: bakeTraits)
+        let muted = UIColor.secondaryLabel.resolvedColor(with: bakeTraits)
         var baked: UIImage!
         bakeTraits.performAsCurrent {
             let renderer = UIGraphicsImageRenderer(size: CGSize(width: w, height: height), format: format)

@@ -126,13 +126,21 @@ final class NativeNoteEditorTitleAppearanceTests: XCTestCase {
     /// Inserting a speaker while already in dark mode must bake a light name immediately
     /// (not wait for leave/reopen → pushNote refresh).
     func testInsertSpeaker_inDarkMode_bakesLightNameImmediately() {
-        // Explicit Dark preference + overrides (device Dark / app Dark). Also covers the
-        // system-Dark case once the editor window resolves `.dark`.
-        AppAppearance.setTheme("dark")
+        // Real device path: system Appearance + Dark override on the window/view hierarchy
+        // (not AppAppearance.setTheme("dark") — that would hide trait-propagation bugs).
+        AppAppearance.setTheme("system")
+        let host = hostWindow?.rootViewController
         hostWindow?.overrideUserInterfaceStyle = .dark
-        hostWindow?.rootViewController?.overrideUserInterfaceStyle = .dark
+        host?.overrideUserInterfaceStyle = .dark
         editor.overrideUserInterfaceStyle = .dark
+        hostWindow?.layoutIfNeeded()
         editor.layoutIfNeeded()
+
+        XCTAssertEqual(
+            editor.testing_effectiveUserInterfaceStyle(),
+            .dark,
+            "precondition: editor must resolve Dark from the window/view hierarchy"
+        )
 
         var blank = NativeAPIClient.emptyNote(id: "note-insert-dark-speaker")
         blank.title = "Culto"

@@ -50,7 +50,13 @@ enum NoteDocumentCodec {
     // MARK: - Document → Attributed
 
     /// Apple Notes style: first paragraph is the title (large), then body blocks.
-    static func attributedString(from document: NativeAPIClient.NoteDocument, speakers: [NativeAPIClient.SpeakerDTO] = []) -> NSAttributedString {
+    /// - Parameter preferredInterfaceStyle: when the editor already knows its effective
+    ///   light/dark style, speaker headers bake against it immediately (insert path).
+    static func attributedString(
+        from document: NativeAPIClient.NoteDocument,
+        speakers: [NativeAPIClient.SpeakerDTO] = [],
+        preferredInterfaceStyle: UIUserInterfaceStyle = .unspecified
+    ) -> NSAttributedString {
         precondition(Thread.isMainThread)
         let speakerMap = Dictionary(uniqueKeysWithValues: speakers.map { ($0.id, $0) })
         let result = NSMutableAttributedString()
@@ -65,7 +71,13 @@ enum NoteDocumentCodec {
         )
         var numberedIndex = 0
         for block in document.body.blocks {
-            appendBlock(block, to: result, speakers: speakerMap, numberedIndex: &numberedIndex)
+            appendBlock(
+                block,
+                to: result,
+                speakers: speakerMap,
+                numberedIndex: &numberedIndex,
+                preferredInterfaceStyle: preferredInterfaceStyle
+            )
         }
         if result.length == 0 {
             appendLine(to: result, type: "paragraph", id: newId(), spans: [], checked: nil, speakerId: nil, speakers: speakerMap)
@@ -77,7 +89,8 @@ enum NoteDocumentCodec {
         _ block: NativeAPIClient.LineBlock,
         to result: NSMutableAttributedString,
         speakers: [String: NativeAPIClient.SpeakerDTO],
-        numberedIndex: inout Int
+        numberedIndex: inout Int,
+        preferredInterfaceStyle: UIUserInterfaceStyle = .unspecified
     ) {
         if block.type == "speakerSection" {
             numberedIndex = 0
@@ -110,7 +123,8 @@ enum NoteDocumentCodec {
                 colorHex: block.speakerId.flatMap { speakers[$0]?.color },
                 blockId: block.id,
                 collapsed: collapsed,
-                preview: preview
+                preview: preview,
+                preferredInterfaceStyle: preferredInterfaceStyle
             )
             if result.length > 0 {
                 // Separator must NOT carry speakerSection type — that created phantom
@@ -145,7 +159,8 @@ enum NoteDocumentCodec {
                     to: result,
                     speakers: speakers,
                     numberedIndex: &childNumbered,
-                    inSpeakerSection: true
+                    inSpeakerSection: true,
+                    preferredInterfaceStyle: preferredInterfaceStyle
                 )
             }
             return
@@ -173,10 +188,17 @@ enum NoteDocumentCodec {
         to result: NSMutableAttributedString,
         speakers: [String: NativeAPIClient.SpeakerDTO],
         numberedIndex: inout Int,
-        inSpeakerSection: Bool
+        inSpeakerSection: Bool,
+        preferredInterfaceStyle: UIUserInterfaceStyle = .unspecified
     ) {
         if block.type == "speakerSection" {
-            appendBlock(block, to: result, speakers: speakers, numberedIndex: &numberedIndex)
+            appendBlock(
+                block,
+                to: result,
+                speakers: speakers,
+                numberedIndex: &numberedIndex,
+                preferredInterfaceStyle: preferredInterfaceStyle
+            )
             return
         }
         if block.type == "numbered" {
@@ -418,7 +440,8 @@ enum NoteDocumentCodec {
         colorHex: String?,
         blockId: String,
         collapsed: Bool = false,
-        preview: String = ""
+        preview: String = "",
+        preferredInterfaceStyle: UIUserInterfaceStyle = .unspecified
     ) -> NSAttributedString {
         let raw = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let baseName = stripSpeakerChevron(raw).isEmpty ? String(localized: "Speaker") : stripSpeakerChevron(raw)
@@ -428,7 +451,8 @@ enum NoteDocumentCodec {
             speakerName: baseName,
             colorHex: colorHex,
             collapsed: collapsed,
-            preview: preview
+            preview: preview,
+            preferredInterfaceStyle: preferredInterfaceStyle
         )
         var attrs = baseAttributes(
             type: "speakerSection",
