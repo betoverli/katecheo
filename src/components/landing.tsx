@@ -1,8 +1,20 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import type { Locale } from "@/lib/bible/books";
-import { APP_STORE_LIVE, APP_STORE_URL, CONTACT_EMAIL, CONTACT_MAILTO, INSTAGRAM_URL } from "@/lib/app-store";
-import { FEATURE_ORDER, MARKETING } from "@/lib/marketing-copy";
+import {
+  APP_STORE_LIVE,
+  APP_STORE_URL,
+  CONTACT_EMAIL,
+  CONTACT_MAILTO,
+  INSTAGRAM_URL,
+} from "@/lib/app-store";
+import {
+  FEATURE_ORDER,
+  MARKETING,
+  SCREENSHOT_ORDER,
+  SCREENSHOT_SIZE,
+  type MarketingScreenshotId,
+} from "@/lib/marketing-copy";
 import { writeLocaleCookie } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import { Wordmark } from "@/components/wordmark";
@@ -55,8 +67,14 @@ export function Landing({ initialLocale }: { initialLocale?: Locale }) {
 
   return (
     <div className="marketing-page relative min-h-dvh overflow-x-hidden bg-bg text-fg">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }} />
-      <div className="pointer-events-none absolute inset-0 -z-10 marketing-atmosphere" aria-hidden />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
+      />
+      <div
+        className="pointer-events-none absolute inset-0 -z-10 marketing-atmosphere"
+        aria-hidden
+      />
 
       <header className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-5 pt-[calc(env(safe-area-inset-top)+1.25rem)] sm:px-8">
         <Wordmark size="sm" className="marketing-fade-in" />
@@ -72,7 +90,9 @@ export function Landing({ initialLocale }: { initialLocale?: Locale }) {
                 aria-pressed={active}
                 className={cn(
                   "min-h-11 min-w-11 rounded-md px-2 text-xs font-medium uppercase transition-colors",
-                  active ? "bg-accent text-accent-fg" : "text-muted hover:bg-elevated hover:text-fg",
+                  active
+                    ? "bg-accent text-accent-fg"
+                    : "text-muted hover:bg-elevated hover:text-fg",
                 )}
               >
                 {item}
@@ -83,10 +103,13 @@ export function Landing({ initialLocale }: { initialLocale?: Locale }) {
       </header>
 
       <main>
-        <section className="mx-auto flex min-h-[min(88dvh,920px)] w-full max-w-5xl flex-col justify-center px-5 pb-16 pt-10 sm:px-8 sm:pt-14">
+        <section className="mx-auto flex w-full max-w-5xl flex-col justify-center px-5 pb-16 pt-10 sm:px-8 sm:pt-14">
           <div className="max-w-2xl">
             <h1 className="marketing-fade-up">
-              <Wordmark size="lg" className="block text-[clamp(2.75rem,8vw,4.75rem)] leading-none" />
+              <Wordmark
+                size="lg"
+                className="block text-[clamp(2.75rem,8vw,4.75rem)] leading-none"
+              />
             </h1>
             <p className="mt-5 max-w-xl font-display text-2xl leading-snug tracking-tight text-fg italic sm:text-3xl marketing-fade-up marketing-delay-1">
               {copy.tagline}
@@ -99,42 +122,38 @@ export function Landing({ initialLocale }: { initialLocale?: Locale }) {
             </div>
           </div>
 
-          <div className="mt-14 w-full max-w-md self-stretch marketing-fade-up marketing-delay-4 sm:max-w-lg">
-            <PhoneFrame label={copy.features.notes.visual}>
-              <NotesPlaceholder locale={locale} />
-            </PhoneFrame>
+          <div className="marketing-hero-shot mt-10 w-full marketing-fade-up marketing-delay-4">
+            <AppStoreScreenshot locale={locale} id="01-caderno" priority />
           </div>
         </section>
 
         <section className="border-t border-separator/60 bg-surface/40">
           <div className="mx-auto w-full max-w-5xl px-5 py-16 sm:px-8 sm:py-20">
-            <p className="text-xs font-medium tracking-wide text-subtle uppercase">{copy.featuresEyebrow}</p>
-            <div className="mt-10 space-y-20 sm:space-y-28">
-              {FEATURE_ORDER.map((id, index) => {
+            <p className="text-xs font-medium tracking-wide text-subtle uppercase">
+              {copy.screenshotsEyebrow}
+            </p>
+            <ul className="marketing-shots mt-8" aria-label={copy.screenshotsEyebrow}>
+              {SCREENSHOT_ORDER.map((id) => (
+                <li key={id} className="marketing-shots-item">
+                  <AppStoreScreenshot locale={locale} id={id} />
+                </li>
+              ))}
+            </ul>
+
+            <p className="mt-16 text-xs font-medium tracking-wide text-subtle uppercase sm:mt-20">
+              {copy.featuresEyebrow}
+            </p>
+            <div className="mt-10 grid gap-12 sm:grid-cols-2 sm:gap-x-12 sm:gap-y-16">
+              {FEATURE_ORDER.map((id) => {
                 const feature = copy.features[id];
-                const reverse = index % 2 === 1;
                 return (
-                  <article
-                    key={id}
-                    className={cn(
-                      "grid items-center gap-10 lg:grid-cols-2 lg:gap-16",
-                      reverse && "lg:[&>*:first-child]:order-2",
-                    )}
-                  >
-                    <div>
-                      <h2 className="font-display text-3xl tracking-tight text-fg italic sm:text-4xl">
-                        {feature.title}
-                      </h2>
-                      <p className="mt-4 max-w-md text-pretty text-base leading-relaxed text-muted">
-                        {feature.body}
-                      </p>
-                    </div>
-                    <PhoneFrame label={feature.visual}>
-                      {id === "notes" ? <NotesPlaceholder locale={locale} /> : null}
-                      {id === "themes" ? <ThemesPlaceholder locale={locale} /> : null}
-                      {id === "reading" ? <ReadingPlaceholder locale={locale} /> : null}
-                      {id === "groups" ? <GroupsPlaceholder locale={locale} /> : null}
-                    </PhoneFrame>
+                  <article key={id}>
+                    <h2 className="font-display text-3xl tracking-tight text-fg italic sm:text-4xl">
+                      {feature.title}
+                    </h2>
+                    <p className="mt-4 max-w-md text-pretty text-base leading-relaxed text-muted">
+                      {feature.body}
+                    </p>
                   </article>
                 );
               })}
@@ -209,7 +228,12 @@ function AppStoreCta({ locale }: { locale: Locale }) {
   }
   const badge = APP_STORE_BADGE[locale];
   return (
-    <a href={APP_STORE_URL} className="app-store-badge-link" rel="noreferrer" aria-label={badge.alt}>
+    <a
+      href={APP_STORE_URL}
+      className="app-store-badge-link"
+      rel="noreferrer"
+      aria-label={badge.alt}
+    >
       <img
         src={badge.white}
         alt=""
@@ -230,101 +254,31 @@ function AppStoreCta({ locale }: { locale: Locale }) {
   );
 }
 
-function PhoneFrame({ label, children }: { label: string; children: ReactNode }) {
+function AppStoreScreenshot({
+  locale,
+  id,
+  priority = false,
+}: {
+  locale: Locale;
+  id: MarketingScreenshotId;
+  priority?: boolean;
+}) {
+  const copy = MARKETING[locale];
+  const base = `/screenshots/${locale}/${id}`;
   return (
-    <div className="marketing-device mx-auto w-full max-w-[280px] sm:max-w-[300px]">
-      <div className="rounded-[2rem] bg-elevated p-2 shadow-[0_24px_60px_rgb(0_0_0/35%)] ring-1 ring-border">
-        <div className="overflow-hidden rounded-[1.55rem] bg-bg">
-          <div className="flex items-center justify-between px-4 pt-3 pb-2">
-            <span className="text-[10px] font-medium tracking-wide text-subtle uppercase">{label}</span>
-            <span className="h-1.5 w-16 rounded-full bg-fill" />
-          </div>
-          <div className="min-h-[420px] px-3 pb-4">{children}</div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function NotesPlaceholder({ locale }: { locale: Locale }) {
-  const lines =
-    locale === "en"
-      ? ["Meeting notes", "John 3:16 → opens in Bible app", "Romans 8:28", "Never shows Bible text"]
-      : locale === "es"
-        ? ["Notas de reunión", "Juan 3:16 → abre en la Biblia", "Romanos 8:28", "Nunca muestra el texto"]
-        : ["Notas da reunião", "João 3:16 → abre no app da Bíblia", "Romanos 8:28", "Nunca mostra o texto"];
-  return (
-    <div className="space-y-3 pt-2">
-      {lines.map((line, i) => (
-        <div
-          key={line}
-          className={cn(
-            "rounded-lg px-3 py-3 text-sm",
-            i === 1 ? "bg-accent/15 text-fg ring-1 ring-accent/30" : "bg-surface text-muted",
-          )}
-        >
-          {line}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function ThemesPlaceholder({ locale }: { locale: Locale }) {
-  const items =
-    locale === "en"
-      ? ["Faith", "Hope", "Prayer", "Grace"]
-      : locale === "es"
-        ? ["Fe", "Esperanza", "Oración", "Gracia"]
-        : ["Fé", "Esperança", "Oração", "Graça"];
-  return (
-    <div className="grid grid-cols-2 gap-2 pt-2">
-      {items.map((item) => (
-        <div key={item} className="rounded-lg bg-surface px-3 py-6 text-center text-sm font-medium text-fg">
-          {item}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function ReadingPlaceholder({ locale }: { locale: Locale }) {
-  const title = locale === "en" ? "Gospels in 30 days" : locale === "es" ? "Evangelios en 30 días" : "Evangelhos em 30 dias";
-  const day = locale === "en" ? "Day 12" : locale === "es" ? "Día 12" : "Dia 12";
-  return (
-    <div className="space-y-3 pt-2">
-      <div className="rounded-lg bg-surface px-3 py-4">
-        <p className="text-sm font-medium text-fg">{title}</p>
-        <p className="mt-1 text-xs text-muted">{day}</p>
-        <div className="mt-3 h-2 overflow-hidden rounded-full bg-elevated">
-          <div className="h-full w-[40%] rounded-full bg-accent" />
-        </div>
-      </div>
-      <div className="rounded-lg bg-surface px-3 py-3 text-sm text-muted">Matthew 5</div>
-      <div className="rounded-lg bg-surface px-3 py-3 text-sm text-muted">Matthew 6</div>
-    </div>
-  );
-}
-
-function GroupsPlaceholder({ locale }: { locale: Locale }) {
-  const title = locale === "en" ? "Study group" : locale === "es" ? "Grupo de estudio" : "Grupo de estudo";
-  const friends = locale === "en" ? "Friends" : locale === "es" ? "Amigos" : "Amigos";
-  return (
-    <div className="space-y-3 pt-2">
-      <div className="rounded-lg bg-surface px-3 py-4">
-        <p className="text-sm font-medium text-fg">{title}</p>
-        <div className="mt-3 flex -space-x-2">
-          {["A", "B", "C"].map((letter) => (
-            <span
-              key={letter}
-              className="flex size-8 items-center justify-center rounded-full bg-elevated text-xs font-semibold text-fg ring-2 ring-bg"
-            >
-              {letter}
-            </span>
-          ))}
-        </div>
-      </div>
-      <div className="rounded-lg bg-surface px-3 py-3 text-sm text-muted">{friends}</div>
-    </div>
+    <picture>
+      <source type="image/avif" srcSet={`${base}.avif`} />
+      <source type="image/webp" srcSet={`${base}.webp`} />
+      <img
+        src={`${base}.webp`}
+        width={SCREENSHOT_SIZE.width}
+        height={SCREENSHOT_SIZE.height}
+        alt={copy.screenshotAlts[id]}
+        loading={priority ? "eager" : "lazy"}
+        fetchPriority={priority ? "high" : "low"}
+        decoding="async"
+        className="marketing-shot-image"
+      />
+    </picture>
   );
 }
