@@ -61,7 +61,8 @@ describe("marketing copy — App Store live", () => {
 
     const landing = read("src/components/landing.tsx");
     assert.match(landing, /SCREENSHOT_ORDER/);
-    assert.match(landing, /\/screenshots\/\$\{locale\}\/\$\{id\}/);
+    assert.match(landing, /\/screenshots\/\$\{locale\}\/\$\{id\}-\$\{theme\}/);
+    assert.match(landing, /marketing-shot-on-\$\{theme\}/);
     assert.match(landing, /image\/avif/);
     assert.match(landing, /image\/webp/);
     assert.doesNotMatch(
@@ -69,18 +70,29 @@ describe("marketing copy — App Store live", () => {
       /PhoneFrame|NotesPlaceholder|ThemesPlaceholder|ReadingPlaceholder|GroupsPlaceholder/,
     );
 
+    const styles = read("src/styles.css");
+    assert.match(styles, /html\.light \.marketing-shot-on-dark/);
+    assert.match(styles, /html\.light \.marketing-shot-on-light/);
+
+    const manifest = JSON.parse(read("scripts/app-store-screenshots.json")) as Record<
+      string,
+      string
+    >;
+    assert.equal(Object.keys(manifest).length, 60);
+
     for (const locale of ["pt", "en", "es"] as const) {
       for (const id of SCREENSHOT_ORDER satisfies MarketingScreenshotId[]) {
-        assert.equal(
-          existsSync(new URL(`public/screenshots/${locale}/${id}.webp`, root)),
-          true,
-          `${locale}/${id}.webp`,
-        );
-        assert.equal(
-          existsSync(new URL(`public/screenshots/${locale}/${id}.avif`, root)),
-          true,
-          `${locale}/${id}.avif`,
-        );
+        for (const theme of ["light", "dark"] as const) {
+          for (const ext of ["webp", "avif"] as const) {
+            const rel = `${locale}/${id}-${theme}.${ext}`;
+            assert.equal(rel in manifest, true, `manifest ${rel}`);
+            assert.equal(
+              existsSync(new URL(`public/screenshots/${rel}`, root)),
+              true,
+              rel,
+            );
+          }
+        }
         assert.ok(MARKETING[locale].screenshotAlts[id].startsWith("Katecheo"));
       }
     }

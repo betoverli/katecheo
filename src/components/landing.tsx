@@ -264,16 +264,50 @@ function AppStoreScreenshot({
   priority?: boolean;
 }) {
   const copy = MARKETING[locale];
-  const base = `/screenshots/${locale}/${id}`;
+  const alt = copy.screenshotAlts[id];
   return (
-    <picture>
+    <div className="marketing-shot">
+      <ScreenshotPicture
+        locale={locale}
+        id={id}
+        theme="dark"
+        alt={alt}
+        priority={priority}
+      />
+      <ScreenshotPicture
+        locale={locale}
+        id={id}
+        theme="light"
+        alt={alt}
+        priority={priority}
+      />
+    </div>
+  );
+}
+
+function ScreenshotPicture({
+  locale,
+  id,
+  theme,
+  alt,
+  priority,
+}: {
+  locale: Locale;
+  id: MarketingScreenshotId;
+  theme: "light" | "dark";
+  alt: string;
+  priority: boolean;
+}) {
+  const base = `/screenshots/${locale}/${id}-${theme}`;
+  return (
+    <picture className={`marketing-shot-on-${theme}`}>
       <source type="image/avif" srcSet={`${base}.avif`} />
       <source type="image/webp" srcSet={`${base}.webp`} />
       <img
         src={`${base}.webp`}
         width={SCREENSHOT_SIZE.width}
         height={SCREENSHOT_SIZE.height}
-        alt={copy.screenshotAlts[id]}
+        alt={alt}
         loading={priority ? "eager" : "lazy"}
         fetchPriority={priority ? "high" : "low"}
         decoding="async"
