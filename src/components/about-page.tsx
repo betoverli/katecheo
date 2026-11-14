@@ -13,7 +13,7 @@ export function AboutPage() {
         <h2 className="font-display text-2xl tracking-tight text-fg italic">{copy.tagline}</h2>
         <p className="max-w-xl text-pretty text-base leading-relaxed text-fg">{copy.lead}</p>
         <p className="max-w-xl text-pretty text-sm leading-relaxed text-muted">
-          {copy.comingSoon}. {copy.features.notes.body}
+          {copy.availableOnAppStore}. {copy.features.notes.body}
         </p>
       </section>
 

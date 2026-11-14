@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { MARKETING } from "@/lib/marketing-copy";
 import { pageHead } from "@/lib/seo";
 import { redirectWebAppToLanding } from "@/lib/web-app-gone";
 
@@ -11,8 +12,7 @@ export const Route = createFileRoute("/groups/$id")({
   head: ({ params }) =>
     pageHead({
       title: "Katecheo",
-      description:
-        "Katecheo — Seu estudo bíblico, organizado. Em breve no iPhone. Notas com referências que abrem no seu app de Bíblia, temas, planos, grupos e amigos.",
+      description: MARKETING.pt.metaDescription,
       path: `/groups/${params.id}`,
     }),
   beforeLoad: () => {

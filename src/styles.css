@@ -1004,15 +1004,35 @@ main.note-screen > .note-chrome .app-header {
 /* —— Marketing landing —— */
 .marketing-atmosphere {
   background:
-    radial-gradient(1200px 600px at 10% -10%, color-mix(in srgb, var(--color-accent) 22%, transparent), transparent 60%),
-    radial-gradient(900px 500px at 90% 0%, color-mix(in srgb, var(--color-accent) 12%, transparent), transparent 55%),
-    linear-gradient(180deg, color-mix(in srgb, var(--color-elevated) 55%, transparent), transparent 42%);
+    radial-gradient(
+      1200px 600px at 10% -10%,
+      color-mix(in srgb, var(--color-accent) 22%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(
+      900px 500px at 90% 0%,
+      color-mix(in srgb, var(--color-accent) 12%, transparent),
+      transparent 55%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-elevated) 55%, transparent),
+      transparent 42%
+    );
 }
 
 html.light .marketing-atmosphere {
   background:
-    radial-gradient(1200px 600px at 12% -8%, color-mix(in srgb, var(--color-accent) 16%, transparent), transparent 58%),
-    radial-gradient(800px 480px at 88% 5%, color-mix(in srgb, var(--color-accent) 10%, transparent), transparent 50%),
+    radial-gradient(
+      1200px 600px at 12% -8%,
+      color-mix(in srgb, var(--color-accent) 16%, transparent),
+      transparent 58%
+    ),
+    radial-gradient(
+      800px 480px at 88% 5%,
+      color-mix(in srgb, var(--color-accent) 10%, transparent),
+      transparent 50%
+    ),
     linear-gradient(180deg, #ffffff, transparent 40%);
 }
 
@@ -1061,10 +1081,69 @@ html.light .marketing-atmosphere {
   animation: marketing-fade-up 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.28s both;
 }
 
+.marketing-hero-shot {
+  max-width: 20rem;
+  margin-inline: auto;
+}
+
+.marketing-shot-image {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.marketing-shots {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  margin-inline: -1.25rem;
+  padding-inline: 1.25rem;
+  padding-bottom: 0.25rem;
+}
+
+.marketing-shots-item {
+  flex: 0 0 11.5rem;
+  scroll-snap-align: start;
+  min-width: 0;
+}
+
+@media (min-width: 640px) {
+  .marketing-hero-shot {
+    max-width: 22rem;
+  }
+
+  .marketing-shots {
+    margin-inline: -2rem;
+    padding-inline: 2rem;
+  }
+
+  .marketing-shots-item {
+    flex-basis: 13rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .marketing-shots {
+    margin-inline: 0;
+    padding-inline: 0;
+    overflow: visible;
+    scroll-snap-type: none;
+  }
+
+  .marketing-shots-item {
+    flex: 1 1 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .marketing-fade-up,
   .marketing-fade-in,
-  .marketing-device {
+  .marketing-device,
+  .marketing-hero-shot {
     animation: none;
   }
 }

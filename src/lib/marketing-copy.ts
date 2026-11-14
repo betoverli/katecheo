@@ -2,18 +2,21 @@ import type { Locale } from "@/lib/bible/books";
 
 export type MarketingFeatureId = "notes" | "themes" | "reading" | "groups";
 
+export type MarketingScreenshotId =
+  "01-caderno" | "02-editor" | "03-listas" | "04-grupos" | "05-perfil";
+
 type MarketingCopy = {
   metaTitle: string;
   metaDescription: string;
   tagline: string;
   lead: string;
   comingSoon: string;
+  availableOnAppStore: string;
   openAppStore: string;
   featuresEyebrow: string;
-  features: Record<
-    MarketingFeatureId,
-    { title: string; body: string; visual: string }
-  >;
+  screenshotsEyebrow: string;
+  screenshotAlts: Record<MarketingScreenshotId, string>;
+  features: Record<MarketingFeatureId, { title: string; body: string; visual: string }>;
   instagram: string;
   footerPrivacy: string;
   footerTerms: string;
@@ -26,12 +29,21 @@ export const MARKETING: Record<Locale, MarketingCopy> = {
   pt: {
     metaTitle: "Katecheo — Seu estudo bíblico, organizado",
     metaDescription:
-      "Notas com referências que abrem no seu app de Bíblia, temas, planos de leitura, grupos e amigos. Em breve no iPhone. Katecheo nunca mostra o texto bíblico.",
+      "Notas com referências que abrem no seu app de Bíblia, temas, planos de leitura, grupos e amigos. Disponível na App Store. Katecheo nunca mostra o texto bíblico.",
     tagline: "Seu estudo bíblico, organizado",
     lead: "Anote o que importa, ligue às Escrituras no app de Bíblia que você já usa, e compartilhe com quem estuda junto.",
     comingSoon: "Em breve no iPhone",
+    availableOnAppStore: "Disponível na App Store",
     openAppStore: "Baixar na App Store",
     featuresEyebrow: "No iPhone",
+    screenshotsEyebrow: "Na App Store",
+    screenshotAlts: {
+      "01-caderno": "Katecheo no iPhone: caderno de notas com referências",
+      "02-editor": "Katecheo no iPhone: referências que abrem no app de Bíblia",
+      "03-listas": "Katecheo no iPhone: listas de versículos",
+      "04-grupos": "Katecheo no iPhone: grupos para estudar com a igreja",
+      "05-perfil": "Katecheo no iPhone: perfil e idioma",
+    },
     features: {
       notes: {
         title: "Notas com referências",
@@ -64,12 +76,21 @@ export const MARKETING: Record<Locale, MarketingCopy> = {
   en: {
     metaTitle: "Katecheo — Your Bible study, organized",
     metaDescription:
-      "Notes with references that open in your own Bible app, themes, reading plans, groups and friends. Coming soon on iPhone. Katecheo never shows Bible text.",
+      "Notes with references that open in your own Bible app, themes, reading plans, groups and friends. Available on the App Store. Katecheo never shows Bible text.",
     tagline: "Your Bible study, organized",
     lead: "Capture what matters, link it to Scripture in the Bible app you already use, and share with the people you study with.",
     comingSoon: "Coming soon on iPhone",
+    availableOnAppStore: "Available on the App Store",
     openAppStore: "Download on the App Store",
     featuresEyebrow: "On iPhone",
+    screenshotsEyebrow: "On the App Store",
+    screenshotAlts: {
+      "01-caderno": "Katecheo on iPhone: notebook with Bible references",
+      "02-editor": "Katecheo on iPhone: references that open in your Bible app",
+      "03-listas": "Katecheo on iPhone: verse lists",
+      "04-grupos": "Katecheo on iPhone: groups to study with your church",
+      "05-perfil": "Katecheo on iPhone: profile and language",
+    },
     features: {
       notes: {
         title: "Notes with references",
@@ -102,12 +123,21 @@ export const MARKETING: Record<Locale, MarketingCopy> = {
   es: {
     metaTitle: "Katecheo — Tu estudio bíblico, organizado",
     metaDescription:
-      "Notas con referencias que abren en tu app de Biblia, temas, planes de lectura, grupos y amigos. Próximamente en iPhone. Katecheo nunca muestra el texto bíblico.",
+      "Notas con referencias que abren en tu app de Biblia, temas, planes de lectura, grupos y amigos. Disponible en el App Store. Katecheo nunca muestra el texto bíblico.",
     tagline: "Tu estudio bíblico, organizado",
     lead: "Anota lo importante, enlázalo a la Escritura en la app de Biblia que ya usas y comparte con quienes estudian contigo.",
     comingSoon: "Próximamente en iPhone",
+    availableOnAppStore: "Disponible en el App Store",
     openAppStore: "Descargar en App Store",
     featuresEyebrow: "En iPhone",
+    screenshotsEyebrow: "En el App Store",
+    screenshotAlts: {
+      "01-caderno": "Katecheo en el iPhone: cuaderno de notas con referencias",
+      "02-editor": "Katecheo en el iPhone: referencias que abren en tu app de Biblia",
+      "03-listas": "Katecheo en el iPhone: listas de versículos",
+      "04-grupos": "Katecheo en el iPhone: grupos para estudiar con tu iglesia",
+      "05-perfil": "Katecheo en el iPhone: perfil e idioma",
+    },
     features: {
       notes: {
         title: "Notas con referencias",
@@ -140,3 +170,13 @@ export const MARKETING: Record<Locale, MarketingCopy> = {
 };
 
 export const FEATURE_ORDER: MarketingFeatureId[] = ["notes", "themes", "reading", "groups"];
+
+export const SCREENSHOT_ORDER: MarketingScreenshotId[] = [
+  "01-caderno",
+  "02-editor",
+  "03-listas",
+  "04-grupos",
+  "05-perfil",
+];
+
+export const SCREENSHOT_SIZE = { width: 800, height: 1738 } as const;
