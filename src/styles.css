@@ -1090,6 +1090,19 @@ html.light .marketing-atmosphere {
   display: block;
   width: 100%;
   height: auto;
+  background: transparent;
+}
+
+.marketing-shot-on-light {
+  display: none;
+}
+
+html.light .marketing-shot-on-dark {
+  display: none;
+}
+
+html.light .marketing-shot-on-light {
+  display: block;
 }
 
 .marketing-shots {
