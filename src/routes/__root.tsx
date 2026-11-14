@@ -1,5 +1,6 @@
 import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { AuthProvider } from "@/lib/auth/provider";
+import { APP_STORE_ID, APP_STORE_LIVE } from "@/lib/app-store";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import { ThemeSync } from "@/components/theme-sync";
 import { AppShell } from "@/components/app-shell";
@@ -51,6 +52,7 @@ export const Route = createRootRoute({
       { name: "theme-color", content: "#000000" },
       { name: "apple-mobile-web-app-title", content: "Katecheo" },
       { name: "application-name", content: "Katecheo" },
+      ...(APP_STORE_LIVE ? [{ name: "apple-itunes-app", content: `app-id=${APP_STORE_ID}` }] : []),
     ],
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
