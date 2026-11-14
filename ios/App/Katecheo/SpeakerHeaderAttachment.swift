@@ -230,6 +230,12 @@ final class SpeakerHeaderAttachment: NSTextAttachment {
         if preferred == .light || preferred == .dark { return preferred }
         let fromApp = AppAppearance.style(forTheme: AppAppearance.storedTheme)
         if fromApp == .light || fromApp == .dark { return fromApp }
+        // System theme: follow the concrete ambient style when available. Never invent
+        // Light here — that stamped black speaker names on insert in Dark until reopen.
+        // `attachmentBounds` still passes the last explicit `renderedInterfaceStyle`, so
+        // this fallback does not revive the TF222 ambient-Dark rebake bug.
+        let ambient = UITraitCollection.current.userInterfaceStyle
+        if ambient == .light || ambient == .dark { return ambient }
         return .light
     }
 
