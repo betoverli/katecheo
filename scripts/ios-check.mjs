@@ -1454,6 +1454,18 @@ if (!project.includes("NativeNoteEditorTitleAppearanceTests.swift in Sources")) 
   if (!codec.includes("titleTagsReservedSpacing: CGFloat = 48")) {
     errors.push("titleTagsReservedSpacing tem de ser 48 (espaço extra entre tags e corpo).");
   }
+  if (!codec.includes("quoteBackgroundColor") || !codec.includes("quoteBlockSpecs")) {
+    errors.push("NoteDocumentCodec tem de expor quoteBackgroundColor dinâmico + quoteBlockSpecs.");
+  }
+  if (!editorSrc.includes("headerDivider") || !editorSrc.includes("repositionHeaderDivider")) {
+    errors.push("NativeNoteEditorView tem de desenhar hairline entre header (título+tags) e corpo.");
+  }
+  if (!editorSrc.includes("quoteBlocks") || !editorSrc.includes("quoteAccentBarWidth")) {
+    errors.push("Layout manager tem de desenhar chrome de citação (fill + barra de acento).");
+  }
+  if (!project.includes("NativeNoteEditorHeaderQuoteTests.swift in Sources")) {
+    errors.push("AppTests NativeNoteEditorHeaderQuoteTests têm de estar no target.");
+  }
   if ((project.match(/MARKETING_VERSION = 1\.0\.2;/g) || []).length < 6) {
     errors.push("MARKETING_VERSION tem de ser 1.0.2 em todas as configurações do pbxproj.");
   }

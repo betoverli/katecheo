@@ -91,6 +91,7 @@
 		TBNOTE12FED7965001685TB /* NoteRowPreviewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TBNOTE11FED7965001685TB /* NoteRowPreviewTests.swift */; };
 		TBREL12FED7965001685TB /* AppLocaleRelativeDayTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TBREL11FED7965001685TB /* AppLocaleRelativeDayTests.swift */; };
 		TBTENT12FED7965001685TB /* NativeNoteEditorTitleEnterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TBTENT11FED7965001685TB /* NativeNoteEditorTitleEnterTests.swift */; };
+		TBHQTE12FED7965001685TB /* NativeNoteEditorHeaderQuoteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TBHQTE11FED7965001685TB /* NativeNoteEditorHeaderQuoteTests.swift */; };
 		KCONB12FED7965001685V2 /* OnboardingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCONB11FED7965001685V2 /* OnboardingStore.swift */; };
 		KCONB22FED7965001685V2 /* OnboardingViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCONB21FED7965001685V2 /* OnboardingViewController.swift */; };
 		KCSET12FED7965001685V2 /* SettingsGuideViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCSET11FED7965001685V2 /* SettingsGuideViewController.swift */; };
@@ -193,6 +194,7 @@
 		TBNOTE11FED7965001685TB /* NoteRowPreviewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteRowPreviewTests.swift; sourceTree = "<group>"; };
 		TBREL11FED7965001685TB /* AppLocaleRelativeDayTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLocaleRelativeDayTests.swift; sourceTree = "<group>"; };
 		TBTENT11FED7965001685TB /* NativeNoteEditorTitleEnterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeNoteEditorTitleEnterTests.swift; sourceTree = "<group>"; };
+		TBHQTE11FED7965001685TB /* NativeNoteEditorHeaderQuoteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeNoteEditorHeaderQuoteTests.swift; sourceTree = "<group>"; };
 		F5A2C0112FED796500168570 /* GroupsListViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupsListViewController.swift; sourceTree = "<group>"; };
 		F5A3D0112FED796500168580 /* ProfileViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileViewController.swift; sourceTree = "<group>"; };
 		F5A3D0132FED796500168580 /* ProfileSettingsScreens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileSettingsScreens.swift; sourceTree = "<group>"; };
@@ -393,6 +395,7 @@
 				TBNOTE11FED7965001685TB /* NoteRowPreviewTests.swift */,
 				TBREL11FED7965001685TB /* AppLocaleRelativeDayTests.swift */,
 				TBTENT11FED7965001685TB /* NativeNoteEditorTitleEnterTests.swift */,
+				TBHQTE11FED7965001685TB /* NativeNoteEditorHeaderQuoteTests.swift */,
 				KCSWR21FED7965001685V2 /* NativeSWRCacheTests.swift */,
 				GNCACHE21FED7965001685GN /* GroupNotesCacheTests.swift */,
 				TBNTC11FED7965001685TB /* NotificationsCenterTests.swift */,
@@ -685,6 +688,7 @@
 				TBNOTE12FED7965001685TB /* NoteRowPreviewTests.swift in Sources */,
 				TBREL12FED7965001685TB /* AppLocaleRelativeDayTests.swift in Sources */,
 				TBTENT12FED7965001685TB /* NativeNoteEditorTitleEnterTests.swift in Sources */,
+				TBHQTE12FED7965001685TB /* NativeNoteEditorHeaderQuoteTests.swift in Sources */,
 				KCSWR22FED7965001685V2 /* NativeSWRCacheTests.swift in Sources */,
 				GNCACHE22FED7965001685GN /* GroupNotesCacheTests.swift in Sources */,
 				TBNTC12FED7965001685TB /* NotificationsCenterTests.swift in Sources */,
