@@ -555,7 +555,6 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             return CGPoint(x: leading, y: fallbackY)
         }
         let layout = textView.layoutManager
-        let container = textView.textContainer
         let glyphIndex = layout.glyphIndexForCharacter(at: location)
         var lineRange = NSRange(location: 0, length: 0)
         let used = layout.lineFragmentUsedRect(forGlyphAt: glyphIndex, effectiveRange: &lineRange)
@@ -1042,7 +1041,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
     /// True when the replaced range is the first content letter of the line (ignoring markers / ZWSP).
     private func isDeletingSentenceStartLetter(range: NSRange) -> Bool {
-        guard range.length > 0, rangeView.textStorage.length >= NSMaxRange(range) else { return false }
+        guard range.length > 0, textView.textStorage.length >= NSMaxRange(range) else { return false }
         let deleted = (textView.textStorage.string as NSString).substring(with: range)
         guard isSingleLetter(deleted) else { return false }
         return isAtLineContentStart(range: NSRange(location: range.location, length: 0))
