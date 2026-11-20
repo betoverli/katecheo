@@ -127,6 +127,101 @@ final class NativeNoteEditorBackspaceTests: XCTestCase {
         XCTAssertTrue(editor.testing_textStorage().string.contains("antes"))
     }
 
+    func testInsertBibleRef_addsTrailingSpaceAndCaretAfterIt() {
+        var note = NativeAPIClient.emptyNote(id: "ref-space")
+        note.title = "Titulo"
+        note.body.blocks = [
+            NativeAPIClient.LineBlock(
+                id: "p1",
+                type: "paragraph",
+                spans: [],
+                speakerId: nil,
+                title: nil,
+                collapsed: nil,
+                checked: nil,
+                blocks: nil
+            ),
+        ]
+        editor.pushNote(note)
+        let storage = editor.testing_textStorage()
+        let bodyStart = (storage.string as NSString).paragraphRange(
+            for: NSRange(location: min(1, max(0, storage.length - 1)), length: 0)
+        ).location
+        editor.testing_setSelectedRange(NSRange(location: max(bodyStart, 0), length: 0))
+
+        let payload = NoteDocumentCodec.BibleRefPayload(
+            bookId: "JHN",
+            chapter: 3,
+            verseStart: 16,
+            verseEnd: nil,
+            text: nil
+        )
+        editor.insertBibleRef(payload)
+
+        let after = editor.testing_textStorage()
+        var pillRange: NSRange?
+        after.enumerateAttribute(.attachment, in: NSRange(location: 0, length: after.length)) { value, range, stop in
+            guard value is BibleRefPillAttachment else { return }
+            pillRange = range
+            stop.pointee = true
+        }
+        guard let pill = pillRange else {
+            return XCTFail("missing bible ref attachment after insert")
+        }
+
+        // Trailing soft ZWSP from bibleRefPill, then a real space; caret after the space.
+        let afterPill = NSMaxRange(pill)
+        var probe = afterPill
+        let ns = after.string as NSString
+        if probe < ns.length, ns.substring(with: NSRange(location: probe, length: 1)) == "\u{200B}" {
+            probe += 1
+        }
+        XCTAssertLessThan(probe, ns.length, "expected trailing space after bible ref")
+        XCTAssertEqual(ns.substring(with: NSRange(location: probe, length: 1)), " ")
+        XCTAssertEqual(editor.testing_selectedRange().location, probe + 1)
+
+        // Auto-space is a normal single Backspace (does not arm the reference).
+        let lengthBeforeSpaceDelete = editor.testing_textStorage().length
+        editor.testing_deleteBackward()
+        XCTAssertEqual(editor.testing_selectedRange().length, 0, "deleting auto-space must not select the pill")
+        XCTAssertEqual(
+            editor.testing_textStorage().length,
+            lengthBeforeSpaceDelete - 1,
+            "auto-space Backspace must remove exactly one character"
+        )
+        var pillStillThere = false
+        let afterSpaceDelete = editor.testing_textStorage()
+        afterSpaceDelete.enumerateAttribute(.attachment, in: NSRange(location: 0, length: afterSpaceDelete.length)) { value, _, stop in
+            if value is BibleRefPillAttachment {
+                pillStillThere = true
+                stop.pointee = true
+            }
+        }
+        XCTAssertTrue(pillStillThere, "auto-space Backspace must not delete the reference")
+
+        // Inserting before an existing space must not duplicate it.
+        editor.testing_insertText(" hello")
+        // Caret after " hello"; move to just before the leading space and insert a ref.
+        let helloStart = (editor.testing_textStorage().string as NSString).range(of: " hello")
+        XCTAssertNotEqual(helloStart.location, NSNotFound)
+        editor.testing_setSelectedRange(NSRange(location: helloStart.location, length: 0))
+        editor.insertBibleRef(payload)
+        let caret = editor.testing_selectedRange().location
+        let around = editor.testing_textStorage().string as NSString
+        XCTAssertGreaterThanOrEqual(caret, 1)
+        XCTAssertEqual(around.substring(with: NSRange(location: caret - 1, length: 1)), " ")
+        // Immediately after the caret should still be "hello" (single space kept, not "  hello").
+        let rest = around.substring(with: NSRange(location: caret, length: min(5, around.length - caret)))
+        XCTAssertTrue(rest.hasPrefix("hello"), "existing space reused; got \(rest)")
+        if caret >= 2 {
+            XCTAssertNotEqual(
+                around.substring(with: NSRange(location: caret - 2, length: 2)),
+                "  ",
+                "must not duplicate an existing trailing space"
+            )
+        }
+    }
+
     func testReferencePill_backspaceNeedsTwoPresses() {
         var note = NativeAPIClient.emptyNote(id: "bs-ref")
         note.title = "Titulo"

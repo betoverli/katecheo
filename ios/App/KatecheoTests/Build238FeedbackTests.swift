@@ -69,6 +69,48 @@ final class Build238FeedbackTests: XCTestCase {
         window.isHidden = true
     }
 
+    // MARK: - 2b) Whole-note speaker survives encode / dismiss / reopen
+
+    func testNoteSpeakerId_survivesEncodeSaveAndReopen() throws {
+        var note = NativeAPIClient.emptyNote(id: "note-b238-speaker")
+        note.noteSpeakerId = nil
+        LocalNoteCache.upsertNote(note)
+        LocalNoteCache.mergeSpeakers([
+            .init(id: "spk-1", name: "Ana", color: "#C4A574", updatedAt: "2026-01-01T00:00:00Z"),
+        ])
+
+        let detail = NoteDetailViewController(noteId: note.id, initial: note)
+        let nav = UINavigationController(rootViewController: detail)
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        window.rootViewController = nav
+        window.makeKeyAndVisible()
+        detail.loadViewIfNeeded()
+
+        let editor = detail.view.findNativeEditor()
+        XCTAssertNotNil(editor)
+        editor?.testing_setNoteSpeakerId("spk-1")
+
+        let cached = LocalNoteCache.loadNotes().first { $0.id == note.id }
+        XCTAssertEqual(cached?.noteSpeakerId, "spk-1", "VC bridge must keep noteSpeakerId on save")
+
+        // Simulate leave: flush like viewWillDisappear (encode from editor + cache).
+        let flushed = editor!.currentDocument()
+        LocalNoteCache.upsertNote(flushed)
+        XCTAssertEqual(flushed.noteSpeakerId, "spk-1")
+
+        let again = NoteDetailViewController(
+            noteId: note.id,
+            initial: LocalNoteCache.loadNotes().first { $0.id == note.id }
+        )
+        let nav2 = UINavigationController(rootViewController: again)
+        window.rootViewController = nav2
+        again.loadViewIfNeeded()
+        let editor2 = again.view.findNativeEditor()
+        XCTAssertEqual(editor2?.testing_noteSpeakerId(), "spk-1")
+        XCTAssertEqual(editor2?.currentDocument().noteSpeakerId, "spk-1")
+        window.isHidden = true
+    }
+
     // MARK: - 3) Delete confirmation anchors
 
     func testDeleteConfirm_usesActionSheetPreferredStyle() {

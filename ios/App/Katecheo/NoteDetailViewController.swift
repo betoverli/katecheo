@@ -189,10 +189,15 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         super.viewWillDisappear(animated)
         if isMovingFromParent || isBeingDismissed {
             if !isGrantedReadOnly {
-                // Flush editor document (incl. tags) before pop so a pending debounce
-                // can't be cancelled empty-handed in deinit.
+                // Flush editor document (incl. tags + noteSpeakerId on documentBase)
+                // before pop so a pending debounce can't be cancelled empty-handed in deinit.
+                // Keep VC-owned happenedAt / visibility the attributed round-trip does not encode.
+                let happenedAt = note.happenedAt
+                let visibility = note.visibility
                 note = editor.currentDocument()
                 note.id = noteId
+                note.happenedAt = happenedAt
+                note.visibility = visibility
                 LocalNoteCache.upsertNote(note)
                 saveWork?.cancel()
                 Task { await self.persist() }
@@ -355,10 +360,8 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
     }
 
     @objc private func clearWholeSpeaker() {
-        note.noteSpeakerId = nil
+        editor.setNoteSpeakerId(nil)
         refreshSpeakerChip()
-        LocalNoteCache.upsertNote(note)
-        scheduleSave()
     }
 
     // MARK: - NativeNoteEditorViewDelegate
@@ -367,11 +370,10 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         guard !isGrantedReadOnly else { return }
         var next = document
         next.id = noteId
-        // Keep VC-owned metadata. Tags now live under the title in the editor
-        // (NoteEditorTagsStrip) — never overwrite them with the stale VC copy
-        // (build-238: tags vanished on exit/reopen).
+        // Keep VC-owned metadata. Tags + whole-note speaker live on the editor
+        // documentBase — never overwrite them with a stale VC copy (build-238 tags;
+        // noteSpeakerId vanished on exit/reopen when only the VC chip was updated).
         next.happenedAt = note.happenedAt
-        next.noteSpeakerId = note.noteSpeakerId
         next.visibility = note.visibility
         next.schemaVersion = 1
         note = next
@@ -637,20 +639,16 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
                         ?? LocalNoteCache.loadSpeakers().first(where: { $0.id == speakerId })
                 else {
                     if !forSection {
-                        self.note.noteSpeakerId = nil
+                        self.editor.setNoteSpeakerId(nil)
                         self.refreshSpeakerChip()
-                        LocalNoteCache.upsertNote(self.note)
-                        self.scheduleSave()
                     }
                     return
                 }
                 if forSection {
                     self.editor.insertSpeakerSection(speakerId: speaker.id, name: speaker.name)
                 } else {
-                    self.note.noteSpeakerId = speakerId
+                    self.editor.setNoteSpeakerId(speakerId)
                     self.refreshSpeakerChip()
-                    LocalNoteCache.upsertNote(self.note)
-                    self.scheduleSave()
                 }
             },
             onManaged: { [weak self] in

@@ -369,7 +369,8 @@ enum NoteDocumentCodec {
     }
 
     /// Space reserved under the note title for the inline tags strip (TF210).
-    static let titleTagsReservedSpacing: CGFloat = 40
+    /// +8 pt vs the original 40 so the body breathes below the tag row.
+    static let titleTagsReservedSpacing: CGFloat = 48
 
     /// Shared paragraph / typing attributes (load path + live typing must match).
     static func baseAttributes(
