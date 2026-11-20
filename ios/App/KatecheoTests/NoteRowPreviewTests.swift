@@ -16,8 +16,9 @@ final class NoteRowPreviewTests: XCTestCase {
         )
         cell.layoutIfNeeded()
 
-        XCTAssertFalse(cell.testing_speakerPillInMetaRow)
+        XCTAssertFalse(cell.testing_speakerPillInTagsRow)
         XCTAssertTrue(cell.testing_speakerPill.isHidden)
+        XCTAssertTrue(cell.testing_tagsRow.isHidden)
         XCTAssertEqual(cell.testing_dateLabel.text, "Hoje")
         XCTAssertFalse(cell.testing_dateLabel.isHidden)
 
@@ -32,7 +33,7 @@ final class NoteRowPreviewTests: XCTestCase {
 
     func testNoteRow_subtitleFollowsPill_whenSpeakerPresent() {
         let cell = KCNoteRowCell(style: .default, reuseIdentifier: KCNoteRowCell.reuseId)
-        cell.frame = CGRect(x: 0, y: 0, width: 390, height: 88)
+        cell.frame = CGRect(x: 0, y: 0, width: 390, height: 110)
         cell.configure(
             title: "Culto de domingo",
             subtitle: "reflexão",
@@ -42,12 +43,53 @@ final class NoteRowPreviewTests: XCTestCase {
         )
         cell.layoutIfNeeded()
 
-        XCTAssertTrue(cell.testing_speakerPillInMetaRow)
+        XCTAssertTrue(cell.testing_speakerPillInTagsRow)
         XCTAssertFalse(cell.testing_speakerPill.isHidden)
+        XCTAssertFalse(cell.testing_tagsRow.isHidden)
+        let pillName = cell.testing_speakerPill.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        XCTAssertEqual(pillName, "Pastor Ana")
+        XCTAssertGreaterThan(cell.testing_speakerPill.bounds.width, 1)
+        XCTAssertGreaterThan(cell.testing_speakerPill.bounds.height, 1)
+        XCTAssertGreaterThan(cell.testing_speakerPill.alpha, 0.99)
 
+        let titleX = cell.testing_titleLabel.convert(cell.testing_titleLabel.bounds, to: cell.contentView).minX
+        let subtitleX = cell.testing_subtitleLabel.convert(cell.testing_subtitleLabel.bounds, to: cell.contentView).minX
+        XCTAssertEqual(titleX, subtitleX, accuracy: 0.5, "preview stays full-width and aligned with title")
+
+        let pillMinY = cell.testing_speakerPill.convert(cell.testing_speakerPill.bounds, to: cell.contentView).minY
+        let subtitleMaxY = cell.testing_subtitleLabel.convert(cell.testing_subtitleLabel.bounds, to: cell.contentView).maxY
+        XCTAssertGreaterThan(pillMinY, subtitleMaxY - 0.5, "speaker pill sits on the tags row below the preview")
+
+        let tagsMinX = cell.testing_tagsLabel.convert(cell.testing_tagsLabel.bounds, to: cell.contentView).minX
         let pillMaxX = cell.testing_speakerPill.convert(cell.testing_speakerPill.bounds, to: cell.contentView).maxX
-        let subtitleMinX = cell.testing_subtitleLabel.convert(cell.testing_subtitleLabel.bounds, to: cell.contentView).minX
-        XCTAssertGreaterThan(subtitleMinX, pillMaxX - 0.5, "subtitle starts after the speaker pill")
+        XCTAssertGreaterThan(tagsMinX, pillMaxX - 0.5, "tags follow the speaker pill on the same row")
+    }
+
+    func testNoteRow_speakerPillAlone_whenNoTags() {
+        let cell = KCNoteRowCell(style: .default, reuseIdentifier: KCNoteRowCell.reuseId)
+        cell.frame = CGRect(x: 0, y: 0, width: 390, height: 110)
+        cell.configure(
+            title: "Culto",
+            subtitle: "texto do preview",
+            tags: [],
+            speakerName: "João",
+            date: "Ontem"
+        )
+        cell.layoutIfNeeded()
+
+        XCTAssertTrue(cell.testing_speakerPillInTagsRow)
+        XCTAssertFalse(cell.testing_speakerPill.isHidden)
+        XCTAssertFalse(cell.testing_tagsRow.isHidden)
+        XCTAssertTrue(cell.testing_tagsLabel.isHidden)
+        XCTAssertEqual(cell.testing_speakerPill.text, "João")
+
+        let titleX = cell.testing_titleLabel.convert(cell.testing_titleLabel.bounds, to: cell.contentView).minX
+        let subtitleX = cell.testing_subtitleLabel.convert(cell.testing_subtitleLabel.bounds, to: cell.contentView).minX
+        XCTAssertEqual(titleX, subtitleX, accuracy: 0.5)
+
+        let pillMinY = cell.testing_speakerPill.convert(cell.testing_speakerPill.bounds, to: cell.contentView).minY
+        let subtitleMaxY = cell.testing_subtitleLabel.convert(cell.testing_subtitleLabel.bounds, to: cell.contentView).maxY
+        XCTAssertGreaterThan(pillMinY, subtitleMaxY - 0.5, "pill alone still shows below the preview")
     }
 
     func testNoteRow_reuseFromSpeakerToNone_clearsGap() {
@@ -55,13 +97,14 @@ final class NoteRowPreviewTests: XCTestCase {
         cell.frame = CGRect(x: 0, y: 0, width: 390, height: 88)
         cell.configure(title: "A", subtitle: "com speaker", tags: [], speakerName: "João", date: "Ontem")
         cell.layoutIfNeeded()
-        XCTAssertTrue(cell.testing_speakerPillInMetaRow)
+        XCTAssertTrue(cell.testing_speakerPillInTagsRow)
 
         cell.prepareForReuse()
         cell.configure(title: "B", subtitle: "sem speaker", tags: [], speakerName: nil, date: "Hoje")
         cell.layoutIfNeeded()
 
-        XCTAssertFalse(cell.testing_speakerPillInMetaRow)
+        XCTAssertFalse(cell.testing_speakerPillInTagsRow)
+        XCTAssertTrue(cell.testing_tagsRow.isHidden)
         let titleX = cell.testing_titleLabel.convert(cell.testing_titleLabel.bounds, to: cell.contentView).minX
         let subtitleX = cell.testing_subtitleLabel.convert(cell.testing_subtitleLabel.bounds, to: cell.contentView).minX
         XCTAssertEqual(titleX, subtitleX, accuracy: 0.5)
