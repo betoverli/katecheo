@@ -1436,6 +1436,21 @@ if (!project.includes("NativeNoteEditorTitleAppearanceTests.swift in Sources")) 
   ) {
     errors.push("NativeNoteEditorBackspaceTests tem de cobrir plain=1, bullet=2, reference=2.");
   }
+  if (!backspaceTests.includes("testInsertBibleRef_addsTrailingSpaceAndCaretAfterIt")) {
+    errors.push("NativeNoteEditorBackspaceTests tem de cobrir espaço automático após referência bíblica.");
+  }
+  if (!editorSrc.includes("shouldInsertTrailingSpaceAfterBibleRef") || !editorSrc.includes("setNoteSpeakerId")) {
+    errors.push("NativeNoteEditorView tem de inserir espaço após bible ref e persistir noteSpeakerId (setNoteSpeakerId).");
+  }
+  if (!editorSrc.includes("autocapitalizationType = .sentences") || !editorSrc.includes("sentenceAutocapitalizedInsertion")) {
+    errors.push("NativeNoteEditorView tem de capitalizar título/novas linhas (sentences + sentenceAutocapitalizedInsertion).");
+  }
+  if (!codec.includes("titleTagsReservedSpacing: CGFloat = 48")) {
+    errors.push("titleTagsReservedSpacing tem de ser 48 (espaço extra entre tags e corpo).");
+  }
+  if ((project.match(/MARKETING_VERSION = 1\.0\.2;/g) || []).length < 6) {
+    errors.push("MARKETING_VERSION tem de ser 1.0.2 em todas as configurações do pbxproj.");
+  }
   const titleAppearanceTests = read("ios/App/KatecheoTests/NativeNoteEditorTitleAppearanceTests.swift");
   if (!titleAppearanceTests.includes("testTitleColor_resolvesCorrectlyWhenUserInterfaceStyleToggles")) {
     errors.push("NativeNoteEditorTitleAppearanceTests tem de alternar userInterfaceStyle e verificar a cor do título.");

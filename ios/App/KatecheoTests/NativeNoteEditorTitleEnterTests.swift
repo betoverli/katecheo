@@ -83,5 +83,50 @@ final class NativeNoteEditorTitleEnterTests: XCTestCase {
         XCTAssertEqual(bodyFrame.minX, leading, accuracy: 0.5)
         XCTAssertEqual(tagsFrame.minX, leading, accuracy: 0.5)
         XCTAssertGreaterThan(bodyFrame.minY, titleFrame.maxY)
+        // Tag row → body breathing room (+8 vs prior 40pt title band).
+        XCTAssertEqual(NoteDocumentCodec.titleTagsReservedSpacing, 48, accuracy: 0.1)
+        XCTAssertGreaterThanOrEqual(bodyFrame.minY - tagsFrame.maxY, 6)
+    }
+
+    func testAutocapitalization_titleAndNewLinesAndRespectLowercaseAfterDelete() {
+        XCTAssertEqual(editor.testing_autocapitalizationType(), .sentences)
+
+        editor.pushNote(blankNote(title: ""), speakers: [])
+        editor.testing_setSelectedRange(NSRange(location: 0, length: 0))
+        editor.testing_insertText("c")
+        var title = NoteDocumentCodec.document(
+            from: editor.testing_textStorage(),
+            base: blankNote(title: "")
+        ).title
+        XCTAssertEqual(title.first, "C", "first title letter must autocapitalize")
+
+        // Enter → body; first body letter capitalizes.
+        editor.testing_insertText("\n")
+        editor.testing_insertText("h")
+        var doc = NoteDocumentCodec.document(
+            from: editor.testing_textStorage(),
+            base: blankNote(title: title)
+        )
+        XCTAssertEqual(doc.body.blocks.first?.spans?.first?.text?.first, "H")
+
+        // Delete that capital and immediately type lowercase — keep lowercase.
+        editor.testing_deleteBackward()
+        editor.testing_insertText("h")
+        doc = NoteDocumentCodec.document(
+            from: editor.testing_textStorage(),
+            base: blankNote(title: title)
+        )
+        XCTAssertEqual(doc.body.blocks.first?.spans?.first?.text?.first, "h")
+
+        // New bullet line: letter after the marker capitalizes.
+        editor.testing_applyBlockTypeHook("bullet")
+        editor.testing_insertText("\n")
+        editor.testing_insertText("a")
+        doc = NoteDocumentCodec.document(
+            from: editor.testing_textStorage(),
+            base: blankNote(title: title)
+        )
+        let bulletText = doc.body.blocks.last?.spans?.first?.text ?? ""
+        XCTAssertEqual(bulletText.first, "A", "list line after marker must autocapitalize")
     }
 }

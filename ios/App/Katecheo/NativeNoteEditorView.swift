@@ -31,6 +31,10 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     private let titlePlaceholderLabel = UILabel()
     private let bodyPlaceholderLabel = UILabel()
     private let tagsStrip = NoteEditorTagsStrip()
+    /// After the user deletes an auto-capitalized first letter, the next lowercase insert is kept.
+    private var suppressSentenceAutocapitalize = false
+    /// `shouldChange` already mutated storage (autocap / suppress path) — testing insert must not retry.
+    private var shouldChangeConsumedInsertion = false
 
     override init(frame: CGRect) {
         let storage = NSTextStorage()
@@ -73,6 +77,12 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         textView.contentInsetAdjustmentBehavior = .never
         textView.adjustsFontForContentSizeCategory = true
         textView.allowsEditingTextAttributes = true
+        // Sentence autocap for title + every new body/list line. Custom path also
+        // capitalizes after list markers (plain "• " defeats UIKit sentence detection).
+        textView.autocapitalizationType = .sentences
+        textView.autocorrectionType = .default
+        textView.smartDashesType = .default
+        textView.smartQuotesType = .default
         textView.tintColor = KCDesign.accent
         textView.accessibilityLabel = String(localized: "Corpo da nota")
         textView.accessibilityHint = String(localized: "A primeira linha é o título")
@@ -446,6 +456,19 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         emitChange()
     }
 
+    /// Keep whole-note speaker (`noteSpeakerId`) on `documentBase` so encode/dismiss
+    /// round-trips preserve it (same bridge pattern as tags).
+    private func applyNoteSpeakerId(_ speakerId: String?) {
+        documentBase.noteSpeakerId = speakerId
+        emitChange()
+    }
+
+    /// Public bridge for the note chrome (picker / clear / settings).
+    func setNoteSpeakerId(_ speakerId: String?) {
+        precondition(Thread.isMainThread)
+        applyNoteSpeakerId(speakerId)
+    }
+
     private func textContentLeading() -> CGFloat {
         textView.textContainerInset.left + textView.textContainer.lineFragmentPadding
     }
@@ -514,7 +537,8 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             )
             return min(NSMaxRange(titlePara), max(0, textView.textStorage.length - 1))
         }()
-        let bodyFallbackY = tagsStrip.frame.maxY + 8
+        // Match the extra band under the tags strip (titleTagsReservedSpacing grew +8).
+        let bodyFallbackY = tagsStrip.frame.maxY + 16
         let bodyOrigin = caretAlignedOrigin(atCharacter: bodyChar, font: bodyFont, fallbackY: bodyFallbackY)
         bodyPlaceholderLabel.frame = CGRect(
             x: leading,
@@ -727,13 +751,72 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         base[NoteDocumentCodec.blockTypeKey] = currentBlockType() == "speakerSection" ? "paragraph" : currentBlockType()
         base[NoteDocumentCodec.blockIdKey] = currentBlockId()
         let piece = NoteDocumentCodec.bibleRefPill(payload: ref, base: base)
-        textView.textStorage.replaceCharacters(in: textView.selectedRange, with: piece)
-        let end = textView.selectedRange.location + piece.length
-        textView.selectedRange = NSRange(location: end, length: 0)
+        let insertAt = textView.selectedRange
+        textView.textStorage.replaceCharacters(in: insertAt, with: piece)
+        var caret = insertAt.location + piece.length
+        // Trailing space so the next typed char / second reference is not glued to the pill.
+        // Skip when the next character is already a space, newline, or punctuation — but still
+        // park the caret after an existing space so typing continues cleanly.
+        if shouldInsertTrailingSpaceAfterBibleRef(at: caret) {
+            var spaceAttrs = baseTypingAttributes()
+            spaceAttrs[NoteDocumentCodec.blockTypeKey] = base[NoteDocumentCodec.blockTypeKey]
+            spaceAttrs[NoteDocumentCodec.blockIdKey] = base[NoteDocumentCodec.blockIdKey]
+            spaceAttrs.removeValue(forKey: NoteDocumentCodec.bibleRefKey)
+            spaceAttrs.removeValue(forKey: .attachment)
+            let space = NSAttributedString(string: " ", attributes: spaceAttrs)
+            textView.textStorage.replaceCharacters(in: NSRange(location: caret, length: 0), with: space)
+            caret += 1
+        } else {
+            caret = caretAfterExistingSpaceFollowingBibleRef(from: caret)
+        }
+        textView.selectedRange = NSRange(location: caret, length: 0)
         textView.typingAttributes = baseTypingAttributes()
         emitChange()
         refreshPlaceholders()
         scrollCaretVisible(animated: true)
+    }
+
+    /// Whether a regular space should follow a freshly inserted bible-ref pill.
+    private func shouldInsertTrailingSpaceAfterBibleRef(at location: Int) -> Bool {
+        let storage = textView.textStorage
+        guard location < storage.length else { return true }
+        let next = (storage.string as NSString).substring(with: NSRange(location: location, length: 1))
+        if next == " " || next == "\u{00A0}" || next == "\t" { return false }
+        if next == "\n" || next == "\r" { return false }
+        if next == "\u{200B}" {
+            // Soft pad from an empty paragraph / neighboring pill — still want a real space
+            // before the user types, unless a real space follows the pad.
+            let afterPad = location + 1
+            if afterPad < storage.length {
+                let beyond = (storage.string as NSString).substring(with: NSRange(location: afterPad, length: 1))
+                if beyond == " " || beyond == "\u{00A0}" || beyond == "\n" || beyond == "\r" {
+                    return false
+                }
+            }
+            return true
+        }
+        if let scalar = next.unicodeScalars.first, CharacterSet.punctuationCharacters.contains(scalar) {
+            return false
+        }
+        return true
+    }
+
+    /// When we skipped inserting a space because one already follows, move past it (and a
+    /// soft ZWSP pad that may sit between the pill and that space).
+    private func caretAfterExistingSpaceFollowingBibleRef(from location: Int) -> Int {
+        let storage = textView.textStorage
+        let ns = storage.string as NSString
+        var idx = location
+        if idx < ns.length, ns.substring(with: NSRange(location: idx, length: 1)) == "\u{200B}" {
+            idx += 1
+        }
+        if idx < ns.length {
+            let ch = ns.substring(with: NSRange(location: idx, length: 1))
+            if ch == " " || ch == "\u{00A0}" || ch == "\t" {
+                return idx + 1
+            }
+        }
+        return location
     }
 
     func insertSpeakerSection(speakerId: String, name: String) {
@@ -831,6 +914,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     }
 
     func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
+        shouldChangeConsumedInsertion = false
         // Snapshot scroll before UIKit/TextKit can clamp contentOffset during the edit.
         captureScrollAnchor()
         // Never let the keyboard mutate the non-editable speaker header (attachment or
@@ -906,13 +990,114 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         // Empty plain lines must merge in ONE press (skip the ZWSP placeholder step).
         // Empty list markers keep 2 presses (demote, then merge). Pills keep select→delete.
         if text.isEmpty {
+            if range.length > 0, isDeletingSentenceStartLetter(range: range) {
+                // User removed the auto-capped first letter — next lowercase insert wins.
+                suppressSentenceAutocapitalize = true
+            } else if range.length > 0 {
+                suppressSentenceAutocapitalize = false
+            }
             if handleCustomBackspace(proposedRange: range) {
                 return false
             }
+            return true
+        }
+
+        // Sentence autocapitalization for title / new lines / list lines after the marker.
+        // UIKit `.sentences` alone misses list markers (they are plain attributed runs).
+        if let capitalized = sentenceAutocapitalizedInsertion(text, replacing: range) {
+            insertOrdinaryText(capitalized, replacing: range)
+            suppressSentenceAutocapitalize = false
+            shouldChangeConsumedInsertion = true
+            return false
+        }
+        if suppressSentenceAutocapitalize, isSingleLetter(text), isAtLineContentStart(range: range) {
+            // Respect lowercase after deleting the auto-capped letter (insert ourselves so
+            // UIKit `.sentences` cannot re-capitalize).
+            insertOrdinaryText(text, replacing: range)
+            suppressSentenceAutocapitalize = false
+            shouldChangeConsumedInsertion = true
+            return false
+        }
+        if !text.isEmpty {
+            suppressSentenceAutocapitalize = false
         }
 
         // TF210: @ and / are ordinary characters — speaker / reference only via toolbar.
         return true
+    }
+
+    /// Uppercase the first letter when inserting at the start of title / body / list content.
+    private func sentenceAutocapitalizedInsertion(_ text: String, replacing range: NSRange) -> String? {
+        guard !suppressSentenceAutocapitalize else { return nil }
+        guard isSingleLetter(text), let first = text.first, first.isLowercase else { return nil }
+        guard isAtLineContentStart(range: range) else { return nil }
+        let upper = text.uppercased(with: Locale.current)
+        return upper == text ? nil : upper
+    }
+
+    private func isSingleLetter(_ text: String) -> Bool {
+        guard text.count == 1, let ch = text.first else { return false }
+        return ch.isLetter
+    }
+
+    /// True when the replaced range is the first content letter of the line (ignoring markers / ZWSP).
+    private func isDeletingSentenceStartLetter(range: NSRange) -> Bool {
+        guard range.length > 0, rangeView.textStorage.length >= NSMaxRange(range) else { return false }
+        let deleted = (textView.textStorage.string as NSString).substring(with: range)
+        guard isSingleLetter(deleted) else { return false }
+        return isAtLineContentStart(range: NSRange(location: range.location, length: 0))
+    }
+
+    /// Caret/replace at the first typable content of the paragraph (after list marker + ZWSP pads).
+    private func isAtLineContentStart(range: NSRange) -> Bool {
+        let storage = textView.textStorage
+        guard storage.length > 0 else { return true }
+        let loc = min(max(0, range.location), storage.length)
+        let para = (storage.string as NSString).paragraphRange(for: NSRange(location: min(loc, max(0, storage.length - 1)), length: 0))
+        guard loc >= para.location else { return false }
+        var idx = para.location
+        let ns = storage.string as NSString
+        while idx < loc {
+            let ch = ns.substring(with: NSRange(location: idx, length: 1))
+            if ch == "\u{200B}" {
+                idx += 1
+                continue
+            }
+            var effective = NSRange(location: 0, length: 0)
+            let attrs = storage.attributes(at: idx, effectiveRange: &effective)
+            if (attrs[NoteDocumentCodec.listMarkerKey] as? Bool) == true {
+                idx = min(NSMaxRange(effective), loc)
+                continue
+            }
+            // Non-marker, non-ZWSP content already precedes the insertion point.
+            return false
+        }
+        return true
+    }
+
+    private func insertOrdinaryText(_ string: String, replacing range: NSRange) {
+        var replace = range
+        if replace.length == 0, !Self.isNewlineReplacement(string) {
+            let ns = textView.textStorage.string as NSString
+            if replace.location < ns.length,
+               ns.substring(with: NSRange(location: replace.location, length: 1)) == "\u{200B}"
+            {
+                replace = NSRange(location: replace.location, length: 1)
+            } else if replace.location > 0,
+                      ns.substring(with: NSRange(location: replace.location - 1, length: 1)) == "\u{200B}"
+            {
+                replace = NSRange(location: replace.location - 1, length: 1)
+            }
+        }
+        let attrs = textView.typingAttributes
+        let piece = NSAttributedString(string: string, attributes: attrs)
+        textView.textStorage.replaceCharacters(in: replace, with: piece)
+        textView.selectedRange = NSRange(location: replace.location + piece.length, length: 0)
+        textView.typingAttributes = typingAttributesForCaret()
+        emitChange()
+        refreshPlaceholders()
+        refreshEditingChrome()
+        scrollCaretVisible(animated: true)
     }
 
     /// Custom Backspace. Returns `true` when the deletion was fully handled (caller returns false).
@@ -2294,7 +2479,9 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
         // `shouldChangeTextIn` returned false:
         // - Enter inside speaker → already inserted/exited in the delegate
+        // - Autocap / suppress path already wrote into storage
         // - Enter/typing on header → caret was bounced into body; retry once
+        if shouldChangeConsumedInsertion { return }
         if Self.isNewlineReplacement(string) {
             if paragraphBlockType() == "speakerSection" { return }
             // Delegate already handled continue/exit when inside a speaker body.
@@ -2316,6 +2503,8 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         let loc = min(max(0, range.location), length)
         let len = min(max(0, range.length), max(0, length - loc))
         textView.selectedRange = NSRange(location: loc, length: len)
+        // Moving the caret clears the "respect lowercase" sticky, like the real keyboard.
+        suppressSentenceAutocapitalize = false
         // Always re-seed from the caret paragraph — title typing attrs must not
         // leak into the body after a selection move (TF194 list promote/Enter).
         textView.typingAttributes = typingAttributesForCaret()
@@ -2398,6 +2587,18 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
     func testing_tags() -> [String] {
         tagsStrip.currentTags()
+    }
+
+    func testing_setNoteSpeakerId(_ speakerId: String?) {
+        applyNoteSpeakerId(speakerId)
+    }
+
+    func testing_noteSpeakerId() -> String? {
+        currentDocument().noteSpeakerId
+    }
+
+    func testing_autocapitalizationType() -> UITextAutocapitalizationType {
+        textView.autocapitalizationType
     }
 
     func testing_isFormattingToolbarVisible() -> Bool {

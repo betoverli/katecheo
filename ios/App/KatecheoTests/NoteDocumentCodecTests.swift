@@ -142,6 +142,39 @@ final class NoteDocumentCodecTests: XCTestCase {
         XCTAssertEqual(again.body.blocks[2].spans?.first?.text, "Depois")
     }
 
+    func testRoundTripPreservesNoteSpeakerId() {
+        var note = NativeAPIClient.emptyNote(id: "note-speaker-persist")
+        note.title = "Culto"
+        note.noteSpeakerId = "spk-orador"
+        note.tags = ["manhã"]
+        note.body.blocks = [
+            NativeAPIClient.LineBlock(
+                id: "p1",
+                type: "paragraph",
+                spans: [.init(type: "text", text: "Corpo", marks: nil, bookId: nil, chapter: nil, verseStart: nil, verseEnd: nil, href: nil)],
+                speakerId: nil,
+                title: nil,
+                collapsed: nil,
+                checked: nil,
+                blocks: nil
+            ),
+        ]
+
+        let attributed = NoteDocumentCodec.attributedString(from: note)
+        let roundTrip = NoteDocumentCodec.document(from: attributed, base: note)
+        XCTAssertEqual(roundTrip.noteSpeakerId, "spk-orador")
+        XCTAssertEqual(roundTrip.tags, ["manhã"])
+
+        // Encode → decode again with the round-tripped base (autosave / reopen path).
+        let again = NoteDocumentCodec.document(
+            from: NoteDocumentCodec.attributedString(from: roundTrip),
+            base: roundTrip
+        )
+        XCTAssertEqual(again.noteSpeakerId, "spk-orador")
+        XCTAssertEqual(again.title, "Culto")
+        XCTAssertEqual(again.body.blocks.first?.spans?.first?.text, "Corpo")
+    }
+
     func testSpeakerBodyKeyMarksSectionChildrenOnly() {
         var note = NativeAPIClient.emptyNote()
         note.title = "T"
