@@ -25,9 +25,28 @@ enum NoteDocumentCodec {
     static let speakerSectionContentInset: CGFloat = 14
     /// Vertical rail width (matches web `border-left: 2px`).
     static let speakerRailWidth: CGFloat = 2
+    /// Quote block leading accent bar width (drawn in the layout manager).
+    static let quoteAccentBarWidth: CGFloat = 3
+    /// Horizontal inset for quote text inside the block chrome.
+    static let quoteContentInset: CGFloat = 14
+    /// Corner radius for the continuous quote fill.
+    static let quoteBlockCornerRadius: CGFloat = 8
+    /// Vertical padding inside the quote fill above/below the text.
+    static let quoteBlockVerticalPadding: CGFloat = 8
     /// Chevron prefixes shown on speaker headers (stripped when encoding title).
     static let speakerExpandedChevron = "▾ "
     static let speakerCollapsedChevron = "▸ "
+
+    /// Dynamic quote fill — resolves per trait (never bake a once-resolved CGColor).
+    static let quoteBackgroundColor = UIColor { traits in
+        if traits.userInterfaceStyle == .dark {
+            return UIColor(red: 0.83, green: 0.65, blue: 0.45, alpha: 0.16)
+        }
+        return UIColor(red: 0.69, green: 0.48, blue: 0.27, alpha: 0.10)
+    }
+
+    /// Dynamic leading accent for quote blocks (matches `KCDesign.accent`).
+    static var quoteAccentColor: UIColor { KCDesign.accent }
 
     /// NSObject so it can live in NSAttributedString attribute values.
     final class BibleRefPayload: NSObject {
@@ -407,10 +426,15 @@ enum NoteDocumentCodec {
             style.headIndent = markerW
             style.paragraphSpacing = 8
         case "quote":
-            style.headIndent = 16
-            style.firstLineHeadIndent = 16
+            // Indent clears the accent bar + inner padding; fill/bar are drawn by the layout manager.
+            let quoteInset = quoteContentInset
+            style.headIndent = quoteInset
+            style.firstLineHeadIndent = quoteInset
+            style.tailIndent = -4
+            style.lineSpacing = 2
+            style.paragraphSpacingBefore = 4
+            style.paragraphSpacing = 4
             font = UIFont.preferredFont(forTextStyle: .body).italic()
-            style.paragraphSpacing = 10
         default:
             // Normal paragraphs: aligned wraps (web `.note-line` — no hanging indent).
             style.firstLineHeadIndent = 0
@@ -423,6 +447,10 @@ enum NoteDocumentCodec {
             blockTypeKey: type,
             blockIdKey: id,
         ]
+        if type == "quote" {
+            // Dynamic fill so light↔dark adapts without reopening (never bake at insert).
+            attrs[.backgroundColor] = quoteBackgroundColor
+        }
         if type == "check" {
             attrs[checkedKey] = checked ?? false
         }
@@ -489,6 +517,51 @@ enum NoteDocumentCodec {
             }
         }
         return text
+    }
+
+    /// Merged character ranges for consecutive quote paragraphs (one continuous chrome block).
+    static func quoteBlockSpecs(in attributed: NSAttributedString) -> [NSRange] {
+        let ns = attributed.string as NSString
+        var paragraphRanges: [NSRange] = []
+        ns.enumerateSubstrings(in: NSRange(location: 0, length: ns.length), options: [.byParagraphs, .substringNotRequired]) { _, range, _, _ in
+            paragraphRanges.append(range)
+        }
+        var specs: [NSRange] = []
+        var index = 0
+        while index < paragraphRanges.count {
+            let range = paragraphRanges[index]
+            let attrs = paragraphAttributes(in: attributed, range: range)
+            guard (attrs[blockTypeKey] as? String) == "quote" else {
+                index += 1
+                continue
+            }
+            let start = range.location
+            var end = NSMaxRange(range)
+            var look = index + 1
+            while look < paragraphRanges.count {
+                let next = paragraphRanges[look]
+                let nextAttrs = paragraphAttributes(in: attributed, range: next)
+                guard (nextAttrs[blockTypeKey] as? String) == "quote" else { break }
+                end = NSMaxRange(next)
+                look += 1
+            }
+            specs.append(NSRange(location: start, length: max(0, end - start)))
+            index = look
+        }
+        return specs
+    }
+
+    private static func paragraphAttributes(
+        in attributed: NSAttributedString,
+        range: NSRange
+    ) -> [NSAttributedString.Key: Any] {
+        if range.length > 0 {
+            return attributed.attributes(at: range.location, effectiveRange: nil)
+        }
+        if attributed.length > range.location {
+            return attributed.attributes(at: min(range.location, attributed.length - 1), effectiveRange: nil)
+        }
+        return [:]
     }
 
     /// Character ranges + rail colors for every speaker section (header through body until next section).

@@ -31,6 +31,8 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     private let titlePlaceholderLabel = UILabel()
     private let bodyPlaceholderLabel = UILabel()
     private let tagsStrip = NoteEditorTagsStrip()
+    /// Hairline between header (title + tags) and body — view decoration, not document text.
+    private let headerDivider = UIView()
     /// After the user deletes an auto-capitalized first letter, the next lowercase insert is kept.
     private var suppressSentenceAutocapitalize = false
     /// `shouldChange` already mutated storage (autocap / suppress path) — testing insert must not retry.
@@ -122,6 +124,12 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         // Scrolls with the title — lives inside the text view.
         textView.addSubview(tagsStrip)
 
+        headerDivider.translatesAutoresizingMaskIntoConstraints = true
+        headerDivider.backgroundColor = KCDesign.separator
+        headerDivider.isUserInteractionEnabled = false
+        headerDivider.accessibilityIdentifier = "note.headerDivider"
+        textView.addSubview(headerDivider)
+
         accessory.onAction = { [weak self] action in
             self?.handleAccessory(action)
         }
@@ -134,7 +142,8 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             textView.trailingAnchor.constraint(equalTo: trailingAnchor),
             textView.bottomAnchor.constraint(equalTo: bottomAnchor),
         ])
-        // Keep placeholders under the tags strip visually (z-order).
+        // Keep placeholders + divider under the tags strip visually (z-order).
+        textView.sendSubviewToBack(headerDivider)
         textView.sendSubviewToBack(titlePlaceholderLabel)
         textView.sendSubviewToBack(bodyPlaceholderLabel)
 
@@ -182,8 +191,11 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         refreshDynamicTextColors()
         titlePlaceholderLabel.textColor = .tertiaryLabel
         bodyPlaceholderLabel.textColor = .tertiaryLabel
+        headerDivider.backgroundColor = KCDesign.separator
         backgroundColor = KCDesign.canvas
         textView.backgroundColor = KCDesign.canvas
+        // Quote chrome uses dynamic colors — redraw without rebaking insert-time CGColors.
+        refreshSpeakerRails()
         if forceAttachments {
             forceRefreshAttachmentAppearances()
         } else {
@@ -195,6 +207,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         super.layoutSubviews()
         repositionTagsStrip()
         repositionPlaceholders()
+        repositionHeaderDivider()
     }
 
     override func didMoveToWindow() {
@@ -296,6 +309,10 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
                 return
             }
             storage.addAttribute(.foregroundColor, value: UIColor.label, range: range)
+            // Re-stamp dynamic quote fill (never leave a once-resolved static CGColor).
+            if (attrs[NoteDocumentCodec.blockTypeKey] as? String) == "quote" {
+                storage.addAttribute(.backgroundColor, value: NoteDocumentCodec.quoteBackgroundColor, range: range)
+            }
         }
         storage.endEditing()
         // Nudge layout so glyph colors rebuild against the current trait collection.
@@ -364,7 +381,8 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             in: textView.textStorage,
             speakers: speakers
         )
-        // Force background redraw so rails grow/shrink with typed text.
+        railLayoutManager.quoteBlocks = NoteDocumentCodec.quoteBlockSpecs(in: textView.textStorage)
+        // Force background redraw so rails / quote chrome grow/shrink with typed text.
         let length = textView.textStorage.length
         let containerWidth = textView.textContainer.size.width
         if length > 0, containerWidth > 1 {
@@ -509,6 +527,42 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         tagsStrip.frame = CGRect(x: leading, y: y, width: width, height: height)
     }
 
+    /// Hairline between the header band (title + tags) and the body — scrolls with content.
+    /// When there are no tag chips, the tags strip is still the header’s lower edge (empty
+    /// state / “Adicionar tags”), so the divider sits under the title+tags band either way.
+    private func repositionHeaderDivider() {
+        textView.layoutManager.ensureLayout(for: textView.textContainer)
+        let leading = textContentLeading()
+        let width = textContentWidth()
+        let hairline = 1 / max(UIScreen.main.scale, 1)
+        let tagsFrame = tagsStrip.frame
+
+        // Prefer the live body caret/placeholder Y so the divider stays centered as the
+        // title wraps or tags appear/disappear inside the reserved title band (48pt).
+        let bodyChar: Int = {
+            guard textView.textStorage.length > 0 else { return 0 }
+            let titlePara = (textView.textStorage.string as NSString).paragraphRange(
+                for: NSRange(location: 0, length: 0)
+            )
+            return min(NSMaxRange(titlePara), max(0, textView.textStorage.length - 1))
+        }()
+        let bodyFont = bodyPlaceholderLabel.font ?? UIFont.preferredFont(forTextStyle: .body)
+        let bodyFallbackY = tagsFrame.maxY + 12
+        let bodyY = caretAlignedOrigin(atCharacter: bodyChar, font: bodyFont, fallbackY: bodyFallbackY).y
+
+        let headerBottom = tagsFrame.maxY + 4
+        let gap = max(0, bodyY - headerBottom)
+        let y: CGFloat
+        if gap > hairline + 2 {
+            y = headerBottom + (gap - hairline) * 0.5
+        } else {
+            y = max(headerBottom, bodyY - hairline - 4)
+        }
+        let clampedY = min(y, max(0, bodyY - hairline - 2))
+        headerDivider.frame = CGRect(x: leading, y: clampedY, width: width, height: hairline)
+        headerDivider.backgroundColor = KCDesign.separator
+    }
+
     /// Pin title/body placeholders to the same origin as the caret (insets, padding, font).
     private func repositionPlaceholders() {
         textView.layoutManager.ensureLayout(for: textView.textContainer)
@@ -537,8 +591,8 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             )
             return min(NSMaxRange(titlePara), max(0, textView.textStorage.length - 1))
         }()
-        // Match the extra band under the tags strip (titleTagsReservedSpacing grew +8).
-        let bodyFallbackY = tagsStrip.frame.maxY + 16
+        // Match the reserved title band (48pt) with room for tags + hairline + breathing room.
+        let bodyFallbackY = tagsStrip.frame.maxY + 12
         let bodyOrigin = caretAlignedOrigin(atCharacter: bodyChar, font: bodyFont, fallbackY: bodyFallbackY)
         bodyPlaceholderLabel.frame = CGRect(
             x: leading,
@@ -1978,13 +2032,22 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         } else {
             storage.removeAttribute(NoteDocumentCodec.checkedKey, range: range)
         }
+        // Quote keeps a dynamic fill attribute; other block types must not inherit a baked bg.
         storage.removeAttribute(.backgroundColor, range: range)
+        if type == "quote" {
+            storage.addAttribute(.backgroundColor, value: NoteDocumentCodec.quoteBackgroundColor, range: range)
+        }
 
         var typing = styled
         typing[NoteDocumentCodec.blockTypeKey] = type
         typing[NoteDocumentCodec.blockIdKey] = id
         if keepBody { typing[NoteDocumentCodec.speakerBodyKey] = true }
         if let checked { typing[NoteDocumentCodec.checkedKey] = checked }
+        if type == "quote" {
+            typing[.backgroundColor] = NoteDocumentCodec.quoteBackgroundColor
+        } else {
+            typing.removeValue(forKey: .backgroundColor)
+        }
         textView.typingAttributes = typing
         emitChange()
         refreshSpeakerRails()
@@ -2394,6 +2457,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         bodyPlaceholderLabel.isHidden = bodyHasVisibleContent()
         repositionTagsStrip()
         repositionPlaceholders()
+        repositionHeaderDivider()
     }
 
     /// True when the body region of `textStorage` is non-empty (attachments count).
@@ -2588,9 +2652,24 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         return tagsStrip.frame
     }
 
+    func testing_headerDividerFrame() -> CGRect {
+        repositionTagsStrip()
+        repositionPlaceholders()
+        repositionHeaderDivider()
+        return headerDivider.frame
+    }
+
+    func testing_quoteBlockRanges() -> [NSRange] {
+        refreshSpeakerRails()
+        return railLayoutManager.quoteBlocks
+    }
+
     func testing_setTags(_ tags: [String]) {
         tagsStrip.setTags(tags)
         applyTags(tags)
+        repositionTagsStrip()
+        repositionPlaceholders()
+        repositionHeaderDivider()
     }
 
     func testing_tags() -> [String] {
@@ -2908,12 +2987,71 @@ final class NoteEditorTextView: UITextView {
 
 // MARK: - Speaker section vertical rail
 
-/// Draws the left colored bar for speaker sections (web `.note-speaker { border-left }`).
+/// Draws speaker rails and quote block chrome (fill + accent bar).
+/// Quote colors are resolved at draw time so light/dark adapts without rebaking.
 final class NoteSpeakerRailLayoutManager: NSLayoutManager {
     var rails: [(range: NSRange, color: UIColor)] = []
+    /// Merged quote paragraph ranges — one continuous rounded block each.
+    var quoteBlocks: [NSRange] = []
 
     override func drawBackground(forGlyphRange glyphsToShow: NSRange, at origin: CGPoint) {
+        // Quote chrome first so the rounded fill sits under glyph backgrounds / rails.
+        drawQuoteBlocks(origin: origin)
         super.drawBackground(forGlyphRange: glyphsToShow, at: origin)
+        drawSpeakerRails(origin: origin)
+    }
+
+    private func drawQuoteBlocks(origin: CGPoint) {
+        guard let container = textContainers.first, !quoteBlocks.isEmpty else { return }
+        let padV = NoteDocumentCodec.quoteBlockVerticalPadding
+        let corner = NoteDocumentCodec.quoteBlockCornerRadius
+        let barW = NoteDocumentCodec.quoteAccentBarWidth
+        let fill = NoteDocumentCodec.quoteBackgroundColor
+        let accent = NoteDocumentCodec.quoteAccentColor
+        for range in quoteBlocks {
+            guard range.length > 0 else { continue }
+            let glyphRange = self.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
+            guard glyphRange.length > 0 else { continue }
+            var union = CGRect.null
+            enumerateLineFragments(forGlyphRange: glyphRange) { _, usedRect, _, _, _ in
+                if usedRect.height > 0 {
+                    union = union.isNull ? usedRect : union.union(usedRect)
+                }
+            }
+            if union.isNull {
+                let bounds = boundingRect(forGlyphRange: glyphRange, in: container)
+                guard bounds.height > 0 else { continue }
+                union = bounds
+            }
+            let containerWidth = container.size.width
+            let block = CGRect(
+                x: origin.x + 0,
+                y: origin.y + union.minY - padV,
+                width: max(union.width + NoteDocumentCodec.quoteContentInset, containerWidth),
+                height: max(union.height + padV * 2, 20)
+            )
+            // Cap to the text container so the fill aligns with title/body insets.
+            let clipped = CGRect(
+                x: origin.x,
+                y: block.minY,
+                width: max(0, containerWidth),
+                height: block.height
+            )
+            fill.setFill()
+            UIBezierPath(roundedRect: clipped, cornerRadius: corner).fill()
+
+            let bar = CGRect(
+                x: clipped.minX + 3,
+                y: clipped.minY + 4,
+                width: barW,
+                height: max(clipped.height - 8, 10)
+            )
+            accent.setFill()
+            UIBezierPath(roundedRect: bar, cornerRadius: barW / 2).fill()
+        }
+    }
+
+    private func drawSpeakerRails(origin: CGPoint) {
         guard let container = textContainers.first, !rails.isEmpty else { return }
         let inset = NoteDocumentCodec.speakerSectionContentInset
         let railW = NoteDocumentCodec.speakerRailWidth

@@ -86,6 +86,11 @@ final class NativeNoteEditorTitleEnterTests: XCTestCase {
         // Tag row → body breathing room (+8 vs prior 40pt title band).
         XCTAssertEqual(NoteDocumentCodec.titleTagsReservedSpacing, 48, accuracy: 0.1)
         XCTAssertGreaterThanOrEqual(bodyFrame.minY - tagsFrame.maxY, 6)
+
+        let divider = editor.testing_headerDividerFrame()
+        XCTAssertEqual(divider.minX, leading, accuracy: 0.5)
+        XCTAssertGreaterThan(divider.minY, tagsFrame.maxY - 0.5)
+        XCTAssertLessThan(divider.maxY, bodyFrame.minY + 0.5)
     }
 
     func testAutocapitalization_titleAndNewLinesAndRespectLowercaseAfterDelete() {

@@ -175,6 +175,39 @@ final class NoteDocumentCodecTests: XCTestCase {
         XCTAssertEqual(again.body.blocks.first?.spans?.first?.text, "Corpo")
     }
 
+    func testQuoteStyle_italicBackgroundAndRoundTrip() {
+        var note = NativeAPIClient.emptyNote()
+        note.title = "Citação"
+        note.body.blocks = [
+            NativeAPIClient.LineBlock(
+                id: "q1",
+                type: "quote",
+                spans: [.init(type: "text", text: "Texto citado", marks: nil, bookId: nil, chapter: nil, verseStart: nil, verseEnd: nil, href: nil)],
+                speakerId: nil,
+                title: nil,
+                collapsed: nil,
+                checked: nil,
+                blocks: nil
+            ),
+        ]
+        let attrs = NoteDocumentCodec.baseAttributesPublic(
+            type: "quote",
+            id: "q1",
+            checked: nil,
+            speakerId: nil,
+            speakers: [:]
+        )
+        let font = attrs[.font] as! UIFont
+        XCTAssertTrue(font.fontDescriptor.symbolicTraits.contains(.traitItalic))
+        XCTAssertEqual(attrs[.backgroundColor] as? UIColor, NoteDocumentCodec.quoteBackgroundColor)
+
+        let attributed = NoteDocumentCodec.attributedString(from: note)
+        let roundTrip = NoteDocumentCodec.document(from: attributed, base: note)
+        XCTAssertEqual(roundTrip.body.blocks.first?.type, "quote")
+        XCTAssertEqual(roundTrip.body.blocks.first?.spans?.first?.text, "Texto citado")
+        XCTAssertEqual(NoteDocumentCodec.quoteBlockSpecs(in: attributed).count, 1)
+    }
+
     func testSpeakerBodyKeyMarksSectionChildrenOnly() {
         var note = NativeAPIClient.emptyNote()
         note.title = "T"
