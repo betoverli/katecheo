@@ -595,7 +595,13 @@ try {
   const noteRowIdx = noteRowSource.indexOf("func configure(title: String, subtitle: String, tags: [String], speakerName");
   const noteRow = noteRowIdx >= 0 ? noteRowSource.slice(noteRowIdx, noteRowIdx + 1800) : "";
   if (!noteRow.includes("removeArrangedSubview(speakerPill)") || !noteRow.includes("insertArrangedSubview(speakerPill")) {
-    errors.push("KCNoteRowCell tem de remover/inserir speakerPill no metaRow (evitar gap com isHidden).");
+    errors.push("KCNoteRowCell tem de remover/inserir speakerPill na tagsRow (evitar gap com isHidden).");
+  }
+  if (!noteRow.includes("tagsRow") || noteRow.includes("metaRow")) {
+    errors.push("KCNoteRowCell: speakerPill fica na tagsRow com #tags; preview (subtitle) full-width alinhado ao título.");
+  }
+  if (!noteRow.includes("KCPaddedChipLabel") && !noteRowSource.includes("KCPaddedChipLabel")) {
+    errors.push("KCNoteRowCell speakerPill tem de usar chip com insets reais (não espaços + clipsToBounds vazio).");
   }
 } catch {
   errors.push("Falta KCComponents.swift");

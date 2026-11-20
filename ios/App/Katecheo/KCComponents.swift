@@ -234,11 +234,14 @@ final class KCNoteRowCell: UITableViewCell {
     private let titleLabel = UILabel()
     private let dateLabel = UILabel()
     private let titleRow = UIStackView()
-    private let speakerPill = UILabel()
+    /// Padded chip so accent fill + name stay visible (space-padded UILabel + clipsToBounds
+    /// reserved width but often painted an empty / clipped pill on the preview row).
+    private let speakerPill = KCPaddedChipLabel()
     private let subtitleLabel = UILabel()
     private let tagsLabel = UILabel()
     private let stack = UIStackView()
-    private let metaRow = UIStackView()
+    /// Speaker pill + #tags, left-aligned with the title (below the full-width preview).
+    private let tagsRow = UIStackView()
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -277,6 +280,7 @@ final class KCNoteRowCell: UITableViewCell {
         speakerPill.textColor = KCDesign.accent
         speakerPill.backgroundColor = KCDesign.accentSoft
         speakerPill.textAlignment = .center
+        speakerPill.contentInsets = UIEdgeInsets(top: 3, left: 8, bottom: 3, right: 8)
         speakerPill.layer.cornerRadius = KCDesign.Radius.pill
         speakerPill.layer.cornerCurve = .continuous
         speakerPill.clipsToBounds = true
@@ -289,24 +293,31 @@ final class KCNoteRowCell: UITableViewCell {
         subtitleLabel.textColor = .secondaryLabel
         subtitleLabel.numberOfLines = 2
         subtitleLabel.adjustsFontForContentSizeCategory = true
+        subtitleLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
         tagsLabel.font = KCDesign.caption()
         tagsLabel.textColor = KCDesign.accent
         tagsLabel.numberOfLines = 1
+        tagsLabel.lineBreakMode = .byTruncatingTail
         tagsLabel.adjustsFontForContentSizeCategory = true
+        tagsLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
-        metaRow.axis = .horizontal
-        metaRow.alignment = .center
-        metaRow.spacing = 8
-        metaRow.addArrangedSubview(speakerPill)
-        metaRow.addArrangedSubview(subtitleLabel)
+        tagsLabel.isHidden = true
+
+        tagsRow.axis = .horizontal
+        tagsRow.alignment = .center
+        tagsRow.spacing = 8
+        tagsRow.addArrangedSubview(speakerPill)
+        tagsRow.addArrangedSubview(tagsLabel)
+        tagsRow.isHidden = true
 
         stack.axis = .vertical
         stack.spacing = 3
+        stack.alignment = .fill
         stack.translatesAutoresizingMaskIntoConstraints = false
         stack.addArrangedSubview(titleRow)
-        stack.addArrangedSubview(metaRow)
-        stack.addArrangedSubview(tagsLabel)
+        stack.addArrangedSubview(subtitleLabel)
+        stack.addArrangedSubview(tagsRow)
         contentView.addSubview(stack)
 
         NSLayoutConstraint.activate([
@@ -332,24 +343,25 @@ final class KCNoteRowCell: UITableViewCell {
         dateLabel.isHidden = dateText.isEmpty
         subtitleLabel.text = subtitle
         subtitleLabel.isHidden = subtitle.isEmpty
+
         // UIStackView often keeps reserved width when only toggling `isHidden` on an
-        // arranged subview that was already hidden (classic reuse bug → ~80pt gap).
-        // Remove the pill from the stack when absent so the subtitle aligns with the title.
-        if let speakerName, !speakerName.isEmpty {
-            if speakerPill.superview !== metaRow {
-                metaRow.insertArrangedSubview(speakerPill, at: 0)
+        // arranged subview that was already hidden — remove/insert instead.
+        let trimmedSpeaker = speakerName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !trimmedSpeaker.isEmpty {
+            if speakerPill.superview !== tagsRow {
+                tagsRow.insertArrangedSubview(speakerPill, at: 0)
             }
-            if speakerPill.isHidden { speakerPill.isHidden = false }
-            speakerPill.text = "  \(speakerName)  "
+            speakerPill.text = trimmedSpeaker
+            speakerPill.isHidden = false
         } else {
             speakerPill.text = nil
-            if !speakerPill.isHidden { speakerPill.isHidden = true }
+            speakerPill.isHidden = true
             if speakerPill.superview != nil {
-                metaRow.removeArrangedSubview(speakerPill)
+                tagsRow.removeArrangedSubview(speakerPill)
                 speakerPill.removeFromSuperview()
             }
         }
-        metaRow.isHidden = (speakerPill.superview == nil) && subtitleLabel.isHidden
+
         if tags.isEmpty {
             tagsLabel.isHidden = true
             tagsLabel.text = nil
@@ -357,7 +369,10 @@ final class KCNoteRowCell: UITableViewCell {
             tagsLabel.isHidden = false
             tagsLabel.text = tags.map { "#\($0)" }.joined(separator: "  ")
         }
-        accessibilityLabel = [title, dateText.isEmpty ? nil : dateText, speakerName, subtitle, tagsLabel.text]
+        // Show the lower row when there is a speaker and/or tags (pill alone is OK).
+        tagsRow.isHidden = (speakerPill.superview == nil) && tagsLabel.isHidden
+
+        accessibilityLabel = [title, dateText.isEmpty ? nil : dateText, trimmedSpeaker.isEmpty ? nil : trimmedSpeaker, subtitle, tagsLabel.text]
             .compactMap { $0 }
             .filter { !$0.isEmpty }
             .joined(separator: ". ")
@@ -371,14 +386,14 @@ final class KCNoteRowCell: UITableViewCell {
         subtitleLabel.text = nil
         subtitleLabel.isHidden = false
         speakerPill.text = nil
-        if !speakerPill.isHidden { speakerPill.isHidden = true }
+        speakerPill.isHidden = true
         if speakerPill.superview != nil {
-            metaRow.removeArrangedSubview(speakerPill)
+            tagsRow.removeArrangedSubview(speakerPill)
             speakerPill.removeFromSuperview()
         }
         tagsLabel.text = nil
         tagsLabel.isHidden = true
-        metaRow.isHidden = false
+        tagsRow.isHidden = true
     }
 
     // MARK: - Testing hooks
@@ -386,8 +401,41 @@ final class KCNoteRowCell: UITableViewCell {
     var testing_titleLabel: UILabel { titleLabel }
     var testing_dateLabel: UILabel { dateLabel }
     var testing_subtitleLabel: UILabel { subtitleLabel }
+    var testing_tagsLabel: UILabel { tagsLabel }
+    var testing_tagsRow: UIStackView { tagsRow }
     var testing_speakerPill: UILabel { speakerPill }
-    var testing_speakerPillInMetaRow: Bool { speakerPill.superview === metaRow }
+    var testing_speakerPillInTagsRow: Bool { speakerPill.superview === tagsRow }
+}
+
+/// Chip label with real insets (avoids invisible space-padded UILabel backgrounds).
+private final class KCPaddedChipLabel: UILabel {
+    var contentInsets = UIEdgeInsets(top: 3, left: 8, bottom: 3, right: 8) {
+        didSet { invalidateIntrinsicContentSize() }
+    }
+
+    override func drawText(in rect: CGRect) {
+        super.drawText(in: rect.inset(by: contentInsets))
+    }
+
+    override func textRect(forBounds bounds: CGRect, limitedToNumberOfLines numberOfLines: Int) -> CGRect {
+        let insetBounds = bounds.inset(by: contentInsets)
+        let textRect = super.textRect(forBounds: insetBounds, limitedToNumberOfLines: numberOfLines)
+        return CGRect(
+            x: textRect.origin.x - contentInsets.left,
+            y: textRect.origin.y - contentInsets.top,
+            width: textRect.width + contentInsets.left + contentInsets.right,
+            height: textRect.height + contentInsets.top + contentInsets.bottom
+        )
+    }
+
+    override var intrinsicContentSize: CGSize {
+        let size = super.intrinsicContentSize
+        guard size.width > 0, size.height > 0 else { return size }
+        return CGSize(
+            width: size.width + contentInsets.left + contentInsets.right,
+            height: size.height + contentInsets.top + contentInsets.bottom
+        )
+    }
 }
 
 /// Group row with icon badge + warm surface.

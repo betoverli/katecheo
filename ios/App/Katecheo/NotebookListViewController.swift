@@ -1044,13 +1044,17 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
         return note.body.blocks.contains { $0.type == "speakerSection" }
     }
 
-    /// Orador principal (`noteSpeakerId`) for the Caderno row subtitle (TF194 #7).
+    /// Orador principal (`noteSpeakerId`) for the Caderno row speaker chip (TF194 #7).
     private func mainSpeakerName(for note: NativeAPIClient.NoteDocument?) -> String? {
         guard let note, let id = note.noteSpeakerId, !id.isEmpty else { return nil }
-        if let name = speakers.first(where: { $0.id == id })?.name, !name.isEmpty {
+        if let name = speakers.first(where: { $0.id == id })?.name.trimmingCharacters(in: .whitespacesAndNewlines),
+           !name.isEmpty {
             return name
         }
-        return LocalNoteCache.loadSpeakers().first(where: { $0.id == id })?.name
+        let cached = LocalNoteCache.loadSpeakers().first(where: { $0.id == id })?.name
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if let cached, !cached.isEmpty { return cached }
+        return nil
     }
 
     private func presentTagPicker() {
