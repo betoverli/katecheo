@@ -181,8 +181,14 @@ final class NativeNoteEditorBackspaceTests: XCTestCase {
         XCTAssertEqual(editor.testing_selectedRange().location, probe + 1)
 
         // Auto-space is a normal single Backspace (does not arm the reference).
+        let lengthBeforeSpaceDelete = editor.testing_textStorage().length
         editor.testing_deleteBackward()
         XCTAssertEqual(editor.testing_selectedRange().length, 0, "deleting auto-space must not select the pill")
+        XCTAssertEqual(
+            editor.testing_textStorage().length,
+            lengthBeforeSpaceDelete - 1,
+            "auto-space Backspace must remove exactly one character"
+        )
         var pillStillThere = false
         let afterSpaceDelete = editor.testing_textStorage()
         afterSpaceDelete.enumerateAttribute(.attachment, in: NSRange(location: 0, length: afterSpaceDelete.length)) { value, _, stop in
@@ -193,16 +199,20 @@ final class NativeNoteEditorBackspaceTests: XCTestCase {
         }
         XCTAssertTrue(pillStillThere, "auto-space Backspace must not delete the reference")
 
-        // Re-insert space manually, then insert another ref just before it — no duplicate space.
-        editor.testing_insertText(" ")
-        let spaceLoc = editor.testing_selectedRange().location - 1
-        editor.testing_setSelectedRange(NSRange(location: max(0, spaceLoc), length: 0))
+        // Inserting before an existing space must not duplicate it.
+        editor.testing_insertText(" hello")
+        // Caret after " hello"; move to just before the leading space and insert a ref.
+        let helloStart = (editor.testing_textStorage().string as NSString).range(of: " hello")
+        XCTAssertNotEqual(helloStart.location, NSNotFound)
+        editor.testing_setSelectedRange(NSRange(location: helloStart.location, length: 0))
         editor.insertBibleRef(payload)
         let caret = editor.testing_selectedRange().location
-        XCTAssertGreaterThanOrEqual(caret, 1)
         let around = editor.testing_textStorage().string as NSString
-        // Caret sits after the (single) space that followed the new pill / existing space.
+        XCTAssertGreaterThanOrEqual(caret, 1)
         XCTAssertEqual(around.substring(with: NSRange(location: caret - 1, length: 1)), " ")
+        // Immediately after the caret should still be "hello" (single space kept, not "  hello").
+        let rest = around.substring(with: NSRange(location: caret, length: min(5, around.length - caret)))
+        XCTAssertTrue(rest.hasPrefix("hello"), "existing space reused; got \(rest)")
         if caret >= 2 {
             XCTAssertNotEqual(
                 around.substring(with: NSRange(location: caret - 2, length: 2)),

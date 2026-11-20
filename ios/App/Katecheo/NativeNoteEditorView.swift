@@ -1161,17 +1161,26 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             return nil
         }
 
-        // Direct hit on the attachment character.
-        if let hit = pillRange(at: range.location) { return hit }
+        // Direct hit on the attachment character (any index inside the proposed delete).
+        let end = min(NSMaxRange(range), storage.length)
+        var idx = max(0, range.location)
+        while idx < end {
+            if let hit = pillRange(at: idx) { return hit }
+            idx += 1
+        }
 
-        // Soft ZWSP pad immediately before/after the pill (bibleRefPill wraps pads).
-        let candidates = [range.location, range.location - 1, range.location + 1]
-        for raw in candidates {
-            guard raw >= 0, raw < ns.length else { continue }
-            let ch = ns.substring(with: NSRange(location: raw, length: 1))
-            guard ch == "\u{200B}" else { continue }
-            if let after = pillRange(at: raw + 1) { return after }
-            if raw > 0, let before = pillRange(at: raw - 1) { return before }
+        // Soft ZWSP pad immediately before/after the pill — only when the delete
+        // itself covers that ZWSP. A real trailing space after the pad must stay a
+        // normal single Backspace (do not arm the reference).
+        idx = max(0, range.location)
+        while idx < end {
+            guard idx < ns.length else { break }
+            let ch = ns.substring(with: NSRange(location: idx, length: 1))
+            if ch == "\u{200B}" {
+                if let after = pillRange(at: idx + 1) { return after }
+                if idx > 0, let before = pillRange(at: idx - 1) { return before }
+            }
+            idx += 1
         }
         return nil
     }
