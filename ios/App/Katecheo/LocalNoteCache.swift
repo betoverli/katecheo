@@ -190,15 +190,18 @@ enum LocalNoteCache {
         switch (parseHappenedAt(lhs.happenedAt), parseHappenedAt(rhs.happenedAt)) {
         case let (l?, r?) where l != r:
             return l > r
+        case let (l?, r?) where l == r:
+            // Same civil day (e.g. `yyyy-MM-dd` vs ISO) — do not fall back to string
+            // compare of the raw happenedAt (that reorders siblings).
+            break
         case (_?, nil):
             return true
         case (nil, _?):
             return false
         default:
-            break
-        }
-        if lhs.happenedAt != rhs.happenedAt {
-            return lhs.happenedAt > rhs.happenedAt
+            if lhs.happenedAt != rhs.happenedAt {
+                return lhs.happenedAt > rhs.happenedAt
+            }
         }
         return isUpdatedAt(effectiveUpdatedAt(for: lhs), newerThan: effectiveUpdatedAt(for: rhs))
     }

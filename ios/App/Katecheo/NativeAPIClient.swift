@@ -1387,15 +1387,16 @@ enum NativeAPIClient {
         ) {
         case let (l?, r?) where l != r:
             return l > r
+        case let (l?, r?) where l == r:
+            break
         case (_?, nil):
             return true
         case (nil, _?):
             return false
         default:
-            break
-        }
-        if lhs.note.happenedAt != rhs.note.happenedAt {
-            return lhs.note.happenedAt > rhs.note.happenedAt
+            if lhs.note.happenedAt != rhs.note.happenedAt {
+                return lhs.note.happenedAt > rhs.note.happenedAt
+            }
         }
         return LocalNoteCache.isUpdatedAt(lhs.note.updatedAt, newerThan: rhs.note.updatedAt)
     }

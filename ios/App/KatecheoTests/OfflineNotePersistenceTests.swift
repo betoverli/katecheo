@@ -628,6 +628,7 @@ final class OfflineNotePersistenceTests: XCTestCase {
         XCTAssertEqual(day, iso, "ISO datetime should bucket to the same UTC civil day")
     }
 
+    @MainActor
     func testReloadGeneration_onlyLatestApplies() {
         let vc = NotebookListViewController()
         let first = vc.testing_beginReloadGeneration()

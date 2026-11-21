@@ -54,7 +54,7 @@ final class NativeSWRCacheTests: XCTestCase {
         XCTAssertEqual(countExact("/api/native/v1/notes"), 1)
     }
 
-    func testNotebookMutation_invalidatesNotesCache() async throws {
+    func testNotebookMutation_marksNotesListFetchedWithoutRefetch() async throws {
         MockNativeURLProtocol.notesJSON = Self.notesPayload
         MockNativeURLProtocol.upsertNoteJSON = Self.singleNotePayload
         _ = try await NativeAPIClient.listNotes()
@@ -64,10 +64,16 @@ final class NativeSWRCacheTests: XCTestCase {
 
         var note = NativeAPIClient.emptyNote(id: "n1")
         note.title = "edited"
+        note.happenedAt = "2026-01-01"
+        note.updatedAt = "2026-01-01T12:00:00.500Z"
         _ = try await NativeAPIClient.upsertNote(note)
+        // applyLocalNote keeps the full list fresh — no invalidate(.notes) / refetch.
+        XCTAssertTrue(NativeSWR.isFresh(.notes, ttl: NativeSWR.TTL.lists))
+        let mem: [NativeAPIClient.NoteDocument]? = NativeSWR.cachedValue(.notes)
+        XCTAssertEqual(mem?.first(where: { $0.id == "n1" })?.title, "edited")
         NativeSWR.resetProbe()
         _ = try await NativeAPIClient.listNotes()
-        XCTAssertEqual(countExact("/api/native/v1/notes"), 1, "own edit must refetch list")
+        XCTAssertEqual(countExact("/api/native/v1/notes"), 0, "upsert must not force a list refetch")
     }
 
     // MARK: - Profile / prefs
