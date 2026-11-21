@@ -3084,7 +3084,7 @@ final class NoteSpeakerRailLayoutManager: NSLayoutManager {
     }
 }
 
-// MARK: - Compact keyboard accessory (scrollable + Liquid Glass)
+// MARK: - Floating capsule keyboard accessory (Apple Notes style)
 
 @MainActor
 final class NoteEditorAccessoryBar: UIView {
@@ -3094,30 +3094,72 @@ final class NoteEditorAccessoryBar: UIView {
         case bibleRef, speaker
     }
 
+    /// Horizontal inset of the capsule from the screen edges (Apple Notes ~12–16pt).
+    static let capsuleHorizontalInset: CGFloat = 14
+    /// Gap between capsule bottom and keyboard top.
+    static let capsuleBottomInset: CGFloat = 8
+    /// Gap above the capsule inside the accessory host.
+    static let capsuleTopInset: CGFloat = 6
+    /// Capsule body height (buttons are 44pt; a little vertical padding).
+    static let capsuleHeight: CGFloat = 48
+    /// Continuous corner radius for the pill ends (half of height → true capsule).
+    static var capsuleCornerRadius: CGFloat { capsuleHeight / 2 }
+
     var onAction: ((Action) -> Void)?
 
+    /// Outer host that carries the soft shadow (must not clip).
+    private let shadowHost = UIView()
+    /// Clipped rounded capsule — scroll content stays inside these ends.
+    private let capsule = UIView()
     private let blur: UIVisualEffectView
     private let scroll = UIScrollView()
     private let stack = UIStackView()
+    private let fadeMask = CAGradientLayer()
 
     init() {
         let effect = KCGlassMaterial.effect(withInteractive: true) ?? UIBlurEffect(style: .systemChromeMaterial)
         blur = UIVisualEffectView(effect: effect)
-        super.init(frame: CGRect(x: 0, y: 0, width: UIScreen.main.bounds.width, height: 52))
+        let totalHeight = Self.capsuleTopInset + Self.capsuleHeight + Self.capsuleBottomInset
+        super.init(frame: CGRect(x: 0, y: 0, width: UIScreen.main.bounds.width, height: totalHeight))
         autoresizingMask = [.flexibleWidth]
+        // Transparent host — no full-width bar strip behind the capsule.
         backgroundColor = .clear
+        isOpaque = false
+
+        shadowHost.translatesAutoresizingMaskIntoConstraints = false
+        shadowHost.backgroundColor = .clear
+        shadowHost.isOpaque = false
+        addSubview(shadowHost)
+
+        capsule.translatesAutoresizingMaskIntoConstraints = false
+        capsule.backgroundColor = KCDesign.surface.withAlphaComponent(0.72)
+        capsule.layer.cornerRadius = Self.capsuleCornerRadius
+        capsule.layer.cornerCurve = .continuous
+        capsule.clipsToBounds = true
+        capsule.layer.borderWidth = 1.0 / UIScreen.main.scale
+        capsule.layer.borderColor = KCDesign.separator.cgColor
+        shadowHost.addSubview(capsule)
+
+        // Soft floating shadow (on host so capsule can still clip its contents).
+        shadowHost.layer.shadowColor = UIColor.black.cgColor
+        shadowHost.layer.shadowOpacity = 0.12
+        shadowHost.layer.shadowOffset = CGSize(width: 0, height: 2)
+        shadowHost.layer.shadowRadius = 10
+        shadowHost.layer.masksToBounds = false
 
         blur.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(blur)
+        capsule.addSubview(blur)
 
         scroll.translatesAutoresizingMaskIntoConstraints = false
         scroll.showsHorizontalScrollIndicator = false
         scroll.alwaysBounceHorizontal = true
-        scroll.contentInset = UIEdgeInsets(top: 0, left: 8, bottom: 0, right: 8)
-        addSubview(scroll)
+        scroll.contentInset = UIEdgeInsets(top: 0, left: 6, bottom: 0, right: 6)
+        scroll.clipsToBounds = true
+        scroll.delegate = self
+        capsule.addSubview(scroll)
 
         stack.axis = .horizontal
-        stack.spacing = 4
+        stack.spacing = 2
         stack.alignment = .center
         stack.translatesAutoresizingMaskIntoConstraints = false
         scroll.addSubview(stack)
@@ -3157,16 +3199,38 @@ final class NoteEditorAccessoryBar: UIView {
             }
         }
 
-        NSLayoutConstraint.activate([
-            blur.topAnchor.constraint(equalTo: topAnchor),
-            blur.leadingAnchor.constraint(equalTo: leadingAnchor),
-            blur.trailingAnchor.constraint(equalTo: trailingAnchor),
-            blur.bottomAnchor.constraint(equalTo: bottomAnchor),
+        // Soft fade near capsule ends so icons tuck under the rounded corners.
+        fadeMask.startPoint = CGPoint(x: 0, y: 0.5)
+        fadeMask.endPoint = CGPoint(x: 1, y: 0.5)
+        fadeMask.colors = [
+            UIColor.clear.cgColor,
+            UIColor.black.cgColor,
+            UIColor.black.cgColor,
+            UIColor.clear.cgColor,
+        ]
+        fadeMask.locations = [0, 0.04, 0.96, 1] as [NSNumber]
+        scroll.layer.mask = fadeMask
 
-            scroll.topAnchor.constraint(equalTo: topAnchor),
-            scroll.leadingAnchor.constraint(equalTo: leadingAnchor),
-            scroll.trailingAnchor.constraint(equalTo: trailingAnchor),
-            scroll.bottomAnchor.constraint(equalTo: bottomAnchor),
+        NSLayoutConstraint.activate([
+            shadowHost.topAnchor.constraint(equalTo: topAnchor, constant: Self.capsuleTopInset),
+            shadowHost.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Self.capsuleHorizontalInset),
+            shadowHost.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -Self.capsuleHorizontalInset),
+            shadowHost.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -Self.capsuleBottomInset),
+
+            capsule.topAnchor.constraint(equalTo: shadowHost.topAnchor),
+            capsule.leadingAnchor.constraint(equalTo: shadowHost.leadingAnchor),
+            capsule.trailingAnchor.constraint(equalTo: shadowHost.trailingAnchor),
+            capsule.bottomAnchor.constraint(equalTo: shadowHost.bottomAnchor),
+
+            blur.topAnchor.constraint(equalTo: capsule.topAnchor),
+            blur.leadingAnchor.constraint(equalTo: capsule.leadingAnchor),
+            blur.trailingAnchor.constraint(equalTo: capsule.trailingAnchor),
+            blur.bottomAnchor.constraint(equalTo: capsule.bottomAnchor),
+
+            scroll.topAnchor.constraint(equalTo: capsule.topAnchor),
+            scroll.leadingAnchor.constraint(equalTo: capsule.leadingAnchor),
+            scroll.trailingAnchor.constraint(equalTo: capsule.trailingAnchor),
+            scroll.bottomAnchor.constraint(equalTo: capsule.bottomAnchor),
 
             stack.topAnchor.constraint(equalTo: scroll.contentLayoutGuide.topAnchor),
             stack.bottomAnchor.constraint(equalTo: scroll.contentLayoutGuide.bottomAnchor),
@@ -3174,21 +3238,37 @@ final class NoteEditorAccessoryBar: UIView {
             stack.trailingAnchor.constraint(equalTo: scroll.contentLayoutGuide.trailingAnchor),
             stack.heightAnchor.constraint(equalTo: scroll.frameLayoutGuide.heightAnchor),
         ])
-
-        let hairline = UIView()
-        hairline.translatesAutoresizingMaskIntoConstraints = false
-        hairline.backgroundColor = KCDesign.separator
-        addSubview(hairline)
-        NSLayoutConstraint.activate([
-            hairline.topAnchor.constraint(equalTo: topAnchor),
-            hairline.leadingAnchor.constraint(equalTo: leadingAnchor),
-            hairline.trailingAnchor.constraint(equalTo: trailingAnchor),
-            hairline.heightAnchor.constraint(equalToConstant: 0.5),
-        ])
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        // True capsule: continuous corners follow the laid-out height.
+        let radius = max(shadowHost.bounds.height, 1) / 2
+        capsule.layer.cornerRadius = radius
+        updateFadeMaskFrame()
+        // Keep shadow path in sync with the capsule silhouette.
+        shadowHost.layer.shadowPath = UIBezierPath(
+            roundedRect: shadowHost.bounds,
+            cornerRadius: radius
+        ).cgPath
+        capsule.layer.borderColor = KCDesign.separator.resolvedColor(with: traitCollection).cgColor
+    }
+
+    private func updateFadeMaskFrame() {
+        // UIScrollView moves bounds.origin while scrolling — pin the fade to the visible viewport.
+        fadeMask.frame = CGRect(origin: scroll.contentOffset, size: scroll.bounds.size)
+    }
+
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        guard traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection) else { return }
+        capsule.layer.borderColor = KCDesign.separator.resolvedColor(with: traitCollection).cgColor
+        let dark = traitCollection.userInterfaceStyle == .dark
+        shadowHost.layer.shadowOpacity = dark ? 0.28 : 0.12
+    }
 
     private func makeButton(symbol: String, action: Action, label: String) -> UIButton {
         let button = UIButton(type: .system)
@@ -3197,19 +3277,23 @@ final class NoteEditorAccessoryBar: UIView {
         config.image = UIImage(systemName: symbol)
         config.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 17, weight: .medium)
         config.contentInsets = NSDirectionalEdgeInsets(top: 10, leading: 10, bottom: 10, trailing: 10)
+        // Accent tint doubles as the active / pressed highlight (same as before).
         config.baseForegroundColor = KCDesign.accent
         button.configuration = config
         button.accessibilityLabel = label
         button.addAction(UIAction { [weak self] _ in
             self?.onAction?(action)
         }, for: .touchUpInside)
-        button.widthAnchor.constraint(greaterThanOrEqualToConstant: 40).isActive = true
+        button.widthAnchor.constraint(greaterThanOrEqualToConstant: 44).isActive = true
         button.heightAnchor.constraint(equalToConstant: 44).isActive = true
         return button
     }
 
     override var intrinsicContentSize: CGSize {
-        CGSize(width: UIView.noIntrinsicMetric, height: 52)
+        CGSize(
+            width: UIView.noIntrinsicMetric,
+            height: Self.capsuleTopInset + Self.capsuleHeight + Self.capsuleBottomInset
+        )
     }
 
     /// Ordered accessibility labels of toolbar buttons (AppTests / TF210).
@@ -3218,5 +3302,23 @@ final class NoteEditorAccessoryBar: UIView {
         return bar.stack.arrangedSubviews.compactMap { view in
             (view as? UIButton)?.accessibilityLabel
         }
+    }
+
+    // MARK: - Test hooks
+
+    var testing_capsule: UIView { capsule }
+    var testing_shadowHost: UIView { shadowHost }
+    var testing_scrollView: UIScrollView { scroll }
+    var testing_capsuleHorizontalInset: CGFloat { Self.capsuleHorizontalInset }
+    var testing_capsuleCornerRadius: CGFloat { capsule.layer.cornerRadius }
+    var testing_capsuleClipsToBounds: Bool { capsule.clipsToBounds }
+    var testing_hostBackgroundIsClear: Bool {
+        backgroundColor == nil || backgroundColor == .clear || (backgroundColor?.cgColor.alpha ?? 1) < 0.01
+    }
+}
+
+extension NoteEditorAccessoryBar: UIScrollViewDelegate {
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        updateFadeMaskFrame()
     }
 }
