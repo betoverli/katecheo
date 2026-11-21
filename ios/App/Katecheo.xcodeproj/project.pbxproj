@@ -56,6 +56,8 @@
 		B8L10N052FED7965001685D0 /* AppLocale.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8L10N042FED7965001685D0 /* AppLocale.swift */; };
 		K9SITE12FED7965001685K9 /* AppSite.swift in Sources */ = {isa = PBXBuildFile; fileRef = K9SITE11FED7965001685K9 /* AppSite.swift */; };
 		B8L10N072FED7965001685D0 /* BibleBookCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8L10N062FED7965001685D0 /* BibleBookCatalog.swift */; };
+		BDLINK12FED7965001685BD /* BibleDeepLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDLINK11FED7965001685BD /* BibleDeepLink.swift */; };
+		BDLINK22FED7965001685BD /* BibleDeepLinkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDLINK21FED7965001685BD /* BibleDeepLinkTests.swift */; };
 		T2SPEAK12FED7965001685T2 /* SpeakerSectionEditing.swift in Sources */ = {isa = PBXBuildFile; fileRef = T2SPEAK11FED7965001685T2 /* SpeakerSectionEditing.swift */; };
 		T4HEAD12FED7965001685T4 /* SpeakerHeaderAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = T4HEAD11FED7965001685T4 /* SpeakerHeaderAttachment.swift */; };
 		T5SHEET12FED7965001685T5 /* KCSheetPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = T5SHEET11FED7965001685T5 /* KCSheetPresenter.swift */; };
@@ -137,6 +139,8 @@
 		B8L10N042FED7965001685D0 /* AppLocale.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLocale.swift; sourceTree = "<group>"; };
 		K9SITE11FED7965001685K9 /* AppSite.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSite.swift; sourceTree = "<group>"; };
 		B8L10N062FED7965001685D0 /* BibleBookCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleBookCatalog.swift; sourceTree = "<group>"; };
+		BDLINK11FED7965001685BD /* BibleDeepLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleDeepLink.swift; sourceTree = "<group>"; };
+		BDLINK21FED7965001685BD /* BibleDeepLinkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleDeepLinkTests.swift; sourceTree = "<group>"; };
 		T2SPEAK11FED7965001685T2 /* SpeakerSectionEditing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerSectionEditing.swift; sourceTree = "<group>"; };
 		T4HEAD11FED7965001685T4 /* SpeakerHeaderAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerHeaderAttachment.swift; sourceTree = "<group>"; };
 		T9APPAPP1FED7965001685T9 /* AppAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAppearance.swift; sourceTree = "<group>"; };
@@ -295,6 +299,7 @@
 				B8L10N042FED7965001685D0 /* AppLocale.swift */,
 				K9SITE11FED7965001685K9 /* AppSite.swift */,
 				B8L10N062FED7965001685D0 /* BibleBookCatalog.swift */,
+				BDLINK11FED7965001685BD /* BibleDeepLink.swift */,
 				B8L10N002FED7965001685D0 /* Localizable.xcstrings */,
 				B8L10N022FED7965001685D0 /* InfoPlist.xcstrings */,
 				KCBIB11FED7965001685V2 /* BibleBooksData.json */,
@@ -396,6 +401,7 @@
 				TBAUTH1FED7965001685TB /* AuthSignInScreenTests.swift */,
 				TBONB21FED7965001685TB /* OnboardingFlowTests.swift */,
 				TBSET11FED7965001685TB /* SettingsGuideTests.swift */,
+				BDLINK21FED7965001685BD /* BibleDeepLinkTests.swift */,
 				TBNOTE11FED7965001685TB /* NoteRowPreviewTests.swift */,
 				TBREL11FED7965001685TB /* AppLocaleRelativeDayTests.swift */,
 				TBTENT11FED7965001685TB /* NativeNoteEditorTitleEnterTests.swift */,
@@ -601,6 +607,7 @@
 				B8L10N052FED7965001685D0 /* AppLocale.swift in Sources */,
 				K9SITE12FED7965001685K9 /* AppSite.swift in Sources */,
 				B8L10N072FED7965001685D0 /* BibleBookCatalog.swift in Sources */,
+				BDLINK12FED7965001685BD /* BibleDeepLink.swift in Sources */,
 				F8B8E0122FED7965001685D0 /* KCComponents.swift in Sources */,
 				F8B8E0102FED7965001685D0 /* KCDesign.swift in Sources */,
 				F7A7E0102FED7965001685C0 /* NativeNoteEditorView.swift in Sources */,
@@ -691,6 +698,7 @@
 				TBAUTH2FED7965001685TB /* AuthSignInScreenTests.swift in Sources */,
 				TBONB22FED7965001685TB /* OnboardingFlowTests.swift in Sources */,
 				TBSET12FED7965001685TB /* SettingsGuideTests.swift in Sources */,
+				BDLINK22FED7965001685BD /* BibleDeepLinkTests.swift in Sources */,
 				TBNOTE12FED7965001685TB /* NoteRowPreviewTests.swift in Sources */,
 				TBREL12FED7965001685TB /* AppLocaleRelativeDayTests.swift in Sources */,
 				TBTENT12FED7965001685TB /* NativeNoteEditorTitleEnterTests.swift in Sources */,

@@ -465,35 +465,77 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
     }
 
     func nativeNoteEditor(_ editor: NativeNoteEditorView, openBibleRef ref: NoteDocumentCodec.BibleRefPayload) {
+        openBibleRef(ref)
+    }
+
+    /// Opens the user's Bible app from a note pill — local URL first, network only as fallback.
+    func openBibleRef(_ ref: NoteDocumentCodec.BibleRefPayload) {
+        let prefs = BibleDeepLink.loadLocalPrefs()
+        let passage = BibleDeepLink.Passage(
+            bookId: ref.bookId,
+            chapter: ref.chapter,
+            verseStart: ref.verseStart,
+            verseEnd: ref.verseEnd
+        )
+        if let url = BibleDeepLink.urlForOpening(
+            appId: prefs.appId,
+            passage: passage,
+            translationId: prefs.translationId,
+            preferNative: prefs.preferNative,
+            locale: prefs.locale
+        ) {
+            BibleDeepLink.open(url)
+            return
+        }
+
+        // Rare: unknown book / corrupt prefs — resolve via API with a short timeout + spinner.
+        let apiPassage = NativeAPIClient.PassageDTO(
+            bookId: ref.bookId,
+            chapter: ref.chapter,
+            verseStart: ref.verseStart,
+            verseEnd: ref.verseEnd
+        )
+        showBibleLinkSpinner(true)
         Task { @MainActor in
+            defer { showBibleLinkSpinner(false) }
             do {
-                let prefs = try? await NativeAPIClient.getPrefs()
-                let passage = NativeAPIClient.PassageDTO(
-                    bookId: ref.bookId,
-                    chapter: ref.chapter,
-                    verseStart: ref.verseStart,
-                    verseEnd: ref.verseEnd
-                )
-                let translationId = prefs.map {
-                    ProfileBibleCatalog.canonicalTranslationId($0.translationId, locale: $0.locale)
-                }
                 let link = try await NativeAPIClient.resolveBibleLink(
-                    passage: passage,
-                    appId: prefs?.appId,
-                    translationId: translationId,
-                    preferNative: prefs?.preferNative
+                    passage: apiPassage,
+                    appId: prefs.appId,
+                    translationId: prefs.translationId,
+                    preferNative: prefs.preferNative,
+                    timeout: 8
                 )
                 guard let url = URL(string: link.url) else {
                     presentBriefAlert(String(localized: "Link da Bíblia indisponível"))
                     return
                 }
-                await UIApplication.shared.open(url)
+                BibleDeepLink.open(url)
             } catch {
                 #if DEBUG
                 print("[NoteDetail] openBibleRef failed: \(error)")
                 #endif
                 presentBriefAlert(String(localized: "Não foi possível gerar o link agora. Tente de novo."))
             }
+        }
+    }
+
+    private var bibleLinkSpinnerItem: UIBarButtonItem?
+
+    private func showBibleLinkSpinner(_ visible: Bool) {
+        if visible {
+            guard bibleLinkSpinnerItem == nil else { return }
+            let spinner = UIActivityIndicatorView(style: .medium)
+            spinner.startAnimating()
+            spinner.accessibilityIdentifier = "bible-link-spinner"
+            let item = UIBarButtonItem(customView: spinner)
+            bibleLinkSpinnerItem = item
+            var items = navigationItem.rightBarButtonItems ?? []
+            items.insert(item, at: 0)
+            navigationItem.rightBarButtonItems = items
+        } else if let item = bibleLinkSpinnerItem {
+            bibleLinkSpinnerItem = nil
+            navigationItem.rightBarButtonItems = (navigationItem.rightBarButtonItems ?? []).filter { $0 !== item }
         }
     }
 

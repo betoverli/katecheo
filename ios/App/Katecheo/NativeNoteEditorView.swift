@@ -2837,6 +2837,49 @@ extension NativeNoteEditorView: UIGestureRecognizerDelegate {
     ) -> Bool {
         false
     }
+
+    /// Don't wait for the text view's double-tap (word select) — pill taps must fire immediately.
+    /// Returning false here prevents the default single-tap→wait-for-double-tap delay.
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldRequireFailureOf otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+        if gestureRecognizer === tapGesture,
+           let other = otherGestureRecognizer as? UITapGestureRecognizer,
+           other.numberOfTapsRequired >= 2
+        {
+            return false
+        }
+        return false
+    }
+
+    /// Let the text view's double-tap wait for our pill single-tap to fail (non-pill areas
+    /// fail immediately via `gestureRecognizerShouldBegin`), preserving selection / caret.
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+        if gestureRecognizer === tapGesture,
+           let other = otherGestureRecognizer as? UITapGestureRecognizer,
+           other.numberOfTapsRequired >= 2
+        {
+            return true
+        }
+        return false
+    }
+
+    /// Test seam for the double-tap failure relationship.
+    func testing_pillTapShouldRequireFailureOfDoubleTap() -> Bool {
+        let doubleTap = UITapGestureRecognizer()
+        doubleTap.numberOfTapsRequired = 2
+        return gestureRecognizer(tapGesture, shouldRequireFailureOf: doubleTap)
+    }
+
+    func testing_doubleTapShouldWaitForPillTap() -> Bool {
+        let doubleTap = UITapGestureRecognizer()
+        doubleTap.numberOfTapsRequired = 2
+        return gestureRecognizer(tapGesture, shouldBeRequiredToFailBy: doubleTap)
+    }
 }
 
 // MARK: - Codec helpers exposed for typing attributes

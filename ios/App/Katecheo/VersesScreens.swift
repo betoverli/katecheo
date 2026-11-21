@@ -272,6 +272,50 @@ final class VerseActionsViewController: UITableViewController {
     }
 
     private func resolveLink() async {
+        // Prefer the local deep-link builder (same as note pills) — no network on the hot path.
+        let localPrefs = prefs.map {
+            BibleDeepLink.ResolvedPrefs(
+                appId: $0.appId.isEmpty ? "youversion" : $0.appId,
+                translationId: ProfileBibleCatalog.canonicalTranslationId($0.translationId, locale: $0.locale),
+                preferNative: $0.preferNative,
+                locale: $0.locale
+            )
+        } ?? BibleDeepLink.loadLocalPrefs()
+        let localPassage = BibleDeepLink.Passage(
+            bookId: passage.bookId,
+            chapter: passage.chapter,
+            verseStart: passage.verseStart,
+            verseEnd: passage.verseEnd
+        )
+        if let url = BibleDeepLink.urlForOpening(
+            appId: localPrefs.appId,
+            passage: localPassage,
+            translationId: localPrefs.translationId,
+            preferNative: localPrefs.preferNative,
+            locale: localPrefs.locale
+        ) {
+            let plain = BibleBookCatalog.formatPassage(
+                bookId: passage.bookId,
+                chapter: passage.chapter,
+                verseStart: passage.verseStart,
+                verseEnd: passage.verseEnd
+            )
+            linkItem = NativeAPIClient.LinkItemDTO(
+                input: plain,
+                label: plain,
+                url: url.absoluteString,
+                markdown: nil,
+                html: nil,
+                plain: plain
+            )
+            await MainActor.run {
+                statusLabel.text = linkItem?.url ?? String(localized: "Link pronto")
+                statusLabel.textColor = .secondaryLabel
+                tableView.reloadData()
+            }
+            return
+        }
+
         do {
             if prefs == nil, NativeAPIClient.hasBearer {
                 prefs = try? await NativeAPIClient.getPrefs()
@@ -284,7 +328,8 @@ final class VerseActionsViewController: UITableViewController {
                 passage: passage,
                 appId: prefs?.appId,
                 translationId: translationId,
-                preferNative: prefs?.preferNative
+                preferNative: prefs?.preferNative,
+                timeout: 8
             )
             await MainActor.run {
                 statusLabel.text = linkItem?.url ?? String(localized: "Link pronto")
@@ -317,7 +362,9 @@ final class VerseActionsViewController: UITableViewController {
         switch row {
         case .openBible:
             config.text = String(localized: "Abrir na Bíblia")
-            config.secondaryText = ProfileBibleCatalog.name(for: prefs?.appId ?? "youversion")
+            config.secondaryText = ProfileBibleCatalog.name(
+                for: prefs?.appId ?? BibleDeepLink.loadLocalPrefs().appId
+            )
             symbol = "book.fill"
         case .share:
             config.text = String(localized: "Compartilhar")
@@ -353,12 +400,36 @@ final class VerseActionsViewController: UITableViewController {
 
     private func openBible() {
         Task { @MainActor in
+            let localPrefs = prefs.map {
+                BibleDeepLink.ResolvedPrefs(
+                    appId: $0.appId.isEmpty ? "youversion" : $0.appId,
+                    translationId: ProfileBibleCatalog.canonicalTranslationId($0.translationId, locale: $0.locale),
+                    preferNative: $0.preferNative,
+                    locale: $0.locale
+                )
+            } ?? BibleDeepLink.loadLocalPrefs()
+            let localPassage = BibleDeepLink.Passage(
+                bookId: passage.bookId,
+                chapter: passage.chapter,
+                verseStart: passage.verseStart,
+                verseEnd: passage.verseEnd
+            )
+            if let url = BibleDeepLink.urlForOpening(
+                appId: localPrefs.appId,
+                passage: localPassage,
+                translationId: localPrefs.translationId,
+                preferNative: localPrefs.preferNative,
+                locale: localPrefs.locale
+            ) {
+                BibleDeepLink.open(url)
+                return
+            }
             if linkItem == nil { await resolveLink() }
             guard let raw = linkItem?.url, let url = URL(string: raw) else {
                 presentAlert(title: String(localized: "Sem link"), message: String(localized: "Não foi possível montar o link da Bíblia."))
                 return
             }
-            await UIApplication.shared.open(url)
+            BibleDeepLink.open(url)
         }
     }
 
