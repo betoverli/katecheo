@@ -73,6 +73,7 @@ jobs:
             -derivedDataPath "${RUNNER_TEMP}/katecheo-ios" \
             -parallel-testing-enabled NO \
             -skip-testing:KatecheoUITests \
+            -skip-testing:KatecheoScreenshotTests \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \

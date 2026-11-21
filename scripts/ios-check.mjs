@@ -395,6 +395,65 @@ if (infoPlist.includes("UISceneStoryboardFile") || infoPlist.includes("<key>UIMa
 if (!project.includes("KatecheoUITests") || !project.includes("OnboardingGetStartedUITests.swift")) {
   errors.push("KatecheoUITests / OnboardingGetStartedUITests têm de estar no projeto Xcode.");
 }
+
+// App Store screenshot fixtures (launch-arg only; separate workflow).
+{
+  const mode = read("ios/App/Katecheo/KatecheoScreenshotMode.swift");
+  if (!mode.includes('-KatecheoScreenshotMode')) {
+    errors.push("KatecheoScreenshotMode tem de usar o launch argument -KatecheoScreenshotMode.");
+  }
+  if (!mode.includes("ProcessInfo.processInfo.arguments.contains")) {
+    errors.push("KatecheoScreenshotMode.isEnabled tem de depender só de ProcessInfo launch arguments.");
+  }
+  if (!project.includes("KatecheoScreenshotMode.swift in Sources")) {
+    errors.push("KatecheoScreenshotMode.swift tem de estar nos Sources do target Katecheo.");
+  }
+  if (!project.includes("KatecheoScreenshotTests") || !project.includes("KatecheoScreenshotTests.swift")) {
+    errors.push("KatecheoScreenshotTests tem de estar no projeto Xcode.");
+  }
+  if (!project.includes("KatecheoScreenshotModeTests.swift")) {
+    errors.push("KatecheoScreenshotModeTests.swift tem de estar no target KatecheoTests.");
+  }
+  let shotWorkflow;
+  try {
+    shotWorkflow = read(".github/workflows/ios-screenshots.yml");
+  } catch {
+    errors.push("Falta .github/workflows/ios-screenshots.yml");
+    shotWorkflow = "";
+  }
+  if (shotWorkflow) {
+    if (!/on:\s*\n\s*workflow_dispatch:/.test(shotWorkflow) && !shotWorkflow.includes("workflow_dispatch:")) {
+      errors.push("ios-screenshots.yml tem de ser workflow_dispatch.");
+    }
+    if (/^\s+push:/m.test(shotWorkflow)) {
+      errors.push("ios-screenshots.yml não pode correr em push.");
+    }
+    // pull_request is allowed so the workflow can execute from a feature-branch PR
+    // before it exists on the default branch; it must never archive/sign.
+    if (!shotWorkflow.includes("appstore-screenshots")) {
+      errors.push("ios-screenshots.yml tem de fazer upload do artifact appstore-screenshots.");
+    }
+    if (!shotWorkflow.includes("iPhone 16 Pro Max") || !shotWorkflow.includes("iPhone 16 Pro")) {
+      errors.push("ios-screenshots.yml tem de capturar iPhone 16 Pro Max e iPhone 16 Pro.");
+    }
+    if (!shotWorkflow.includes("pt-BR") || !shotWorkflow.includes("en") || !shotWorkflow.includes("es")) {
+      errors.push("ios-screenshots.yml tem de cobrir locales pt-BR, en e es.");
+    }
+    if (
+      shotWorkflow.includes("upload_testflight")
+      || shotWorkflow.includes("altool")
+      || shotWorkflow.includes("iTMSTransporter")
+      || shotWorkflow.includes("exportArchive")
+    ) {
+      errors.push("ios-screenshots.yml não pode arquivar nem enviar builds.");
+    }
+  }
+  const iosYml = read(".github/workflows/ios.yml");
+  if (!iosYml.includes("-skip-testing:KatecheoScreenshotTests")) {
+    errors.push("ios.yml tem de fazer -skip-testing:KatecheoScreenshotTests no job de testes unitários.");
+  }
+}
+
 if (!onboardingVC.includes("accessibilityLabel") || !onboardingVC.includes("accessibilityHint")) {
   errors.push("Onboarding tem de ter labels VoiceOver.");
 }

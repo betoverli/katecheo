@@ -214,7 +214,9 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
                 if me == nil, let cached = LocalSessionCache.loadMe() {
                     me = cached
                 }
-                LocalSessionCache.showOfflineHint = true
+                if !KatecheoScreenshotMode.isEnabled {
+                    LocalSessionCache.showOfflineHint = true
+                }
                 loadError = me == nil ? error.localizedDescription : nil
             }
             updateHeader()
@@ -277,13 +279,21 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
         return section == 0 ? .preferences : .account
     }
 
+    /// Hide onboarding replay / guest intro chrome in App Store screenshot mode.
+    private var preferenceRows: [PrefRow] {
+        if KatecheoScreenshotMode.isEnabled {
+            return PrefRow.allCases.filter { $0 != .viewIntro }
+        }
+        return Array(PrefRow.allCases)
+    }
+
     func numberOfSections(in tableView: UITableView) -> Int {
         signedIn ? 2 : 1
     }
 
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         switch sectionKind(at: section) {
-        case .preferences: return PrefRow.allCases.count
+        case .preferences: return preferenceRows.count
         case .account: return AccountRow.allCases.count
         case .guest: return GuestRow.allCases.count
         }
@@ -330,7 +340,8 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
                 config.image = UIImage(systemName: "sparkles")
             }
         case .preferences:
-            guard let row = PrefRow(rawValue: indexPath.row) else { break }
+            guard indexPath.row < preferenceRows.count else { break }
+            let row = preferenceRows[indexPath.row]
             switch row {
             case .edit:
                 config.text = String(localized: "Editar perfil")
@@ -405,7 +416,8 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
         cell.accessoryView = nil
         cell.kcApplyThemedGroupedCell()
         if case .preferences = sectionKind(at: indexPath.section),
-           PrefRow(rawValue: indexPath.row) == .friends,
+           indexPath.row < preferenceRows.count,
+           preferenceRows[indexPath.row] == .friends,
            KCActivityStore.friendsEntryDot
         {
             cell.accessibilityValue = String(localized: "Não lido")
@@ -424,7 +436,8 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
             case .viewIntro: presentOnboardingReplay()
             }
         case .preferences:
-            guard let row = PrefRow(rawValue: indexPath.row) else { return }
+            guard indexPath.row < preferenceRows.count else { return }
+            let row = preferenceRows[indexPath.row]
             if row == .viewIntro {
                 presentOnboardingReplay()
                 return

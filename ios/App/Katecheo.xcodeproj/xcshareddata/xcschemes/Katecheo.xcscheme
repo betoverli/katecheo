@@ -50,6 +50,17 @@
                ReferencedContainer = "container:Katecheo.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "KCSS1B2FED7965001685SC"
+               BuildableName = "KatecheoScreenshotTests.xctest"
+               BlueprintName = "KatecheoScreenshotTests"
+               ReferencedContainer = "container:Katecheo.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction
