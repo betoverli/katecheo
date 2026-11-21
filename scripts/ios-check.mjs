@@ -600,8 +600,23 @@ try {
   if (!noteRow.includes("tagsRow") || noteRow.includes("metaRow")) {
     errors.push("KCNoteRowCell: speakerPill fica na tagsRow com #tags; preview (subtitle) full-width alinhado ao título.");
   }
-  if (!noteRow.includes("KCPaddedChipLabel") && !noteRowSource.includes("KCPaddedChipLabel")) {
-    errors.push("KCNoteRowCell speakerPill tem de usar chip com insets reais (não espaços + clipsToBounds vazio).");
+  if (noteRowSource.includes("KCPaddedChipLabel") || noteRow.includes("KCPaddedChipLabel")) {
+    errors.push("KCNoteRowCell não pode usar KCPaddedChipLabel (drawText/textRect + pill radius pintavam vazio).");
+  }
+  if (
+    !noteRowSource.includes("KCSpeakerChipView") ||
+    !noteRowSource.includes("layer.backgroundColor") ||
+    !noteRowSource.includes("bounds.height / 2") ||
+    !noteRow.includes("applyColors")
+  ) {
+    errors.push("KCNoteRowCell speakerPill tem de ser UIView+UILabel (layer.backgroundColor, cornerRadius=height/2, applyColors).");
+  }
+  if (!noteRow.includes("speakerPill.isHidden = false") || noteRow.indexOf("speakerPill.isHidden = false") > noteRow.indexOf("insertArrangedSubview(speakerPill")) {
+    errors.push("KCNoteRowCell tem de unhide speakerPill antes de insertArrangedSubview (evitar gap).");
+  }
+  const noteRowTests = read("ios/App/KatecheoTests/NoteRowPreviewTests.swift");
+  if (!noteRowTests.includes("testNoteRow_speakerChipPaintsNameAndFill_inLightAndDark")) {
+    errors.push("NoteRowPreviewTests tem de assertir paint do speaker chip em light/dark.");
   }
 } catch {
   errors.push("Falta KCComponents.swift");
