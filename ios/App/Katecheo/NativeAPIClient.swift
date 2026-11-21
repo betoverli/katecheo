@@ -2073,7 +2073,13 @@ enum NativeAPIClient {
         return (apps, decoded.translations ?? [])
     }
 
-    static func resolveBibleLink(passage: PassageDTO, appId: String? = nil, translationId: String? = nil, preferNative: Bool? = nil) async throws -> LinkItemDTO {
+    static func resolveBibleLink(
+        passage: PassageDTO,
+        appId: String? = nil,
+        translationId: String? = nil,
+        preferNative: Bool? = nil,
+        timeout: TimeInterval = 60
+    ) async throws -> LinkItemDTO {
         var payload: [String: Any] = [
             "ref": passage.labelHint.replacingOccurrences(of: "–", with: "-"),
             "locale": AppLocale.apiCode,
@@ -2085,7 +2091,8 @@ enum NativeAPIClient {
         // Use POST with bookId-style ref string João… Prefer building from ids:
         payload["refs"] = [formatRefForLink(passage)]
         let body = try JSONSerialization.data(withJSONObject: payload)
-        let request = try publicRequest(path: "api/native/v1/bible/link", method: "POST", body: body)
+        var request = try publicRequest(path: "api/native/v1/bible/link", method: "POST", body: body)
+        request.timeoutInterval = timeout
         let (status, data) = try await perform(request)
         guard status >= 200, status < 300 else {
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")

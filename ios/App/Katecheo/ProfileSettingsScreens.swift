@@ -51,6 +51,21 @@ enum ProfileBibleCatalog {
         "149": "ntv",
     ]
 
+    /// Invert of `youVersionToId` — slug → bible.com / YouVersion numeric id.
+    private static let idToYouVersion: [String: Int] = {
+        var map: [String: Int] = [:]
+        for (num, slug) in youVersionToId {
+            if let value = Int(num) { map[slug] = value }
+        }
+        return map
+    }()
+
+    /// YouVersion / bible.com translation number for a canonical slug (e.g. `nvi-pt` → 129).
+    static func youVersionNumericId(for translationId: String, locale: String = AppLocale.apiCode) -> Int? {
+        let canonical = canonicalTranslationId(translationId, locale: locale)
+        return idToYouVersion[canonical]
+    }
+
     static func name(for appId: String) -> String {
         apps.first(where: { $0.id == appId })?.name ?? appId
     }
