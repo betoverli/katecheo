@@ -6,7 +6,7 @@ import XCTest
 final class NativeNoteEditorAccessoryBarTests: XCTestCase {
     private var editor: NativeNoteEditorView!
     private let speakers: [NativeAPIClient.SpeakerDTO] = [
-        .init(id: "s1", name: "Ana", color: "#5B8DEF", createdAt: "2024-01-01T00:00:00.000Z"),
+        .init(id: "s1", name: "Ana", color: "#5B8DEF", updatedAt: "2024-01-01T00:00:00.000Z"),
     ]
 
     override func setUp() {
