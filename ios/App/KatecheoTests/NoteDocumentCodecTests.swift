@@ -175,7 +175,7 @@ final class NoteDocumentCodecTests: XCTestCase {
         XCTAssertEqual(again.body.blocks.first?.spans?.first?.text, "Corpo")
     }
 
-    func testQuoteStyle_italicBackgroundAndRoundTrip() {
+    func testQuoteStyle_italicChromeOnlyAndRoundTrip() {
         var note = NativeAPIClient.emptyNote()
         note.title = "Citação"
         note.body.blocks = [
@@ -199,13 +199,20 @@ final class NoteDocumentCodecTests: XCTestCase {
         )
         let font = attrs[.font] as! UIFont
         XCTAssertTrue(font.fontDescriptor.symbolicTraits.contains(.traitItalic))
-        XCTAssertEqual(attrs[.backgroundColor] as? UIColor, NoteDocumentCodec.quoteBackgroundColor)
+        XCTAssertNil(
+            attrs[.backgroundColor],
+            "codec must not stamp text-run backgroundColor; chrome fill is layout-manager only"
+        )
 
         let attributed = NoteDocumentCodec.attributedString(from: note)
         let roundTrip = NoteDocumentCodec.document(from: attributed, base: note)
         XCTAssertEqual(roundTrip.body.blocks.first?.type, "quote")
         XCTAssertEqual(roundTrip.body.blocks.first?.spans?.first?.text, "Texto citado")
         XCTAssertEqual(NoteDocumentCodec.quoteBlockSpecs(in: attributed).count, 1)
+        let ns = attributed.string as NSString
+        let quoteRange = ns.range(of: "Texto citado")
+        XCTAssertNotEqual(quoteRange.location, NSNotFound)
+        XCTAssertNil(attributed.attribute(.backgroundColor, at: quoteRange.location, effectiveRange: nil))
     }
 
     func testSpeakerBodyKeyMarksSectionChildrenOnly() {

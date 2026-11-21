@@ -1,7 +1,7 @@
 import XCTest
 @testable import Katecheo
 
-/// Header hairline divider + quote block chrome (italic, dynamic fill, codec round-trip).
+/// Header divider + quote block chrome (italic, single rounded fill, codec round-trip).
 @MainActor
 final class NativeNoteEditorHeaderQuoteTests: XCTestCase {
     private var editor: NativeNoteEditorView!
@@ -49,7 +49,25 @@ final class NativeNoteEditorHeaderQuoteTests: XCTestCase {
 
         XCTAssertEqual(divider.minX, leading, accuracy: 0.5)
         XCTAssertEqual(divider.width, tags.width, accuracy: 0.5)
-        XCTAssertEqual(divider.height, 1 / UIScreen.main.scale, accuracy: 0.02)
+        let expectedHeight: CGFloat = editor.effectiveEditorInterfaceStyle() == .dark
+            ? 1
+            : 1 / max(UIScreen.main.scale, 1)
+        XCTAssertEqual(divider.height, expectedHeight, accuracy: 0.02)
+        // Color token: dark is stronger than generic separator; light matches separator.
+        let style = editor.effectiveEditorInterfaceStyle()
+        let traits = UITraitCollection(userInterfaceStyle: style == .dark ? .dark : .light)
+        let resolvedDivider = KCDesign.headerDivider.resolvedColor(with: traits)
+        let resolvedSeparator = KCDesign.separator.resolvedColor(with: traits)
+        var dr: CGFloat = 0, dg: CGFloat = 0, db: CGFloat = 0, da: CGFloat = 0
+        var sr: CGFloat = 0, sg: CGFloat = 0, sb: CGFloat = 0, sa: CGFloat = 0
+        XCTAssertTrue(resolvedDivider.getWhite(&dr, alpha: &da) || resolvedDivider.getRed(&dr, green: &dg, blue: &db, alpha: &da))
+        XCTAssertTrue(resolvedSeparator.getWhite(&sr, alpha: &sa) || resolvedSeparator.getRed(&sr, green: &sg, blue: &sb, alpha: &sa))
+        if style == .dark {
+            XCTAssertEqual(da, 0.22, accuracy: 0.02)
+            XCTAssertGreaterThan(da, sa)
+        } else {
+            XCTAssertEqual(da, sa, accuracy: 0.02)
+        }
         XCTAssertGreaterThan(divider.minY, tags.maxY - 0.5, "divider below tags row")
         XCTAssertLessThan(divider.maxY, body.minY + 0.5, "divider above body caret/placeholder")
         // Balanced breathing room above/below inside the 48pt title band.
@@ -78,7 +96,7 @@ final class NativeNoteEditorHeaderQuoteTests: XCTestCase {
 
     // MARK: - Quote style
 
-    func testQuoteAttributes_areItalicWithBlockBackground() {
+    func testQuoteAttributes_areItalicWithoutTextBackground() {
         let attrs = NoteDocumentCodec.baseAttributesPublic(
             type: "quote",
             id: "q1",
@@ -92,9 +110,10 @@ final class NativeNoteEditorHeaderQuoteTests: XCTestCase {
             font!.fontDescriptor.symbolicTraits.contains(.traitItalic),
             "quote text must be italic"
         )
-        let bg = attrs[.backgroundColor] as? UIColor
-        XCTAssertNotNil(bg, "quote must carry a block background fill")
-        XCTAssertEqual(bg, NoteDocumentCodec.quoteBackgroundColor)
+        XCTAssertNil(
+            attrs[.backgroundColor],
+            "quote must NOT set text-run backgroundColor — fill is layout-manager chrome only"
+        )
 
         let style = attrs[.paragraphStyle] as? NSParagraphStyle
         XCTAssertNotNil(style)
@@ -116,7 +135,10 @@ final class NativeNoteEditorHeaderQuoteTests: XCTestCase {
         let attrs = editor.testing_textStorage().attributes(at: loc, effectiveRange: nil)
         let font = attrs[.font] as? UIFont
         XCTAssertTrue(font?.fontDescriptor.symbolicTraits.contains(.traitItalic) == true)
-        XCTAssertEqual(attrs[.backgroundColor] as? UIColor, NoteDocumentCodec.quoteBackgroundColor)
+        XCTAssertNil(
+            attrs[.backgroundColor],
+            "editor quote text must not carry a second highlight behind the rounded block"
+        )
 
         let blocks = editor.testing_quoteBlockRanges()
         XCTAssertFalse(blocks.isEmpty, "layout manager must track quote chrome ranges")
@@ -181,14 +203,17 @@ final class NativeNoteEditorHeaderQuoteTests: XCTestCase {
         XCTAssertEqual(roundTrip.body.blocks[1].type, "quote")
         XCTAssertEqual(roundTrip.body.blocks[1].spans?.first?.text, "porque eles herdarão a terra")
 
-        // Loaded attrs keep italic + dynamic background (trait-adaptive).
+        // Loaded attrs keep italic + padding; fill is chrome-only (no text-run bg).
         let ns = attributed.string as NSString
         let quoteRange = ns.range(of: "Bem-aventurados")
         XCTAssertNotEqual(quoteRange.location, NSNotFound)
         let attrs = attributed.attributes(at: quoteRange.location, effectiveRange: nil)
         let font = attrs[.font] as? UIFont
         XCTAssertTrue(font?.fontDescriptor.symbolicTraits.contains(.traitItalic) == true)
-        XCTAssertEqual(attrs[.backgroundColor] as? UIColor, NoteDocumentCodec.quoteBackgroundColor)
+        XCTAssertNil(attrs[.backgroundColor])
+        let style = attrs[.paragraphStyle] as? NSParagraphStyle
+        XCTAssertNotNil(style)
+        XCTAssertEqual(style!.firstLineHeadIndent, NoteDocumentCodec.quoteContentInset, accuracy: 0.5)
     }
 
     func testQuoteBackground_resolvesForLightAndDark() {
@@ -206,5 +231,55 @@ final class NativeNoteEditorHeaderQuoteTests: XCTestCase {
         XCTAssertFalse(
             abs(lr - dr) < 0.001 && abs(lg - dg) < 0.001 && abs(lb - db) < 0.001 && abs(la - da) < 0.001
         )
+    }
+
+    func testQuote_stripsTextBackgroundOnTraitRefresh() {
+        var note = blankNote(title: "Culto")
+        note.body.blocks = [
+            NativeAPIClient.LineBlock(
+                id: "q1",
+                type: "quote",
+                spans: [
+                    .init(
+                        type: "text",
+                        text: "citação",
+                        marks: nil,
+                        bookId: nil,
+                        chapter: nil,
+                        verseStart: nil,
+                        verseEnd: nil,
+                        href: nil
+                    ),
+                ],
+                speakerId: nil,
+                title: nil,
+                collapsed: nil,
+                checked: nil,
+                blocks: nil
+            ),
+        ]
+        editor.pushNote(note, speakers: [])
+        editor.layoutIfNeeded()
+
+        let storage = editor.testing_textStorage()
+        let ns = storage.string as NSString
+        let range = ns.range(of: "citação")
+        XCTAssertNotEqual(range.location, NSNotFound)
+        // Simulate a legacy bake that stamped a text-run highlight inside the block.
+        storage.addAttribute(.backgroundColor, value: NoteDocumentCodec.quoteBackgroundColor, range: range)
+        XCTAssertNotNil(storage.attribute(.backgroundColor, at: range.location, effectiveRange: nil))
+
+        editor.overrideUserInterfaceStyle = .dark
+        editor.testing_refreshAppearanceForCurrentTraits()
+        XCTAssertNil(
+            storage.attribute(.backgroundColor, at: range.location, effectiveRange: nil),
+            "trait refresh must strip quote text-run background so only the rounded chrome remains"
+        )
+        XCTAssertEqual(editor.testing_quoteBlockRanges().count, 1)
+
+        editor.overrideUserInterfaceStyle = .light
+        editor.testing_refreshAppearanceForCurrentTraits()
+        XCTAssertNil(storage.attribute(.backgroundColor, at: range.location, effectiveRange: nil))
+        XCTAssertEqual(editor.testing_quoteBlockRanges().count, 1)
     }
 }
