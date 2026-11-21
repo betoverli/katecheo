@@ -643,9 +643,9 @@ enum NativeAPIClient {
             ttl: NativeSWR.TTL.lists,
             force: force,
             loadDisk: { LocalNoteCache.loadNotes() },
-            saveDisk: { serverNotes in
-                _ = LocalNoteCache.mergeServerNotes(serverNotes)
-            },
+            // Merge happens once on the raw server payload inside `listNotesUncached`.
+            // Do not re-merge here — a second pass would see already-local rows and skip backups.
+            saveDisk: nil,
             network: { try await listNotesUncached() }
         )
     }
@@ -660,6 +660,7 @@ enum NativeAPIClient {
         guard let decoded = try? JSONDecoder().decode(NotesResponse.self, from: data),
               let notes = decoded.notes
         else { throw APIError.decoding }
+        // Single merge on the raw server payload (stores serverBackup for dirty locals).
         return LocalNoteCache.mergeServerNotes(notes)
     }
 
@@ -679,9 +680,9 @@ enum NativeAPIClient {
                 guard let note = LocalNoteCache.note(id: id) else { return nil }
                 return NotePack(note: note, speakers: LocalNoteCache.loadSpeakers(), via: "owned")
             },
+            // Merge of the raw server note happens once inside `getNoteUncached`.
             saveDisk: { pack in
                 if pack.via != "grant" {
-                    _ = LocalNoteCache.mergeServerNote(pack.note)
                     _ = LocalNoteCache.mergeSpeakers(pack.speakers)
                 }
             },
@@ -706,6 +707,7 @@ enum NativeAPIClient {
         let noteSpeakers = decoded.speakers ?? []
         // Grants must not pollute the owned Caderno cache.
         if via != "grant" {
+            // Single merge on the raw server note (stores serverBackup when local is dirty).
             let merged = LocalNoteCache.mergeServerNote(note)
             _ = LocalNoteCache.mergeSpeakers(noteSpeakers)
             return NotePack(note: merged, speakers: noteSpeakers, via: via)
@@ -986,9 +988,15 @@ enum NativeAPIClient {
         var payload = note
         payload.schemaVersion = 1
         if payload.updatedAt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            payload.updatedAt = ISO8601DateFormatter().string(from: Date())
+            payload.updatedAt = LocalNoteCache.editTimestamp()
         }
         let sentUpdatedAt = payload.updatedAt
+        // Only treat the current meta revision as "synced" when this payload is that edit.
+        // Outbox may flush an older coalesced payload while a newer local edit already landed.
+        let sentRevision: Int? = {
+            guard let meta = LocalNoteCache.syncMeta(for: payload.id) else { return nil }
+            return meta.localUpdatedAt == payload.updatedAt ? meta.localRevision : nil
+        }()
         let groupId = publishToGroupId?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let body: Data
@@ -1012,13 +1020,25 @@ enum NativeAPIClient {
               let saved = decoded.note
         else { throw APIError.decoding }
         // Only adopt the server copy when no newer local edit landed during the round-trip.
-        if !LocalNoteCache.isDirtyOrPending(saved.id)
-            || (LocalNoteCache.syncMeta(for: saved.id)?.localUpdatedAt ?? "") <= sentUpdatedAt
-        {
+        let metaNow = LocalNoteCache.syncMeta(for: saved.id)
+        let hasNewerLocal: Bool = {
+            if let sentRevision, let metaNow {
+                return metaNow.localRevision > sentRevision
+            }
+            if let localAt = metaNow?.localUpdatedAt {
+                return LocalNoteCache.isUpdatedAt(localAt, newerThan: sentUpdatedAt)
+            }
+            return false
+        }()
+        if !hasNewerLocal {
             LocalNoteCache.upsertNote(saved)
             NativeSWR.applyLocalNote(saved)
         }
-        LocalNoteCache.clearDirtyIfNotNewer(id: saved.id, syncedUpdatedAt: sentUpdatedAt)
+        LocalNoteCache.clearDirtyIfNotNewer(
+            id: saved.id,
+            syncedUpdatedAt: sentUpdatedAt,
+            syncedRevision: sentRevision
+        )
         NativeSWR.invalidate(.notes)
         NativeSWR.markFetched(.note(saved.id), value: NotePack(
             note: LocalNoteCache.note(id: saved.id) ?? saved,

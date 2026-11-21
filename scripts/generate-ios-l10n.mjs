@@ -533,6 +533,10 @@ const MANUAL = {
   // Format / interpolated templates (catalog keys use %@)
   "Sem rede. %@": ["No network. %@", "Sin red. %@"],
   "Sem rede — mostrando cache%@.": ["No network — showing cache%@.", "Sin red — mostrando caché%@."],
+  "Sem rede — mostrando cache · %lld pendente(s).": [
+    "No network — showing cache · %lld pending.",
+    "Sin red — mostrando caché · %lld pendiente(s).",
+  ],
   " · %lld pendente(s)": [" · %lld pending", " · %lld pendiente(s)"],
   "%lld grupos · sincronizado": ["%lld groups · synced", "%lld grupos · sincronizado"],
   "%lld notas · sincronizado": ["%lld notes · synced", "%lld notas · sincronizado"],

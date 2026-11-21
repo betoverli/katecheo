@@ -170,7 +170,7 @@ enum NativeSWR {
             }
             list.sort { lhs, rhs in
                 if lhs.happenedAt != rhs.happenedAt { return lhs.happenedAt > rhs.happenedAt }
-                return lhs.updatedAt > rhs.updatedAt
+                return LocalNoteCache.isUpdatedAt(lhs.updatedAt, newerThan: rhs.updatedAt)
             }
             memory[Key.notes.description] = list
             if fetchedAt[Key.notes.description] == nil {

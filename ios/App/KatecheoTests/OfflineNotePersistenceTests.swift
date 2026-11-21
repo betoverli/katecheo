@@ -12,6 +12,7 @@ final class OfflineNotePersistenceTests: XCTestCase {
         NativeAPIClient.session = MockNativeURLProtocol.makeSession()
         NativeAPIClient.testAuthToken = "test-bearer-offline-notes"
         XCTAssertTrue(NativeAPIClient.hasBearer)
+        XCTAssertTrue(NativeAPIClient.hasBearer, "outbox flush requires bearer")
     }
 
     override func tearDown() {
@@ -28,7 +29,7 @@ final class OfflineNotePersistenceTests: XCTestCase {
         bodyText: String,
         updatedAt: String
     ) -> String {
-        // Build with ordinary interpolation — ## raw strings need \#\#() and are easy to get wrong.
+        // Ordinary interpolation — ## raw strings need \#\#() and are easy to get wrong.
         """
         {"schemaVersion":1,"id":"\(id)","title":"\(title)","happenedAt":"2026-01-01","tags":[],"visibility":"private","updatedAt":"\(updatedAt)","body":{"blocks":[{"id":"b1","type":"paragraph","spans":[{"type":"text","text":"\(bodyText)"}]}]}}
         """
@@ -104,7 +105,6 @@ final class OfflineNotePersistenceTests: XCTestCase {
 
         // Expire SWR freshness while keeping disk dirty.
         NativeSWR.invalidate(.notes, .note("n1"))
-        // Re-apply local so memory matches disk after invalidate.
         NativeSWR.applyLocalNote(edited)
 
         MockNativeURLProtocol.forceTransportError = true
@@ -126,8 +126,6 @@ final class OfflineNotePersistenceTests: XCTestCase {
         NativeOutbox.enqueueNoteUpsert(edited)
         LocalNoteCache.markPendingSync(id: "n1")
 
-        // Simulate opening from a stale list row then leaving without typing:
-        // preferredNote must revive the disk copy; content-equal close must not rewrite outbox.
         let staleListRow = NativeAPIClient.emptyNote(id: "n1")
         let opened = LocalNoteCache.preferredNote(over: staleListRow)
         XCTAssertEqual(opened.title, "Do not clobber")
@@ -136,7 +134,6 @@ final class OfflineNotePersistenceTests: XCTestCase {
         XCTAssertEqual(beforeJobs.count, 1)
         let beforePayload = try JSONDecoder().decode(NativeAPIClient.NoteDocument.self, from: beforeJobs[0].payload)
 
-        // No recordLocalEdit / enqueue — mirrors viewWillDisappear when contentDiffers is false.
         let afterJobs = NativeOutbox.load()
         XCTAssertEqual(afterJobs.count, 1)
         let afterPayload = try JSONDecoder().decode(NativeAPIClient.NoteDocument.self, from: afterJobs[0].payload)
@@ -161,7 +158,11 @@ final class OfflineNotePersistenceTests: XCTestCase {
         XCTAssertEqual(listed.first?.title, "Local pending")
         XCTAssertEqual(LocalNoteCache.note(id: "n1")?.body.blocks.first?.spans?.first?.text, "local body")
         XCTAssertTrue(LocalNoteCache.isDirtyOrPending("n1"))
-        XCTAssertEqual(LocalNoteCache.syncMeta(for: "n1")?.serverBackup?.title, "Server newer")
+        XCTAssertEqual(
+            LocalNoteCache.syncMeta(for: "n1")?.serverBackup?.title,
+            "Server newer",
+            "raw server copy must be stored as backup on the single merge pass"
+        )
 
         let packed = try await NativeAPIClient.getNote(id: "n1", force: true)
         XCTAssertEqual(packed.note.title, "Local pending")
@@ -177,8 +178,9 @@ final class OfflineNotePersistenceTests: XCTestCase {
         NativeOutbox.enqueueNoteUpsert(edited)
         LocalNoteCache.markPendingSync(id: "n1")
         XCTAssertTrue(LocalNoteCache.isDirtyOrPending("n1"))
+        XCTAssertEqual(NativeOutbox.pendingCount, 1)
 
-        // Server ack echoes the edited payload (including edit-time updatedAt).
+        // Server ack echoes the edited payload (including edit-time updatedAt with fractional seconds).
         let ackNote = noteJSON(
             title: "Synced",
             bodyText: "new body",
@@ -186,9 +188,12 @@ final class OfflineNotePersistenceTests: XCTestCase {
         )
         MockNativeURLProtocol.upsertNoteJSON = "{\"ok\":true,\"note\":\(ackNote),\"speakers\":[],\"via\":\"owned\"}"
         MockNativeURLProtocol.forceTransportError = false
+        // Ensure the outbox session is the mock (same as NativeAPIClient.session).
+        NativeAPIClient.session = MockNativeURLProtocol.makeSession()
 
         let completed = await NativeOutbox.flushIfPossible()
-        XCTAssertEqual(completed, 1)
+        XCTAssertFalse(MockNativeURLProtocol.requestBodies().isEmpty, "outbox upsert must hit the mock POST /notes")
+        XCTAssertEqual(completed, 1, "flush should complete the noteUpsert job")
         XCTAssertEqual(NativeOutbox.pendingCount, 0)
         XCTAssertFalse(LocalNoteCache.isDirtyOrPending("n1"))
         XCTAssertEqual(LocalNoteCache.note(id: "n1")?.title, "Synced")
@@ -206,22 +211,25 @@ final class OfflineNotePersistenceTests: XCTestCase {
 
         let t0 = Date(timeIntervalSince1970: 1_700_000_000)
         let first = editLocally(title: "First", bodyText: "v1", editedAt: t0)
+        let firstRevision = try XCTUnwrap(LocalNoteCache.syncMeta(for: "n1")?.localRevision)
         NativeOutbox.enqueueNoteUpsert(first)
 
-        // Ack for the first edit.
-        let ackNote = noteJSON(title: "First", bodyText: "v1", updatedAt: first.updatedAt)
-        MockNativeURLProtocol.upsertNoteJSON = "{\"ok\":true,\"note\":\(ackNote),\"speakers\":[],\"via\":\"owned\"}"
-
-        // A newer local edit lands before flush completes clearing meta.
+        // Same wall-clock second would collide without fractional seconds / revision.
         let second = editLocally(
             title: "Second",
             bodyText: "v2",
-            editedAt: t0.addingTimeInterval(0.25)
+            editedAt: t0.addingTimeInterval(0.001)
         )
-        XCTAssertTrue(second.updatedAt > first.updatedAt)
+        let secondRevision = try XCTUnwrap(LocalNoteCache.syncMeta(for: "n1")?.localRevision)
+        XCTAssertGreaterThan(secondRevision, firstRevision)
+        XCTAssertTrue(LocalNoteCache.isUpdatedAt(second.updatedAt, newerThan: first.updatedAt))
 
-        // Upsert path clears only when syncedUpdatedAt >= localUpdatedAt.
-        LocalNoteCache.clearDirtyIfNotNewer(id: "n1", syncedUpdatedAt: first.updatedAt)
+        // Upsert path clears only when the synced revision covers the latest local edit.
+        LocalNoteCache.clearDirtyIfNotNewer(
+            id: "n1",
+            syncedUpdatedAt: first.updatedAt,
+            syncedRevision: firstRevision
+        )
         XCTAssertTrue(LocalNoteCache.isDirtyOrPending("n1"))
         XCTAssertEqual(LocalNoteCache.note(id: "n1")?.title, "Second")
     }
@@ -232,9 +240,18 @@ final class OfflineNotePersistenceTests: XCTestCase {
         let edited = editLocally(title: "Stamp", bodyText: "x")
         let metaAt = LocalNoteCache.syncMeta(for: "n1")?.localUpdatedAt
         XCTAssertEqual(edited.updatedAt, metaAt)
+        XCTAssertNotNil(LocalNoteCache.parseUpdatedAt(edited.updatedAt), "fractional ISO8601 must parse")
         NativeOutbox.enqueueNoteUpsert(edited)
         let job = try XCTUnwrap(NativeOutbox.load().first)
         let payload = try JSONDecoder().decode(NativeAPIClient.NoteDocument.self, from: job.payload)
         XCTAssertEqual(payload.updatedAt, edited.updatedAt)
+    }
+
+    func testParseUpdatedAt_acceptsFractionalAndBasic() {
+        XCTAssertNotNil(LocalNoteCache.parseUpdatedAt("2026-01-01T00:00:00.123Z"))
+        XCTAssertNotNil(LocalNoteCache.parseUpdatedAt("2026-01-01T00:00:00Z"))
+        XCTAssertTrue(
+            LocalNoteCache.isUpdatedAt("2026-01-01T00:00:00.200Z", newerThan: "2026-01-01T00:00:00.100Z")
+        )
     }
 }

@@ -616,10 +616,12 @@ try {
     !cache.includes("mergeServerNotes") ||
     !cache.includes("pendingSync") ||
     !cache.includes("localUpdatedAt") ||
-    !cache.includes("notes-meta-v1.json")
+    !cache.includes("localRevision") ||
+    !cache.includes("notes-meta-v1.json") ||
+    !cache.includes("parseUpdatedAt")
   ) {
     errors.push(
-      "LocalNoteCache tem de ter dirty/pendingSync + localUpdatedAt (notes-meta-v1) e mergeServerNotes/recordLocalEdit (offline edits).",
+      "LocalNoteCache tem de ter dirty/pendingSync + localUpdatedAt/localRevision (notes-meta-v1), parseUpdatedAt e mergeServerNotes/recordLocalEdit (offline edits).",
     );
   }
 } catch {

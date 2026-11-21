@@ -16009,6 +16009,30 @@
         }
       }
     },
+    "Sem rede — mostrando cache · %lld pendente(s).": {
+      "comment": "Caderno offline banner when NativeOutbox has pending jobs. %lld = pending count.",
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sem rede — mostrando cache · %lld pendente(s)."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No network — showing cache · %lld pending."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sin red — mostrando caché · %lld pendiente(s)."
+          }
+        }
+      }
+    },
     "Status da sincronização": {
       "extractionState": "manual",
       "localizations": {

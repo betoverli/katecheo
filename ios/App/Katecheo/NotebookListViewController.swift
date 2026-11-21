@@ -291,15 +291,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 grantedNotes = (try? await remoteGranted) ?? []
                 let offline = NativeSWR.consumeOfflineFallback(.notes)
                 if offline {
-                    let pending = NativeOutbox.pendingCount
-                    if pending > 0 {
-                        setBannerStatus(
-                            String(localized: "Sem rede — mostrando cache · \(pending) pendente(s)."),
-                            kind: .warning
-                        )
-                    } else {
-                        setBannerStatus(String(localized: "Sem rede — mostrando cache."), kind: .warning)
-                    }
+                    setBannerStatus(Self.offlineCacheBanner(pending: NativeOutbox.pendingCount), kind: .warning)
                 } else {
                     setBannerStatus(nil)
                 }
@@ -321,15 +313,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             } catch {
                 if group == nil {
                     notes = LocalNoteCache.loadNotes()
-                    let pending = NativeOutbox.pendingCount
-                    if pending > 0 {
-                        setBannerStatus(
-                            String(localized: "Sem rede — mostrando cache · \(pending) pendente(s)."),
-                            kind: .warning
-                        )
-                    } else {
-                        setBannerStatus(String(localized: "Sem rede — mostrando cache."), kind: .warning)
-                    }
+                    setBannerStatus(Self.offlineCacheBanner(pending: NativeOutbox.pendingCount), kind: .warning)
                 } else {
                     groupNotesAwaitingFirstPaint = false
                     if groupCards.isEmpty {
@@ -344,6 +328,14 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     }
 
     private var isGroupMode: Bool { group != nil }
+
+    /// Offline Caderno banner — uses catalog keys with en/es (and plural-friendly pending count).
+    private static func offlineCacheBanner(pending: Int) -> String {
+        if pending > 0 {
+            return String(localized: "Sem rede — mostrando cache · \(pending) pendente(s).")
+        }
+        return String(localized: "Sem rede — mostrando cache.")
+    }
 
     /// Status banner stays in the table header; Caderno chips are pinned above the table.
     private func installTableHeader() {

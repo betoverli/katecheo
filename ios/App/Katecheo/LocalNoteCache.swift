@@ -10,10 +10,39 @@ enum LocalNoteCache {
     struct NoteSyncMeta: Codable, Equatable {
         var dirty: Bool
         var pendingSync: Bool
-        /// ISO-8601 edit time stamped when the user changed the note locally.
+        /// ISO-8601 edit time (fractional seconds) stamped when the user changed the note locally.
         var localUpdatedAt: String
-        /// Last server copy kept when a dirty local note wins a conflict (last-write-wins).
+        /// Monotonic local edit counter — survives same-millisecond stamps and string-compare pitfalls.
+        var localRevision: Int
+        /// Last raw server copy kept when a dirty local note wins a conflict (last-write-wins).
         var serverBackup: NativeAPIClient.NoteDocument?
+
+        enum CodingKeys: String, CodingKey {
+            case dirty, pendingSync, localUpdatedAt, localRevision, serverBackup
+        }
+
+        init(
+            dirty: Bool,
+            pendingSync: Bool,
+            localUpdatedAt: String,
+            localRevision: Int,
+            serverBackup: NativeAPIClient.NoteDocument?
+        ) {
+            self.dirty = dirty
+            self.pendingSync = pendingSync
+            self.localUpdatedAt = localUpdatedAt
+            self.localRevision = localRevision
+            self.serverBackup = serverBackup
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            dirty = try c.decode(Bool.self, forKey: .dirty)
+            pendingSync = try c.decode(Bool.self, forKey: .pendingSync)
+            localUpdatedAt = try c.decode(String.self, forKey: .localUpdatedAt)
+            localRevision = try c.decodeIfPresent(Int.self, forKey: .localRevision) ?? 1
+            serverBackup = try c.decodeIfPresent(NativeAPIClient.NoteDocument.self, forKey: .serverBackup)
+        }
     }
 
     private static var directory: URL {
@@ -34,6 +63,51 @@ enum LocalNoteCache {
 
     private static func writeProtected(_ data: Data, to url: URL) {
         try? data.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+    }
+
+    // MARK: - Timestamp helpers (Date compares, not string lexicographic)
+
+    private static let isoFractional: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
+    private static let isoBasic: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
+
+    static func editTimestamp(from date: Date = Date()) -> String {
+        isoFractional.string(from: date)
+    }
+
+    /// Parse wire/local `updatedAt` values that may or may not include fractional seconds.
+    static func parseUpdatedAt(_ raw: String) -> Date? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        if let date = isoFractional.date(from: trimmed) { return date }
+        if let date = isoBasic.date(from: trimmed) { return date }
+        return nil
+    }
+
+    static func isUpdatedAt(_ lhs: String, newerThanOrEqual rhs: String) -> Bool {
+        switch (parseUpdatedAt(lhs), parseUpdatedAt(rhs)) {
+        case let (l?, r?): return l >= r
+        default: return lhs >= rhs
+        }
+    }
+
+    static func isUpdatedAt(_ lhs: String, newerThan rhs: String) -> Bool {
+        switch (parseUpdatedAt(lhs), parseUpdatedAt(rhs)) {
+        case let (l?, r?): return l > r
+        default: return lhs > rhs
+        }
+    }
+
+    static func maxUpdatedAt(_ a: String, _ b: String) -> String {
+        isUpdatedAt(a, newerThanOrEqual: b) ? a : b
     }
 
     static func saveNotes(_ notes: [NativeAPIClient.NoteDocument]) {
@@ -59,11 +133,13 @@ enum LocalNoteCache {
         } else {
             notes.insert(note, at: 0)
         }
-        notes.sort { lhs, rhs in
-            if lhs.happenedAt != rhs.happenedAt { return lhs.happenedAt > rhs.happenedAt }
-            return lhs.updatedAt > rhs.updatedAt
-        }
+        notes.sort(by: noteSort)
         saveNotes(notes)
+    }
+
+    private static func noteSort(_ lhs: NativeAPIClient.NoteDocument, _ rhs: NativeAPIClient.NoteDocument) -> Bool {
+        if lhs.happenedAt != rhs.happenedAt { return lhs.happenedAt > rhs.happenedAt }
+        return isUpdatedAt(lhs.updatedAt, newerThan: rhs.updatedAt)
     }
 
     static func removeNote(id: String) {
@@ -102,18 +178,7 @@ enum LocalNoteCache {
         loadMeta()[id]?.pendingSync == true
     }
 
-    /// Fractional-second stamps so two edits in the same wall-clock second stay ordered.
-    private static let editStampFormatter: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter
-    }()
-
-    static func editTimestamp(from date: Date = Date()) -> String {
-        editStampFormatter.string(from: date)
-    }
-
-    /// Stamp edit time, mark dirty+pending, write disk, and refresh NativeSWR memory.
+    /// Stamp edit time, bump local revision, mark dirty+pending, write disk, refresh NativeSWR.
     @discardableResult
     static func recordLocalEdit(_ note: NativeAPIClient.NoteDocument, editedAt: Date = Date()) -> NativeAPIClient.NoteDocument {
         var next = note
@@ -122,28 +187,28 @@ enum LocalNoteCache {
         next.updatedAt = stamp
         upsertNote(next)
         var meta = loadMeta()
-        var entry = meta[next.id] ?? NoteSyncMeta(
+        let previous = meta[next.id]
+        let revision = (previous?.localRevision ?? 0) + 1
+        meta[next.id] = NoteSyncMeta(
             dirty: true,
             pendingSync: true,
             localUpdatedAt: stamp,
-            serverBackup: nil
+            localRevision: revision,
+            serverBackup: previous?.serverBackup
         )
-        entry.dirty = true
-        entry.pendingSync = true
-        entry.localUpdatedAt = stamp
-        meta[next.id] = entry
         saveMeta(meta)
         NativeSWR.applyLocalNote(next)
         return next
     }
 
-    /// Mark a note as waiting for outbox flush without changing content / updatedAt.
+    /// Mark a note as waiting for outbox flush without changing content / updatedAt / revision.
     static func markPendingSync(id: String) {
         var meta = loadMeta()
         var entry = meta[id] ?? NoteSyncMeta(
             dirty: true,
             pendingSync: true,
             localUpdatedAt: editTimestamp(),
+            localRevision: 1,
             serverBackup: nil
         )
         entry.pendingSync = true
@@ -153,11 +218,21 @@ enum LocalNoteCache {
     }
 
     /// Clear dirty/pending after a successful server upsert, but only if no newer local edit landed.
-    static func clearDirtyIfNotNewer(id: String, syncedUpdatedAt: String) {
+    /// Prefer revision when the caller knows which edit was synced; fall back to Date compare.
+    static func clearDirtyIfNotNewer(
+        id: String,
+        syncedUpdatedAt: String,
+        syncedRevision: Int? = nil
+    ) {
         var meta = loadMeta()
         guard var entry = meta[id] else { return }
-        if entry.localUpdatedAt > syncedUpdatedAt {
-            // A newer local edit arrived while the upsert was in flight — keep dirty.
+        let keepDirty: Bool = {
+            if let syncedRevision {
+                return entry.localRevision > syncedRevision
+            }
+            return isUpdatedAt(entry.localUpdatedAt, newerThan: syncedUpdatedAt)
+        }()
+        if keepDirty {
             entry.pendingSync = true
             entry.dirty = true
             meta[id] = entry
@@ -172,13 +247,14 @@ enum LocalNoteCache {
     static func preferredNote(over candidate: NativeAPIClient.NoteDocument) -> NativeAPIClient.NoteDocument {
         guard let disk = note(id: candidate.id) else { return candidate }
         if isDirtyOrPending(candidate.id) { return disk }
-        if disk.updatedAt >= candidate.updatedAt { return disk }
+        if isUpdatedAt(disk.updatedAt, newerThanOrEqual: candidate.updatedAt) { return disk }
         return candidate
     }
 
     // MARK: - Server merge (never clobber dirty/pending)
 
-    /// Merge a server list into disk: dirty/pending locals win; otherwise newer `updatedAt` wins.
+    /// Merge a **raw** server list into disk once. Dirty/pending locals win; otherwise newer `updatedAt` wins.
+    /// When a dirty local wins, the raw server copy is stored as `serverBackup`.
     @discardableResult
     static func mergeServerNotes(_ serverNotes: [NativeAPIClient.NoteDocument]) -> [NativeAPIClient.NoteDocument] {
         let localNotes = loadNotes()
@@ -190,41 +266,28 @@ enum LocalNoteCache {
             let entry = meta[local.id]
             let dirty = entry?.dirty == true || entry?.pendingSync == true
             if dirty {
-                if let server = byId[local.id], server != local {
-                    // Last write wins by edit time — keep local, stash server as hidden backup.
-                    if local.updatedAt >= server.updatedAt {
-                        var next = entry ?? NoteSyncMeta(
-                            dirty: true,
-                            pendingSync: true,
-                            localUpdatedAt: local.updatedAt,
-                            serverBackup: nil
-                        )
+                if let server = byId[local.id] {
+                    // Always keep the raw server payload as a hidden backup while local is dirty.
+                    var next = entry ?? NoteSyncMeta(
+                        dirty: true,
+                        pendingSync: true,
+                        localUpdatedAt: local.updatedAt,
+                        localRevision: 1,
+                        serverBackup: nil
+                    )
+                    if server != local {
                         next.serverBackup = server
-                        meta[local.id] = next
                         log.info("Keeping dirty local note \(local.id, privacy: .public); server copy stored as backup")
-                    } else {
-                        // Server is newer than local edit stamp — still keep dirty local per product rule
-                        // (local edits must not be silently discarded while pending).
-                        var next = entry ?? NoteSyncMeta(
-                            dirty: true,
-                            pendingSync: true,
-                            localUpdatedAt: local.updatedAt,
-                            serverBackup: nil
-                        )
-                        next.serverBackup = server
-                        meta[local.id] = next
-                        log.info("Conflict: keeping dirty local \(local.id, privacy: .public) over newer server")
                     }
+                    meta[local.id] = next
                 }
                 byId[local.id] = local
             } else if let server = byId[local.id] {
-                if local.updatedAt > server.updatedAt {
+                if isUpdatedAt(local.updatedAt, newerThan: server.updatedAt) {
                     byId[local.id] = local
                 }
-            } else if entry?.pendingSync == true || entry?.dirty == true {
-                byId[local.id] = local
             }
-            // Local-only notes without dirty/pending that vanished from the server are dropped.
+            // Clean local-only notes that vanished from the server are dropped (not in byId).
         }
 
         // Preserve dirty locals that were never on the server list.
@@ -234,16 +297,13 @@ enum LocalNoteCache {
             }
         }
 
-        let merged = byId.values.sorted { lhs, rhs in
-            if lhs.happenedAt != rhs.happenedAt { return lhs.happenedAt > rhs.happenedAt }
-            return lhs.updatedAt > rhs.updatedAt
-        }
+        let merged = byId.values.sorted(by: noteSort)
         saveNotes(merged)
         saveMeta(meta)
         return merged
     }
 
-    /// Merge a single server note; returns the document that should be served to callers.
+    /// Merge a single **raw** server note; returns the document that should be served to callers.
     @discardableResult
     static func mergeServerNote(_ server: NativeAPIClient.NoteDocument) -> NativeAPIClient.NoteDocument {
         let merged = mergeServerNotes([server])
