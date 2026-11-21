@@ -696,6 +696,14 @@ enum NativeAPIClient {
         let (status, data) = try await perform(request)
         try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
+            // Offline-created / pending notes are not on the server yet — keep the dirty disk copy
+            // so a forced refresh cannot wipe the editor.
+            if status == 404,
+               let disk = LocalNoteCache.note(id: id),
+               LocalNoteCache.isDirtyOrPending(id) || LocalNoteCache.isAwaitingFirstSync(id)
+            {
+                return NotePack(note: disk, speakers: LocalNoteCache.loadSpeakers(), via: "owned")
+            }
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
         guard let decoded = try? JSONDecoder().decode(NoteResponse.self, from: data),
@@ -1014,6 +1022,9 @@ enum NativeAPIClient {
         let (status, data) = try await perform(request)
         try throwIfUnauthorized(status)
         guard status >= 200, status < 300 else {
+            if status == 409 {
+                LocalNoteCache.markSyncLimitReached(id: payload.id)
+            }
             throw APIError.http(status, String(data: data, encoding: .utf8) ?? "")
         }
         guard let decoded = try? JSONDecoder().decode(NoteResponse.self, from: data),
@@ -1054,6 +1065,11 @@ enum NativeAPIClient {
     }
 
     static func deleteNote(id: String) async throws {
+        // Never-synced local notes: drop disk/SWR/outbox upsert only — never DELETE on the server.
+        if LocalNoteCache.isAwaitingFirstSync(id) {
+            discardLocalOnlyNote(id: id)
+            return
+        }
         let request = try authorizedRequest(path: "api/native/v1/notes/\(id)", method: "DELETE")
         let (status, data) = try await perform(request)
         try throwIfUnauthorized(status)
@@ -1062,6 +1078,21 @@ enum NativeAPIClient {
         }
         LocalNoteCache.removeNote(id: id)
         NativeSWR.invalidateNotesSubtree(noteId: id)
+    }
+
+    /// Remove an offline-created note that never reached the server (no DELETE outbox job).
+    static func discardLocalOnlyNote(id: String) {
+        let groupId = LocalNoteCache.publishGroupId(for: id)
+        LocalNoteCache.removeNote(id: id)
+        NativeOutbox.dropJobs(forNoteId: id)
+        NativeSWR.invalidateNotesSubtree(noteId: id)
+        if let groupId, let userId = LocalSessionCache.loadMe()?.id {
+            if var cached = LocalGroupNotesCache.load(userId: userId, groupId: groupId) {
+                cached.removeAll { $0.note.id == id }
+                LocalGroupNotesCache.save(userId: userId, groupId: groupId, notes: cached, etag: nil)
+            }
+            NativeSWR.invalidate(.groupNotes(groupId))
+        }
     }
 
     static func listSpeakers(force: Bool = false) async throws -> [SpeakerDTO] {
@@ -1275,12 +1306,14 @@ enum NativeAPIClient {
               let remote = decoded.notes
         else { throw APIError.decoding }
 
-        let merged: [GroupNoteCardDTO]
+        let base: [GroupNoteCardDTO]
         if decoded.incremental == true, let prior = cachedEntry?.notes {
-            merged = mergeGroupNotes(prior: prior, delta: remote)
+            base = mergeGroupNotes(prior: prior, delta: remote)
         } else {
-            merged = remote
+            base = remote
         }
+        // Full (and incremental) refresh must not drop dirty/pending locals for this group.
+        let merged = unionPendingGroupLocals(groupId: groupId, remote: base)
 
         let responseEtag = http?.value(forHTTPHeaderField: "ETag")
         LocalGroupNotesCache.save(
@@ -1300,12 +1333,84 @@ enum NativeAPIClient {
         var byId: [String: GroupNoteCardDTO] = [:]
         for card in prior { byId[card.note.id] = card }
         for card in delta { byId[card.note.id] = card }
-        return byId.values.sorted { lhs, rhs in
-            if lhs.note.happenedAt != rhs.note.happenedAt {
-                return lhs.note.happenedAt > rhs.note.happenedAt
+        return byId.values.sorted(by: groupNoteSort)
+    }
+
+    /// Like `LocalNoteCache.mergeServerNotes` for a notebook group: keep dirty/pending locals
+    /// tagged with `publishGroupId` (or already mirrored in the group disk cache).
+    static func unionPendingGroupLocals(
+        groupId: String,
+        remote: [GroupNoteCardDTO]
+    ) -> [GroupNoteCardDTO] {
+        var byId: [String: GroupNoteCardDTO] = [:]
+        for card in remote { byId[card.note.id] = card }
+
+        let meta = LocalNoteCache.loadMeta()
+        let priorCards = LocalGroupNotesCache.load(
+            userId: LocalSessionCache.loadMe()?.id ?? "",
+            groupId: groupId
+        ) ?? []
+        var priorById: [String: GroupNoteCardDTO] = [:]
+        for card in priorCards { priorById[card.note.id] = card }
+
+        for note in LocalNoteCache.loadNotes() {
+            guard let entry = meta[note.id], entry.dirty || entry.pendingSync else { continue }
+            let taggedGroup = entry.publishGroupId?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let belongsToGroup = taggedGroup == groupId || priorById[note.id] != nil
+            guard belongsToGroup else { continue }
+
+            if let remoteCard = byId[note.id] {
+                if LocalNoteCache.isUpdatedAt(note.updatedAt, newerThan: remoteCard.note.updatedAt) {
+                    byId[note.id] = groupCard(from: note, fallingBackTo: remoteCard)
+                }
+            } else {
+                byId[note.id] = groupCard(from: note, fallingBackTo: priorById[note.id])
             }
-            return lhs.note.updatedAt > rhs.note.updatedAt
         }
+
+        return byId.values.sorted(by: groupNoteSort)
+    }
+
+    private static func groupNoteSort(_ lhs: GroupNoteCardDTO, _ rhs: GroupNoteCardDTO) -> Bool {
+        if lhs.note.happenedAt != rhs.note.happenedAt {
+            return lhs.note.happenedAt > rhs.note.happenedAt
+        }
+        return LocalNoteCache.isUpdatedAt(lhs.note.updatedAt, newerThan: rhs.note.updatedAt)
+    }
+
+    private static func groupCard(
+        from note: NoteDocument,
+        fallingBackTo prior: GroupNoteCardDTO?
+    ) -> GroupNoteCardDTO {
+        if var prior {
+            prior.note = .init(
+                id: note.id,
+                title: note.title,
+                happenedAt: note.happenedAt,
+                updatedAt: note.updatedAt
+            )
+            prior.document = note
+            prior.owned = true
+            return prior
+        }
+        let me = LocalSessionCache.loadMe()
+        return GroupNoteCardDTO(
+            note: .init(
+                id: note.id,
+                title: note.title,
+                happenedAt: note.happenedAt,
+                updatedAt: note.updatedAt
+            ),
+            author: .init(
+                userId: me?.id ?? "",
+                handle: me?.prefs.handle ?? "",
+                firstName: me?.prefs.firstName ?? "",
+                lastName: me?.prefs.lastName ?? ""
+            ),
+            owned: true,
+            document: note
+        )
     }
 
     static func publishNote(noteId: String, toGroupId groupId: String, document: NoteDocument? = nil) async throws {

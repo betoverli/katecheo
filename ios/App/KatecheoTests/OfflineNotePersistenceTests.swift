@@ -132,11 +132,11 @@ final class OfflineNotePersistenceTests: XCTestCase {
 
         let beforeJobs = NativeOutbox.load()
         XCTAssertEqual(beforeJobs.count, 1)
-        let beforePayload = try JSONDecoder().decode(NativeAPIClient.NoteDocument.self, from: beforeJobs[0].payload)
+        let (beforePayload, _) = try NativeOutbox.decodeNoteUpsert(beforeJobs[0].payload)
 
         let afterJobs = NativeOutbox.load()
         XCTAssertEqual(afterJobs.count, 1)
-        let afterPayload = try JSONDecoder().decode(NativeAPIClient.NoteDocument.self, from: afterJobs[0].payload)
+        let (afterPayload, _) = try NativeOutbox.decodeNoteUpsert(afterJobs[0].payload)
         XCTAssertEqual(afterPayload.title, beforePayload.title)
         XCTAssertEqual(afterPayload.body.blocks.first?.spans?.first?.text, "outbox body")
         XCTAssertEqual(afterPayload.updatedAt, beforePayload.updatedAt)
@@ -243,7 +243,7 @@ final class OfflineNotePersistenceTests: XCTestCase {
         XCTAssertNotNil(LocalNoteCache.parseUpdatedAt(edited.updatedAt), "fractional ISO8601 must parse")
         NativeOutbox.enqueueNoteUpsert(edited)
         let job = try XCTUnwrap(NativeOutbox.load().first)
-        let payload = try JSONDecoder().decode(NativeAPIClient.NoteDocument.self, from: job.payload)
+        let (payload, _) = try NativeOutbox.decodeNoteUpsert(job.payload)
         XCTAssertEqual(payload.updatedAt, edited.updatedAt)
     }
 
@@ -253,5 +253,186 @@ final class OfflineNotePersistenceTests: XCTestCase {
         XCTAssertTrue(
             LocalNoteCache.isUpdatedAt("2026-01-01T00:00:00.200Z", newerThan: "2026-01-01T00:00:00.100Z")
         )
+    }
+
+    // MARK: - Offline create (local-first)
+
+    func testCreateOffline_opensFromDiskAndSurvivesReload() throws {
+        let draft = NativeAPIClient.emptyNote()
+        let created = LocalNoteCache.recordLocalEdit(draft, awaitingFirstSync: true)
+        XCTAssertEqual(created.id, draft.id)
+        XCTAssertTrue(LocalNoteCache.isAwaitingFirstSync(created.id))
+        XCTAssertTrue(LocalNoteCache.isDirtyOrPending(created.id))
+        XCTAssertEqual(LocalNoteCache.note(id: created.id)?.id, created.id)
+
+        // Simulated relaunch: prefer disk over a stale list row with the same id.
+        let stale = NativeAPIClient.emptyNote(id: created.id)
+        let reopened = LocalNoteCache.preferredNote(over: stale)
+        XCTAssertEqual(reopened.id, created.id)
+        XCTAssertEqual(reopened.updatedAt, created.updatedAt)
+        XCTAssertTrue(LocalNoteCache.isAwaitingFirstSync(reopened.id))
+    }
+
+    func testCreateOffline_thenOnline_singleUpsertNoDuplicate() async throws {
+        let draft = NativeAPIClient.emptyNote()
+        let created = LocalNoteCache.recordLocalEdit(draft, awaitingFirstSync: true)
+        NativeOutbox.enqueueNoteUpsert(created)
+        XCTAssertEqual(NativeOutbox.pendingCount, 1)
+
+        let ack = noteJSON(
+            id: created.id,
+            title: created.title,
+            bodyText: "",
+            updatedAt: created.updatedAt
+        )
+        MockNativeURLProtocol.upsertNoteJSON = "{\"ok\":true,\"note\":\(ack),\"speakers\":[],\"via\":\"owned\"}"
+        MockNativeURLProtocol.notesJSON = "{\"ok\":true,\"notes\":[\(ack)]}"
+        MockNativeURLProtocol.forceTransportError = false
+
+        let completed = await NativeOutbox.flushIfPossible()
+        XCTAssertEqual(completed, 1)
+        XCTAssertEqual(NativeOutbox.pendingCount, 0)
+        XCTAssertEqual(MockNativeURLProtocol.requestBodies().count, 1)
+        XCTAssertEqual(MockNativeURLProtocol.requestBodies().first?["id"] as? String, created.id)
+        XCTAssertFalse(LocalNoteCache.isAwaitingFirstSync(created.id))
+        XCTAssertFalse(LocalNoteCache.isDirtyOrPending(created.id))
+
+        // List merge must not resurrect a duplicate id.
+        let listed = try await NativeAPIClient.listNotes(force: true)
+        XCTAssertEqual(listed.filter { $0.id == created.id }.count, 1)
+    }
+
+    func testDeleteBeforeSync_dropsUpsertAndDoesNotResurrect() async throws {
+        let created = LocalNoteCache.recordLocalEdit(
+            NativeAPIClient.emptyNote(),
+            awaitingFirstSync: true
+        )
+        NativeOutbox.enqueueNoteUpsert(created)
+        XCTAssertEqual(NativeOutbox.pendingCount, 1)
+
+        // While still awaiting first sync: DELETE must drop the upsert and not enqueue.
+        NativeOutbox.enqueueNoteDelete(id: created.id)
+        XCTAssertEqual(NativeOutbox.pendingCount, 0)
+        XCTAssertTrue(LocalNoteCache.isAwaitingFirstSync(created.id))
+
+        NativeAPIClient.discardLocalOnlyNote(id: created.id)
+        XCTAssertNil(LocalNoteCache.note(id: created.id))
+        XCTAssertEqual(NativeOutbox.pendingCount, 0)
+        XCTAssertFalse(LocalNoteCache.isAwaitingFirstSync(created.id))
+
+        MockNativeURLProtocol.notesJSON = "{\"ok\":true,\"notes\":[]}"
+        let listed = try await NativeAPIClient.listNotes(force: true)
+        XCTAssertFalse(listed.contains { $0.id == created.id })
+    }
+
+    func testDeleteOutbox_treats404AsSuccess() async throws {
+        let id = "never-on-server"
+        NativeOutbox.enqueueNoteDelete(id: id)
+        XCTAssertEqual(NativeOutbox.pendingCount, 1)
+        // Mock DELETE /notes/{id} with no fixture → 404.
+        MockNativeURLProtocol.forceTransportError = false
+        let completed = await NativeOutbox.flushIfPossible()
+        XCTAssertEqual(completed, 1)
+        XCTAssertEqual(NativeOutbox.pendingCount, 0)
+    }
+
+    func testCreateInGroup_survivesListRefreshAndPublishesOnFlush() async throws {
+        let userId = "acct-offline-create"
+        let groupId = "g-offline-1"
+        LocalSessionCache.saveMe(
+            NativeAPIClient.MeDTO(
+                id: userId,
+                email: "a@b.c",
+                displayName: "Ana",
+                prefs: NativeAPIClient.PrefsDTO(
+                    locale: "pt", copyLocale: "pt", appId: "youversion", translationId: "nvi-pt",
+                    preferNative: true, copyFormat: "default", citeBook: "abbr", citeSep: ":",
+                    booksCompact: false, theme: "system", activePlans: nil, planProgress: nil,
+                    avatarId: "", avatarUrl: "", handle: "ana", firstName: "Ana", lastName: "", profileEmail: "a@b.c"
+                ),
+                notify: NativeAPIClient.NotifyPrefsDTO(
+                    reading: true, friends: true, shares: true, groups: true, apnsDevices: 0
+                )
+            )
+        )
+
+        let created = LocalNoteCache.recordLocalEdit(
+            NativeAPIClient.emptyNote(),
+            publishGroupId: groupId,
+            awaitingFirstSync: true
+        )
+        NativeAPIClient.rememberPublishedNote(created, inGroupId: groupId)
+        NativeOutbox.enqueueNoteUpsert(created, publishToGroupId: groupId)
+        XCTAssertEqual(LocalNoteCache.publishGroupId(for: created.id), groupId)
+
+        // Full remote list without the local note must still keep it.
+        MockNativeURLProtocol.groupNotesJSON = ##"{"ok":true,"notes":[],"incremental":false}"##
+        MockNativeURLProtocol.groupNotesStatus = 200
+        let cards = try await NativeAPIClient.listGroupNotes(groupId: groupId, force: true)
+        XCTAssertTrue(cards.contains { $0.note.id == created.id })
+
+        let ack = noteJSON(
+            id: created.id,
+            title: created.title,
+            bodyText: "",
+            updatedAt: created.updatedAt
+        )
+        MockNativeURLProtocol.upsertNoteJSON = "{\"ok\":true,\"note\":\(ack),\"speakers\":[],\"via\":\"owned\"}"
+        MockNativeURLProtocol.publishGroupNoteJSON = ##"{"ok":true}"##
+        MockNativeURLProtocol.forceTransportError = false
+        let completed = await NativeOutbox.flushIfPossible()
+        XCTAssertEqual(completed, 1)
+        XCTAssertEqual(NativeOutbox.pendingCount, 0)
+        let bodies = MockNativeURLProtocol.requestBodies()
+        XCTAssertTrue(bodies.contains { ($0["id"] as? String) == created.id && ($0["groupId"] as? String) == groupId })
+        XCTAssertFalse(LocalNoteCache.isAwaitingFirstSync(created.id))
+    }
+
+    func testCreatePersistsAcrossCacheReload() throws {
+        let created = LocalNoteCache.recordLocalEdit(
+            NativeAPIClient.emptyNote(),
+            publishGroupId: "g1",
+            awaitingFirstSync: true
+        )
+        let id = created.id
+        // Re-read meta/notes from disk without going through in-memory helpers' assumptions.
+        let disk = try XCTUnwrap(LocalNoteCache.note(id: id))
+        let meta = try XCTUnwrap(LocalNoteCache.syncMeta(for: id))
+        XCTAssertEqual(disk.id, id)
+        XCTAssertTrue(meta.awaitingFirstSync)
+        XCTAssertEqual(meta.publishGroupId, "g1")
+        XCTAssertTrue(meta.dirty)
+        XCTAssertTrue(meta.pendingSync)
+    }
+
+    func testSyncLimit409_keepsLocalAndStopsRetries() async throws {
+        let created = LocalNoteCache.recordLocalEdit(
+            NativeAPIClient.emptyNote(),
+            awaitingFirstSync: true
+        )
+        NativeOutbox.enqueueNoteUpsert(created)
+        XCTAssertEqual(NativeOutbox.pendingCount, 1)
+        MockNativeURLProtocol.upsertNoteStatus = 409
+        MockNativeURLProtocol.upsertNoteJSON = ##"{"ok":false,"error":"note_limit"}"##
+        MockNativeURLProtocol.forceTransportError = false
+
+        let completed = await NativeOutbox.flushIfPossible()
+        XCTAssertEqual(completed, 1, "409 completes the job so it does not retry forever")
+        XCTAssertEqual(NativeOutbox.pendingCount, 0)
+        XCTAssertTrue(LocalNoteCache.isSyncLimitReached(created.id))
+        XCTAssertNotNil(LocalNoteCache.note(id: created.id), "note stays local after 409")
+        NativeOutbox.enqueueNoteUpsert(created)
+        XCTAssertEqual(NativeOutbox.pendingCount, 0, "sync-limit notes must not re-enqueue")
+    }
+
+    func testGetNote404_fallsBackToDirtyDisk() async throws {
+        let created = LocalNoteCache.recordLocalEdit(
+            NativeAPIClient.emptyNote(),
+            awaitingFirstSync: true
+        )
+        MockNativeURLProtocol.noteByIdJSON = nil // GET → 404
+        let packed = try await NativeAPIClient.getNote(id: created.id, force: true)
+        XCTAssertEqual(packed.note.id, created.id)
+        XCTAssertEqual(packed.via, "owned")
     }
 }

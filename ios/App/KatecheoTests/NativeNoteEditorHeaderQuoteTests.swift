@@ -70,12 +70,12 @@ final class NativeNoteEditorHeaderQuoteTests: XCTestCase {
         }
         XCTAssertGreaterThan(divider.minY, tags.maxY - 0.5, "divider below tags row")
         XCTAssertLessThan(divider.maxY, body.minY + 0.5, "divider above body caret/placeholder")
-        // Balanced breathing room above/below inside the 48pt title band.
+        // Equal breathing room above/below the divider (tags → line == line → body).
         let above = divider.minY - tags.maxY
         let below = body.minY - divider.maxY
         XCTAssertGreaterThan(above, 1)
         XCTAssertGreaterThan(below, 1)
-        XCTAssertEqual(above, below, accuracy: 6)
+        XCTAssertEqual(above, below, accuracy: 1)
     }
 
     func testHeaderDivider_staysBetweenHeaderAndBody_whenTagsCleared() {

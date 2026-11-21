@@ -540,6 +540,8 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     /// Dark: 1pt for visibility on canvas; light: hairline (1/scale). When there are no tag
     /// chips, the tags strip is still the header’s lower edge (empty state / “Adicionar tags”),
     /// so the divider sits under the title+tags band either way.
+    /// Vertical gap above the line (tags → divider) equals the gap below (divider → body)
+    /// in both light and dark mode.
     private func repositionHeaderDivider() {
         textView.layoutManager.ensureLayout(for: textView.textContainer)
         let leading = textContentLeading()
@@ -562,16 +564,16 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         let bodyFallbackY = tagsFrame.maxY + 12
         let bodyY = caretAlignedOrigin(atCharacter: bodyChar, font: bodyFont, fallbackY: bodyFallbackY).y
 
-        let headerBottom = tagsFrame.maxY + 4
+        let headerBottom = tagsFrame.maxY
         let gap = max(0, bodyY - headerBottom)
         let y: CGFloat
-        if gap > thickness + 2 {
+        if gap >= thickness {
+            // Center the stroke so space above == space below.
             y = headerBottom + (gap - thickness) * 0.5
         } else {
-            y = max(headerBottom, bodyY - thickness - 4)
+            y = headerBottom
         }
-        let clampedY = min(y, max(0, bodyY - thickness - 2))
-        headerDivider.frame = CGRect(x: leading, y: clampedY, width: width, height: thickness)
+        headerDivider.frame = CGRect(x: leading, y: y, width: width, height: thickness)
         headerDivider.backgroundColor = KCDesign.headerDivider
     }
 

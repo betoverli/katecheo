@@ -571,15 +571,20 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
                 }
                 NotificationCenter.default.post(name: .nativeNoteDidChange, object: self.noteId)
             }
+        } catch NativeAPIClient.APIError.http(let code, _) where code == 409 {
+            LocalNoteCache.markSyncLimitReached(id: noteId)
+            await MainActor.run {
+                self.applySyncState(.pendingLocal)
+            }
         } catch NativeAPIClient.APIError.unauthorized {
             LocalNoteCache.markPendingSync(id: noteId)
-            NativeOutbox.enqueueNoteUpsert(payload)
+            NativeOutbox.enqueueNoteUpsert(payload, publishToGroupId: publishGroupId)
             await MainActor.run {
                 self.applySyncState(.pendingLocal)
             }
         } catch {
             LocalNoteCache.markPendingSync(id: noteId)
-            NativeOutbox.enqueueNoteUpsert(payload)
+            NativeOutbox.enqueueNoteUpsert(payload, publishToGroupId: publishGroupId)
             await MainActor.run {
                 self.applySyncState(.pendingLocal)
             }
@@ -651,6 +656,10 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
     }
 
     private func moveToGroup() {
+        if LocalNoteCache.isAwaitingFirstSync(noteId) {
+            presentBriefAlert(String(localized: "Disponível após sincronizar."))
+            return
+        }
         Task { @MainActor in
             do {
                 _ = try await NativeAPIClient.upsertNote(note)
@@ -750,6 +759,10 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
     }
 
     private func shareNote() {
+        if LocalNoteCache.isAwaitingFirstSync(noteId) {
+            presentBriefAlert(String(localized: "Disponível após sincronizar."))
+            return
+        }
         let title = note.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? String(localized: "Reunião") : note.title
         let url = NativeAPIClient.baseURL.appendingPathComponent("n/\(note.id)")
         let vc = UIActivityViewController(activityItems: [title, note.preview, url], applicationActivities: nil)
@@ -767,15 +780,27 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
             guard let self else { return }
             Task { @MainActor in
                 do {
-                    try await NativeAPIClient.deleteNote(id: self.noteId)
+                    if LocalNoteCache.isAwaitingFirstSync(self.noteId) {
+                        NativeAPIClient.discardLocalOnlyNote(id: self.noteId)
+                    } else {
+                        try await NativeAPIClient.deleteNote(id: self.noteId)
+                    }
                     self.navigationController?.popViewController(animated: true)
                 } catch NativeAPIClient.APIError.unauthorized {
-                    LocalNoteCache.removeNote(id: self.noteId)
-                    NativeOutbox.enqueueNoteDelete(id: self.noteId)
+                    if LocalNoteCache.isAwaitingFirstSync(self.noteId) {
+                        NativeAPIClient.discardLocalOnlyNote(id: self.noteId)
+                    } else {
+                        LocalNoteCache.removeNote(id: self.noteId)
+                        NativeOutbox.enqueueNoteDelete(id: self.noteId)
+                    }
                     self.navigationController?.popViewController(animated: true)
                 } catch {
-                    LocalNoteCache.removeNote(id: self.noteId)
-                    NativeOutbox.enqueueNoteDelete(id: self.noteId)
+                    if LocalNoteCache.isAwaitingFirstSync(self.noteId) {
+                        NativeAPIClient.discardLocalOnlyNote(id: self.noteId)
+                    } else {
+                        LocalNoteCache.removeNote(id: self.noteId)
+                        NativeOutbox.enqueueNoteDelete(id: self.noteId)
+                    }
                     self.navigationController?.popViewController(animated: true)
                 }
             }

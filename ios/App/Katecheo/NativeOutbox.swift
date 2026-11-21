@@ -1,9 +1,12 @@
 import Foundation
+import os.log
 
 /// Persistent offline outbox for native `/api/native/v1` mutations.
 /// Jobs survive relaunch; flush uses exponential backoff and never deletes server rows
 /// for jobs that fail — failed jobs stay queued for retry.
 enum NativeOutbox {
+    private static let log = Logger(subsystem: "app.katecheo", category: "NativeOutbox")
+
     enum JobType: String, Codable {
         case noteUpsert
         case noteDelete
@@ -22,6 +25,13 @@ enum NativeOutbox {
         var createdAt: Date
         /// Account that enqueued the job. Nil on legacy jobs decoded from disk.
         var accountId: String? = nil
+    }
+
+    /// Wire envelope for note upserts so `publishGroupId` survives flush after relaunch.
+    /// Legacy jobs encoded a bare `NoteDocument` — decode both shapes.
+    struct NoteUpsertEnvelope: Codable, Equatable {
+        var note: NativeAPIClient.NoteDocument
+        var publishGroupId: String?
     }
 
     private static let fileName = "native-outbox-v1.json"
@@ -56,8 +66,17 @@ enum NativeOutbox {
 
     // MARK: - Enqueue (deduped)
 
-    static func enqueueNoteUpsert(_ note: NativeAPIClient.NoteDocument) {
-        guard let payload = try? JSONEncoder().encode(note) else { return }
+    static func enqueueNoteUpsert(
+        _ note: NativeAPIClient.NoteDocument,
+        publishToGroupId: String? = nil
+    ) {
+        if LocalNoteCache.isSyncLimitReached(note.id) { return }
+        let groupId = publishToGroupId ?? LocalNoteCache.publishGroupId(for: note.id)
+        if let groupId {
+            LocalNoteCache.setPublishGroupId(id: note.id, groupId: groupId)
+        }
+        let envelope = NoteUpsertEnvelope(note: note, publishGroupId: groupId)
+        guard let payload = try? JSONEncoder().encode(envelope) else { return }
         mutate { jobs in
             jobs.removeAll {
                 ($0.type == .noteUpsert || $0.type == .noteDelete) && noteId(in: $0) == note.id
@@ -67,12 +86,26 @@ enum NativeOutbox {
     }
 
     static func enqueueNoteDelete(id: String) {
+        // Never-synced local notes must not enqueue DELETE (server 404 would retry forever).
+        if LocalNoteCache.isAwaitingFirstSync(id) {
+            dropJobs(forNoteId: id)
+            return
+        }
         let payload = Data(id.utf8)
         mutate { jobs in
             jobs.removeAll {
                 ($0.type == .noteUpsert || $0.type == .noteDelete) && noteId(in: $0) == id
             }
             jobs.append(makeJob(type: .noteDelete, payload: payload))
+        }
+    }
+
+    /// Drop pending upsert/delete jobs for a note (local-only discard, sync-limit, etc.).
+    static func dropJobs(forNoteId id: String) {
+        mutate { jobs in
+            jobs.removeAll {
+                ($0.type == .noteUpsert || $0.type == .noteDelete) && noteId(in: $0) == id
+            }
         }
     }
 
@@ -232,11 +265,24 @@ enum NativeOutbox {
     private static func perform(_ job: Job) async throws {
         switch job.type {
         case .noteUpsert:
-            let note = try JSONDecoder().decode(NativeAPIClient.NoteDocument.self, from: job.payload)
-            _ = try await NativeAPIClient.upsertNote(note)
+            let (note, envelopeGroupId) = try decodeNoteUpsert(job.payload)
+            let groupId = envelopeGroupId ?? LocalNoteCache.publishGroupId(for: note.id)
+            do {
+                _ = try await NativeAPIClient.upsertNote(note, publishToGroupId: groupId)
+            } catch NativeAPIClient.APIError.http(let code, _) where code == 409 {
+                // 200-note limit — keep local, do not retry forever.
+                LocalNoteCache.markSyncLimitReached(id: note.id)
+                log.error("Outbox noteUpsert \(note.id, privacy: .public) stopped after HTTP 409")
+            }
         case .noteDelete:
             let id = String(decoding: job.payload, as: UTF8.self)
-            try await NativeAPIClient.deleteNote(id: id)
+            do {
+                try await NativeAPIClient.deleteNote(id: id)
+            } catch NativeAPIClient.APIError.http(let code, _) where code == 404 {
+                // Already gone on the server — treat as success so we don't retry forever.
+                LocalNoteCache.removeNote(id: id)
+                NativeSWR.invalidateNotesSubtree(noteId: id)
+            }
         case .speakerUpsert:
             let speaker = try JSONDecoder().decode(NativeAPIClient.SpeakerDTO.self, from: job.payload)
             try await NativeAPIClient.upsertSpeaker(speaker)
@@ -262,10 +308,18 @@ enum NativeOutbox {
         save(jobs)
     }
 
+    static func decodeNoteUpsert(_ data: Data) throws -> (NativeAPIClient.NoteDocument, String?) {
+        if let envelope = try? JSONDecoder().decode(NoteUpsertEnvelope.self, from: data) {
+            return (envelope.note, envelope.publishGroupId)
+        }
+        let note = try JSONDecoder().decode(NativeAPIClient.NoteDocument.self, from: data)
+        return (note, nil)
+    }
+
     private static func noteId(in job: Job) -> String? {
         if job.type == .noteDelete { return String(decoding: job.payload, as: UTF8.self) }
-        guard let note = try? JSONDecoder().decode(NativeAPIClient.NoteDocument.self, from: job.payload) else { return nil }
-        return note.id
+        if let (note, _) = try? decodeNoteUpsert(job.payload) { return note.id }
+        return nil
     }
 
     private static func speakerId(in job: Job) -> String? {

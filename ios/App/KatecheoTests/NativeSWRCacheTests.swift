@@ -314,7 +314,11 @@ final class MockNativeURLProtocol: URLProtocol {
     static var speakersJSON: String?
     static var grantedJSON: String?
     static var upsertNoteJSON: String?
+    /// Override HTTP status for POST /notes (e.g. 409 note limit). Nil → 200 when body present.
+    static var upsertNoteStatus: Int?
     static var noteByIdJSON: String?
+    /// POST /groups/{id}/notes (publish) response body.
+    static var publishGroupNoteJSON: String?
     static var meJSON: String?
     static var prefsJSON: String?
     static var bibleBooksJSON: String?
@@ -367,7 +371,9 @@ final class MockNativeURLProtocol: URLProtocol {
         speakersJSON = nil
         grantedJSON = nil
         upsertNoteJSON = nil
+        upsertNoteStatus = nil
         noteByIdJSON = nil
+        publishGroupNoteJSON = nil
         meJSON = nil
         prefsJSON = nil
         bibleBooksJSON = nil
@@ -434,6 +440,15 @@ final class MockNativeURLProtocol: URLProtocol {
             body = Self.noteByIdJSON
         } else if path.hasSuffix("/notes"), method == "GET" {
             body = Self.notesJSON
+        } else if path.range(of: #"/groups/[^/]+/notes$"#, options: .regularExpression) != nil,
+                  method == "POST"
+        {
+            body = Self.publishGroupNoteJSON ?? ##"{"ok":true}"##
+            if let payload = Self.requestBodyData(from: request),
+               let obj = try? JSONSerialization.jsonObject(with: payload) as? [String: Any]
+            {
+                Self.postBodies.append(obj)
+            }
         } else if path.hasSuffix("/notes"), method == "POST" {
             body = Self.upsertNoteJSON ?? Self.noteByIdJSON
             if let payload = Self.requestBodyData(from: request),
@@ -503,6 +518,16 @@ final class MockNativeURLProtocol: URLProtocol {
            let override = Self.groupNotesStatus
         {
             status = override
+        }
+        if method == "POST",
+           path.hasSuffix("/notes"),
+           path.range(of: #"/groups/"#) == nil,
+           let override = Self.upsertNoteStatus
+        {
+            status = override
+            if status == 409, body == nil {
+                body = ##"{"ok":false,"error":"note_limit"}"##
+            }
         }
         let data: Data
         if status == 304 {
