@@ -184,26 +184,34 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     }
 
     /// Patch one personal Caderno row from disk/memory — no list GET.
+    /// Notifications may arrive off the main thread (outbox flush); hop to MainActor before UI.
     @objc private func handleNoteDidChange(_ notification: Notification) {
-        guard group == nil else {
-            reload()
-            return
+        let noteId = notification.object as? String
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            guard self.group == nil else {
+                self.reload()
+                return
+            }
+            guard let noteId, !noteId.isEmpty else {
+                // Bulk / legacy import: repaint from disk without a network round-trip.
+                self.adoptPersonalNotes(LocalNoteCache.loadNotes(), source: .localCache, allowingShorter: true)
+                return
+            }
+            self.patchPersonalNote(id: noteId)
         }
-        guard let noteId = notification.object as? String, !noteId.isEmpty else {
-            // Bulk / legacy import: repaint from disk without a network round-trip.
-            adoptPersonalNotes(LocalNoteCache.loadNotes(), source: .localCache, allowingShorter: true)
-            return
-        }
-        patchPersonalNote(id: noteId)
     }
 
     /// After outbox flush, refresh personal rows from disk (already updated by upsert) — no GET.
     @objc private func handleOutboxDidFlush() {
-        guard group == nil else {
-            reload()
-            return
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            guard self.group == nil else {
+                self.reload()
+                return
+            }
+            self.adoptPersonalNotes(LocalNoteCache.loadNotes(), source: .localCache, allowingShorter: true)
         }
-        adoptPersonalNotes(LocalNoteCache.loadNotes(), source: .localCache, allowingShorter: true)
     }
 
     private func patchPersonalNote(id: String) {
