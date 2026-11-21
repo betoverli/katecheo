@@ -102,12 +102,23 @@ enum LocalNoteCache {
         loadMeta()[id]?.pendingSync == true
     }
 
+    /// Fractional-second stamps so two edits in the same wall-clock second stay ordered.
+    private static let editStampFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
+    static func editTimestamp(from date: Date = Date()) -> String {
+        editStampFormatter.string(from: date)
+    }
+
     /// Stamp edit time, mark dirty+pending, write disk, and refresh NativeSWR memory.
     @discardableResult
     static func recordLocalEdit(_ note: NativeAPIClient.NoteDocument, editedAt: Date = Date()) -> NativeAPIClient.NoteDocument {
         var next = note
         next.schemaVersion = 1
-        let stamp = ISO8601DateFormatter().string(from: editedAt)
+        let stamp = editTimestamp(from: editedAt)
         next.updatedAt = stamp
         upsertNote(next)
         var meta = loadMeta()
@@ -132,7 +143,7 @@ enum LocalNoteCache {
         var entry = meta[id] ?? NoteSyncMeta(
             dirty: true,
             pendingSync: true,
-            localUpdatedAt: ISO8601DateFormatter().string(from: Date()),
+            localUpdatedAt: editTimestamp(),
             serverBackup: nil
         )
         entry.pendingSync = true

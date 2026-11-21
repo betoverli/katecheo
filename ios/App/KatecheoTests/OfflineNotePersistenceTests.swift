@@ -22,21 +22,37 @@ final class OfflineNotePersistenceTests: XCTestCase {
         super.tearDown()
     }
 
+    private func noteJSON(
+        id: String = "n1",
+        title: String,
+        bodyText: String,
+        updatedAt: String
+    ) -> String {
+        // Build with ordinary interpolation — ## raw strings need \#\#() and are easy to get wrong.
+        """
+        {"schemaVersion":1,"id":"\(id)","title":"\(title)","happenedAt":"2026-01-01","tags":[],"visibility":"private","updatedAt":"\(updatedAt)","body":{"blocks":[{"id":"b1","type":"paragraph","spans":[{"type":"text","text":"\(bodyText)"}]}]}}
+        """
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     private func seedServerNote(
         id: String = "n1",
         title: String = "A",
         bodyText: String = "server body",
         updatedAt: String = "2026-01-01T00:00:00Z"
     ) {
-        let noteJSON = ##"""
-        {"schemaVersion":1,"id":"\#(id)","title":"\#(title)","happenedAt":"2026-01-01","tags":[],"visibility":"private","updatedAt":"\#(updatedAt)","body":{"blocks":[{"id":"b1","type":"paragraph","spans":[{"type":"text","text":"\#(bodyText)"}]}]}}
-        """##
-        MockNativeURLProtocol.notesJSON = ##"{"ok":true,"notes":[\#(noteJSON)]}"##
-        MockNativeURLProtocol.noteByIdJSON = ##"{"ok":true,"note":\#(noteJSON),"speakers":[],"via":"owned"}"##
-        MockNativeURLProtocol.upsertNoteJSON = ##"{"ok":true,"note":\#(noteJSON),"speakers":[],"via":"owned"}"##
+        let note = noteJSON(id: id, title: title, bodyText: bodyText, updatedAt: updatedAt)
+        MockNativeURLProtocol.notesJSON = "{\"ok\":true,\"notes\":[\(note)]}"
+        MockNativeURLProtocol.noteByIdJSON = "{\"ok\":true,\"note\":\(note),\"speakers\":[],\"via\":\"owned\"}"
+        MockNativeURLProtocol.upsertNoteJSON = "{\"ok\":true,\"note\":\(note),\"speakers\":[],\"via\":\"owned\"}"
     }
 
-    private func editLocally(id: String = "n1", title: String, bodyText: String) -> NativeAPIClient.NoteDocument {
+    private func editLocally(
+        id: String = "n1",
+        title: String,
+        bodyText: String,
+        editedAt: Date = Date()
+    ) -> NativeAPIClient.NoteDocument {
         var note = NativeAPIClient.emptyNote(id: id)
         note.title = title
         note.happenedAt = "2026-01-01"
@@ -52,7 +68,7 @@ final class OfflineNotePersistenceTests: XCTestCase {
                 blocks: nil
             ),
         ])
-        return LocalNoteCache.recordLocalEdit(note)
+        return LocalNoteCache.recordLocalEdit(note, editedAt: editedAt)
     }
 
     // MARK: - Offline read after edit
@@ -157,16 +173,18 @@ final class OfflineNotePersistenceTests: XCTestCase {
         seedServerNote(title: "A", bodyText: "old")
         _ = try await NativeAPIClient.listNotes()
 
-        var edited = editLocally(title: "Synced", bodyText: "new body")
+        let edited = editLocally(title: "Synced", bodyText: "new body")
         NativeOutbox.enqueueNoteUpsert(edited)
         LocalNoteCache.markPendingSync(id: "n1")
         XCTAssertTrue(LocalNoteCache.isDirtyOrPending("n1"))
 
         // Server ack echoes the edited payload (including edit-time updatedAt).
-        let ack = ##"""
-        {"ok":true,"note":{"schemaVersion":1,"id":"n1","title":"Synced","happenedAt":"2026-01-01","tags":[],"visibility":"private","updatedAt":"\#(edited.updatedAt)","body":{"blocks":[{"id":"b1","type":"paragraph","spans":[{"type":"text","text":"new body"}]}]}},"speakers":[],"via":"owned"}
-        """##
-        MockNativeURLProtocol.upsertNoteJSON = ack
+        let ackNote = noteJSON(
+            title: "Synced",
+            bodyText: "new body",
+            updatedAt: edited.updatedAt
+        )
+        MockNativeURLProtocol.upsertNoteJSON = "{\"ok\":true,\"note\":\(ackNote),\"speakers\":[],\"via\":\"owned\"}"
         MockNativeURLProtocol.forceTransportError = false
 
         let completed = await NativeOutbox.flushIfPossible()
@@ -186,18 +204,21 @@ final class OfflineNotePersistenceTests: XCTestCase {
         seedServerNote()
         _ = try await NativeAPIClient.listNotes()
 
-        let first = editLocally(title: "First", bodyText: "v1")
+        let t0 = Date(timeIntervalSince1970: 1_700_000_000)
+        let first = editLocally(title: "First", bodyText: "v1", editedAt: t0)
         NativeOutbox.enqueueNoteUpsert(first)
 
         // Ack for the first edit.
-        MockNativeURLProtocol.upsertNoteJSON = ##"""
-        {"ok":true,"note":{"schemaVersion":1,"id":"n1","title":"First","happenedAt":"2026-01-01","tags":[],"visibility":"private","updatedAt":"\#(first.updatedAt)","body":{"blocks":[{"id":"b1","type":"paragraph","spans":[{"type":"text","text":"v1"}]}]}},"speakers":[],"via":"owned"}
-        """##
+        let ackNote = noteJSON(title: "First", bodyText: "v1", updatedAt: first.updatedAt)
+        MockNativeURLProtocol.upsertNoteJSON = "{\"ok\":true,\"note\":\(ackNote),\"speakers\":[],\"via\":\"owned\"}"
 
         // A newer local edit lands before flush completes clearing meta.
-        // Simulate by editing after enqueue but before clearDirty sees the newer stamp.
-        let second = editLocally(title: "Second", bodyText: "v2")
-        XCTAssertTrue(second.updatedAt >= first.updatedAt)
+        let second = editLocally(
+            title: "Second",
+            bodyText: "v2",
+            editedAt: t0.addingTimeInterval(0.25)
+        )
+        XCTAssertTrue(second.updatedAt > first.updatedAt)
 
         // Upsert path clears only when syncedUpdatedAt >= localUpdatedAt.
         LocalNoteCache.clearDirtyIfNotNewer(id: "n1", syncedUpdatedAt: first.updatedAt)
