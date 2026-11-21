@@ -1042,15 +1042,22 @@ enum NativeAPIClient {
             return false
         }()
         if !hasNewerLocal {
-            LocalNoteCache.upsertNote(saved)
-            NativeSWR.applyLocalNote(saved)
+            // Keep the client edit stamp so Caderno sort does not jump when the server
+            // echoes the same edit with a differently formatted `updatedAt`.
+            var toStore = saved
+            if !sentUpdatedAt.isEmpty {
+                toStore.updatedAt = LocalNoteCache.maxUpdatedAt(sentUpdatedAt, saved.updatedAt)
+            }
+            LocalNoteCache.upsertNote(toStore)
+            // applyLocalNote upserts the row and marks the full `.notes` list fetched —
+            // do not invalidate(.notes) (that forced a needless list refetch / flicker).
+            NativeSWR.applyLocalNote(toStore)
         }
         LocalNoteCache.clearDirtyIfNotNewer(
             id: saved.id,
             syncedUpdatedAt: sentUpdatedAt,
             syncedRevision: sentRevision
         )
-        NativeSWR.invalidate(.notes)
         NativeSWR.markFetched(.note(saved.id), value: NotePack(
             note: LocalNoteCache.note(id: saved.id) ?? saved,
             speakers: LocalNoteCache.loadSpeakers(),
@@ -1373,6 +1380,20 @@ enum NativeAPIClient {
     }
 
     private static func groupNoteSort(_ lhs: GroupNoteCardDTO, _ rhs: GroupNoteCardDTO) -> Bool {
+        // Mirror Caderno: Date-parsed happenedAt, then updatedAt (cards have no sync meta).
+        switch (
+            LocalNoteCache.parseHappenedAt(lhs.note.happenedAt),
+            LocalNoteCache.parseHappenedAt(rhs.note.happenedAt)
+        ) {
+        case let (l?, r?) where l != r:
+            return l > r
+        case (_?, nil):
+            return true
+        case (nil, _?):
+            return false
+        default:
+            break
+        }
         if lhs.note.happenedAt != rhs.note.happenedAt {
             return lhs.note.happenedAt > rhs.note.happenedAt
         }

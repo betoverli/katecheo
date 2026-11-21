@@ -152,31 +152,31 @@ enum NativeSWR {
     }
 
     /// Push a local owned-note edit into SWR memory so TTL hits do not revive stale server copies.
+    /// Always marks the full `.notes` list as fetched (upsert from disk when memory is empty)
+    /// so callers do not need `invalidate(.notes)` + refetch after a save.
     static func applyLocalNote(_ note: NativeAPIClient.NoteDocument) {
         let pack = NativeAPIClient.NotePack(note: note, speakers: LocalNoteCache.loadSpeakers(), via: "owned")
+        let diskList = LocalNoteCache.loadNotes()
         lock.lock()
         let noteKey = Key.note(note.id).description
+        let now = Date()
         memory[noteKey] = pack
         // Keep TTL freshness so we do not force a network round-trip after every keystroke,
         // but ensure the in-memory value matches disk.
-        if fetchedAt[noteKey] == nil {
-            fetchedAt[noteKey] = Date()
+        fetchedAt[noteKey] = now
+        var list = (memory[Key.notes.description] as? [NativeAPIClient.NoteDocument]) ?? diskList
+        // Prefer the longer baseline so a truncated memory snapshot cannot shrink the list.
+        if diskList.count > list.count {
+            list = diskList
         }
-        if var list = memory[Key.notes.description] as? [NativeAPIClient.NoteDocument] {
-            if let index = list.firstIndex(where: { $0.id == note.id }) {
-                list[index] = note
-            } else {
-                list.insert(note, at: 0)
-            }
-            list.sort { lhs, rhs in
-                if lhs.happenedAt != rhs.happenedAt { return lhs.happenedAt > rhs.happenedAt }
-                return LocalNoteCache.isUpdatedAt(lhs.updatedAt, newerThan: rhs.updatedAt)
-            }
-            memory[Key.notes.description] = list
-            if fetchedAt[Key.notes.description] == nil {
-                fetchedAt[Key.notes.description] = Date()
-            }
+        if let index = list.firstIndex(where: { $0.id == note.id }) {
+            list[index] = note
+        } else {
+            list.insert(note, at: 0)
         }
+        list.sort(by: LocalNoteCache.compareNotesForList)
+        memory[Key.notes.description] = list
+        fetchedAt[Key.notes.description] = now
         lock.unlock()
     }
 
@@ -329,11 +329,24 @@ enum NativeSWR {
         return try await task.value
     }
 
-    private static func shouldPreferDiskOverMemory<T>(key: Key, disk _: T) -> Bool {
+    private static func shouldPreferDiskOverMemory<T>(key: Key, disk: T) -> Bool {
         switch key {
         case .notes:
-            // Any dirty/pending owned note means disk may be ahead of memory.
-            return LocalNoteCache.loadMeta().values.contains { $0.dirty || $0.pendingSync }
+            // Any dirty/pending owned note means disk may be ahead of memory —
+            // but never paint a shorter disk snapshot over a fuller in-memory list
+            // (defense if a single-note merge ever truncated notes-v1.json).
+            guard LocalNoteCache.loadMeta().values.contains(where: { $0.dirty || $0.pendingSync }) else {
+                return false
+            }
+            if let diskNotes = disk as? [NativeAPIClient.NoteDocument] {
+                lock.lock()
+                let memNotes = memory[Key.notes.description] as? [NativeAPIClient.NoteDocument]
+                lock.unlock()
+                if let memNotes, diskNotes.count < memNotes.count {
+                    return false
+                }
+            }
+            return true
         case .note(let id):
             return LocalNoteCache.isDirtyOrPending(id)
         default:

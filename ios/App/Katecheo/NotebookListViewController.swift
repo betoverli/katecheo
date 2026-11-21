@@ -24,6 +24,11 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     private var notificationsBell: KCNotificationsBellButton?
     /// True until the first group-notes network (or throttle hit) finishes when there was no cache.
     private var groupNotesAwaitingFirstPaint = false
+    /// Bumps on every reload start; only the latest generation may apply async results.
+    private var reloadGeneration = 0
+
+    /// Test hook — current reload generation token.
+    var testing_reloadGeneration: Int { reloadGeneration }
 
     convenience init(group: NativeAPIClient.GroupDTO) {
         self.init(nibName: nil, bundle: nil)
@@ -166,16 +171,98 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
         )
         NotificationCenter.default.addObserver(
             self,
-            selector: #selector(reload),
+            selector: #selector(handleOutboxDidFlush),
             name: .nativeOutboxDidFlush,
             object: nil
         )
         NotificationCenter.default.addObserver(
             self,
-            selector: #selector(reload),
+            selector: #selector(handleNoteDidChange(_:)),
             name: .nativeNoteDidChange,
             object: nil
         )
+    }
+
+    /// Patch one personal Caderno row from disk/memory — no list GET.
+    @objc private func handleNoteDidChange(_ notification: Notification) {
+        guard group == nil else {
+            reload()
+            return
+        }
+        guard let noteId = notification.object as? String, !noteId.isEmpty else {
+            // Bulk / legacy import: repaint from disk without a network round-trip.
+            adoptPersonalNotes(LocalNoteCache.loadNotes(), source: .localCache, allowingShorter: true)
+            return
+        }
+        patchPersonalNote(id: noteId)
+    }
+
+    /// After outbox flush, refresh personal rows from disk (already updated by upsert) — no GET.
+    @objc private func handleOutboxDidFlush() {
+        guard group == nil else {
+            reload()
+            return
+        }
+        adoptPersonalNotes(LocalNoteCache.loadNotes(), source: .localCache, allowingShorter: true)
+    }
+
+    private func patchPersonalNote(id: String) {
+        let fromMemory: NativeAPIClient.NoteDocument? = {
+            let list: [NativeAPIClient.NoteDocument]? = NativeSWR.cachedValue(.notes)
+            return list?.first(where: { $0.id == id })
+        }()
+        guard let updated = LocalNoteCache.note(id: id) ?? fromMemory else { return }
+        var next = notes
+        if let index = next.firstIndex(where: { $0.id == id }) {
+            next[index] = updated
+        } else {
+            next.insert(updated, at: 0)
+        }
+        next.sort(by: LocalNoteCache.compareNotesForList)
+        adoptPersonalNotes(next, source: .localCache, allowingShorter: false)
+    }
+
+    private enum PersonalNotesSource {
+        case localCache
+        case network
+    }
+
+    /// Apply a personal (non-group) notes array. Rejects a shorter unfiltered network/cache
+    /// paint unless `allowingShorter` (delete / force reconcile / explicit disk replace).
+    private func adoptPersonalNotes(
+        _ incoming: [NativeAPIClient.NoteDocument],
+        source: PersonalNotesSource,
+        allowingShorter: Bool
+    ) {
+        if !allowingShorter, incoming.count < notes.count {
+            let disk = LocalNoteCache.loadNotes()
+            let baseline = max(notes.count, disk.count)
+            if incoming.count < baseline {
+                // Keep the fuller list; still merge any overlapping row updates.
+                var merged = disk.count >= notes.count ? disk : notes
+                var byId = Dictionary(uniqueKeysWithValues: merged.map { ($0.id, $0) })
+                for note in incoming { byId[note.id] = note }
+                merged = Array(byId.values).sorted(by: LocalNoteCache.compareNotesForList)
+                notes = merged
+                applyFilter()
+                return
+            }
+        }
+        _ = source
+        notes = incoming
+        applyFilter()
+    }
+
+    /// Instant Caderno paint from SWR memory or disk (no await).
+    private func paintPersonalNotesFromCache() {
+        if let mem: [NativeAPIClient.NoteDocument] = NativeSWR.cachedValue(.notes), !mem.isEmpty {
+            adoptPersonalNotes(mem, source: .localCache, allowingShorter: false)
+            return
+        }
+        let disk = LocalNoteCache.loadNotes()
+        if !disk.isEmpty {
+            adoptPersonalNotes(disk, source: .localCache, allowingShorter: false)
+        }
     }
 
     @objc private func refreshSharedChipDot() {
@@ -199,6 +286,11 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         refreshNotificationsBadge()
+        // Paint the full disk/memory list immediately so popping the editor never flashes
+        // a truncated intermediate state while a refetch is in flight.
+        if group == nil {
+            paintPersonalNotesFromCache()
+        }
         Task { @MainActor in
             if !NativeAPIClient.hasBearer {
                 _ = await NativeSessionBootstrap.migrateCookieToKeychainIfNeeded()
@@ -211,9 +303,16 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     }
 
     @objc private func reload() {
+        reloadGeneration &+= 1
+        let generation = reloadGeneration
         Task { @MainActor in
-            defer { refresh.endRefreshing() }
+            defer {
+                if generation == reloadGeneration {
+                    refresh.endRefreshing()
+                }
+            }
             guard NativeAPIClient.hasBearer else {
+                guard generation == reloadGeneration else { return }
                 if group != nil {
                     groupCards = []
                     applyFilter()
@@ -226,8 +325,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                     )
                     return
                 }
-                notes = LocalNoteCache.loadNotes()
-                applyFilter()
+                adoptPersonalNotes(LocalNoteCache.loadNotes(), source: .localCache, allowingShorter: true)
                 setBannerStatus(
                     notes.isEmpty ? String(localized: "Faça login para sincronizar o caderno.") : String(localized: "Offline / sem sessão — cache local."),
                     kind: notes.isEmpty ? .warning : .neutral
@@ -268,39 +366,63 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                     if force || !notesFresh {
                         // Metadata refresh only when we actually hit the notes endpoint (or pull).
                         let refreshed = try await NativeAPIClient.getGroup(id: group.id)
+                        guard generation == reloadGeneration else { return }
                         self.group = refreshed
                         title = refreshed.name
                         groupCards = try await NativeAPIClient.listGroupNotes(groupId: group.id, force: force)
+                        guard generation == reloadGeneration else { return }
                         notes = groupCards.compactMap { $0.document }
                     } else if let cached = LocalGroupNotesCache.load(userId: userId, groupId: group.id) {
                         // Throttled — reuse disk/memory without another GET.
+                        guard generation == reloadGeneration else { return }
                         groupCards = cached
                         notes = groupCards.compactMap { $0.document }
                     }
+                    guard generation == reloadGeneration else { return }
                     groupNotesAwaitingFirstPaint = false
                     // No persistent sync success banner — list content is enough.
                     setBannerStatus(nil)
                     applyFilter()
                     return
                 }
-                async let remoteNotes = NativeAPIClient.listNotes(force: force)
-                async let remoteSpeakers = NativeAPIClient.listSpeakers(force: force)
-                async let remoteGranted = NativeAPIClient.listGrantedNotes(force: force)
-                notes = try await remoteNotes
-                speakers = try await remoteSpeakers
-                grantedNotes = (try? await remoteGranted) ?? []
-                let offline = NativeSWR.consumeOfflineFallback(.notes)
-                if offline {
-                    setBannerStatus(Self.offlineCacheBanner(pending: NativeOutbox.pendingCount), kind: .warning)
+
+                // Personal Caderno: paint cache first; skip list refetch when SWR memory is fresh.
+                paintPersonalNotesFromCache()
+                let notesFresh = NativeSWR.isFresh(.notes, ttl: NativeSWR.TTL.lists)
+                if force || !notesFresh {
+                    async let remoteNotes = NativeAPIClient.listNotes(force: force)
+                    async let remoteSpeakers = NativeAPIClient.listSpeakers(force: force)
+                    async let remoteGranted = NativeAPIClient.listGrantedNotes(force: force)
+                    let fetchedNotes = try await remoteNotes
+                    let fetchedSpeakers = try await remoteSpeakers
+                    let fetchedGranted = (try? await remoteGranted) ?? []
+                    guard generation == reloadGeneration else { return }
+                    speakers = fetchedSpeakers
+                    grantedNotes = fetchedGranted
+                    // Full listNotes merge is authoritative (may shrink after real server deletes).
+                    adoptPersonalNotes(fetchedNotes, source: .network, allowingShorter: true)
+                    let offline = NativeSWR.consumeOfflineFallback(.notes)
+                    if offline {
+                        setBannerStatus(Self.offlineCacheBanner(pending: NativeOutbox.pendingCount), kind: .warning)
+                    } else {
+                        setBannerStatus(nil)
+                    }
+                    Task { await KCActivitySync.refreshFromServer(force: force) }
                 } else {
+                    // In-memory list is current — refresh speakers/granted only if stale, no notes GET.
+                    async let remoteSpeakers = NativeAPIClient.listSpeakers(force: false)
+                    async let remoteGranted = NativeAPIClient.listGrantedNotes(force: false)
+                    speakers = (try? await remoteSpeakers) ?? speakers
+                    grantedNotes = (try? await remoteGranted) ?? grantedNotes
+                    guard generation == reloadGeneration else { return }
                     setBannerStatus(nil)
+                    applyFilter()
                 }
-                applyFilter()
-                Task { await KCActivitySync.refreshFromServer(force: force) }
             } catch NativeAPIClient.APIError.unauthorized {
+                guard generation == reloadGeneration else { return }
                 setBannerStatus(String(localized: "Sessão expirada. Entre novamente."), kind: .error)
                 if group == nil {
-                    notes = LocalNoteCache.loadNotes()
+                    adoptPersonalNotes(LocalNoteCache.loadNotes(), source: .localCache, allowingShorter: true)
                 }
                 applyFilter()
                 showEmpty(
@@ -311,8 +433,9 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 )
                 showSignIn(auto: true)
             } catch {
+                guard generation == reloadGeneration else { return }
                 if group == nil {
-                    notes = LocalNoteCache.loadNotes()
+                    adoptPersonalNotes(LocalNoteCache.loadNotes(), source: .localCache, allowingShorter: true)
                     setBannerStatus(Self.offlineCacheBanner(pending: NativeOutbox.pendingCount), kind: .warning)
                 } else {
                     groupNotesAwaitingFirstPaint = false
@@ -325,6 +448,16 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 applyFilter()
             }
         }
+    }
+
+    /// Test hook — bump generation and report whether a stale token must be ignored.
+    func testing_beginReloadGeneration() -> Int {
+        reloadGeneration &+= 1
+        return reloadGeneration
+    }
+
+    func testing_shouldApplyReload(generation: Int) -> Bool {
+        generation == reloadGeneration
     }
 
     private var isGroupMode: Bool { group != nil }

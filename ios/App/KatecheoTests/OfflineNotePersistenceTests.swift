@@ -435,4 +435,206 @@ final class OfflineNotePersistenceTests: XCTestCase {
         XCTAssertEqual(packed.note.id, created.id)
         XCTAssertEqual(packed.via, "owned")
     }
+
+    // MARK: - Caderno list flicker: mergeServerNote must not truncate siblings
+
+    private func makeNote(
+        id: String,
+        title: String,
+        happenedAt: String,
+        updatedAt: String,
+        bodyText: String = "body"
+    ) -> NativeAPIClient.NoteDocument {
+        var note = NativeAPIClient.emptyNote(id: id)
+        note.title = title
+        note.happenedAt = happenedAt
+        note.updatedAt = updatedAt
+        note.body = .init(blocks: [
+            .init(
+                id: "b1",
+                type: "paragraph",
+                spans: [.init(type: "text", text: bodyText)],
+                speakerId: nil,
+                title: nil,
+                collapsed: nil,
+                checked: nil,
+                blocks: nil
+            ),
+        ])
+        return note
+    }
+
+    private func seedThreeNotesOnDisk() -> [NativeAPIClient.NoteDocument] {
+        let notes = [
+            makeNote(id: "n1", title: "One", happenedAt: "2026-01-03", updatedAt: "2026-01-03T10:00:00Z"),
+            makeNote(id: "n2", title: "Two", happenedAt: "2026-01-02", updatedAt: "2026-01-02T10:00:00Z"),
+            makeNote(id: "n3", title: "Three", happenedAt: "2026-01-01", updatedAt: "2026-01-01T10:00:00Z"),
+        ]
+        LocalNoteCache.saveNotes(notes)
+        NativeSWR.markFetched(.notes, value: notes)
+        return notes
+    }
+
+    func testMergeServerNote_keepsSiblingNotesOnDisk() {
+        _ = seedThreeNotesOnDisk()
+        let server = makeNote(
+            id: "n2",
+            title: "Two from server",
+            happenedAt: "2026-01-02",
+            updatedAt: "2026-01-02T12:00:00Z"
+        )
+        let merged = LocalNoteCache.mergeServerNote(server)
+        XCTAssertEqual(merged.title, "Two from server")
+        let disk = LocalNoteCache.loadNotes()
+        XCTAssertEqual(disk.count, 3)
+        XCTAssertEqual(Set(disk.map(\.id)), Set(["n1", "n2", "n3"]))
+        XCTAssertEqual(disk.first(where: { $0.id == "n2" })?.title, "Two from server")
+        XCTAssertEqual(disk.first(where: { $0.id == "n1" })?.title, "One")
+        XCTAssertEqual(disk.first(where: { $0.id == "n3" })?.title, "Three")
+    }
+
+    func testGetNote_doesNotTruncateSiblingCache() async throws {
+        _ = seedThreeNotesOnDisk()
+        let n2 = noteJSON(
+            id: "n2",
+            title: "Two network",
+            bodyText: "from get",
+            updatedAt: "2026-01-02T12:00:00Z"
+        )
+        MockNativeURLProtocol.noteByIdJSON =
+            "{\"ok\":true,\"note\":\(n2),\"speakers\":[],\"via\":\"owned\"}"
+        NativeSWR.invalidate(.note("n2"))
+
+        let packed = try await NativeAPIClient.getNote(id: "n2", force: true)
+        XCTAssertEqual(packed.note.title, "Two network")
+
+        let disk = LocalNoteCache.loadNotes()
+        XCTAssertEqual(disk.count, 3, "getNote must not rewrite notes-v1.json to a single row")
+        XCTAssertEqual(Set(disk.map(\.id)), Set(["n1", "n2", "n3"]))
+    }
+
+    func testListNotes_afterDirtyGetNote_returnsAllThree() async throws {
+        _ = seedThreeNotesOnDisk()
+        var dirty = makeNote(
+            id: "n2",
+            title: "Two dirty",
+            happenedAt: "2026-01-02",
+            updatedAt: "2026-01-02T10:00:00Z"
+        )
+        dirty = LocalNoteCache.recordLocalEdit(dirty)
+        NativeOutbox.enqueueNoteUpsert(dirty)
+        LocalNoteCache.markPendingSync(id: "n2")
+
+        let serverN2 = noteJSON(
+            id: "n2",
+            title: "Two server",
+            bodyText: "server",
+            updatedAt: "2026-01-02T11:00:00Z"
+        )
+        MockNativeURLProtocol.noteByIdJSON =
+            "{\"ok\":true,\"note\":\(serverN2),\"speakers\":[],\"via\":\"owned\"}"
+        NativeSWR.invalidate(.note("n2"))
+        _ = try await NativeAPIClient.getNote(id: "n2", force: true)
+        XCTAssertEqual(LocalNoteCache.loadNotes().count, 3)
+
+        let listPayload = [
+            noteJSON(id: "n1", title: "One", bodyText: "body", updatedAt: "2026-01-03T10:00:00Z"),
+            noteJSON(id: "n2", title: "Two server", bodyText: "server", updatedAt: "2026-01-02T11:00:00Z"),
+            noteJSON(id: "n3", title: "Three", bodyText: "body", updatedAt: "2026-01-01T10:00:00Z"),
+        ].joined(separator: ",")
+        MockNativeURLProtocol.notesJSON = "{\"ok\":true,\"notes\":[\(listPayload)]}"
+        NativeSWR.invalidate(.notes)
+
+        let listed = try await NativeAPIClient.listNotes(force: true)
+        XCTAssertEqual(listed.count, 3)
+        XCTAssertEqual(listed.first(where: { $0.id == "n2" })?.title, "Two dirty")
+        XCTAssertEqual(Set(listed.map(\.id)), Set(["n1", "n2", "n3"]))
+    }
+
+    func testUpsert_afterGetNote_doesNotPersistOneNoteCache() async throws {
+        _ = seedThreeNotesOnDisk()
+        let n1 = noteJSON(
+            id: "n1",
+            title: "One network",
+            bodyText: "get",
+            updatedAt: "2026-01-03T11:00:00Z"
+        )
+        MockNativeURLProtocol.noteByIdJSON =
+            "{\"ok\":true,\"note\":\(n1),\"speakers\":[],\"via\":\"owned\"}"
+        NativeSWR.invalidate(.note("n1"))
+        _ = try await NativeAPIClient.getNote(id: "n1", force: true)
+        XCTAssertEqual(LocalNoteCache.loadNotes().count, 3)
+
+        let edited = editLocally(id: "n1", title: "One edited", bodyText: "local")
+        let ack = noteJSON(
+            id: "n1",
+            title: "One edited",
+            bodyText: "local",
+            updatedAt: edited.updatedAt
+        )
+        MockNativeURLProtocol.upsertNoteJSON =
+            "{\"ok\":true,\"note\":\(ack),\"speakers\":[],\"via\":\"owned\"}"
+        _ = try await NativeAPIClient.upsertNote(edited)
+
+        let disk = LocalNoteCache.loadNotes()
+        XCTAssertEqual(disk.count, 3, "upsert after getNote must not leave a 1-note cache")
+        XCTAssertEqual(Set(disk.map(\.id)), Set(["n1", "n2", "n3"]))
+        let mem: [NativeAPIClient.NoteDocument]? = NativeSWR.cachedValue(.notes)
+        XCTAssertEqual(mem?.count, 3)
+        XCTAssertTrue(NativeSWR.isFresh(.notes, ttl: NativeSWR.TTL.lists))
+    }
+
+    func testNoteSort_differingUpdatedAtAndHappenedAtFormats_stableAmongSiblings() {
+        let a = makeNote(
+            id: "a",
+            title: "A",
+            happenedAt: "2026-01-02",
+            updatedAt: "2026-01-02T10:00:00.500Z"
+        )
+        let b = makeNote(
+            id: "b",
+            title: "B",
+            happenedAt: "2026-01-02T00:00:00Z",
+            updatedAt: "2026-01-02T10:00:00Z"
+        )
+        let c = makeNote(
+            id: "c",
+            title: "C",
+            happenedAt: "2026-01-01",
+            updatedAt: "2026-01-01T09:00:00.123Z"
+        )
+        // Same civil day for A/B; fractional updatedAt keeps A above B; C is older day.
+        let sorted = [c, b, a].sorted(by: LocalNoteCache.compareNotesForList)
+        XCTAssertEqual(sorted.map(\.id), ["a", "b", "c"])
+
+        // Server ack format (no fractional seconds) must not reorder A below B when
+        // local edit stamp is retained via effectiveUpdatedAt / maxUpdatedAt.
+        var aAck = a
+        aAck.updatedAt = "2026-01-02T10:00:00Z"
+        LocalNoteCache.saveNotes([aAck, b, c])
+        // Simulate lingering local stamp while dirty (or kept edit stamp after upsert).
+        _ = LocalNoteCache.recordLocalEdit(a, editedAt: LocalNoteCache.parseUpdatedAt("2026-01-02T10:00:00.500Z")!)
+        let after = LocalNoteCache.loadNotes().sorted(by: LocalNoteCache.compareNotesForList)
+        XCTAssertEqual(after.first?.id, "a")
+        let ids = Set(after.map(\.id))
+        XCTAssertEqual(ids, Set(["a", "b", "c"]))
+    }
+
+    func testParseHappenedAt_acceptsDayAndISO() {
+        let day = LocalNoteCache.parseHappenedAt("2026-01-02")
+        let iso = LocalNoteCache.parseHappenedAt("2026-01-02T15:30:00Z")
+        XCTAssertNotNil(day)
+        XCTAssertNotNil(iso)
+        XCTAssertEqual(day, iso, "ISO datetime should bucket to the same UTC civil day")
+    }
+
+    func testReloadGeneration_onlyLatestApplies() {
+        let vc = NotebookListViewController()
+        let first = vc.testing_beginReloadGeneration()
+        XCTAssertTrue(vc.testing_shouldApplyReload(generation: first))
+        let second = vc.testing_beginReloadGeneration()
+        XCTAssertFalse(vc.testing_shouldApplyReload(generation: first))
+        XCTAssertTrue(vc.testing_shouldApplyReload(generation: second))
+        XCTAssertEqual(vc.testing_reloadGeneration, second)
+    }
 }
