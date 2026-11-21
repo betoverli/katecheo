@@ -1,18 +1,23 @@
 import UIKit
 
 /// Editable tag chips shown under the note title inside the editor (TF210).
+/// The note-level speaker chip leads the same horizontal strip so it scrolls with content.
 @MainActor
 final class NoteEditorTagsStrip: UIView, UITextFieldDelegate {
     static let preferredHeight: CGFloat = 32
 
     var onTagsChange: (([String]) -> Void)?
     var onEditingChange: ((Bool) -> Void)?
+    /// Opens the whole-note speaker picker (does not add tags).
+    var onSpeakerTap: (() -> Void)?
 
     private let scroll = UIScrollView()
     private let stack = UIStackView()
     private let addField = UITextField()
     private let placeholderButton = UIButton(type: .system)
+    private let speakerChip = UIButton(type: .system)
     private var tags: [String] = []
+    private var speakerName: String?
     private(set) var isEditingTags = false
 
     override init(frame: CGRect) {
@@ -36,6 +41,12 @@ final class NoteEditorTagsStrip: UIView, UITextFieldDelegate {
         stack.spacing = 8
         stack.translatesAutoresizingMaskIntoConstraints = false
         scroll.addSubview(stack)
+
+        speakerChip.translatesAutoresizingMaskIntoConstraints = false
+        speakerChip.setContentHuggingPriority(.required, for: .horizontal)
+        speakerChip.setContentCompressionResistancePriority(.required, for: .horizontal)
+        speakerChip.addTarget(self, action: #selector(speakerTapped), for: .touchUpInside)
+        speakerChip.accessibilityIdentifier = "note.tagsStrip.speaker"
 
         placeholderButton.translatesAutoresizingMaskIntoConstraints = false
         var placeholderConfig = UIButton.Configuration.plain()
@@ -89,7 +100,24 @@ final class NoteEditorTagsStrip: UIView, UITextFieldDelegate {
         rebuild()
     }
 
+    /// `nil` / empty → compact “add speaker” chip; otherwise person + name.
+    func setSpeakerName(_ name: String?) {
+        let trimmed = name?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let next = (trimmed?.isEmpty == false) ? trimmed : nil
+        guard speakerName != next else {
+            // Still refresh colors/fonts if traits changed while name stayed the same.
+            configureSpeakerChip()
+            return
+        }
+        speakerName = next
+        rebuild()
+    }
+
     func currentTags() -> [String] { tags }
+
+    @objc private func speakerTapped() {
+        onSpeakerTap?()
+    }
 
     @objc private func beginAddingTag() {
         placeholderButton.isHidden = true
@@ -141,6 +169,8 @@ final class NoteEditorTagsStrip: UIView, UITextFieldDelegate {
             stack.removeArrangedSubview(view)
             view.removeFromSuperview()
         }
+        configureSpeakerChip()
+        stack.addArrangedSubview(speakerChip)
         for tag in tags {
             stack.addArrangedSubview(makeChip(tag))
         }
@@ -166,6 +196,33 @@ final class NoteEditorTagsStrip: UIView, UITextFieldDelegate {
             placeholderButton.isHidden = true
             addField.isHidden = true
         }
+    }
+
+    private func configureSpeakerChip() {
+        var config = UIButton.Configuration.plain()
+        if let speakerName {
+            config.title = speakerName
+            config.image = UIImage(systemName: "person.fill")
+            speakerChip.accessibilityLabel = "\(String(localized: "Speaker da nota")): \(speakerName)"
+        } else {
+            config.title = String(localized: "Speaker")
+            config.image = UIImage(systemName: "person.badge.plus")
+            speakerChip.accessibilityLabel = String(localized: "Speaker da nota")
+        }
+        config.imagePlacement = .leading
+        config.imagePadding = 5
+        config.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 11, weight: .semibold)
+        config.baseForegroundColor = KCDesign.accent
+        // Match tag-chip vertical rhythm; accentSoft fill like KCSpeakerChipView.
+        config.contentInsets = NSDirectionalEdgeInsets(top: 5, leading: 10, bottom: 5, trailing: 10)
+        config.background.backgroundColor = KCDesign.accentSoft
+        config.background.cornerRadius = 12
+        config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
+            var next = incoming
+            next.font = KCDesign.preferred(.footnote, weight: .semibold)
+            return next
+        }
+        speakerChip.configuration = config
     }
 
     private func makeChip(_ tag: String) -> UIView {
@@ -208,7 +265,38 @@ final class NoteEditorTagsStrip: UIView, UITextFieldDelegate {
         return false
     }
 
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        if traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection) {
+            configureSpeakerChip()
+            // Tag chips are rebuilt with accent colors; only refresh if already laid out.
+            if !tags.isEmpty || speakerName != nil {
+                rebuild()
+            }
+        }
+    }
+
     override var intrinsicContentSize: CGSize {
         CGSize(width: UIView.noIntrinsicMetric, height: Self.preferredHeight)
+    }
+
+    // MARK: - Testing hooks
+
+    var testing_speakerTitle: String? {
+        speakerChip.configuration?.title
+    }
+
+    var testing_hasAssignedSpeaker: Bool {
+        speakerName != nil
+    }
+
+    var testing_speakerChipView: UIView { speakerChip }
+
+    var testing_firstArrangedIsSpeaker: Bool {
+        stack.arrangedSubviews.first === speakerChip
+    }
+
+    func testing_tapSpeaker() {
+        speakerTapped()
     }
 }

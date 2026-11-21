@@ -14,10 +14,6 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
     private var speakers: [NativeAPIClient.SpeakerDTO] = []
     private let editor = NativeNoteEditorView()
     private var saveWork: DispatchWorkItem?
-    private let speakerChip = UIButton(type: .system)
-    private let speakerChipRemove = UIButton(type: .system)
-    private let speakerChipRow = UIStackView()
-    private let topChrome = UIStackView()
     private let syncButton = UIButton(type: .system)
     private var syncState: SyncState = .idle
     /// Local edits since the last clean `pushNote` — blocks API refresh from wiping the caret/IME.
@@ -84,61 +80,13 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         ]
         navigationItem.rightBarButtonItems?.first?.accessibilityLabel = String(localized: "Mais opções da nota")
 
-        topChrome.axis = .vertical
-        topChrome.spacing = KCDesign.Space.xxs
-        topChrome.alignment = .leading
-        topChrome.translatesAutoresizingMaskIntoConstraints = false
-        topChrome.backgroundColor = KCDesign.canvas
-        topChrome.isLayoutMarginsRelativeArrangement = true
-        topChrome.layoutMargins = UIEdgeInsets(
-            top: KCDesign.Space.xxs,
-            left: KCDesign.Space.md,
-            bottom: 0,
-            right: KCDesign.Space.md
-        )
-
-        speakerChipRow.axis = .horizontal
-        speakerChipRow.spacing = KCDesign.Space.xxs
-        speakerChipRow.alignment = .center
-        speakerChipRow.isHidden = true
-
-        var chipConfig = UIButton.Configuration.filled()
-        chipConfig.cornerStyle = .capsule
-        chipConfig.baseBackgroundColor = KCDesign.surface.withAlphaComponent(0.7)
-        chipConfig.baseForegroundColor = .secondaryLabel
-        chipConfig.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 10, bottom: 6, trailing: 10)
-        chipConfig.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
-            var out = incoming
-            out.font = KCDesign.preferred(.footnote, weight: .medium)
-            return out
-        }
-        speakerChip.configuration = chipConfig
-        speakerChip.addTarget(self, action: #selector(editWholeSpeaker), for: .touchUpInside)
-        speakerChip.accessibilityLabel = String(localized: "Speaker da nota")
-
-        speakerChipRemove.setTitle("×", for: .normal)
-        speakerChipRemove.titleLabel?.font = KCDesign.preferred(.title3, weight: .regular)
-        speakerChipRemove.setTitleColor(.secondaryLabel, for: .normal)
-        speakerChipRemove.addTarget(self, action: #selector(clearWholeSpeaker), for: .touchUpInside)
-        speakerChipRemove.accessibilityLabel = String(localized: "Remover speaker")
-        speakerChipRemove.widthAnchor.constraint(equalToConstant: 36).isActive = true
-        speakerChipRemove.heightAnchor.constraint(equalToConstant: 36).isActive = true
-
-        speakerChipRow.addArrangedSubview(speakerChip)
-        speakerChipRow.addArrangedSubview(speakerChipRemove)
-        topChrome.addArrangedSubview(speakerChipRow)
-
+        // Whole-note speaker lives in the editor tags strip (scrolls with content) — no pinned top chrome.
         editor.delegate = self
         editor.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(topChrome)
         view.addSubview(editor)
 
         NSLayoutConstraint.activate([
-            topChrome.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            topChrome.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            topChrome.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-
-            editor.topAnchor.constraint(equalTo: topChrome.bottomAnchor),
+            editor.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             editor.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             editor.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             editor.bottomAnchor.constraint(equalTo: view.bottomAnchor),
@@ -283,7 +231,6 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
     /// Nav + page fill match the warm editor canvas (not the darker tab screenBackground).
     private func applyEditorChrome() {
         KCChrome.styleCanvas(view)
-        topChrome.backgroundColor = KCDesign.canvas
         editor.backgroundColor = KCDesign.canvas
         if let nav = navigationController {
             KCChrome.applyNavigationBarAppearance(to: nav.navigationBar, background: KCDesign.canvas)
@@ -446,32 +393,12 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         }
     }
 
+    /// Keep the tags-strip speaker chip in sync with `note.noteSpeakerId` + catalog.
     private func refreshSpeakerChip() {
-        guard let speakerId = note.noteSpeakerId,
-              let speaker = speakers.first(where: { $0.id == speakerId })
-        else {
-            speakerChipRow.isHidden = true
-            return
-        }
-        speakerChipRow.isHidden = false
-        var config = speakerChip.configuration ?? .filled()
-        config.title = speaker.name
-        config.image = UIImage(systemName: "circle.fill")
-        config.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 7, weight: .bold)
-        config.imagePadding = 6
-        if let color = UIColor(kcHex: speaker.color) {
-            config.imageColorTransformer = UIConfigurationColorTransformer { _ in color }
-        }
-        speakerChip.configuration = config
-    }
-
-    @objc private func editWholeSpeaker() {
-        openSpeakerPicker(forSection: false)
-    }
-
-    @objc private func clearWholeSpeaker() {
-        editor.setNoteSpeakerId(nil)
-        refreshSpeakerChip()
+        // Prefer the editor document (source of truth while open); fall back to VC note.
+        let id = editor.isReady ? editor.currentDocument().noteSpeakerId : note.noteSpeakerId
+        note.noteSpeakerId = id
+        editor.refreshSpeakerChip()
     }
 
     // MARK: - NativeNoteEditorViewDelegate
@@ -577,6 +504,12 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
 
     func nativeNoteEditorRequestSpeaker(_ editor: NativeNoteEditorView) {
         openSpeakerPicker(forSection: true)
+    }
+
+    func nativeNoteEditorRequestNoteSpeaker(_ editor: NativeNoteEditorView) {
+        // Chip → picker: select against the live document speaker id.
+        note.noteSpeakerId = editor.currentDocument().noteSpeakerId
+        openSpeakerPicker(forSection: false)
     }
 
     func nativeNoteEditorRequestRenameSpeaker(
@@ -709,9 +642,7 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         sheet.addAction(UIAlertAction(title: String(localized: "Configurações"), style: .default) { [weak self] _ in
             self?.openSettings()
         })
-        sheet.addAction(UIAlertAction(title: String(localized: "Speakers…"), style: .default) { [weak self] _ in
-            self?.openSpeakerPicker(forSection: false)
-        })
+        // Whole-note speaker is edited via the tags-strip chip (and Note Settings) — not the … menu.
         if NativeAPIClient.hasBearer {
             sheet.addAction(UIAlertAction(title: String(localized: "Mover para grupo…"), style: .default) { [weak self] _ in
                 self?.moveToGroup()
@@ -794,6 +725,7 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
             self.updateTitle()
             self.scheduleSave()
             self.editor.pushNote(self.note, speakers: self.speakers)
+            self.refreshSpeakerChip()
         }
         KCSheetPresenter.present(settings, from: self)
     }
