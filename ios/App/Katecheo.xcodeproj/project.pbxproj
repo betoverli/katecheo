@@ -36,6 +36,7 @@
 		KCSWR12FED7965001685V2 /* NativeSWR.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCSWR11FED7965001685V2 /* NativeSWR.swift */; };
 		KCSWR22FED7965001685V2 /* NativeSWRCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCSWR21FED7965001685V2 /* NativeSWRCacheTests.swift */; };
 		KCOFFL22FED7965001685OF /* OfflineNotePersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCOFFL21FED7965001685OF /* OfflineNotePersistenceTests.swift */; };
+		KCCARET2FED7965001685CA /* NoteDetailCaretPreservationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCCARET1FED7965001685CA /* NoteDetailCaretPreservationTests.swift */; };
 		KCCAT12FED7965001685V2 /* NativeCatalogSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCCAT11FED7965001685V2 /* NativeCatalogSync.swift */; };
 		T7TF21022FED7965001685T7 /* NativeNoteEditorTF210Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T7TF21021FED7965001685T7 /* NativeNoteEditorTF210Tests.swift */; };
 		T7TAGS12FED7965001685T7 /* NoteEditorTagsStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = T7TAGS11FED7965001685T7 /* NoteEditorTagsStrip.swift */; };
@@ -233,6 +234,7 @@
 		KCSWR11FED7965001685V2 /* NativeSWR.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeSWR.swift; sourceTree = "<group>"; };
 		KCSWR21FED7965001685V2 /* NativeSWRCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeSWRCacheTests.swift; sourceTree = "<group>"; };
 		KCOFFL21FED7965001685OF /* OfflineNotePersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineNotePersistenceTests.swift; sourceTree = "<group>"; };
+		KCCARET1FED7965001685CA /* NoteDetailCaretPreservationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteDetailCaretPreservationTests.swift; sourceTree = "<group>"; };
 		KCCAT11FED7965001685V2 /* NativeCatalogSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeCatalogSync.swift; sourceTree = "<group>"; };
 		T7TAGS11FED7965001685T7 /* NoteEditorTagsStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteEditorTagsStrip.swift; sourceTree = "<group>"; };
 		T1A2B0142FED7965001685T1 /* KatecheoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = KatecheoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -403,6 +405,7 @@
 				TBACBAR1FED7965001685TB /* NativeNoteEditorAccessoryBarTests.swift */,
 				KCSWR21FED7965001685V2 /* NativeSWRCacheTests.swift */,
 				KCOFFL21FED7965001685OF /* OfflineNotePersistenceTests.swift */,
+				KCCARET1FED7965001685CA /* NoteDetailCaretPreservationTests.swift */,
 				GNCACHE21FED7965001685GN /* GroupNotesCacheTests.swift */,
 				TBNTC11FED7965001685TB /* NotificationsCenterTests.swift */,
 				CIIDENT31FED7965001685CI /* ConnectedIdentitiesTests.swift */,
@@ -698,6 +701,7 @@
 				TBACBAR2FED7965001685TB /* NativeNoteEditorAccessoryBarTests.swift in Sources */,
 				KCSWR22FED7965001685V2 /* NativeSWRCacheTests.swift in Sources */,
 				KCOFFL22FED7965001685OF /* OfflineNotePersistenceTests.swift in Sources */,
+				KCCARET2FED7965001685CA /* NoteDetailCaretPreservationTests.swift in Sources */,
 				GNCACHE22FED7965001685GN /* GroupNotesCacheTests.swift in Sources */,
 				TBNTC12FED7965001685TB /* NotificationsCenterTests.swift in Sources */,
 				CIIDENT32FED7965001685CI /* ConnectedIdentitiesTests.swift in Sources */,

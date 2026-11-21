@@ -22,6 +22,11 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
     private var syncState: SyncState = .idle
     /// Local edits since the last clean `pushNote` — blocks API refresh from wiping the caret/IME.
     private var hasLocalEdits = false
+    /// After the editor paints this note, the on-screen buffer is source of truth while this VC is open.
+    /// Refresh / outbox / self-save may update speakers + sync chrome, but must never `pushNote`.
+    private var screenBufferIsSourceOfTruth = false
+    /// Posted with `.nativeNoteDidChange` so this VC can ignore notifications it emitted itself.
+    static let noteChangeSenderKey = "katecheo.noteChangeSender"
     /// Granted (Shared) notes are readable; mutations stay with the owner.
     private var isGrantedReadOnly: Bool
     /// Author of a granted / group note — used for report & block.
@@ -177,6 +182,8 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
                 applySyncState(.pendingLocal)
             }
         }
+        // Initial paint done — keep the live buffer across persist / outbox / SWR refresh.
+        screenBufferIsSourceOfTruth = true
         Task { await refreshFromAPI() }
     }
 
@@ -303,6 +310,12 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
 
     @objc private func noteDidChangeExternally(_ note: Notification) {
         guard let id = note.object as? String, id == noteId else { return }
+        // Ignore the notification this VC posted after its own persist — list still receives it.
+        if let sender = note.userInfo?[Self.noteChangeSenderKey] as? ObjectIdentifier,
+           sender == ObjectIdentifier(self)
+        {
+            return
+        }
         Task { await refreshFromAPI() }
     }
 
@@ -374,14 +387,22 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
                 let localDirty = !self.isGrantedReadOnly && (
                     self.hasLocalEdits || LocalNoteCache.isDirtyOrPending(self.noteId)
                 )
-                if localDirty {
+                // While this detail screen owns the buffer, never rewrite the editor — even after
+                // a clean persist (hasLocalEdits=false) or outbox flush. List still refreshes via
+                // `.nativeNoteDidChange`; caret / IME stay put.
+                if localDirty || self.screenBufferIsSourceOfTruth {
                     // Keep the live editor buffer — only refresh speaker chrome / metadata.
                     if let disk = LocalNoteCache.note(id: self.noteId) {
                         self.note.updatedAt = LocalNoteCache.maxUpdatedAt(self.note.updatedAt, disk.updatedAt)
                     }
                     self.editor.updateSpeakers(self.speakers)
                     self.refreshSpeakerChip()
-                    self.applySyncState(offline || LocalNoteCache.isDirtyOrPending(self.noteId) ? .pendingLocal : .saving)
+                    let pending = offline || LocalNoteCache.isDirtyOrPending(self.noteId)
+                    if localDirty {
+                        self.applySyncState(pending ? .pendingLocal : .saving)
+                    } else {
+                        self.applySyncState(pending ? .pendingLocal : .synced)
+                    }
                     return
                 }
                 // Apply server only when local isn't dirty and server isn't older than local.
@@ -403,14 +424,22 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         } catch {
             await MainActor.run {
                 if let disk = LocalNoteCache.note(id: self.noteId), !self.isGrantedReadOnly {
-                    self.note = LocalNoteCache.preferredNote(over: disk)
+                    // Prefer disk for VC metadata, but do not clobber the live buffer while open.
+                    if !self.screenBufferIsSourceOfTruth {
+                        self.note = LocalNoteCache.preferredNote(over: disk)
+                    } else {
+                        self.note.updatedAt = LocalNoteCache.maxUpdatedAt(
+                            self.note.updatedAt,
+                            LocalNoteCache.preferredNote(over: disk).updatedAt
+                        )
+                    }
                 }
                 self.speakers = self.isGrantedReadOnly ? self.speakers : LocalNoteCache.loadSpeakers()
                 self.applySyncState(.pendingLocal)
-                if !self.hasLocalEdits {
-                    self.editor.pushNote(self.note, speakers: self.speakers, readOnly: self.isGrantedReadOnly)
-                } else {
+                if self.screenBufferIsSourceOfTruth || self.hasLocalEdits {
                     self.editor.updateSpeakers(self.speakers)
+                } else {
+                    self.editor.pushNote(self.note, speakers: self.speakers, readOnly: self.isGrantedReadOnly)
                 }
                 self.refreshSpeakerChip()
             }
@@ -569,7 +598,12 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
                 } else {
                     self.applySyncState(.pendingLocal)
                 }
-                NotificationCenter.default.post(name: .nativeNoteDidChange, object: self.noteId)
+                // Keep posting so Caderno / other screens refresh; tag sender so we ignore it here.
+                NotificationCenter.default.post(
+                    name: .nativeNoteDidChange,
+                    object: self.noteId,
+                    userInfo: [Self.noteChangeSenderKey: ObjectIdentifier(self)]
+                )
             }
         } catch NativeAPIClient.APIError.http(let code, _) where code == 409 {
             LocalNoteCache.markSyncLimitReached(id: noteId)
@@ -810,5 +844,57 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
             from: self,
             barButtonItem: navigationItem.rightBarButtonItems?.first
         )
+    }
+}
+
+// MARK: - AppTests seams
+
+extension NoteDetailViewController {
+    var testing_editor: NativeNoteEditorView { editor }
+
+    var testing_hasLocalEdits: Bool { hasLocalEdits }
+
+    var testing_screenBufferIsSourceOfTruth: Bool { screenBufferIsSourceOfTruth }
+
+    func testing_setHasLocalEdits(_ value: Bool) {
+        hasLocalEdits = value
+    }
+
+    func testing_cancelPendingSave() {
+        saveWork?.cancel()
+        saveWork = nil
+    }
+
+    /// Mimic a successful online persist: dirty cleared, then post `.nativeNoteDidChange`
+    /// the same way `persist()` does (with this VC as sender).
+    func testing_simulateSuccessfulPersist() {
+        let payload = LocalNoteCache.note(id: noteId) ?? note
+        let revision = LocalNoteCache.syncMeta(for: noteId)?.localRevision
+        LocalNoteCache.clearDirtyIfNotNewer(
+            id: noteId,
+            syncedUpdatedAt: payload.updatedAt,
+            syncedRevision: revision
+        )
+        note.updatedAt = payload.updatedAt
+        hasLocalEdits = false
+        applySyncState(.synced)
+        NotificationCenter.default.post(
+            name: .nativeNoteDidChange,
+            object: noteId,
+            userInfo: [Self.noteChangeSenderKey: ObjectIdentifier(self)]
+        )
+    }
+
+    /// External note-change notification (no sender) — as if another screen updated this id.
+    func testing_postExternalNoteDidChange() {
+        NotificationCenter.default.post(name: .nativeNoteDidChange, object: noteId)
+    }
+
+    func testing_refreshFromAPI(force: Bool = false) async {
+        await refreshFromAPI(force: force)
+    }
+
+    func testing_outboxDidFlush() {
+        outboxDidFlush()
     }
 }
