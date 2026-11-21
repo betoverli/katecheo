@@ -448,6 +448,28 @@ if (!editor.includes("inputAccessoryView") || !editor.includes("Referência bíb
 if (!editor.includes("setEditingChrome") || !editor.includes("textViewDidBeginEditing")) {
   errors.push("Toolbar de formatação só depois de entrar em modo edição.");
 }
+// Apple Notes–style floating capsule format toolbar (scroll inside, transparent host).
+if (
+  !editor.includes("NoteEditorAccessoryBar") ||
+  !editor.includes("capsuleHorizontalInset") ||
+  !editor.includes("cornerCurve = .continuous") ||
+  !editor.includes("clipsToBounds = true")
+) {
+  errors.push(
+    "Toolbar de formatação tem de ser uma cápsula flutuante (NoteEditorAccessoryBar: insets, cornerCurve.continuous, clipsToBounds).",
+  );
+}
+{
+  const pbx = read("ios/App/Katecheo.xcodeproj/project.pbxproj");
+  if (!pbx.includes("NativeNoteEditorAccessoryBarTests.swift in Sources")) {
+    errors.push("Falta NativeNoteEditorAccessoryBarTests no target KatecheoTests.");
+  }
+  try {
+    read("ios/App/KatecheoTests/NativeNoteEditorAccessoryBarTests.swift");
+  } catch {
+    errors.push("Falta ios/App/KatecheoTests/NativeNoteEditorAccessoryBarTests.swift");
+  }
+}
 // TF200/TF210: inline @/ popovers gone; TF210 also removes typing shortcuts.
 if (
   editor.includes("NoteEditorTriggerMenuView") ||
