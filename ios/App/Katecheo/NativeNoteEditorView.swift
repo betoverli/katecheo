@@ -31,7 +31,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     private let titlePlaceholderLabel = UILabel()
     private let bodyPlaceholderLabel = UILabel()
     private let tagsStrip = NoteEditorTagsStrip()
-    /// Hairline between header (title + tags) and body — view decoration, not document text.
+    /// Divider between header (title + tags) and body — view decoration, not document text.
     private let headerDivider = UIView()
     /// After the user deletes an auto-capitalized first letter, the next lowercase insert is kept.
     private var suppressSentenceAutocapitalize = false
@@ -125,7 +125,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         textView.addSubview(tagsStrip)
 
         headerDivider.translatesAutoresizingMaskIntoConstraints = true
-        headerDivider.backgroundColor = KCDesign.separator
+        headerDivider.backgroundColor = KCDesign.headerDivider
         headerDivider.isUserInteractionEnabled = false
         headerDivider.accessibilityIdentifier = "note.headerDivider"
         textView.addSubview(headerDivider)
@@ -191,9 +191,11 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         refreshDynamicTextColors()
         titlePlaceholderLabel.textColor = .tertiaryLabel
         bodyPlaceholderLabel.textColor = .tertiaryLabel
-        headerDivider.backgroundColor = KCDesign.separator
+        headerDivider.backgroundColor = KCDesign.headerDivider
         backgroundColor = KCDesign.canvas
         textView.backgroundColor = KCDesign.canvas
+        // Thickness is style-dependent (1pt dark / hairline light) — re-layout on trait flips.
+        repositionHeaderDivider()
         // Quote chrome uses dynamic colors — redraw without rebaking insert-time CGColors.
         refreshSpeakerRails()
         if forceAttachments {
@@ -309,9 +311,9 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
                 return
             }
             storage.addAttribute(.foregroundColor, value: UIColor.label, range: range)
-            // Re-stamp dynamic quote fill (never leave a once-resolved static CGColor).
+            // Quote chrome is layout-manager fill only — strip any leftover text-run highlight.
             if (attrs[NoteDocumentCodec.blockTypeKey] as? String) == "quote" {
-                storage.addAttribute(.backgroundColor, value: NoteDocumentCodec.quoteBackgroundColor, range: range)
+                storage.removeAttribute(.backgroundColor, range: range)
             }
         }
         storage.endEditing()
@@ -527,14 +529,17 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         tagsStrip.frame = CGRect(x: leading, y: y, width: width, height: height)
     }
 
-    /// Hairline between the header band (title + tags) and the body — scrolls with content.
-    /// When there are no tag chips, the tags strip is still the header’s lower edge (empty
-    /// state / “Adicionar tags”), so the divider sits under the title+tags band either way.
+    /// Divider between the header band (title + tags) and the body — scrolls with content.
+    /// Dark: 1pt for visibility on canvas; light: hairline (1/scale). When there are no tag
+    /// chips, the tags strip is still the header’s lower edge (empty state / “Adicionar tags”),
+    /// so the divider sits under the title+tags band either way.
     private func repositionHeaderDivider() {
         textView.layoutManager.ensureLayout(for: textView.textContainer)
         let leading = textContentLeading()
         let width = textContentWidth()
-        let hairline = 1 / max(UIScreen.main.scale, 1)
+        let thickness: CGFloat = effectiveEditorInterfaceStyle() == .dark
+            ? 1
+            : 1 / max(UIScreen.main.scale, 1)
         let tagsFrame = tagsStrip.frame
 
         // Prefer the live body caret/placeholder Y so the divider stays centered as the
@@ -553,14 +558,14 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         let headerBottom = tagsFrame.maxY + 4
         let gap = max(0, bodyY - headerBottom)
         let y: CGFloat
-        if gap > hairline + 2 {
-            y = headerBottom + (gap - hairline) * 0.5
+        if gap > thickness + 2 {
+            y = headerBottom + (gap - thickness) * 0.5
         } else {
-            y = max(headerBottom, bodyY - hairline - 4)
+            y = max(headerBottom, bodyY - thickness - 4)
         }
-        let clampedY = min(y, max(0, bodyY - hairline - 2))
-        headerDivider.frame = CGRect(x: leading, y: clampedY, width: width, height: hairline)
-        headerDivider.backgroundColor = KCDesign.separator
+        let clampedY = min(y, max(0, bodyY - thickness - 2))
+        headerDivider.frame = CGRect(x: leading, y: clampedY, width: width, height: thickness)
+        headerDivider.backgroundColor = KCDesign.headerDivider
     }
 
     /// Pin title/body placeholders to the same origin as the caret (insets, padding, font).
@@ -2032,22 +2037,16 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         } else {
             storage.removeAttribute(NoteDocumentCodec.checkedKey, range: range)
         }
-        // Quote keeps a dynamic fill attribute; other block types must not inherit a baked bg.
+        // Quote fill is layout-manager chrome only — never a text-run `.backgroundColor`
+        // (that draws a second lighter rectangle inside the rounded block in dark mode).
         storage.removeAttribute(.backgroundColor, range: range)
-        if type == "quote" {
-            storage.addAttribute(.backgroundColor, value: NoteDocumentCodec.quoteBackgroundColor, range: range)
-        }
 
         var typing = styled
         typing[NoteDocumentCodec.blockTypeKey] = type
         typing[NoteDocumentCodec.blockIdKey] = id
         if keepBody { typing[NoteDocumentCodec.speakerBodyKey] = true }
         if let checked { typing[NoteDocumentCodec.checkedKey] = checked }
-        if type == "quote" {
-            typing[.backgroundColor] = NoteDocumentCodec.quoteBackgroundColor
-        } else {
-            typing.removeValue(forKey: .backgroundColor)
-        }
+        typing.removeValue(forKey: .backgroundColor)
         textView.typingAttributes = typing
         emitChange()
         refreshSpeakerRails()
@@ -2995,7 +2994,8 @@ final class NoteSpeakerRailLayoutManager: NSLayoutManager {
     var quoteBlocks: [NSRange] = []
 
     override func drawBackground(forGlyphRange glyphsToShow: NSRange, at origin: CGPoint) {
-        // Quote chrome first so the rounded fill sits under glyph backgrounds / rails.
+        // Quote chrome first (single-tone rounded fill + accent). Text runs must not carry
+        // `.backgroundColor` — that would paint a second highlight inside the block.
         drawQuoteBlocks(origin: origin)
         super.drawBackground(forGlyphRange: glyphsToShow, at: origin)
         drawSpeakerRails(origin: origin)

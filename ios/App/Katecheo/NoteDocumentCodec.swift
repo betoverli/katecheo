@@ -447,10 +447,8 @@ enum NoteDocumentCodec {
             blockTypeKey: type,
             blockIdKey: id,
         ]
-        if type == "quote" {
-            // Dynamic fill so light↔dark adapts without reopening (never bake at insert).
-            attrs[.backgroundColor] = quoteBackgroundColor
-        }
+        // Quote fill is drawn once by the layout manager (rounded block + accent bar).
+        // Do NOT set `.backgroundColor` on the text run — that paints a second inner highlight.
         if type == "check" {
             attrs[checkedKey] = checked ?? false
         }
