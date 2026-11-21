@@ -626,6 +626,19 @@ try {
   if (!cache.includes("mergeSpeakers") || !cache.includes("removeSpeaker")) {
     errors.push("LocalNoteCache tem de mergeSpeakers (não apagar o catálogo com speakers note-scoped).");
   }
+  if (
+    !cache.includes("recordLocalEdit") ||
+    !cache.includes("mergeServerNotes") ||
+    !cache.includes("pendingSync") ||
+    !cache.includes("localUpdatedAt") ||
+    !cache.includes("localRevision") ||
+    !cache.includes("notes-meta-v1.json") ||
+    !cache.includes("parseUpdatedAt")
+  ) {
+    errors.push(
+      "LocalNoteCache tem de ter dirty/pendingSync + localUpdatedAt/localRevision (notes-meta-v1), parseUpdatedAt e mergeServerNotes/recordLocalEdit (offline edits).",
+    );
+  }
 } catch {
   errors.push("Ficheiro em falta: ios/App/Katecheo/LocalNoteCache.swift");
 }
@@ -1538,11 +1551,20 @@ try {
   if (!swr.includes("stale-while-revalidate") && !swr.includes("TTL")) {
     errors.push("NativeSWR precisa de TTLs SWR.");
   }
+  if (!swr.includes("applyLocalNote") || !swr.includes("consumeOfflineFallback") || !swr.includes("prefersDiskOnFailure")) {
+    errors.push("NativeSWR tem de applyLocalNote + preferir disco offline para .notes/.note (offline edits).");
+  }
   if (!api.includes("listNotes(force: Bool = false)") || !api.includes("getPrefs(force: Bool = false)")) {
     errors.push("NativeAPIClient GETs precisam de force/SWR (listNotes/getPrefs/…).");
   }
+  if (!api.includes("mergeServerNotes") || !api.includes("clearDirtyIfNotNewer")) {
+    errors.push("listNotes/getNote/upsertNote têm de fazer merge dirty-safe (mergeServerNotes / clearDirtyIfNotNewer).");
+  }
   if (!read("ios/App/Katecheo/KCActivitySync.swift").includes("skippedFresh")) {
     errors.push("KCActivitySync tem de debouncear refresh (skippedFresh).");
+  }
+  if (!project.includes("OfflineNotePersistenceTests.swift in Sources")) {
+    errors.push("OfflineNotePersistenceTests.swift tem de estar no target KatecheoTests.");
   }
 } catch {
   errors.push("Falha ao validar NativeSWR / activity debounce.");

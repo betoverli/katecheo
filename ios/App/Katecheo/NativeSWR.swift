@@ -71,6 +71,8 @@ enum NativeSWR {
     private static var epoch: [String: UInt64] = [:]
     private static var activityLastForceAt: Date?
     private static var activityLastSuccessAt: Date?
+    /// Keys that returned disk/memory because the network failed (offline banner).
+    private static var offlineFallbackKeys: Set<String> = []
 
     // MARK: - Probe (tests)
 
@@ -123,11 +125,59 @@ enum NativeSWR {
             let k = key.description
             fetchedAt.removeValue(forKey: k)
             memory.removeValue(forKey: k)
+            offlineFallbackKeys.remove(k)
             // Drop coalesce handle so the next fetch starts a post-mutation GET.
             // The old Task may still finish; `epoch` prevents it from writing cache.
             inFlight.removeValue(forKey: k)
             epoch[k, default: 0] &+= 1
         }
+    }
+
+    /// True when the last `fetch` for `key` served disk/memory after a network failure.
+    static func consumeOfflineFallback(_ key: Key) -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        return offlineFallbackKeys.remove(key.description) != nil
+    }
+
+    static func markOfflineFallback(_ key: Key) {
+        lock.lock(); defer { lock.unlock() }
+        offlineFallbackKeys.insert(key.description)
+    }
+
+    private static func prefersDiskOnFailure(_ key: Key) -> Bool {
+        switch key {
+        case .notes, .note: return true
+        default: return false
+        }
+    }
+
+    /// Push a local owned-note edit into SWR memory so TTL hits do not revive stale server copies.
+    static func applyLocalNote(_ note: NativeAPIClient.NoteDocument) {
+        let pack = NativeAPIClient.NotePack(note: note, speakers: LocalNoteCache.loadSpeakers(), via: "owned")
+        lock.lock()
+        let noteKey = Key.note(note.id).description
+        memory[noteKey] = pack
+        // Keep TTL freshness so we do not force a network round-trip after every keystroke,
+        // but ensure the in-memory value matches disk.
+        if fetchedAt[noteKey] == nil {
+            fetchedAt[noteKey] = Date()
+        }
+        if var list = memory[Key.notes.description] as? [NativeAPIClient.NoteDocument] {
+            if let index = list.firstIndex(where: { $0.id == note.id }) {
+                list[index] = note
+            } else {
+                list.insert(note, at: 0)
+            }
+            list.sort { lhs, rhs in
+                if lhs.happenedAt != rhs.happenedAt { return lhs.happenedAt > rhs.happenedAt }
+                return LocalNoteCache.isUpdatedAt(lhs.updatedAt, newerThan: rhs.updatedAt)
+            }
+            memory[Key.notes.description] = list
+            if fetchedAt[Key.notes.description] == nil {
+                fetchedAt[Key.notes.description] = Date()
+            }
+        }
+        lock.unlock()
     }
 
     static func invalidateNotesSubtree(noteId: String? = nil) {
@@ -170,6 +220,7 @@ enum NativeSWR {
         memory.removeAll()
         inFlight.removeAll()
         epoch.removeAll()
+        offlineFallbackKeys.removeAll()
         activityLastForceAt = nil
         activityLastSuccessAt = nil
         networkHits = []
@@ -210,6 +261,12 @@ enum NativeSWR {
         saveDisk: ((T) -> Void)? = nil,
         network: @escaping () async throws -> T
     ) async throws -> T {
+        // Owned notes: when disk is dirty/pending, prefer it over a fresh-but-stale memory hit.
+        // Skip the network unless `force` (merge in saveDisk / uncached still protects dirty rows).
+        if !force, prefersDiskOnFailure(key), let disk = loadDisk?(), shouldPreferDiskOverMemory(key: key, disk: disk) {
+            markFetched(key, value: disk)
+            return disk
+        }
         if !force, isFresh(key, ttl: ttl), let mem: T = cachedValue(key) {
             return mem
         }
@@ -226,12 +283,14 @@ enum NativeSWR {
                 return existing
             }
             let startEpoch = epoch[key.description, default: 0]
+            let preferDisk = prefersDiskOnFailure(key)
             let created = Task<T, Error> {
                 do {
                     let value = try await network()
                     lock.lock()
                     let stale = epoch[key.description, default: 0] != startEpoch
                     inFlight.removeValue(forKey: key.description)
+                    offlineFallbackKeys.remove(key.description)
                     if !stale {
                         fetchedAt[key.description] = Date()
                         memory[key.description] = value
@@ -242,14 +301,23 @@ enum NativeSWR {
                         return value
                     }
                     // Mutation won the race — keep post-mutation memory/disk.
+                    if preferDisk, let disk = loadDisk?() { return disk }
                     if let mem: T = cachedValue(key) { return mem }
                     if let disk = loadDisk?() { return disk }
                     return value
                 } catch {
-                    lock.lock(); inFlight.removeValue(forKey: key.description); lock.unlock()
-                    // Offline: prefer memory / disk over failing the screen.
-                    if let mem: T = cachedValue(key) { return mem }
-                    if let disk = loadDisk?() { return disk }
+                    lock.lock()
+                    inFlight.removeValue(forKey: key.description)
+                    offlineFallbackKeys.insert(key.description)
+                    lock.unlock()
+                    // Offline: for owned notes prefer disk over memory; otherwise memory then disk.
+                    if preferDisk {
+                        if let disk = loadDisk?() { return disk }
+                        if let mem: T = cachedValue(key) { return mem }
+                    } else {
+                        if let mem: T = cachedValue(key) { return mem }
+                        if let disk = loadDisk?() { return disk }
+                    }
                     throw error
                 }
             }
@@ -259,6 +327,18 @@ enum NativeSWR {
         }()
 
         return try await task.value
+    }
+
+    private static func shouldPreferDiskOverMemory<T>(key: Key, disk _: T) -> Bool {
+        switch key {
+        case .notes:
+            // Any dirty/pending owned note means disk may be ahead of memory.
+            return LocalNoteCache.loadMeta().values.contains { $0.dirty || $0.pendingSync }
+        case .note(let id):
+            return LocalNoteCache.isDirtyOrPending(id)
+        default:
+            return false
+        }
     }
 
     // MARK: - Disk helpers (granted / prefs / bible / providers)
