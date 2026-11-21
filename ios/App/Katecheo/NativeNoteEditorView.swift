@@ -776,8 +776,16 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     }
 
     /// Load / replace the document currently shown.
+    ///
+    /// Defense in depth for caret jumps: when refreshing an already-displayed note with the
+    /// same id, preserve `selectedRange` (clamped) and first-responder. Location 0 only on
+    /// the initial load (or when switching to a different note id).
     func pushNote(_ note: NativeAPIClient.NoteDocument, speakers: [NativeAPIClient.SpeakerDTO] = [], readOnly: Bool = false) {
         precondition(Thread.isMainThread)
+        let previousId = documentBase.id
+        let wasReady = isReady
+        let savedRange = textView.selectedRange
+        let wasFirstResponder = textView.isFirstResponder
         documentBase = note
         self.speakers = speakers
         applyingRemote = true
@@ -785,7 +793,17 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         // Prefer textStorage mutation over attributedText reassign when possible so we
         // don't thrash selection — but a full load must replace content once.
         textView.textStorage.setAttributedString(attributed)
-        textView.selectedRange = NSRange(location: 0, length: 0)
+        let length = textView.textStorage.length
+        if wasReady, previousId == note.id, previousId != "pending" {
+            let loc = min(max(0, savedRange.location), length)
+            let len = min(max(0, savedRange.length), max(0, length - loc))
+            textView.selectedRange = NSRange(location: loc, length: len)
+            if wasFirstResponder, !textView.isFirstResponder {
+                _ = textView.becomeFirstResponder()
+            }
+        } else {
+            textView.selectedRange = NSRange(location: 0, length: 0)
+        }
         textView.typingAttributes = typingAttributesForCaret()
         textView.isEditable = !readOnly
         tagsStrip.isUserInteractionEnabled = !readOnly
