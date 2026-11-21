@@ -16,9 +16,16 @@ enum LocalNoteCache {
         var localRevision: Int
         /// Last raw server copy kept when a dirty local note wins a conflict (last-write-wins).
         var serverBackup: NativeAPIClient.NoteDocument?
+        /// Notebook group to publish into on the next successful upsert / outbox flush.
+        var publishGroupId: String?
+        /// True until the first successful server upsert (offline-created notes).
+        var awaitingFirstSync: Bool
+        /// Server rejected sync with the 200-note limit (HTTP 409) — keep local, stop retrying.
+        var syncLimitReached: Bool
 
         enum CodingKeys: String, CodingKey {
             case dirty, pendingSync, localUpdatedAt, localRevision, serverBackup
+            case publishGroupId, awaitingFirstSync, syncLimitReached
         }
 
         init(
@@ -26,13 +33,19 @@ enum LocalNoteCache {
             pendingSync: Bool,
             localUpdatedAt: String,
             localRevision: Int,
-            serverBackup: NativeAPIClient.NoteDocument?
+            serverBackup: NativeAPIClient.NoteDocument?,
+            publishGroupId: String? = nil,
+            awaitingFirstSync: Bool = false,
+            syncLimitReached: Bool = false
         ) {
             self.dirty = dirty
             self.pendingSync = pendingSync
             self.localUpdatedAt = localUpdatedAt
             self.localRevision = localRevision
             self.serverBackup = serverBackup
+            self.publishGroupId = publishGroupId
+            self.awaitingFirstSync = awaitingFirstSync
+            self.syncLimitReached = syncLimitReached
         }
 
         init(from decoder: Decoder) throws {
@@ -42,6 +55,9 @@ enum LocalNoteCache {
             localUpdatedAt = try c.decode(String.self, forKey: .localUpdatedAt)
             localRevision = try c.decodeIfPresent(Int.self, forKey: .localRevision) ?? 1
             serverBackup = try c.decodeIfPresent(NativeAPIClient.NoteDocument.self, forKey: .serverBackup)
+            publishGroupId = try c.decodeIfPresent(String.self, forKey: .publishGroupId)
+            awaitingFirstSync = try c.decodeIfPresent(Bool.self, forKey: .awaitingFirstSync) ?? false
+            syncLimitReached = try c.decodeIfPresent(Bool.self, forKey: .syncLimitReached) ?? false
         }
     }
 
@@ -178,9 +194,65 @@ enum LocalNoteCache {
         loadMeta()[id]?.pendingSync == true
     }
 
+    /// Note was created locally and has never successfully reached the server.
+    static func isAwaitingFirstSync(_ id: String) -> Bool {
+        loadMeta()[id]?.awaitingFirstSync == true
+    }
+
+    static func publishGroupId(for id: String) -> String? {
+        let raw = loadMeta()[id]?.publishGroupId?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let raw, !raw.isEmpty else { return nil }
+        return raw
+    }
+
+    static func setPublishGroupId(id: String, groupId: String?) {
+        var meta = loadMeta()
+        var entry = meta[id] ?? NoteSyncMeta(
+            dirty: true,
+            pendingSync: true,
+            localUpdatedAt: editTimestamp(),
+            localRevision: 1,
+            serverBackup: nil
+        )
+        let trimmed = groupId?.trimmingCharacters(in: .whitespacesAndNewlines)
+        entry.publishGroupId = (trimmed?.isEmpty == false) ? trimmed : nil
+        meta[id] = entry
+        saveMeta(meta)
+    }
+
+    static func isSyncLimitReached(_ id: String) -> Bool {
+        loadMeta()[id]?.syncLimitReached == true
+    }
+
+    /// HTTP 409 (200-note limit): keep the local note, stop outbox retries.
+    static func markSyncLimitReached(id: String) {
+        var meta = loadMeta()
+        var entry = meta[id] ?? NoteSyncMeta(
+            dirty: true,
+            pendingSync: true,
+            localUpdatedAt: editTimestamp(),
+            localRevision: 1,
+            serverBackup: nil
+        )
+        entry.dirty = true
+        entry.pendingSync = true
+        entry.syncLimitReached = true
+        meta[id] = entry
+        saveMeta(meta)
+        NativeOutbox.dropJobs(forNoteId: id)
+        log.error("Note \(id, privacy: .public) hit 200-note limit (409); kept local, stopped sync retries")
+    }
+
     /// Stamp edit time, bump local revision, mark dirty+pending, write disk, refresh NativeSWR.
+    /// Pass `awaitingFirstSync` / `publishGroupId` on local-first create; omit to preserve prior meta.
     @discardableResult
-    static func recordLocalEdit(_ note: NativeAPIClient.NoteDocument, editedAt: Date = Date()) -> NativeAPIClient.NoteDocument {
+    static func recordLocalEdit(
+        _ note: NativeAPIClient.NoteDocument,
+        editedAt: Date = Date(),
+        publishGroupId: String? = nil,
+        awaitingFirstSync: Bool? = nil
+    ) -> NativeAPIClient.NoteDocument {
         var next = note
         next.schemaVersion = 1
         let stamp = editTimestamp(from: editedAt)
@@ -189,12 +261,17 @@ enum LocalNoteCache {
         var meta = loadMeta()
         let previous = meta[next.id]
         let revision = (previous?.localRevision ?? 0) + 1
+        let trimmedGroup = (publishGroupId ?? previous?.publishGroupId)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
         meta[next.id] = NoteSyncMeta(
             dirty: true,
             pendingSync: true,
             localUpdatedAt: stamp,
             localRevision: revision,
-            serverBackup: previous?.serverBackup
+            serverBackup: previous?.serverBackup,
+            publishGroupId: (trimmedGroup?.isEmpty == false) ? trimmedGroup : nil,
+            awaitingFirstSync: awaitingFirstSync ?? previous?.awaitingFirstSync ?? false,
+            syncLimitReached: previous?.syncLimitReached ?? false
         )
         saveMeta(meta)
         NativeSWR.applyLocalNote(next)
@@ -219,6 +296,7 @@ enum LocalNoteCache {
 
     /// Clear dirty/pending after a successful server upsert, but only if no newer local edit landed.
     /// Prefer revision when the caller knows which edit was synced; fall back to Date compare.
+    /// Any successful upsert clears `awaitingFirstSync` (the id now exists on the server).
     static func clearDirtyIfNotNewer(
         id: String,
         syncedUpdatedAt: String,
@@ -226,6 +304,7 @@ enum LocalNoteCache {
     ) {
         var meta = loadMeta()
         guard var entry = meta[id] else { return }
+        entry.awaitingFirstSync = false
         let keepDirty: Bool = {
             if let syncedRevision {
                 return entry.localRevision > syncedRevision
@@ -273,7 +352,10 @@ enum LocalNoteCache {
                         pendingSync: true,
                         localUpdatedAt: local.updatedAt,
                         localRevision: 1,
-                        serverBackup: nil
+                        serverBackup: nil,
+                        publishGroupId: nil,
+                        awaitingFirstSync: true,
+                        syncLimitReached: false
                     )
                     if server != local {
                         next.serverBackup = server

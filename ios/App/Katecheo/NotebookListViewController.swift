@@ -790,20 +790,28 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
         alert.addAction(UIAlertAction(title: String(localized: "Excluir nota"), style: .destructive) { [weak self] _ in
             Task { @MainActor in
                 do {
-                    if NativeAPIClient.hasBearer {
+                    if LocalNoteCache.isAwaitingFirstSync(note.id) {
+                        NativeAPIClient.discardLocalOnlyNote(id: note.id)
+                    } else if NativeAPIClient.hasBearer {
                         try await NativeAPIClient.deleteNote(id: note.id)
                     } else {
                         LocalNoteCache.removeNote(id: note.id)
                         NativeOutbox.enqueueNoteDelete(id: note.id)
                     }
                     self?.notes.removeAll { $0.id == note.id }
+                    self?.groupCards.removeAll { $0.note.id == note.id }
                     self?.applyFilter()
                     KCHaptics.medium()
                     completion(true)
                 } catch {
-                    LocalNoteCache.removeNote(id: note.id)
-                    NativeOutbox.enqueueNoteDelete(id: note.id)
+                    if LocalNoteCache.isAwaitingFirstSync(note.id) {
+                        NativeAPIClient.discardLocalOnlyNote(id: note.id)
+                    } else {
+                        LocalNoteCache.removeNote(id: note.id)
+                        NativeOutbox.enqueueNoteDelete(id: note.id)
+                    }
                     self?.notes.removeAll { $0.id == note.id }
+                    self?.groupCards.removeAll { $0.note.id == note.id }
                     self?.applyFilter()
                     completion(true)
                 }
@@ -827,6 +835,16 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     }
 
     private func share(_ note: NativeAPIClient.NoteDocument, from source: UIView) {
+        if LocalNoteCache.isAwaitingFirstSync(note.id) {
+            let alert = UIAlertController(
+                title: nil,
+                message: String(localized: "Disponível após sincronizar."),
+                preferredStyle: .alert
+            )
+            alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
+            present(alert, animated: true)
+            return
+        }
         let title = note.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? String(localized: "Reunião") : note.title
         let text = note.preview
         let url = NativeAPIClient.baseURL.appendingPathComponent("n/\(note.id)")
@@ -841,28 +859,35 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 showSignIn(auto: false)
                 return
             }
+            // Local-first: same path online or offline. Keep emptyNote()'s 32-hex id (no temp/remap).
+            let draft = NativeAPIClient.emptyNote()
+            let created = LocalNoteCache.recordLocalEdit(
+                draft,
+                publishGroupId: group?.id,
+                awaitingFirstSync: true
+            )
+            if let group {
+                insertCreatedGroupNoteLocally(created, group: group)
+            } else {
+                notes.insert(created, at: 0)
+                applyFilter()
+            }
+            let detail = NoteDetailViewController(
+                noteId: created.id,
+                initial: created,
+                publishGroupId: group?.id
+            )
+            navigationController?.pushViewController(detail, animated: true)
+
+            // Best-effort first sync; outbox covers offline / failure.
             do {
-                // Inside a group: create already belonging to that group (wire `groupId` + publish).
-                let created = try await NativeAPIClient.upsertNote(
-                    NativeAPIClient.emptyNote(),
-                    publishToGroupId: group?.id
-                )
-                if let group {
-                    insertCreatedGroupNoteLocally(created, group: group)
-                } else {
-                    notes.insert(created, at: 0)
-                    applyFilter()
-                }
-                let detail = NoteDetailViewController(
-                    noteId: created.id,
-                    initial: created,
-                    publishGroupId: group?.id
-                )
-                navigationController?.pushViewController(detail, animated: true)
+                _ = try await NativeAPIClient.upsertNote(created, publishToGroupId: group?.id)
+                NotificationCenter.default.post(name: .nativeNoteDidChange, object: created.id)
+            } catch NativeAPIClient.APIError.http(let code, _) where code == 409 {
+                LocalNoteCache.markSyncLimitReached(id: created.id)
             } catch {
-                let err = UIAlertController(title: String(localized: "Não foi possível criar"), message: error.localizedDescription, preferredStyle: .alert)
-                err.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
-                present(err, animated: true)
+                LocalNoteCache.markPendingSync(id: created.id)
+                NativeOutbox.enqueueNoteUpsert(created, publishToGroupId: group?.id)
             }
         }
     }

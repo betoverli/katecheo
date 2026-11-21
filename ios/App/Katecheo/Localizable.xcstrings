@@ -4785,6 +4785,30 @@
         }
       }
     },
+    "Disponível após sincronizar.": {
+      "comment": "Share link / move-to-group blocked until offline-created note reaches the server.",
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disponível após sincronizar."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Available after sync."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disponible después de sincronizar."
+          }
+        }
+      }
+    },
     "Entre para sincronizar este grupo.": {
       "extractionState": "manual",
       "localizations": {
