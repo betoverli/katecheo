@@ -149,13 +149,61 @@ enum LocalNoteCache {
         } else {
             notes.insert(note, at: 0)
         }
-        notes.sort(by: noteSort)
+        notes.sort(by: compareNotesForList)
         saveNotes(notes)
     }
 
-    private static func noteSort(_ lhs: NativeAPIClient.NoteDocument, _ rhs: NativeAPIClient.NoteDocument) -> Bool {
-        if lhs.happenedAt != rhs.happenedAt { return lhs.happenedAt > rhs.happenedAt }
-        return isUpdatedAt(lhs.updatedAt, newerThan: rhs.updatedAt)
+    private static let happenedDayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+
+    /// Parse `happenedAt` as `yyyy-MM-dd` or ISO datetime (bucketed to the UTC civil day).
+    static func parseHappenedAt(_ raw: String) -> Date? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        if let day = happenedDayFormatter.date(from: trimmed) { return day }
+        guard let instant = parseUpdatedAt(trimmed) else { return nil }
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(secondsFromGMT: 0)!
+        return utc.startOfDay(for: instant)
+    }
+
+    /// Sort key for `updatedAt`: prefer max(disk edit stamp, wire updatedAt) so a sync ack
+    /// with a differently formatted timestamp does not reshuffle the row.
+    static func effectiveUpdatedAt(for note: NativeAPIClient.NoteDocument) -> String {
+        if let local = syncMeta(for: note.id)?.localUpdatedAt, !local.isEmpty {
+            return maxUpdatedAt(local, note.updatedAt)
+        }
+        return note.updatedAt
+    }
+
+    /// Stable Caderno list order: Date-parsed `happenedAt`, then effective `updatedAt`.
+    static func compareNotesForList(
+        _ lhs: NativeAPIClient.NoteDocument,
+        _ rhs: NativeAPIClient.NoteDocument
+    ) -> Bool {
+        switch (parseHappenedAt(lhs.happenedAt), parseHappenedAt(rhs.happenedAt)) {
+        case let (l?, r?) where l != r:
+            return l > r
+        case let (l?, r?) where l == r:
+            // Same civil day (e.g. `yyyy-MM-dd` vs ISO) — do not fall back to string
+            // compare of the raw happenedAt (that reorders siblings).
+            break
+        case (_?, nil):
+            return true
+        case (nil, _?):
+            return false
+        default:
+            if lhs.happenedAt != rhs.happenedAt {
+                return lhs.happenedAt > rhs.happenedAt
+            }
+        }
+        return isUpdatedAt(effectiveUpdatedAt(for: lhs), newerThan: effectiveUpdatedAt(for: rhs))
     }
 
     static func removeNote(id: String) {
@@ -379,17 +427,57 @@ enum LocalNoteCache {
             }
         }
 
-        let merged = byId.values.sorted(by: noteSort)
+        let merged = byId.values.sorted(by: compareNotesForList)
         saveNotes(merged)
         saveMeta(meta)
         return merged
     }
 
-    /// Merge a single **raw** server note; returns the document that should be served to callers.
+    /// Upsert one **raw** server note into the existing on-disk list.
+    /// Never runs a full reconcile — siblings stay put (getNote must not truncate `notes-v1.json`).
+    /// Same dirty/pending and `updatedAt` rules as `mergeServerNotes`; keeps `serverBackup`.
     @discardableResult
     static func mergeServerNote(_ server: NativeAPIClient.NoteDocument) -> NativeAPIClient.NoteDocument {
-        let merged = mergeServerNotes([server])
-        return note(id: server.id) ?? merged.first(where: { $0.id == server.id }) ?? server
+        var notes = loadNotes()
+        var meta = loadMeta()
+        let entry = meta[server.id]
+        let dirty = entry?.dirty == true || entry?.pendingSync == true
+
+        if let index = notes.firstIndex(where: { $0.id == server.id }) {
+            let local = notes[index]
+            if dirty {
+                if server != local {
+                    var next = entry ?? NoteSyncMeta(
+                        dirty: true,
+                        pendingSync: true,
+                        localUpdatedAt: local.updatedAt,
+                        localRevision: 1,
+                        serverBackup: nil,
+                        publishGroupId: nil,
+                        awaitingFirstSync: true,
+                        syncLimitReached: false
+                    )
+                    next.serverBackup = server
+                    meta[server.id] = next
+                    saveMeta(meta)
+                    log.info("Keeping dirty local note \(local.id, privacy: .public); server copy stored as backup")
+                }
+                return local
+            }
+            if isUpdatedAt(local.updatedAt, newerThan: server.updatedAt) {
+                return local
+            }
+            notes[index] = server
+            notes.sort(by: compareNotesForList)
+            saveNotes(notes)
+            return server
+        }
+
+        // New id from the server — insert without dropping siblings.
+        notes.append(server)
+        notes.sort(by: compareNotesForList)
+        saveNotes(notes)
+        return server
     }
 
     static func saveSpeakers(_ speakers: [NativeAPIClient.SpeakerDTO]) {
