@@ -355,13 +355,13 @@ final class NoteEditorTagsStrip: UIView, UITextFieldDelegate, UIScrollViewDelega
 
     /// True when the trailing edge fade is active (more content to the right).
     var testing_trailingFadeActive: Bool {
-        guard let colors = edgeFadeMask.colors, colors.count == 4 else { return false }
+        guard let colors = edgeFadeMask.colors as? [CGColor], colors.count == 4 else { return false }
         return colors[3] == UIColor.clear.cgColor
     }
 
     /// True when the leading edge fade is active (scrolled away from start).
     var testing_leadingFadeActive: Bool {
-        guard let colors = edgeFadeMask.colors, colors.count == 4 else { return false }
+        guard let colors = edgeFadeMask.colors as? [CGColor], colors.count == 4 else { return false }
         return colors[0] == UIColor.clear.cgColor
     }
 }
