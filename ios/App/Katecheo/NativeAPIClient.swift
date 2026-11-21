@@ -643,7 +643,9 @@ enum NativeAPIClient {
             ttl: NativeSWR.TTL.lists,
             force: force,
             loadDisk: { LocalNoteCache.loadNotes() },
-            saveDisk: { LocalNoteCache.saveNotes($0) },
+            saveDisk: { serverNotes in
+                _ = LocalNoteCache.mergeServerNotes(serverNotes)
+            },
             network: { try await listNotesUncached() }
         )
     }
@@ -658,8 +660,7 @@ enum NativeAPIClient {
         guard let decoded = try? JSONDecoder().decode(NotesResponse.self, from: data),
               let notes = decoded.notes
         else { throw APIError.decoding }
-        LocalNoteCache.saveNotes(notes)
-        return notes
+        return LocalNoteCache.mergeServerNotes(notes)
     }
 
     struct NotePack: Equatable {
@@ -675,12 +676,12 @@ enum NativeAPIClient {
             force: force,
             loadDisk: {
                 // Owned notes only — grants must not be served from Caderno disk cache.
-                guard let note = LocalNoteCache.loadNotes().first(where: { $0.id == id }) else { return nil }
+                guard let note = LocalNoteCache.note(id: id) else { return nil }
                 return NotePack(note: note, speakers: LocalNoteCache.loadSpeakers(), via: "owned")
             },
             saveDisk: { pack in
                 if pack.via != "grant" {
-                    LocalNoteCache.upsertNote(pack.note)
+                    _ = LocalNoteCache.mergeServerNote(pack.note)
                     _ = LocalNoteCache.mergeSpeakers(pack.speakers)
                 }
             },
@@ -700,15 +701,14 @@ enum NativeAPIClient {
               let note = decoded.note
         else { throw APIError.decoding }
         let via = decoded.via ?? "owned"
-        // Grants must not pollute the owned Caderno cache.
-        if via != "grant" {
-            LocalNoteCache.upsertNote(note)
-        }
         // Note payload only includes speakers used by this note — merge, never replace
         // the full catalog cache (TF200 #3 empty picker).
         let noteSpeakers = decoded.speakers ?? []
+        // Grants must not pollute the owned Caderno cache.
         if via != "grant" {
+            let merged = LocalNoteCache.mergeServerNote(note)
             _ = LocalNoteCache.mergeSpeakers(noteSpeakers)
+            return NotePack(note: merged, speakers: noteSpeakers, via: via)
         }
         return NotePack(note: note, speakers: noteSpeakers, via: via)
     }
@@ -979,10 +979,16 @@ enum NativeAPIClient {
 
     /// Creates/updates a note. When `publishToGroupId` is set, the note is associated with
     /// that notebook group in the same sync (body `groupId` + local group-notes cache).
+    ///
+    /// `updatedAt` is treated as the edit-time stamp from the client (and outbox payload).
+    /// Only fill it here when the caller left it empty.
     static func upsertNote(_ note: NoteDocument, publishToGroupId: String? = nil) async throws -> NoteDocument {
         var payload = note
         payload.schemaVersion = 1
-        payload.updatedAt = ISO8601DateFormatter().string(from: Date())
+        if payload.updatedAt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            payload.updatedAt = ISO8601DateFormatter().string(from: Date())
+        }
+        let sentUpdatedAt = payload.updatedAt
         let groupId = publishToGroupId?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let body: Data
@@ -1005,16 +1011,26 @@ enum NativeAPIClient {
         guard let decoded = try? JSONDecoder().decode(NoteResponse.self, from: data),
               let saved = decoded.note
         else { throw APIError.decoding }
-        LocalNoteCache.upsertNote(saved)
-        NativeSWR.invalidateNotesSubtree(noteId: saved.id)
-        NativeSWR.markFetched(.note(saved.id), value: NotePack(note: saved, speakers: [], via: "owned"))
+        // Only adopt the server copy when no newer local edit landed during the round-trip.
+        if !LocalNoteCache.isDirtyOrPending(saved.id)
+            || (LocalNoteCache.syncMeta(for: saved.id)?.localUpdatedAt ?? "") <= sentUpdatedAt
+        {
+            LocalNoteCache.upsertNote(saved)
+            NativeSWR.applyLocalNote(saved)
+        }
+        LocalNoteCache.clearDirtyIfNotNewer(id: saved.id, syncedUpdatedAt: sentUpdatedAt)
         NativeSWR.invalidate(.notes)
+        NativeSWR.markFetched(.note(saved.id), value: NotePack(
+            note: LocalNoteCache.note(id: saved.id) ?? saved,
+            speakers: LocalNoteCache.loadSpeakers(),
+            via: "owned"
+        ))
         if let groupId, !groupId.isEmpty {
             // Server associates via body `groupId` when supported; confirm with publish
             // (idempotent) so older backends and racey caches still land in the group.
             try await publishNote(noteId: saved.id, toGroupId: groupId, document: saved)
         }
-        return saved
+        return LocalNoteCache.note(id: saved.id) ?? saved
     }
 
     static func deleteNote(id: String) async throws {

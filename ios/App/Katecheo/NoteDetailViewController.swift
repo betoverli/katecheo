@@ -149,6 +149,12 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
             name: .nativeNoteDidChange,
             object: nil
         )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(outboxDidFlush),
+            name: .nativeOutboxDidFlush,
+            object: nil
+        )
         // Returning from an external Bible app: iOS may have snapshotted light+dark and left
         // once-resolved title / speaker-header colors stale. Re-assert override + re-bake.
         NotificationCenter.default.addObserver(
@@ -163,6 +169,14 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
             name: UIApplication.didBecomeActiveNotification,
             object: nil
         )
+        if !isGrantedReadOnly, let disk = LocalNoteCache.note(id: noteId) {
+            note = LocalNoteCache.preferredNote(over: disk)
+            editor.pushNote(note, speakers: speakers, readOnly: false)
+            if LocalNoteCache.isDirtyOrPending(noteId) {
+                hasLocalEdits = true
+                applySyncState(.pendingLocal)
+            }
+        }
         Task { await refreshFromAPI() }
     }
 
@@ -194,13 +208,22 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
                 // Keep VC-owned happenedAt / visibility the attributed round-trip does not encode.
                 let happenedAt = note.happenedAt
                 let visibility = note.visibility
-                note = editor.currentDocument()
-                note.id = noteId
-                note.happenedAt = happenedAt
-                note.visibility = visibility
-                LocalNoteCache.upsertNote(note)
+                var draft = editor.currentDocument()
+                draft.id = noteId
+                draft.happenedAt = happenedAt
+                draft.visibility = visibility
+                note = draft
+                // Only rewrite disk when content actually changed vs the on-disk copy.
+                // Reopen → close without typing must not restamp updatedAt / replace the outbox job.
+                let diskChanged = Self.contentDiffers(LocalNoteCache.note(id: noteId), draft)
                 saveWork?.cancel()
-                Task { await self.persist() }
+                if diskChanged {
+                    note = LocalNoteCache.recordLocalEdit(draft)
+                    Task { await self.persist() }
+                } else if hasLocalEdits || LocalNoteCache.isDirtyOrPending(noteId) {
+                    // Content already on disk (typing path); still flush a cancelled debounce.
+                    Task { await self.persist() }
+                }
             } else {
                 saveWork?.cancel()
             }
@@ -214,6 +237,18 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
             }
             AppAppearance.apply()
         }
+    }
+
+    /// Compare note payload ignoring `updatedAt` (stamped at edit / send time).
+    private static func contentDiffers(
+        _ a: NativeAPIClient.NoteDocument?,
+        _ b: NativeAPIClient.NoteDocument
+    ) -> Bool {
+        guard var left = a else { return true }
+        var right = b
+        left.updatedAt = ""
+        right.updatedAt = ""
+        return left != right
     }
 
     /// Nav + page fill match the warm editor canvas (not the darker tab screenBackground).
@@ -247,6 +282,10 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
     @objc private func noteDidChangeExternally(_ note: Notification) {
         guard let id = note.object as? String, id == noteId else { return }
         Task { await refreshFromAPI() }
+    }
+
+    @objc private func outboxDidFlush() {
+        Task { await refreshFromAPI(force: true) }
     }
 
     deinit {
@@ -290,12 +329,13 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         UIAccessibility.post(notification: .announcement, argument: syncButton.accessibilityLabel)
     }
 
-    private func refreshFromAPI() async {
+    private func refreshFromAPI(force: Bool = false) async {
         do {
-            async let notePack = NativeAPIClient.getNote(id: noteId)
+            async let notePack = NativeAPIClient.getNote(id: noteId, force: force)
             async let catalog = NativeAPIClient.listSpeakers()
             let packed = try await notePack
             let fullCatalog = (try? await catalog) ?? LocalNoteCache.loadSpeakers()
+            let offline = NativeSWR.consumeOfflineFallback(.note(noteId))
             await MainActor.run {
                 if packed.via == "grant" {
                     self.isGrantedReadOnly = true
@@ -309,21 +349,40 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
                         ? LocalNoteCache.mergeSpeakers(packed.speakers)
                         : fullCatalog
                 }
-                if self.hasLocalEdits, !self.isGrantedReadOnly {
+                let localDirty = !self.isGrantedReadOnly && (
+                    self.hasLocalEdits || LocalNoteCache.isDirtyOrPending(self.noteId)
+                )
+                if localDirty {
                     // Keep the live editor buffer — only refresh speaker chrome / metadata.
+                    if let disk = LocalNoteCache.note(id: self.noteId) {
+                        self.note.updatedAt = max(self.note.updatedAt, disk.updatedAt)
+                    }
                     self.editor.updateSpeakers(self.speakers)
                     self.refreshSpeakerChip()
+                    self.applySyncState(offline || LocalNoteCache.isDirtyOrPending(self.noteId) ? .pendingLocal : .saving)
+                    return
+                }
+                // Apply server only when local isn't dirty and server isn't older than local.
+                if !self.isGrantedReadOnly,
+                   packed.note.updatedAt < self.note.updatedAt
+                {
+                    self.editor.updateSpeakers(self.speakers)
+                    self.refreshSpeakerChip()
+                    self.applySyncState(offline ? .pendingLocal : .synced)
                     return
                 }
                 self.note = packed.note
                 self.updateTitle()
-                self.applySyncState(.synced)
+                self.applySyncState(offline ? .pendingLocal : .synced)
                 self.editor.pushNote(self.note, speakers: self.speakers, readOnly: self.isGrantedReadOnly)
                 self.hasLocalEdits = false
                 self.refreshSpeakerChip()
             }
         } catch {
             await MainActor.run {
+                if let disk = LocalNoteCache.note(id: self.noteId), !self.isGrantedReadOnly {
+                    self.note = LocalNoteCache.preferredNote(over: disk)
+                }
                 self.speakers = self.isGrantedReadOnly ? self.speakers : LocalNoteCache.loadSpeakers()
                 self.applySyncState(.pendingLocal)
                 if !self.hasLocalEdits {
@@ -376,10 +435,10 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         next.happenedAt = note.happenedAt
         next.visibility = note.visibility
         next.schemaVersion = 1
-        note = next
+        // Stamp updatedAt at edit time and keep SWR memory aligned with disk.
+        note = LocalNoteCache.recordLocalEdit(next)
         hasLocalEdits = true
         updateTitle()
-        LocalNoteCache.upsertNote(note)
         scheduleSave()
     }
 
@@ -475,21 +534,30 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
 
     private func persist() async {
         guard !isGrantedReadOnly else { return }
+        // Carry the edit-time updatedAt through the outbox / wire payload.
+        let payload = LocalNoteCache.note(id: noteId) ?? note
         do {
-            let saved = try await NativeAPIClient.upsertNote(note, publishToGroupId: publishGroupId)
+            let saved = try await NativeAPIClient.upsertNote(payload, publishToGroupId: publishGroupId)
             await MainActor.run {
                 // Don't pushNote after save — that would reset caret / undo / IME.
-                self.note.updatedAt = saved.updatedAt
-                self.hasLocalEdits = false
-                self.applySyncState(.synced)
+                if !LocalNoteCache.isDirtyOrPending(self.noteId) {
+                    self.note.updatedAt = saved.updatedAt
+                    self.hasLocalEdits = false
+                    self.applySyncState(.synced)
+                } else {
+                    self.applySyncState(.pendingLocal)
+                }
+                NotificationCenter.default.post(name: .nativeNoteDidChange, object: self.noteId)
             }
         } catch NativeAPIClient.APIError.unauthorized {
-            NativeOutbox.enqueueNoteUpsert(note)
+            LocalNoteCache.markPendingSync(id: noteId)
+            NativeOutbox.enqueueNoteUpsert(payload)
             await MainActor.run {
                 self.applySyncState(.pendingLocal)
             }
         } catch {
-            NativeOutbox.enqueueNoteUpsert(note)
+            LocalNoteCache.markPendingSync(id: noteId)
+            NativeOutbox.enqueueNoteUpsert(payload)
             await MainActor.run {
                 self.applySyncState(.pendingLocal)
             }
@@ -614,12 +682,11 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         note = editor.currentDocument()
         let settings = NoteSettingsViewController(note: note, speakers: speakers) { [weak self] updated in
             guard let self else { return }
-            self.note = updated
+            self.note = LocalNoteCache.recordLocalEdit(updated)
+            self.hasLocalEdits = true
             self.updateTitle()
-            LocalNoteCache.upsertNote(updated)
             self.scheduleSave()
             self.editor.pushNote(self.note, speakers: self.speakers)
-            self.hasLocalEdits = false
         }
         KCSheetPresenter.present(settings, from: self)
     }

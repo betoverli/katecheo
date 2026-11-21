@@ -143,6 +143,40 @@ final class NativeSWRCacheTests: XCTestCase {
         XCTAssertEqual(NativeSWR.probeCount(containing: "/notes/n1"), 0)
     }
 
+    func testApplyLocalNote_updatesMemoryWithinTTL() async throws {
+        MockNativeURLProtocol.notesJSON = Self.notesPayload
+        MockNativeURLProtocol.noteByIdJSON = Self.singleNotePayload
+        let notes = try await NativeAPIClient.listNotes()
+        XCTAssertEqual(notes.first?.title, "A")
+        _ = try await NativeAPIClient.getNote(id: "n1")
+
+        var edited = NativeAPIClient.emptyNote(id: "n1")
+        edited.title = "Offline edit"
+        edited.body = .init(blocks: [
+            .init(
+                id: "b1",
+                type: "paragraph",
+                spans: [.init(type: "text", text: "kept offline")],
+                speakerId: nil,
+                title: nil,
+                collapsed: nil,
+                checked: nil,
+                blocks: nil
+            ),
+        ])
+        edited = LocalNoteCache.recordLocalEdit(edited)
+
+        NativeSWR.resetProbe()
+        let listed = try await NativeAPIClient.listNotes()
+        let packed = try await NativeAPIClient.getNote(id: "n1")
+        XCTAssertEqual(countExact("/api/native/v1/notes"), 0)
+        XCTAssertEqual(NativeSWR.probeCount(containing: "/notes/n1"), 0)
+        XCTAssertEqual(listed.first(where: { $0.id == "n1" })?.title, "Offline edit")
+        XCTAssertEqual(packed.note.title, "Offline edit")
+        XCTAssertEqual(packed.note.body.blocks.first?.spans?.first?.text, "kept offline")
+        XCTAssertEqual(edited.updatedAt, LocalNoteCache.syncMeta(for: "n1")?.localUpdatedAt)
+    }
+
     // MARK: - Activity debounce + coalesce
 
     func testActivitySync_debouncedUnlessForce() async {
@@ -300,6 +334,8 @@ final class MockNativeURLProtocol: URLProtocol {
     static var groupNotesStatus: Int?
     static var groupJSON: String?
     static var artificialDelayMs: UInt64 = 0
+    /// When true, every request fails with a transport error (offline).
+    static var forceTransportError = false
     private(set) static var readBodies: [[String: Any]] = []
     private(set) static var postBodies: [[String: Any]] = []
     private(set) static var deletedNotificationIds: [String] = []
@@ -351,6 +387,7 @@ final class MockNativeURLProtocol: URLProtocol {
         groupNotesStatus = nil
         groupJSON = nil
         artificialDelayMs = 0
+        forceTransportError = false
         readBodies = []
         postBodies = []
         deletedNotificationIds = []
@@ -372,6 +409,10 @@ final class MockNativeURLProtocol: URLProtocol {
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
+        if Self.forceTransportError {
+            client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
+            return
+        }
         let path = request.url?.path ?? ""
         let method = request.httpMethod ?? "GET"
         var body: String?

@@ -164,6 +164,18 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             name: UIApplication.didBecomeActiveNotification,
             object: nil
         )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(reload),
+            name: .nativeOutboxDidFlush,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(reload),
+            name: .nativeNoteDidChange,
+            object: nil
+        )
     }
 
     @objc private func refreshSharedChipDot() {
@@ -277,7 +289,20 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 notes = try await remoteNotes
                 speakers = try await remoteSpeakers
                 grantedNotes = (try? await remoteGranted) ?? []
-                setBannerStatus(nil)
+                let offline = NativeSWR.consumeOfflineFallback(.notes)
+                if offline {
+                    let pending = NativeOutbox.pendingCount
+                    if pending > 0 {
+                        setBannerStatus(
+                            String(localized: "Sem rede — mostrando cache · \(pending) pendente(s)."),
+                            kind: .warning
+                        )
+                    } else {
+                        setBannerStatus(String(localized: "Sem rede — mostrando cache."), kind: .warning)
+                    }
+                } else {
+                    setBannerStatus(nil)
+                }
                 applyFilter()
                 Task { await KCActivitySync.refreshFromServer(force: force) }
             } catch NativeAPIClient.APIError.unauthorized {
@@ -539,9 +564,11 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
         if isGranted {
             KCActivityStore.markSharedNoteOpened(note.id)
         }
+        // Owned notes open from disk so offline edits survive list→detail round-trips.
+        let initial = isGranted ? note : LocalNoteCache.preferredNote(over: note)
         let detail = NoteDetailViewController(
             noteId: note.id,
-            initial: note,
+            initial: initial,
             grantedReadOnly: isGranted,
             sharedAuthorUserId: nil,
             sharedAuthorName: isGranted ? String(localized: "Nota compartilhada") : nil
