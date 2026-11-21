@@ -90,6 +90,16 @@ final class NativeNoteEditorAccessoryBarTests: XCTestCase {
         XCTAssertFalse(scroll.showsHorizontalScrollIndicator)
     }
 
+    func testCapsule_scrollHasNoRevealFadeMask() {
+        let bar = NoteEditorAccessoryBar()
+        bar.bounds = CGRect(x: 0, y: 0, width: 320, height: bar.intrinsicContentSize.height)
+        bar.layoutIfNeeded()
+        XCTAssertTrue(
+            bar.testing_scrollHasNoFadeMask,
+            "formatting icons must scroll without edge fade/reveal animation"
+        )
+    }
+
     func testCapsule_buttonsMeetMinimumTapTarget() {
         let bar = NoteEditorAccessoryBar()
         bar.bounds = CGRect(x: 0, y: 0, width: 390, height: bar.intrinsicContentSize.height)

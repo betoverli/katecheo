@@ -73,12 +73,13 @@ enum KCDesign {
     }
 
     /// Note editor header band only — stronger than `separator` in dark so the line
-    /// stays visible on canvas `#1C1A17`. Light matches `separator`.
+    /// stays visible on canvas `#1C1A17`. Light uses the same warm separator hue at a
+    /// higher opacity so contrast is comparable to dark (hairline was nearly invisible).
     static let headerDivider = UIColor { traits in
         if traits.userInterfaceStyle == .dark {
             return UIColor(white: 1, alpha: 0.22)
         }
-        return UIColor(red: 0.675, green: 0.592, blue: 0.518, alpha: 0.28)
+        return UIColor(red: 0.675, green: 0.592, blue: 0.518, alpha: 0.52)
     }
 
     static let danger = UIColor.systemRed

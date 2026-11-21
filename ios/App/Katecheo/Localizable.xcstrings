@@ -19529,6 +19529,75 @@
           }
         }
       }
+    },
+    "Confirmar versículo": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirmar versículo"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirm verse"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirmar versículo"
+          }
+        }
+      }
+    },
+    "Toque no versículo final ou use ✓ para inserir só o %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toque no versículo final ou use ✓ para inserir só o %lld"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap the end verse, or use ✓ to insert only %lld"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toca el versículo final, o usa ✓ para insertar solo el %lld"
+          }
+        }
+      }
+    },
+    "Toque para escolher · ✓ confirma um versículo · segundo toque define o intervalo": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toque para escolher · ✓ confirma um versículo · segundo toque define o intervalo"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap to choose · ✓ confirms one verse · second tap sets the range"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toca para elegir · ✓ confirma un versículo · el segundo toque define el intervalo"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

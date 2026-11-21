@@ -244,6 +244,25 @@ private final class BibleRefVersePicker: UIViewController, UICollectionViewDeleg
     private var rangeEnd: Int?
     private var collectionView: UICollectionView!
     private let hintLabel = UILabel()
+    private lazy var confirmButton: UIBarButtonItem = {
+        let button = UIButton(type: .system)
+        var config = UIButton.Configuration.filled()
+        config.image = UIImage(systemName: "checkmark")
+        config.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 15, weight: .bold)
+        config.baseForegroundColor = .white
+        config.baseBackgroundColor = KCDesign.accent
+        config.cornerStyle = .capsule
+        config.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12)
+        button.configuration = config
+        button.accessibilityLabel = String(localized: "Confirmar versículo")
+        button.accessibilityIdentifier = "bible.verse.confirm"
+        button.addTarget(self, action: #selector(confirmSelection), for: .touchUpInside)
+        button.isEnabled = false
+        button.alpha = 0.4
+        button.frame = CGRect(x: 0, y: 0, width: 36, height: 32)
+        let item = UIBarButtonItem(customView: button)
+        return item
+    }()
 
     init(book: NativeAPIClient.BibleBookDTO, chapter: Int, verseCount: Int, onPick: @escaping (NoteDocumentCodec.BibleRefPayload) -> Void) {
         self.book = book
@@ -260,12 +279,13 @@ private final class BibleRefVersePicker: UIViewController, UICollectionViewDeleg
         super.viewDidLoad()
         KCChrome.styleCanvas(view)
         title = String(localized: "\(book.abbr) \(chapter)")
-        navigationItem.rightBarButtonItem = UIBarButtonItem(
+        let whole = UIBarButtonItem(
             title: String(localized: "Capítulo inteiro"),
             style: .plain,
             target: self,
             action: #selector(wholeChapter)
         )
+        navigationItem.rightBarButtonItems = [confirmButton, whole]
 
         hintLabel.font = KCDesign.caption()
         hintLabel.textColor = .secondaryLabel
@@ -297,14 +317,36 @@ private final class BibleRefVersePicker: UIViewController, UICollectionViewDeleg
 
     private func refreshHint() {
         if let rangeStart, rangeEnd == nil {
-            hintLabel.text = String(localized: "Toque no versículo final (início: \(rangeStart))")
+            hintLabel.text = String(
+                localized: "Toque no versículo final ou use ✓ para inserir só o \(rangeStart)"
+            )
         } else {
-            hintLabel.text = String(localized: "Toque para escolher · segundo toque define o intervalo")
+            hintLabel.text = String(
+                localized: "Toque para escolher · ✓ confirma um versículo · segundo toque define o intervalo"
+            )
+        }
+        let enabled = rangeStart != nil
+        confirmButton.isEnabled = enabled
+        if let button = confirmButton.customView as? UIButton {
+            button.isEnabled = enabled
+            button.alpha = enabled ? 1 : 0.4
         }
     }
 
     @objc private func wholeChapter() {
         finish(verseStart: nil, verseEnd: nil)
+    }
+
+    /// Insert immediately: single verse if only start is set; range if end is set too.
+    @objc private func confirmSelection() {
+        guard let start = rangeStart else { return }
+        if let end = rangeEnd {
+            let lo = min(start, end)
+            let hi = max(start, end)
+            finish(verseStart: lo, verseEnd: hi == lo ? lo : hi)
+        } else {
+            finish(verseStart: start, verseEnd: start)
+        }
     }
 
     private func style(for verse: Int) -> KCNumberCell.Style {

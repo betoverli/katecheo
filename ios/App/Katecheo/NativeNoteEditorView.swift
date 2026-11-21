@@ -3289,7 +3289,6 @@ final class NoteEditorAccessoryBar: UIView {
     private let blur: UIVisualEffectView
     private let scroll = UIScrollView()
     private let stack = UIStackView()
-    private let fadeMask = CAGradientLayer()
 
     init() {
         let effect = KCGlassMaterial.effect(withInteractive: true) ?? UIBlurEffect(style: .systemChromeMaterial)
@@ -3330,7 +3329,8 @@ final class NoteEditorAccessoryBar: UIView {
         scroll.alwaysBounceHorizontal = true
         scroll.contentInset = UIEdgeInsets(top: 0, left: 6, bottom: 0, right: 6)
         scroll.clipsToBounds = true
-        scroll.delegate = self
+        // Icons scroll normally (Apple Notes) — no edge fade / reveal animation on newly visible buttons.
+        KCGlassMaterial.prepareWebScrollView(scroll)
         capsule.addSubview(scroll)
 
         stack.axis = .horizontal
@@ -3374,18 +3374,6 @@ final class NoteEditorAccessoryBar: UIView {
             }
         }
 
-        // Soft fade near capsule ends so icons tuck under the rounded corners.
-        fadeMask.startPoint = CGPoint(x: 0, y: 0.5)
-        fadeMask.endPoint = CGPoint(x: 1, y: 0.5)
-        fadeMask.colors = [
-            UIColor.clear.cgColor,
-            UIColor.black.cgColor,
-            UIColor.black.cgColor,
-            UIColor.clear.cgColor,
-        ]
-        fadeMask.locations = [0, 0.04, 0.96, 1] as [NSNumber]
-        scroll.layer.mask = fadeMask
-
         NSLayoutConstraint.activate([
             shadowHost.topAnchor.constraint(equalTo: topAnchor, constant: Self.capsuleTopInset),
             shadowHost.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Self.capsuleHorizontalInset),
@@ -3423,18 +3411,12 @@ final class NoteEditorAccessoryBar: UIView {
         // True capsule: continuous corners follow the laid-out height.
         let radius = max(shadowHost.bounds.height, 1) / 2
         capsule.layer.cornerRadius = radius
-        updateFadeMaskFrame()
         // Keep shadow path in sync with the capsule silhouette.
         shadowHost.layer.shadowPath = UIBezierPath(
             roundedRect: shadowHost.bounds,
             cornerRadius: radius
         ).cgPath
         capsule.layer.borderColor = KCDesign.separator.resolvedColor(with: traitCollection).cgColor
-    }
-
-    private func updateFadeMaskFrame() {
-        // UIScrollView moves bounds.origin while scrolling — pin the fade to the visible viewport.
-        fadeMask.frame = CGRect(origin: scroll.contentOffset, size: scroll.bounds.size)
     }
 
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
@@ -3490,10 +3472,7 @@ final class NoteEditorAccessoryBar: UIView {
     var testing_hostBackgroundIsClear: Bool {
         backgroundColor == nil || backgroundColor == .clear || (backgroundColor?.cgColor.alpha ?? 1) < 0.01
     }
-}
 
-extension NoteEditorAccessoryBar: UIScrollViewDelegate {
-    func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        updateFadeMaskFrame()
-    }
+    /// Formatting icons must not use a scroll-edge fade/reveal mask.
+    var testing_scrollHasNoFadeMask: Bool { scroll.layer.mask == nil }
 }
