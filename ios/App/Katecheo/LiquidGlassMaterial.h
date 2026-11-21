@@ -10,6 +10,11 @@ NS_ASSUME_NONNULL_BEGIN
 + (BOOL)sdkHasLiquidGlass;
 + (nullable UIVisualEffect *)effectWithInteractive:(BOOL)interactive;
 + (void)applyFabStyleToButton:(UIButton *)button;
+/// Circular glass chrome matching the system navigation back button
+/// (neutral glass / soft fill + border), with `tint` for the SF Symbol.
++ (void)applyCircularChromeStyleToButton:(UIButton *)button
+                                   image:(UIImage *)image
+                                    tint:(UIColor *)tint;
 /// iOS 26 paints a scroll-edge blur on the web view's own scroll view.
 /// That view does not scroll (the page scroller does), so the blur would
 /// sit on the top and the bottom as a permanent band. Hide it.

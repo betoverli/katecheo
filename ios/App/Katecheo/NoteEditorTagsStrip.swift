@@ -5,6 +5,8 @@ import UIKit
 @MainActor
 final class NoteEditorTagsStrip: UIView, UITextFieldDelegate, UIScrollViewDelegate {
     static let preferredHeight: CGFloat = 32
+    /// Fixed soft-clip width at the strip edges (points). Mask is static on the container.
+    private static let edgeFadeWidth: CGFloat = 28
 
     var onTagsChange: (([String]) -> Void)?
     var onEditingChange: ((Bool) -> Void)?
@@ -16,7 +18,10 @@ final class NoteEditorTagsStrip: UIView, UITextFieldDelegate, UIScrollViewDelega
     private let addField = UITextField()
     private let placeholderButton = UIButton(type: .system)
     private let speakerChip = UIButton(type: .system)
+    /// Container-level mask so chips scroll under a fixed soft edge (never animate per-tag alpha).
     private let edgeFadeMask = CAGradientLayer()
+    private var showsLeadingFade = false
+    private var showsTrailingFade = false
     private var tags: [String] = []
     private var speakerName: String?
     private(set) var isEditingTags = false
@@ -31,16 +36,20 @@ final class NoteEditorTagsStrip: UIView, UITextFieldDelegate, UIScrollViewDelega
 
     private func setup() {
         backgroundColor = .clear
+        isOpaque = false
 
         scroll.translatesAutoresizingMaskIntoConstraints = false
         scroll.showsHorizontalScrollIndicator = false
         scroll.alwaysBounceHorizontal = true
         scroll.delegate = self
+        // Kill iOS 26 scroll-edge soft reveal — that reads as appear-on-scroll for chips.
+        KCGlassMaterial.prepareWebScrollView(scroll)
         addSubview(scroll)
 
         edgeFadeMask.startPoint = CGPoint(x: 0, y: 0.5)
         edgeFadeMask.endPoint = CGPoint(x: 1, y: 0.5)
-        scroll.layer.mask = edgeFadeMask
+        // Mask the strip container (not the scroll layer): fade stays fixed in screen space.
+        layer.mask = edgeFadeMask
 
         stack.axis = .horizontal
         stack.alignment = .center
@@ -102,41 +111,60 @@ final class NoteEditorTagsStrip: UIView, UITextFieldDelegate, UIScrollViewDelega
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        updateEdgeFadeMask()
+        // Keep mask sized to the container bounds (not contentOffset).
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        edgeFadeMask.frame = bounds
+        CATransaction.commit()
+        refreshEdgeFadeState(force: true)
     }
 
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        updateEdgeFadeMask()
+        // Only toggle leading/trailing on/off — never animate alpha or move fade amount with scroll.
+        refreshEdgeFadeState(force: false)
     }
 
-    /// Leading fade when scrolled away from start; trailing fade when more content remains.
-    /// No fade when content fits the viewport.
-    private func updateEdgeFadeMask() {
-        let bounds = scroll.bounds
-        edgeFadeMask.frame = CGRect(origin: scroll.contentOffset, size: bounds.size)
-        let contentWidth = scroll.contentSize.width
+    func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+        refreshEdgeFadeState(force: false)
+    }
+
+    func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
+        if !decelerate { refreshEdgeFadeState(force: false) }
+    }
+
+    /// Static soft-clip mask: trailing when content overflows (and more remains),
+    /// leading when scrolled away from start. Updates without Core Animation.
+    private func refreshEdgeFadeState(force: Bool) {
         let visibleWidth = bounds.width
-        guard visibleWidth > 1, contentWidth > visibleWidth + 0.5 else {
-            edgeFadeMask.colors = [UIColor.black.cgColor, UIColor.black.cgColor]
-            edgeFadeMask.locations = [0, 1]
-            return
-        }
+        let contentWidth = scroll.contentSize.width
+        let overflow = visibleWidth > 1 && contentWidth > visibleWidth + 0.5
         let inset = scroll.adjustedContentInset
         let minX = -inset.left
         let maxX = max(minX, contentWidth - visibleWidth + inset.right)
         let x = scroll.contentOffset.x
-        let leadOn = x > minX + 1
-        let trailOn = x < maxX - 1
-        let fade: CGFloat = 18 / max(visibleWidth, 1)
-        let leadEnd = NSNumber(value: leadOn ? fade : 0)
-        let trailStart = NSNumber(value: trailOn ? (1 - fade) : 1)
+        let leadOn = overflow && x > minX + 0.5
+        let trailOn = overflow && x < maxX - 0.5
+        guard force || leadOn != showsLeadingFade || trailOn != showsTrailingFade else { return }
+        showsLeadingFade = leadOn
+        showsTrailingFade = trailOn
+        applyEdgeFadeMask()
+    }
+
+    private func applyEdgeFadeMask() {
+        let width = max(bounds.width, 1)
+        let fade = min(Self.edgeFadeWidth / width, 0.45)
+        let leadEnd = NSNumber(value: showsLeadingFade ? fade : 0)
+        let trailStart = NSNumber(value: showsTrailingFade ? (1 - fade) : 1)
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
         edgeFadeMask.colors = [
-            (leadOn ? UIColor.clear : UIColor.black).cgColor,
+            (showsLeadingFade ? UIColor.clear : UIColor.black).cgColor,
             UIColor.black.cgColor,
             UIColor.black.cgColor,
-            (trailOn ? UIColor.clear : UIColor.black).cgColor,
+            (showsTrailingFade ? UIColor.clear : UIColor.black).cgColor,
         ]
         edgeFadeMask.locations = [0, leadEnd, trailStart, 1]
+        CATransaction.commit()
     }
 
     func setTags(_ next: [String]) {
@@ -242,6 +270,10 @@ final class NoteEditorTagsStrip: UIView, UITextFieldDelegate, UIScrollViewDelega
             addField.isHidden = true
         }
         setNeedsLayout()
+        // Content width may change after rebuild — refresh overflow fades without animation.
+        DispatchQueue.main.async { [weak self] in
+            self?.refreshEdgeFadeState(force: true)
+        }
     }
 
     private func configureSpeakerChip() {
@@ -348,20 +380,19 @@ final class NoteEditorTagsStrip: UIView, UITextFieldDelegate, UIScrollViewDelega
 
     var testing_scrollView: UIScrollView { scroll }
 
+    /// Mask lives on the strip container, not the scroll view (avoids scroll-driven reveal).
+    var testing_maskIsOnContainer: Bool { layer.mask === edgeFadeMask && scroll.layer.mask == nil }
+
     func testing_updateEdgeFadeMask() {
         layoutIfNeeded()
-        updateEdgeFadeMask()
+        refreshEdgeFadeState(force: true)
     }
 
     /// True when the trailing edge fade is active (more content to the right).
-    var testing_trailingFadeActive: Bool {
-        guard let colors = edgeFadeMask.colors as? [CGColor], colors.count == 4 else { return false }
-        return colors[3] == UIColor.clear.cgColor
-    }
+    var testing_trailingFadeActive: Bool { showsTrailingFade }
 
     /// True when the leading edge fade is active (scrolled away from start).
-    var testing_leadingFadeActive: Bool {
-        guard let colors = edgeFadeMask.colors as? [CGColor], colors.count == 4 else { return false }
-        return colors[0] == UIColor.clear.cgColor
-    }
+    var testing_leadingFadeActive: Bool { showsLeadingFade }
+
+    var testing_edgeFadeWidth: CGFloat { Self.edgeFadeWidth }
 }

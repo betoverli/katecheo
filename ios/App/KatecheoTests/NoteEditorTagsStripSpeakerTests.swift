@@ -127,4 +127,27 @@ final class NoteEditorTagsStripSpeakerTests: XCTestCase {
         editor.testing_setTags(["a"])
         XCTAssertFalse(editor.testing_isFormattingToolbarVisible())
     }
+
+    func testTagsEdgeFade_maskIsStaticOnContainer_notScrollDrivenReveal() {
+        let strip = NoteEditorTagsStrip(frame: CGRect(x: 0, y: 0, width: 200, height: 32))
+        strip.setSpeakerName("Ana")
+        strip.setTags(["culto", "manhã", "estudo", "noite", "oração", "louvor"])
+        strip.layoutIfNeeded()
+        strip.testing_updateEdgeFadeMask()
+
+        XCTAssertTrue(strip.testing_maskIsOnContainer, "fade must clip the strip, not animate chips")
+        XCTAssertGreaterThanOrEqual(strip.testing_edgeFadeWidth, 24)
+        XCTAssertLessThanOrEqual(strip.testing_edgeFadeWidth, 32)
+
+        let scroll = strip.testing_scrollView
+        let overflows = scroll.contentSize.width > scroll.bounds.width + 0.5
+        XCTAssertTrue(overflows, "fixture must overflow so trailing fade can appear")
+        XCTAssertTrue(strip.testing_trailingFadeActive)
+        XCTAssertFalse(strip.testing_leadingFadeActive)
+
+        scroll.contentOffset = CGPoint(x: min(40, scroll.contentSize.width - scroll.bounds.width), y: 0)
+        strip.testing_updateEdgeFadeMask()
+        XCTAssertTrue(strip.testing_leadingFadeActive)
+        XCTAssertTrue(strip.testing_maskIsOnContainer)
+    }
 }

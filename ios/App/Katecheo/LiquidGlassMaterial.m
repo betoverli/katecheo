@@ -63,4 +63,27 @@
     button.configuration = configuration;
 }
 
++ (void)applyCircularChromeStyleToButton:(UIButton *)button
+                                   image:(UIImage *)image
+                                    tint:(UIColor *)tint {
+    UIButtonConfiguration *configuration = nil;
+#if defined(__IPHONE_26_0)
+    if (@available(iOS 26.0, *)) {
+        // Same glass family as the system circular back chevron.
+        configuration = [UIButtonConfiguration glassButtonConfiguration];
+    }
+#endif
+    if (configuration == nil) {
+        configuration = [UIButtonConfiguration grayButtonConfiguration];
+        configuration.baseBackgroundColor = [UIColor secondarySystemFillColor];
+        configuration.background.strokeColor = [[UIColor separatorColor] colorWithAlphaComponent:0.55];
+        configuration.background.strokeWidth = 1.0 / UIScreen.mainScreen.scale;
+    }
+    configuration.image = image;
+    configuration.baseForegroundColor = tint;
+    configuration.cornerStyle = UIButtonConfigurationCornerStyleCapsule;
+    configuration.contentInsets = NSDirectionalEdgeInsetsMake(8, 8, 8, 8);
+    button.configuration = configuration;
+}
+
 @end
