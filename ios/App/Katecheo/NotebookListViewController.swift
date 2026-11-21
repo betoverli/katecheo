@@ -14,10 +14,11 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     private let emptyState = KCEmptyStateView()
     private let statusBanner = KCStatusBanner()
     private let filterChips = KCFilterChipsView()
-    private enum NoteFilter: String { case all, tags, speakers, shared }
+    private typealias NoteFilter = NotebookNoteFilter.Mode
     private var noteFilter: NoteFilter = .all
-    private var selectedTag: String?
-    private var selectedSpeakerId: String?
+    /// Session-only multi-select filters (ANY within each set; AND across sets).
+    private var selectedTags: Set<String> = []
+    private var selectedSpeakerIds: Set<String> = []
     private var grantedNotes: [NativeAPIClient.NoteDocument] = []
     /// When set, this list shows notes published to the group (Phase 2).
     private var group: NativeAPIClient.GroupDTO?
@@ -274,7 +275,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     }
 
     @objc private func refreshSharedChipDot() {
-        filterChips.setBadgedIds(KCActivityStore.sharedChipDot ? [NoteFilter.shared.rawValue] : [])
+        refreshFilterChrome()
     }
 
     @objc private func refreshNotificationsBadge() {
@@ -539,11 +540,44 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     }
 
     private func refreshSharedActivity() {
+        refreshFilterChrome()
+    }
+
+    /// Badges + titles reflect active multi-select filters; shared unread keeps its dot.
+    private func refreshFilterChrome() {
+        guard group == nil else { return }
         var badged = Set<String>()
         if KCActivityStore.sharedChipDot {
             badged.insert(NoteFilter.shared.rawValue)
         }
-        filterChips.setBadgedIds(badged)
+        if !selectedTags.isEmpty {
+            badged.insert(NoteFilter.tags.rawValue)
+        }
+        if !selectedSpeakerIds.isEmpty {
+            badged.insert(NoteFilter.speakers.rawValue)
+        }
+        let tagsTitle: String
+        if selectedTags.isEmpty {
+            tagsTitle = String(localized: "Tags")
+        } else {
+            tagsTitle = "\(String(localized: "Tags")) (\(selectedTags.count))"
+        }
+        let speakersTitle: String
+        if selectedSpeakerIds.isEmpty {
+            speakersTitle = String(localized: "Speakers")
+        } else {
+            speakersTitle = "\(String(localized: "Speakers")) (\(selectedSpeakerIds.count))"
+        }
+        filterChips.configure(
+            chips: [
+                KCFilterChip(id: NoteFilter.all.rawValue, title: String(localized: "Tudo"), systemImage: "square.stack"),
+                KCFilterChip(id: NoteFilter.tags.rawValue, title: tagsTitle, systemImage: "number"),
+                KCFilterChip(id: NoteFilter.speakers.rawValue, title: speakersTitle, systemImage: "person.wave.2"),
+                KCFilterChip(id: NoteFilter.shared.rawValue, title: String(localized: "Compartilhadas"), systemImage: "person.2"),
+            ],
+            selectedId: noteFilter.rawValue,
+            badgedIds: badged
+        )
     }
 
     private func applyFilter() {
@@ -581,26 +615,13 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             tableView.reloadData()
             return
         }
-        var source = notes
-        switch noteFilter {
-        case .all:
-            break
-        case .tags:
-            if let selectedTag {
-                source = source.filter { $0.tags.contains(selectedTag) }
-            } else {
-                // Show notes that have any tag when filter is Tags without a secondary pick.
-                source = source.filter { !$0.tags.isEmpty }
-            }
-        case .speakers:
-            if let selectedSpeakerId {
-                source = source.filter { noteIncludesSpeaker($0, speakerId: selectedSpeakerId) }
-            } else {
-                source = source.filter { noteIncludesSpeaker($0, speakerId: nil) }
-            }
-        case .shared:
-            source = grantedNotes
-        }
+        let source = NotebookNoteFilter.filterNotes(
+            notes,
+            mode: noteFilter,
+            selectedTags: selectedTags,
+            selectedSpeakerIds: selectedSpeakerIds,
+            grantedNotes: grantedNotes
+        )
         if q.isEmpty {
             filtered = source
         } else {
@@ -1165,15 +1186,20 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     private func handleNotebookChip(_ id: String?) {
         guard let id, let filter = NoteFilter(rawValue: id) else {
             noteFilter = .all
-            selectedTag = nil
-            selectedSpeakerId = nil
+            selectedTags.removeAll()
+            selectedSpeakerIds.removeAll()
             filterChips.setSelected(NoteFilter.all.rawValue, animated: true)
             applyFilter()
             return
         }
         noteFilter = filter
-        selectedTag = nil
-        selectedSpeakerId = nil
+        if filter == .all {
+            // Easy clear: "Tudo" resets session tag + speaker filters.
+            selectedTags.removeAll()
+            selectedSpeakerIds.removeAll()
+            applyFilter()
+            return
+        }
         if filter == .shared {
             // Real grants from `/notes/granted` — never invent from owned visibility.
             Task { @MainActor in
@@ -1217,18 +1243,6 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
         )
     }
 
-    private func noteIncludesSpeaker(_ note: NativeAPIClient.NoteDocument, speakerId: String?) -> Bool {
-        if let speakerId {
-            if note.noteSpeakerId == speakerId { return true }
-            return note.body.blocks.contains { block in
-                if block.type == "speakerSection", block.speakerId == speakerId { return true }
-                return false
-            }
-        }
-        if note.noteSpeakerId != nil { return true }
-        return note.body.blocks.contains { $0.type == "speakerSection" }
-    }
-
     /// Orador principal (`noteSpeakerId`) for the Caderno row speaker chip (TF194 #7).
     private func mainSpeakerName(for note: NativeAPIClient.NoteDocument?) -> String? {
         guard let note, let id = note.noteSpeakerId, !id.isEmpty else { return nil }
@@ -1244,43 +1258,33 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
 
     private func presentTagPicker() {
         let tags = Array(Set(notes.flatMap(\.tags))).sorted()
-        guard !tags.isEmpty else {
-            applyFilter()
-            return
-        }
-        let sheet = UIAlertController(title: String(localized: "Tags"), message: nil, preferredStyle: .actionSheet)
-        sheet.addAction(UIAlertAction(title: String(localized: "Todas as tags"), style: .default) { [weak self] _ in
-            self?.selectedTag = nil
+        let items = tags.map { NotebookFilterMultiSelectSheet.Item(id: $0, title: "#\($0)") }
+        let sheet = NotebookFilterMultiSelectSheet(
+            title: String(localized: "Tags"),
+            items: items,
+            selected: selectedTags
+        )
+        sheet.onDone = { [weak self] next in
+            self?.selectedTags = next
             self?.applyFilter()
-        })
-        for tag in tags.prefix(20) {
-            sheet.addAction(UIAlertAction(title: "#\(tag)", style: .default) { [weak self] _ in
-                self?.selectedTag = tag
-                self?.applyFilter()
-            })
         }
-        sheet.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
-        KCConfirmation.presentActionSheet(sheet, from: self, sourceView: filterChips)
+        KCSheetPresenter.present(sheet, from: self)
     }
 
     private func presentSpeakerFilter() {
-        guard !speakers.isEmpty else {
-            applyFilter()
-            return
+        let items = speakers.map {
+            NotebookFilterMultiSelectSheet.Item(id: $0.id, title: $0.name)
         }
-        let sheet = UIAlertController(title: String(localized: "Speakers"), message: nil, preferredStyle: .actionSheet)
-        sheet.addAction(UIAlertAction(title: String(localized: "Todos os speakers"), style: .default) { [weak self] _ in
-            self?.selectedSpeakerId = nil
+        let sheet = NotebookFilterMultiSelectSheet(
+            title: String(localized: "Speakers"),
+            items: items,
+            selected: selectedSpeakerIds
+        )
+        sheet.onDone = { [weak self] next in
+            self?.selectedSpeakerIds = next
             self?.applyFilter()
-        })
-        for speaker in speakers.prefix(20) {
-            sheet.addAction(UIAlertAction(title: speaker.name, style: .default) { [weak self] _ in
-                self?.selectedSpeakerId = speaker.id
-                self?.applyFilter()
-            })
         }
-        sheet.addAction(UIAlertAction(title: String(localized: "Cancelar"), style: .cancel))
-        KCConfirmation.presentActionSheet(sheet, from: self, sourceView: filterChips)
+        KCSheetPresenter.present(sheet, from: self)
     }
 
     /// Button / selector entry — must not overload `showSignIn(auto:)` (Swift `#selector` ambiguity).

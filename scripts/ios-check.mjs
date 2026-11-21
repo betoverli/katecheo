@@ -1536,8 +1536,8 @@ if (!project.includes("NativeNoteEditorTitleAppearanceTests.swift in Sources")) 
   if (!project.includes("NativeNoteEditorHeaderQuoteTests.swift in Sources")) {
     errors.push("AppTests NativeNoteEditorHeaderQuoteTests têm de estar no target.");
   }
-  if ((project.match(/MARKETING_VERSION = 1\.0\.2;/g) || []).length < 6) {
-    errors.push("MARKETING_VERSION tem de ser 1.0.2 em todas as configurações do pbxproj.");
+  if ((project.match(/MARKETING_VERSION = 1\.0\.3;/g) || []).length < 6) {
+    errors.push("MARKETING_VERSION tem de ser 1.0.3 em todas as configurações do pbxproj.");
   }
   const titleAppearanceTests = read("ios/App/KatecheoTests/NativeNoteEditorTitleAppearanceTests.swift");
   if (!titleAppearanceTests.includes("testTitleColor_resolvesCorrectlyWhenUserInterfaceStyleToggles")) {

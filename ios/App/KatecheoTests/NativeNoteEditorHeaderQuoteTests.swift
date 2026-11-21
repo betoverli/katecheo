@@ -66,7 +66,9 @@ final class NativeNoteEditorHeaderQuoteTests: XCTestCase {
             XCTAssertEqual(da, 0.22, accuracy: 0.02)
             XCTAssertGreaterThan(da, sa)
         } else {
-            XCTAssertEqual(da, sa, accuracy: 0.02)
+            // Light header divider is stronger than generic separator (was nearly invisible).
+            XCTAssertEqual(da, 0.52, accuracy: 0.02)
+            XCTAssertGreaterThan(da, sa)
         }
         XCTAssertGreaterThan(divider.minY, tags.maxY - 0.5, "divider below tags row")
         XCTAssertLessThan(divider.maxY, body.minY + 0.5, "divider above body caret/placeholder")

@@ -123,6 +123,15 @@ const MANUAL = {
   Categoria: ["Category", "Categoría"],
   Tema: ["Theme", "Tema"],
   "Capítulo inteiro": ["Whole chapter", "Capítulo entero"],
+  "Confirmar versículo": ["Confirm verse", "Confirmar versículo"],
+  "Toque no versículo final ou use ✓ para inserir só o %lld": [
+    "Tap the end verse, or use ✓ to insert only %lld",
+    "Toca el versículo final, o usa ✓ para insertar solo el %lld",
+  ],
+  "Toque para escolher · ✓ confirma um versículo · segundo toque define o intervalo": [
+    "Tap to choose · ✓ confirms one verse · second tap sets the range",
+    "Toca para elegir · ✓ confirma un versículo · el segundo toque define el intervalo",
+  ],
   "Inserir referência": ["Insert reference", "Insertar referencia"],
   "Toque para escolher · segundo toque define o intervalo": [
     "Tap to choose · second tap sets the range",

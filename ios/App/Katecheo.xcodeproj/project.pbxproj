@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		NBFILT22FED7965001685NF /* NotebookNoteFilterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NBFILT21FED7965001685NF /* NotebookNoteFilterTests.swift */; };
+		NBFILS12FED7965001685NF /* NotebookFilterMultiSelectSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = NBFILS11FED7965001685NF /* NotebookFilterMultiSelectSheet.swift */; };
+		NBFILT12FED7965001685NF /* NotebookNoteFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = NBFILT11FED7965001685NF /* NotebookNoteFilter.swift */; };
 		GINVTST2FED7965001685GI /* GroupInviteDeepLinkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = GINVTST1FED7965001685GI /* GroupInviteDeepLinkTests.swift */; };
 		GINVDT12FED7965001685GI /* GroupInviteDetailViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = GINVDT11FED7965001685GI /* GroupInviteDetailViewController.swift */; };
 		GINVFR12FED7965001685GI /* GroupInviteFriendsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = GINVFR11FED7965001685GI /* GroupInviteFriendsViewController.swift */; };
@@ -184,6 +187,8 @@
 		E4F1A0152FED796500168550 /* NativeRootTabBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeRootTabBarController.swift; sourceTree = "<group>"; };
 		E4F1A0172FED796500168550 /* ComingSoonTabViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComingSoonTabViewController.swift; sourceTree = "<group>"; };
 		E4F1A0192FED796500168550 /* NotebookListViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotebookListViewController.swift; sourceTree = "<group>"; };
+		NBFILS11FED7965001685NF /* NotebookFilterMultiSelectSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotebookFilterMultiSelectSheet.swift; sourceTree = "<group>"; };
+		NBFILT11FED7965001685NF /* NotebookNoteFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotebookNoteFilter.swift; sourceTree = "<group>"; };
 		E4F1A01B2FED796500168550 /* NoteDetailViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteDetailViewController.swift; sourceTree = "<group>"; };
 		E4F1A01D2FED796500168550 /* NoteSettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteSettingsViewController.swift; sourceTree = "<group>"; };
 		E4F1A01F2FED796500168550 /* SpeakerPickerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerPickerViewController.swift; sourceTree = "<group>"; };
@@ -224,6 +229,7 @@
 		F8B8E0132FED7965001685D0 /* KCComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KCComponents.swift; sourceTree = "<group>"; };
 		C9D0E0112FED7965001685E0 /* ReadingScreens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadingScreens.swift; sourceTree = "<group>"; };
 		T1A2B0112FED7965001685T1 /* NoteDocumentCodecTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteDocumentCodecTests.swift; sourceTree = "<group>"; };
+		NBFILT21FED7965001685NF /* NotebookNoteFilterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotebookNoteFilterTests.swift; sourceTree = "<group>"; };
 		T1A2B0132FED7965001685T1 /* SpeakerEnterDecisionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerEnterDecisionTests.swift; sourceTree = "<group>"; };
 		T2SPEAK21FED7965001685T2 /* SpeakerSectionEditingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerSectionEditingTests.swift; sourceTree = "<group>"; };
 		T3PATH21FED7965001685T3 /* NativeNoteEditorSpeakerPathTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeNoteEditorSpeakerPathTests.swift; sourceTree = "<group>"; };
@@ -345,6 +351,8 @@
 				E4F1A0152FED796500168550 /* NativeRootTabBarController.swift */,
 				E4F1A0172FED796500168550 /* ComingSoonTabViewController.swift */,
 				E4F1A0192FED796500168550 /* NotebookListViewController.swift */,
+				NBFILT11FED7965001685NF /* NotebookNoteFilter.swift */,
+				NBFILS11FED7965001685NF /* NotebookFilterMultiSelectSheet.swift */,
 				E4F1A01B2FED796500168550 /* NoteDetailViewController.swift */,
 				E4F1A01D2FED796500168550 /* NoteSettingsViewController.swift */,
 				T7TAGS11FED7965001685T7 /* NoteEditorTagsStrip.swift */,
@@ -383,6 +391,7 @@
 			isa = PBXGroup;
 			children = (
 				T1A2B0112FED7965001685T1 /* NoteDocumentCodecTests.swift */,
+				NBFILT21FED7965001685NF /* NotebookNoteFilterTests.swift */,
 				T1A2B0132FED7965001685T1 /* SpeakerEnterDecisionTests.swift */,
 				T2SPEAK21FED7965001685T2 /* SpeakerSectionEditingTests.swift */,
 				T3PATH21FED7965001685T3 /* NativeNoteEditorSpeakerPathTests.swift */,
@@ -652,6 +661,8 @@
 				E4F1A0142FED796500168550 /* NativeRootTabBarController.swift in Sources */,
 				E4F1A0162FED796500168550 /* ComingSoonTabViewController.swift in Sources */,
 				E4F1A0182FED796500168550 /* NotebookListViewController.swift in Sources */,
+				NBFILT12FED7965001685NF /* NotebookNoteFilter.swift in Sources */,
+				NBFILS12FED7965001685NF /* NotebookFilterMultiSelectSheet.swift in Sources */,
 				E4F1A01A2FED796500168550 /* NoteDetailViewController.swift in Sources */,
 				E4F1A01C2FED796500168550 /* NoteSettingsViewController.swift in Sources */,
 				T7TAGS12FED7965001685T7 /* NoteEditorTagsStrip.swift in Sources */,
@@ -682,6 +693,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				T1A2B0102FED7965001685T1 /* NoteDocumentCodecTests.swift in Sources */,
+				NBFILT22FED7965001685NF /* NotebookNoteFilterTests.swift in Sources */,
 				T1A2B0122FED7965001685T1 /* SpeakerEnterDecisionTests.swift in Sources */,
 				T2SPEAK22FED7965001685T2 /* SpeakerSectionEditingTests.swift in Sources */,
 				T3PATH22FED7965001685T3 /* NativeNoteEditorSpeakerPathTests.swift in Sources */,
@@ -876,7 +888,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.2;
+				MARKETING_VERSION = 1.0.3;
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" \"-DDEBUG\"";
 				KATECHEO_APNS_SANDBOX = YES;
 				KATECHEO_UNIVERSAL_LINKS = NO;
@@ -902,7 +914,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.2;
+				MARKETING_VERSION = 1.0.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.verse2note.app;
 				KATECHEO_APNS_SANDBOX = NO;
 				KATECHEO_UNIVERSAL_LINKS = YES;
@@ -929,7 +941,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.2;
+				MARKETING_VERSION = 1.0.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.verse2note.app.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
@@ -953,7 +965,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.2;
+				MARKETING_VERSION = 1.0.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.verse2note.app.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
@@ -976,7 +988,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.2;
+				MARKETING_VERSION = 1.0.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.verse2note.app.uitests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
@@ -999,7 +1011,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.2;
+				MARKETING_VERSION = 1.0.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.verse2note.app.uitests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;

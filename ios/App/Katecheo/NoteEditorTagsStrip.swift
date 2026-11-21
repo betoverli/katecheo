@@ -3,7 +3,7 @@ import UIKit
 /// Editable tag chips shown under the note title inside the editor (TF210).
 /// The note-level speaker chip leads the same horizontal strip so it scrolls with content.
 @MainActor
-final class NoteEditorTagsStrip: UIView, UITextFieldDelegate {
+final class NoteEditorTagsStrip: UIView, UITextFieldDelegate, UIScrollViewDelegate {
     static let preferredHeight: CGFloat = 32
 
     var onTagsChange: (([String]) -> Void)?
@@ -16,6 +16,7 @@ final class NoteEditorTagsStrip: UIView, UITextFieldDelegate {
     private let addField = UITextField()
     private let placeholderButton = UIButton(type: .system)
     private let speakerChip = UIButton(type: .system)
+    private let edgeFadeMask = CAGradientLayer()
     private var tags: [String] = []
     private var speakerName: String?
     private(set) var isEditingTags = false
@@ -34,7 +35,12 @@ final class NoteEditorTagsStrip: UIView, UITextFieldDelegate {
         scroll.translatesAutoresizingMaskIntoConstraints = false
         scroll.showsHorizontalScrollIndicator = false
         scroll.alwaysBounceHorizontal = true
+        scroll.delegate = self
         addSubview(scroll)
+
+        edgeFadeMask.startPoint = CGPoint(x: 0, y: 0.5)
+        edgeFadeMask.endPoint = CGPoint(x: 1, y: 0.5)
+        scroll.layer.mask = edgeFadeMask
 
         stack.axis = .horizontal
         stack.alignment = .center
@@ -92,6 +98,45 @@ final class NoteEditorTagsStrip: UIView, UITextFieldDelegate {
         ])
 
         rebuild()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        updateEdgeFadeMask()
+    }
+
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        updateEdgeFadeMask()
+    }
+
+    /// Leading fade when scrolled away from start; trailing fade when more content remains.
+    /// No fade when content fits the viewport.
+    private func updateEdgeFadeMask() {
+        let bounds = scroll.bounds
+        edgeFadeMask.frame = CGRect(origin: scroll.contentOffset, size: bounds.size)
+        let contentWidth = scroll.contentSize.width
+        let visibleWidth = bounds.width
+        guard visibleWidth > 1, contentWidth > visibleWidth + 0.5 else {
+            edgeFadeMask.colors = [UIColor.black.cgColor, UIColor.black.cgColor]
+            edgeFadeMask.locations = [0, 1]
+            return
+        }
+        let inset = scroll.adjustedContentInset
+        let minX = -inset.left
+        let maxX = max(minX, contentWidth - visibleWidth + inset.right)
+        let x = scroll.contentOffset.x
+        let leadOn = x > minX + 1
+        let trailOn = x < maxX - 1
+        let fade: CGFloat = 18 / max(visibleWidth, 1)
+        let leadEnd = NSNumber(value: leadOn ? fade : 0)
+        let trailStart = NSNumber(value: trailOn ? (1 - fade) : 1)
+        edgeFadeMask.colors = [
+            (leadOn ? UIColor.clear : UIColor.black).cgColor,
+            UIColor.black.cgColor,
+            UIColor.black.cgColor,
+            (trailOn ? UIColor.clear : UIColor.black).cgColor,
+        ]
+        edgeFadeMask.locations = [0, leadEnd, trailStart, 1]
     }
 
     func setTags(_ next: [String]) {
@@ -196,6 +241,7 @@ final class NoteEditorTagsStrip: UIView, UITextFieldDelegate {
             placeholderButton.isHidden = true
             addField.isHidden = true
         }
+        setNeedsLayout()
     }
 
     private func configureSpeakerChip() {
@@ -298,5 +344,24 @@ final class NoteEditorTagsStrip: UIView, UITextFieldDelegate {
 
     func testing_tapSpeaker() {
         speakerTapped()
+    }
+
+    var testing_scrollView: UIScrollView { scroll }
+
+    func testing_updateEdgeFadeMask() {
+        layoutIfNeeded()
+        updateEdgeFadeMask()
+    }
+
+    /// True when the trailing edge fade is active (more content to the right).
+    var testing_trailingFadeActive: Bool {
+        guard let colors = edgeFadeMask.colors as? [CGColor], colors.count == 4 else { return false }
+        return colors[3] == UIColor.clear.cgColor
+    }
+
+    /// True when the leading edge fade is active (scrolled away from start).
+    var testing_leadingFadeActive: Bool {
+        guard let colors = edgeFadeMask.colors as? [CGColor], colors.count == 4 else { return false }
+        return colors[0] == UIColor.clear.cgColor
     }
 }
