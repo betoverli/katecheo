@@ -94,6 +94,129 @@ final class NativeNoteEditorHeaderQuoteTests: XCTestCase {
         XCTAssertEqual(NoteDocumentCodec.titleTagsReservedSpacing, 48, accuracy: 0.1)
     }
 
+    /// Build 438: first-line bible-ref pills are taller than body glyphs; gap below the
+    /// divider must be measured to the chip top (same as tags → divider), not the caret mid-line.
+    func testHeaderDivider_equalGap_toFirstLineBibleRefChipAndPlainText() {
+        // --- Plain text first line ---
+        var plain = blankNote(title: "Culto", tags: ["manhã"])
+        plain.body.blocks = [
+            NativeAPIClient.LineBlock(
+                id: "p1",
+                type: "paragraph",
+                spans: [
+                    .init(
+                        type: "text",
+                        text: "Começo sem referência",
+                        marks: nil,
+                        bookId: nil,
+                        chapter: nil,
+                        verseStart: nil,
+                        verseEnd: nil,
+                        href: nil
+                    ),
+                ],
+                speakerId: nil,
+                title: nil,
+                collapsed: nil,
+                checked: nil,
+                blocks: nil
+            ),
+        ]
+        editor.pushNote(plain, speakers: [])
+        editor.layoutIfNeeded()
+
+        let plainTags = editor.testing_tagsStripFrame()
+        let plainDivider = editor.testing_headerDividerFrame()
+        let plainContentTop = editor.testing_firstBodyContentTopY()
+        let plainAbove = plainDivider.minY - plainTags.maxY
+        let plainBelow = plainContentTop - plainDivider.maxY
+        XCTAssertGreaterThan(plainAbove, 1)
+        XCTAssertGreaterThan(plainBelow, 1)
+        XCTAssertEqual(
+            plainAbove,
+            plainBelow,
+            accuracy: 1,
+            "plain text: tags→divider must equal divider→glyph top"
+        )
+        XCTAssertNil(
+            editor.testing_firstBodyBibleRefAttachmentFrame(),
+            "plain body must not report a bible-ref frame"
+        )
+
+        // --- First line starts with a bible-ref chip ---
+        var withRef = blankNote(title: "Culto", tags: ["manhã"])
+        withRef.body.blocks = [
+            NativeAPIClient.LineBlock(
+                id: "p1",
+                type: "paragraph",
+                spans: [
+                    .init(
+                        type: "bibleRef",
+                        text: nil,
+                        marks: nil,
+                        bookId: "jhn",
+                        chapter: 3,
+                        verseStart: 16,
+                        verseEnd: nil,
+                        href: nil
+                    ),
+                    .init(
+                        type: "text",
+                        text: " porque Deus amou o mundo",
+                        marks: nil,
+                        bookId: nil,
+                        chapter: nil,
+                        verseStart: nil,
+                        verseEnd: nil,
+                        href: nil
+                    ),
+                ],
+                speakerId: nil,
+                title: nil,
+                collapsed: nil,
+                checked: nil,
+                blocks: nil
+            ),
+        ]
+        editor.pushNote(withRef, speakers: [])
+        editor.layoutIfNeeded()
+        editor.testing_refreshBibleRefPillAppearances()
+        editor.layoutIfNeeded()
+
+        let refTags = editor.testing_tagsStripFrame()
+        let refDivider = editor.testing_headerDividerFrame()
+        guard let chip = editor.testing_firstBodyBibleRefAttachmentFrame() else {
+            return XCTFail("expected first-line bible-ref chip frame")
+        }
+        let refAbove = refDivider.minY - refTags.maxY
+        let refBelow = chip.minY - refDivider.maxY
+        XCTAssertGreaterThan(refAbove, 1)
+        XCTAssertGreaterThan(refBelow, 1)
+        XCTAssertEqual(
+            refAbove,
+            refBelow,
+            accuracy: 1,
+            "bible-ref chip: tags→divider must equal divider→chip top (within 1pt)"
+        )
+        // Chip must sit clearly below the divider (build 438 regression: nearly touching).
+        XCTAssertGreaterThan(chip.minY - refDivider.maxY, 1.5)
+
+        // Dark mode: same equal-gap contract (divider thickness changes; measurement does not).
+        editor.overrideUserInterfaceStyle = .dark
+        editor.testing_refreshAppearanceForCurrentTraits()
+        editor.layoutIfNeeded()
+
+        let darkTags = editor.testing_tagsStripFrame()
+        let darkDivider = editor.testing_headerDividerFrame()
+        guard let darkChip = editor.testing_firstBodyBibleRefAttachmentFrame() else {
+            return XCTFail("expected first-line bible-ref chip frame in dark mode")
+        }
+        let darkAbove = darkDivider.minY - darkTags.maxY
+        let darkBelow = darkChip.minY - darkDivider.maxY
+        XCTAssertEqual(darkAbove, darkBelow, accuracy: 1, "dark mode equal gap to chip top")
+        XCTAssertEqual(darkDivider.height, 1, accuracy: 0.02)
+    }
+
     // MARK: - Quote style
 
     func testQuoteAttributes_areItalicWithoutTextBackground() {
