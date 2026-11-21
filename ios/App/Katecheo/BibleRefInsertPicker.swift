@@ -244,25 +244,35 @@ private final class BibleRefVersePicker: UIViewController, UICollectionViewDeleg
     private var rangeEnd: Int?
     private var collectionView: UICollectionView!
     private let hintLabel = UILabel()
-    private lazy var confirmButton: UIBarButtonItem = {
+    private lazy var confirmControl: UIButton = {
         let button = UIButton(type: .system)
-        var config = UIButton.Configuration.filled()
-        config.image = UIImage(systemName: "checkmark")
-        config.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 15, weight: .bold)
-        config.baseForegroundColor = .white
-        config.baseBackgroundColor = KCDesign.accent
-        config.cornerStyle = .capsule
-        config.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12)
-        button.configuration = config
+        button.translatesAutoresizingMaskIntoConstraints = false
         button.accessibilityLabel = String(localized: "Confirmar versículo")
         button.accessibilityIdentifier = "bible.verse.confirm"
         button.addTarget(self, action: #selector(confirmSelection), for: .touchUpInside)
-        button.isEnabled = false
-        button.alpha = 0.4
-        button.frame = CGRect(x: 0, y: 0, width: 36, height: 32)
-        let item = UIBarButtonItem(customView: button)
-        return item
+        // Match the circular glass system back chevron (same size / chrome family).
+        NSLayoutConstraint.activate([
+            button.widthAnchor.constraint(equalToConstant: 36),
+            button.heightAnchor.constraint(equalToConstant: 36),
+        ])
+        applyConfirmChrome(enabled: false, to: button)
+        return button
     }()
+
+    private lazy var confirmButton: UIBarButtonItem = {
+        UIBarButtonItem(customView: confirmControl)
+    }()
+
+    private func applyConfirmChrome(enabled: Bool, to button: UIButton) {
+        let symbol = UIImage.SymbolConfiguration(pointSize: 15, weight: .semibold)
+        let image = UIImage(systemName: "checkmark", withConfiguration: symbol)
+            ?? UIImage(systemName: "checkmark")!
+        let tint = enabled ? KCDesign.accent : UIColor.secondaryLabel
+        KCGlassMaterial.applyCircularChromeStyle(to: button, image: image, tint: tint)
+        button.isEnabled = enabled
+        // Keep chrome opacity; only the checkmark color dims when disabled.
+        button.alpha = 1
+    }
 
     init(book: NativeAPIClient.BibleBookDTO, chapter: Int, verseCount: Int, onPick: @escaping (NoteDocumentCodec.BibleRefPayload) -> Void) {
         self.book = book
@@ -327,10 +337,7 @@ private final class BibleRefVersePicker: UIViewController, UICollectionViewDeleg
         }
         let enabled = rangeStart != nil
         confirmButton.isEnabled = enabled
-        if let button = confirmButton.customView as? UIButton {
-            button.isEnabled = enabled
-            button.alpha = enabled ? 1 : 0.4
-        }
+        applyConfirmChrome(enabled: enabled, to: confirmControl)
     }
 
     @objc private func wholeChapter() {
