@@ -12727,7 +12727,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Speaker da nota"
+            "value": "Orador da nota"
           }
         },
         "en": {
@@ -12739,7 +12739,7 @@
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Speaker de la nota"
+            "value": "Orador de la nota"
           }
         }
       }
@@ -15924,7 +15924,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Speaker"
+            "value": "Orador"
           }
         },
         "en": {
@@ -15936,7 +15936,7 @@
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Speaker"
+            "value": "Orador"
           }
         }
       }

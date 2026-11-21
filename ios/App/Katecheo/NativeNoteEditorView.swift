@@ -8,6 +8,8 @@ protocol NativeNoteEditorViewDelegate: AnyObject {
     func nativeNoteEditorRequestSpeaker(_ editor: NativeNoteEditorView)
     /// Change which catalog speaker owns an existing section (web: head is not typed).
     func nativeNoteEditorRequestRenameSpeaker(_ editor: NativeNoteEditorView, sectionId: String, currentSpeakerId: String?)
+    /// Whole-note speaker chip in the tags strip (not a section insert).
+    func nativeNoteEditorRequestNoteSpeaker(_ editor: NativeNoteEditorView)
 }
 
 /// Fully native note body editor (Phase 7). UITextView only.
@@ -120,6 +122,10 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         }
         tagsStrip.onEditingChange = { [weak self] _ in
             self?.refreshEditingChrome()
+        }
+        tagsStrip.onSpeakerTap = { [weak self] in
+            guard let self else { return }
+            self.delegate?.nativeNoteEditorRequestNoteSpeaker(self)
         }
         // Scrolls with the title — lives inside the text view.
         textView.addSubview(tagsStrip)
@@ -494,6 +500,17 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     func setNoteSpeakerId(_ speakerId: String?) {
         precondition(Thread.isMainThread)
         applyNoteSpeakerId(speakerId)
+        refreshSpeakerChip()
+    }
+
+    /// Sync the tags-strip speaker chip from `documentBase.noteSpeakerId` + catalog.
+    func refreshSpeakerChip() {
+        precondition(Thread.isMainThread)
+        let name: String? = {
+            guard let id = documentBase.noteSpeakerId, !id.isEmpty else { return nil }
+            return speakers.first(where: { $0.id == id })?.name
+        }()
+        tagsStrip.setSpeakerName(name)
     }
 
     private func textContentLeading() -> CGFloat {
@@ -857,6 +874,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         textView.isEditable = !readOnly
         tagsStrip.isUserInteractionEnabled = !readOnly
         tagsStrip.setTags(note.tags)
+        refreshSpeakerChip()
         applyingRemote = false
         isReady = true
         // Attachments may have been baked offline / under the wrong traits — sync to this view.
@@ -871,6 +889,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         precondition(Thread.isMainThread)
         self.speakers = speakers
         refreshSpeakerRails()
+        refreshSpeakerChip()
     }
 
     func currentDocument() -> NativeAPIClient.NoteDocument {
@@ -2768,11 +2787,27 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     }
 
     func testing_setNoteSpeakerId(_ speakerId: String?) {
-        applyNoteSpeakerId(speakerId)
+        setNoteSpeakerId(speakerId)
     }
 
     func testing_noteSpeakerId() -> String? {
         currentDocument().noteSpeakerId
+    }
+
+    func testing_tagsStripSpeakerTitle() -> String? {
+        tagsStrip.testing_speakerTitle
+    }
+
+    func testing_tagsStripHasAssignedSpeaker() -> Bool {
+        tagsStrip.testing_hasAssignedSpeaker
+    }
+
+    func testing_tagsStripSpeakerIsFirst() -> Bool {
+        tagsStrip.testing_firstArrangedIsSpeaker
+    }
+
+    func testing_tapTagsStripSpeaker() {
+        tagsStrip.testing_tapSpeaker()
     }
 
     func testing_autocapitalizationType() -> UITextAutocapitalizationType {

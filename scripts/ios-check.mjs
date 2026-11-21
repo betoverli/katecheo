@@ -722,6 +722,26 @@ if (noteDetail.includes("Salvo no aparelho — sincroniza") || noteDetail.includ
 if (!noteDetail.includes("checkmark.icloud") && !noteDetail.includes("icloud.and.arrow.up")) {
   errors.push("A nota tem de expor sync só como ícone (icloud), não como label.");
 }
+// Whole-note speaker chip scrolls in the tags strip — not pinned under the safe area.
+if (noteDetail.includes("topChrome") || noteDetail.includes("speakerChipRow")) {
+  errors.push("Orador da nota não pode ficar pinado em topChrome — chip na faixa de tags.");
+}
+if (noteDetail.includes('String(localized: "Speakers…")')) {
+  errors.push("Menu … da nota não pode ter 'Speakers…' — orador via chip na faixa de tags / Configurações.");
+}
+if (!noteDetail.includes("nativeNoteEditorRequestNoteSpeaker") || !noteDetail.includes("refreshSpeakerChip")) {
+  errors.push("NoteDetail tem de abrir o picker pelo chip (nativeNoteEditorRequestNoteSpeaker) e refrescar o chip.");
+}
+const tagsStrip = read("ios/App/Katecheo/NoteEditorTagsStrip.swift");
+if (!tagsStrip.includes("onSpeakerTap") || !tagsStrip.includes("person.badge.plus") || !tagsStrip.includes("setSpeakerName")) {
+  errors.push("NoteEditorTagsStrip tem de exibir o chip de orador (person.badge.plus / setSpeakerName / onSpeakerTap).");
+}
+if (!editor.includes("refreshSpeakerChip") || !editor.includes("nativeNoteEditorRequestNoteSpeaker")) {
+  errors.push("NativeNoteEditorView tem de refrescar o chip de orador e pedir o picker via delegate.");
+}
+if (!project.includes("NoteEditorTagsStripSpeakerTests.swift in Sources")) {
+  errors.push("NoteEditorTagsStripSpeakerTests têm de estar no target KatecheoTests.");
+}
 
 try {
   read("ios/App/Katecheo/NoteMioloEditorView.swift");
