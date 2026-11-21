@@ -540,8 +540,10 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     /// Dark: 1pt for visibility on canvas; light: hairline (1/scale). When there are no tag
     /// chips, the tags strip is still the header’s lower edge (empty state / “Adicionar tags”),
     /// so the divider sits under the title+tags band either way.
-    /// Vertical gap above the line (tags → divider) equals the gap below (divider → body)
-    /// in both light and dark mode.
+    /// Vertical gap above the line (tags → divider) equals the gap below (divider → first-line
+    /// content top) in both light and dark mode. First-line content top is the bible-ref chip’s
+    /// top edge when present, otherwise the body text glyph / caret top — so tall pills do not
+    /// crowd the divider while plain text keeps the same breathing room.
     private func repositionHeaderDivider() {
         textView.layoutManager.ensureLayout(for: textView.textContainer)
         let leading = textContentLeading()
@@ -551,18 +553,10 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             : 1 / max(UIScreen.main.scale, 1)
         let tagsFrame = tagsStrip.frame
 
-        // Prefer the live body caret/placeholder Y so the divider stays centered as the
+        // Prefer the live first-line content top so the divider stays centered as the
         // title wraps or tags appear/disappear inside the reserved title band (48pt).
-        let bodyChar: Int = {
-            guard textView.textStorage.length > 0 else { return 0 }
-            let titlePara = (textView.textStorage.string as NSString).paragraphRange(
-                for: NSRange(location: 0, length: 0)
-            )
-            return min(NSMaxRange(titlePara), max(0, textView.textStorage.length - 1))
-        }()
-        let bodyFont = bodyPlaceholderLabel.font ?? UIFont.preferredFont(forTextStyle: .body)
         let bodyFallbackY = tagsFrame.maxY + 12
-        let bodyY = caretAlignedOrigin(atCharacter: bodyChar, font: bodyFont, fallbackY: bodyFallbackY).y
+        let bodyY = firstBodyContentTopY(fallbackY: bodyFallbackY)
 
         let headerBottom = tagsFrame.maxY
         let gap = max(0, bodyY - headerBottom)
@@ -575,6 +569,61 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         }
         headerDivider.frame = CGRect(x: leading, y: y, width: width, height: thickness)
         headerDivider.backgroundColor = KCDesign.headerDivider
+    }
+
+    /// Character index at the start of the body (first char after the title paragraph).
+    private func bodyStartCharacterIndex() -> Int {
+        guard textView.textStorage.length > 0 else { return 0 }
+        let titlePara = (textView.textStorage.string as NSString).paragraphRange(
+            for: NSRange(location: 0, length: 0)
+        )
+        return min(NSMaxRange(titlePara), max(0, textView.textStorage.length - 1))
+    }
+
+    /// Visual top of the first body line for header-divider spacing.
+    /// - Plain text / empty: caret-aligned glyph top (matches body placeholder).
+    /// - First line with a bible-ref pill: the attachment’s rect top (pills are taller than
+    ///   the body glyphs and sit above the caret mid-line inside the line fragment).
+    private func firstBodyContentTopY(fallbackY: CGFloat) -> CGFloat {
+        let bodyFont = bodyPlaceholderLabel.font ?? UIFont.preferredFont(forTextStyle: .body)
+        let bodyChar = bodyStartCharacterIndex()
+        let caretY = caretAlignedOrigin(atCharacter: bodyChar, font: bodyFont, fallbackY: fallbackY).y
+        guard let pillTop = firstBodyBibleRefAttachmentFrame()?.minY else {
+            return caretY
+        }
+        // Chip top is above the caret mid-line when the attachment is taller than the glyphs.
+        return min(caretY, pillTop)
+    }
+
+    /// Frame of the first bible-ref pill on the first body line, in text-view coordinates.
+    private func firstBodyBibleRefAttachmentFrame() -> CGRect? {
+        let storage = textView.textStorage
+        guard storage.length > 0 else { return nil }
+        let bodyChar = bodyStartCharacterIndex()
+        guard bodyChar < storage.length else { return nil }
+        let bodyPara = (storage.string as NSString).paragraphRange(
+            for: NSRange(location: bodyChar, length: 0)
+        )
+        // Only the first body line — later pills must not move the header divider.
+        textView.layoutManager.ensureLayout(for: textView.textContainer)
+        let glyphIndex = textView.layoutManager.glyphIndexForCharacter(at: bodyChar)
+        var lineRange = NSRange(location: 0, length: 0)
+        _ = textView.layoutManager.lineFragmentUsedRect(forGlyphAt: glyphIndex, effectiveRange: &lineRange)
+        let lineCharRange = textView.layoutManager.characterRange(
+            forGlyphRange: lineRange,
+            actualGlyphRange: nil
+        )
+        let search = NSIntersectionRange(bodyPara, lineCharRange)
+        guard search.length > 0 else { return nil }
+
+        var pillLocation: Int?
+        storage.enumerateAttribute(.attachment, in: search) { value, range, stop in
+            guard value is BibleRefPillAttachment else { return }
+            pillLocation = range.location
+            stop.pointee = true
+        }
+        guard let location = pillLocation else { return nil }
+        return glyphRect(forCharacter: location)
     }
 
     /// Pin title/body placeholders to the same origin as the caret (insets, padding, font).
@@ -2683,6 +2732,22 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         repositionPlaceholders()
         repositionHeaderDivider()
         return headerDivider.frame
+    }
+
+    /// Visual top Y used to center the header divider under the first body line.
+    func testing_firstBodyContentTopY() -> CGFloat {
+        repositionTagsStrip()
+        repositionPlaceholders()
+        textView.layoutManager.ensureLayout(for: textView.textContainer)
+        return firstBodyContentTopY(fallbackY: tagsStrip.frame.maxY + 12)
+    }
+
+    /// Frame of the first bible-ref pill on the first body line (text-view coords), if any.
+    func testing_firstBodyBibleRefAttachmentFrame() -> CGRect? {
+        repositionTagsStrip()
+        repositionPlaceholders()
+        textView.layoutManager.ensureLayout(for: textView.textContainer)
+        return firstBodyBibleRefAttachmentFrame()
     }
 
     func testing_quoteBlockRanges() -> [NSRange] {
