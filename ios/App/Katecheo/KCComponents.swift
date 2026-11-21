@@ -234,9 +234,9 @@ final class KCNoteRowCell: UITableViewCell {
     private let titleLabel = UILabel()
     private let dateLabel = UILabel()
     private let titleRow = UIStackView()
-    /// Padded chip so accent fill + name stay visible (space-padded UILabel + clipsToBounds
-    /// reserved width but often painted an empty / clipped pill on the preview row).
-    private let speakerPill = KCPaddedChipLabel()
+    /// Speaker chip: UIView fill (`layer.backgroundColor`) + plain UILabel with Auto Layout insets.
+    /// Avoids custom UILabel drawText/textRect + pill radius=999 which reserved width but painted nothing.
+    private let speakerPill = KCSpeakerChipView()
     private let subtitleLabel = UILabel()
     private let tagsLabel = UILabel()
     private let stack = UIStackView()
@@ -276,18 +276,10 @@ final class KCNoteRowCell: UITableViewCell {
         titleRow.addArrangedSubview(titleLabel)
         titleRow.addArrangedSubview(dateLabel)
 
-        speakerPill.font = KCDesign.preferred(.caption2, weight: .semibold)
-        speakerPill.textColor = KCDesign.accent
-        speakerPill.backgroundColor = KCDesign.accentSoft
-        speakerPill.textAlignment = .center
-        speakerPill.contentInsets = UIEdgeInsets(top: 3, left: 8, bottom: 3, right: 8)
-        speakerPill.layer.cornerRadius = KCDesign.Radius.pill
-        speakerPill.layer.cornerCurve = .continuous
-        speakerPill.clipsToBounds = true
         speakerPill.setContentHuggingPriority(.required, for: .horizontal)
         speakerPill.setContentCompressionResistancePriority(.required, for: .horizontal)
-        speakerPill.adjustsFontForContentSizeCategory = true
         speakerPill.isHidden = true
+        speakerPill.applyColors(with: traitCollection)
 
         subtitleLabel.font = KCDesign.rowSubtitle()
         subtitleLabel.textColor = .secondaryLabel
@@ -307,7 +299,7 @@ final class KCNoteRowCell: UITableViewCell {
         tagsRow.axis = .horizontal
         tagsRow.alignment = .center
         tagsRow.spacing = 8
-        tagsRow.addArrangedSubview(speakerPill)
+        // Insert speakerPill only when a name is present (configure) — keeps reuse correct.
         tagsRow.addArrangedSubview(tagsLabel)
         tagsRow.isHidden = true
 
@@ -348,14 +340,18 @@ final class KCNoteRowCell: UITableViewCell {
         // arranged subview that was already hidden — remove/insert instead.
         let trimmedSpeaker = speakerName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if !trimmedSpeaker.isEmpty {
+            speakerPill.setName(trimmedSpeaker)
+            speakerPill.applyColors(with: traitCollection)
+            // Unhide before insert so the stack never reserves a hidden gap.
+            speakerPill.isHidden = false
+            speakerPill.label.isHidden = false
             if speakerPill.superview !== tagsRow {
                 tagsRow.insertArrangedSubview(speakerPill, at: 0)
             }
-            speakerPill.text = trimmedSpeaker
-            speakerPill.isHidden = false
         } else {
-            speakerPill.text = nil
+            speakerPill.setName(nil)
             speakerPill.isHidden = true
+            speakerPill.label.isHidden = true
             if speakerPill.superview != nil {
                 tagsRow.removeArrangedSubview(speakerPill)
                 speakerPill.removeFromSuperview()
@@ -385,8 +381,9 @@ final class KCNoteRowCell: UITableViewCell {
         dateLabel.isHidden = true
         subtitleLabel.text = nil
         subtitleLabel.isHidden = false
-        speakerPill.text = nil
+        speakerPill.setName(nil)
         speakerPill.isHidden = true
+        speakerPill.label.isHidden = true
         if speakerPill.superview != nil {
             tagsRow.removeArrangedSubview(speakerPill)
             speakerPill.removeFromSuperview()
@@ -396,6 +393,14 @@ final class KCNoteRowCell: UITableViewCell {
         tagsRow.isHidden = true
     }
 
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        if traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection) {
+            speakerPill.applyColors(with: traitCollection)
+            tagsLabel.textColor = KCDesign.accent
+        }
+    }
+
     // MARK: - Testing hooks
 
     var testing_titleLabel: UILabel { titleLabel }
@@ -403,38 +408,67 @@ final class KCNoteRowCell: UITableViewCell {
     var testing_subtitleLabel: UILabel { subtitleLabel }
     var testing_tagsLabel: UILabel { tagsLabel }
     var testing_tagsRow: UIStackView { tagsRow }
-    var testing_speakerPill: UILabel { speakerPill }
+    /// Inner name label (text / font). Prefer `testing_speakerChip` for frame / fill paint.
+    var testing_speakerPill: UILabel { speakerPill.label }
+    var testing_speakerChip: UIView { speakerPill }
     var testing_speakerPillInTagsRow: Bool { speakerPill.superview === tagsRow }
 }
 
-/// Chip label with real insets (avoids invisible space-padded UILabel backgrounds).
-private final class KCPaddedChipLabel: UILabel {
-    var contentInsets = UIEdgeInsets(top: 3, left: 8, bottom: 3, right: 8) {
-        didSet { invalidateIntrinsicContentSize() }
+/// Note-list speaker chip: fill via `layer.backgroundColor` (survives cell highlight) + plain UILabel.
+private final class KCSpeakerChipView: UIView {
+    let label = UILabel()
+    private let contentInsets = UIEdgeInsets(top: 3, left: 8, bottom: 3, right: 8)
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        clipsToBounds = true
+        isUserInteractionEnabled = false
+
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.font = KCDesign.preferred(.caption2, weight: .semibold)
+        label.textAlignment = .center
+        label.numberOfLines = 1
+        label.lineBreakMode = .byTruncatingTail
+        label.adjustsFontForContentSizeCategory = true
+        addSubview(label)
+
+        NSLayoutConstraint.activate([
+            label.topAnchor.constraint(equalTo: topAnchor, constant: contentInsets.top),
+            label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: contentInsets.left),
+            label.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -contentInsets.bottom),
+            label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -contentInsets.right),
+        ])
     }
 
-    override func drawText(in rect: CGRect) {
-        super.drawText(in: rect.inset(by: contentInsets))
-    }
-
-    override func textRect(forBounds bounds: CGRect, limitedToNumberOfLines numberOfLines: Int) -> CGRect {
-        let insetBounds = bounds.inset(by: contentInsets)
-        let textRect = super.textRect(forBounds: insetBounds, limitedToNumberOfLines: numberOfLines)
-        return CGRect(
-            x: textRect.origin.x - contentInsets.left,
-            y: textRect.origin.y - contentInsets.top,
-            width: textRect.width + contentInsets.left + contentInsets.right,
-            height: textRect.height + contentInsets.top + contentInsets.bottom
-        )
-    }
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     override var intrinsicContentSize: CGSize {
-        let size = super.intrinsicContentSize
-        guard size.width > 0, size.height > 0 else { return size }
+        let labelSize = label.intrinsicContentSize
+        guard labelSize.width > 0, labelSize.height > 0 else {
+            return CGSize(width: UIView.noIntrinsicMetric, height: UIView.noIntrinsicMetric)
+        }
         return CGSize(
-            width: size.width + contentInsets.left + contentInsets.right,
-            height: size.height + contentInsets.top + contentInsets.bottom
+            width: labelSize.width + contentInsets.left + contentInsets.right,
+            height: labelSize.height + contentInsets.top + contentInsets.bottom
         )
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        layer.cornerRadius = bounds.height > 0 ? bounds.height / 2 : 0
+        layer.cornerCurve = .continuous
+    }
+
+    func applyColors(with traits: UITraitCollection) {
+        label.textColor = KCDesign.accent.resolvedColor(with: traits)
+        // layer.backgroundColor survives UITableViewCell highlight clearing UIView.backgroundColor.
+        layer.backgroundColor = KCDesign.accentSoft.resolvedColor(with: traits).cgColor
+    }
+
+    func setName(_ text: String?) {
+        label.text = text
+        invalidateIntrinsicContentSize()
     }
 }
 
