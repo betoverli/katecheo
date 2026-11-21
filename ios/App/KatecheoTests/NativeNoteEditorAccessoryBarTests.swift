@@ -5,19 +5,33 @@ import XCTest
 @MainActor
 final class NativeNoteEditorAccessoryBarTests: XCTestCase {
     private var editor: NativeNoteEditorView!
+    private var hostWindow: UIWindow?
     private let speakers: [NativeAPIClient.SpeakerDTO] = [
         .init(id: "s1", name: "Ana", color: "#5B8DEF", updatedAt: "2024-01-01T00:00:00.000Z"),
     ]
 
-    override func setUp() {
-        super.setUp()
-        editor = NativeNoteEditorView(frame: .zero)
-        editor.testing_prepare(size: CGSize(width: 390, height: 844))
+    override func setUp() async throws {
+        try await super.setUp()
+        editor = NativeNoteEditorView(frame: CGRect(x: 0, y: 0, width: 390, height: 720))
+        // Host in a window so `UITextView.becomeFirstResponder` works — the format
+        // toolbar chrome is gated on first responder (same harness as title-toolbar tests).
+        let host = UIViewController()
+        host.view.backgroundColor = KCDesign.canvas
+        host.view.addSubview(editor)
+        editor.frame = host.view.bounds
+        editor.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        window.rootViewController = host
+        window.makeKeyAndVisible()
+        hostWindow = window
+        editor.testing_prepare(size: CGSize(width: 390, height: 720))
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
+        hostWindow?.isHidden = true
+        hostWindow = nil
         editor = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
     func testCapsule_hasContinuousPillCornersAndClips() {
@@ -67,7 +81,7 @@ final class NativeNoteEditorAccessoryBarTests: XCTestCase {
         bar.layoutIfNeeded()
 
         let scroll = bar.testing_scrollView
-        XCTAssertTrue(bar.testing_capsule.subviews.contains(scroll) || scroll.isDescendant(of: bar.testing_capsule))
+        XCTAssertTrue(scroll.isDescendant(of: bar.testing_capsule))
         XCTAssertGreaterThan(
             scroll.contentSize.width,
             scroll.bounds.width,
@@ -107,7 +121,10 @@ final class NativeNoteEditorAccessoryBarTests: XCTestCase {
             ),
         ]
         editor.pushNote(note, speakers: speakers)
-        XCTAssertTrue(editor.testing_becomeFirstResponder())
+        XCTAssertTrue(
+            editor.testing_becomeFirstResponder(),
+            "editor must accept first responder so chrome can attach the capsule accessory"
+        )
 
         editor.testing_setSelectedRange(NSRange(location: 0, length: 0))
         XCTAssertFalse(

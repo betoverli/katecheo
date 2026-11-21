@@ -450,9 +450,16 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
     private func setEditingChrome(_ editing: Bool) {
         isBodyEditing = editing
+        // Attach the capsule host itself as `inputAccessoryView` (transparent full-width
+        // wrapper; the rounded pill is a subview). Never leave a hidden strip attached —
+        // title / tags clear the accessory entirely so `testing_isFormattingToolbarVisible`
+        // stays an identity check on `accessory`.
         let next: UIView? = editing ? accessory : nil
         if textView.inputAccessoryView !== next {
             textView.inputAccessoryView = next
+            // Capsule must stay un-hidden when attached (scroll clips inside it).
+            accessory.isHidden = false
+            accessory.alpha = 1
             textView.reloadInputViews()
         }
     }
@@ -2688,8 +2695,13 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         textView.autocapitalizationType
     }
 
+    /// Format toolbar is visible iff the capsule host is the active `inputAccessoryView`.
+    /// Title / tags clear it (`nil`); body editing attaches `accessory` (not a permanent
+    /// full-width strip toggled via `isHidden` / alpha).
     func testing_isFormattingToolbarVisible() -> Bool {
-        textView.inputAccessoryView != nil
+        textView.inputAccessoryView === accessory
+            && !accessory.isHidden
+            && accessory.alpha > 0.01
     }
 
     func testing_refreshSpeakerHeaderAppearances() {
