@@ -92,7 +92,7 @@ final class NoteEditorTagsStripSpeakerTests: XCTestCase {
         XCTAssertTrue(editor.testing_tagsStripHasAssignedSpeaker())
     }
 
-    func testNoteDetail_hasNoPinnedTopChrome_andChipInEditor() {
+    func testNoteDetail_hasNoPinnedTopChrome_andChipInEditor() throws {
         var note = NativeAPIClient.emptyNote(id: "note-detail-speaker-chrome")
         note.title = "Culto"
         note.noteSpeakerId = "spk-ana"
