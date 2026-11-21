@@ -310,14 +310,15 @@ final class OfflineNotePersistenceTests: XCTestCase {
         NativeOutbox.enqueueNoteUpsert(created)
         XCTAssertEqual(NativeOutbox.pendingCount, 1)
 
+        // While still awaiting first sync: DELETE must drop the upsert and not enqueue.
+        NativeOutbox.enqueueNoteDelete(id: created.id)
+        XCTAssertEqual(NativeOutbox.pendingCount, 0)
+        XCTAssertTrue(LocalNoteCache.isAwaitingFirstSync(created.id))
+
         NativeAPIClient.discardLocalOnlyNote(id: created.id)
         XCTAssertNil(LocalNoteCache.note(id: created.id))
         XCTAssertEqual(NativeOutbox.pendingCount, 0)
         XCTAssertFalse(LocalNoteCache.isAwaitingFirstSync(created.id))
-
-        // enqueueNoteDelete must no-op for awaiting-first-sync (already discarded).
-        NativeOutbox.enqueueNoteDelete(id: created.id)
-        XCTAssertEqual(NativeOutbox.pendingCount, 0)
 
         MockNativeURLProtocol.notesJSON = "{\"ok\":true,\"notes\":[]}"
         let listed = try await NativeAPIClient.listNotes(force: true)
