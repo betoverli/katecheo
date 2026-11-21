@@ -212,7 +212,8 @@ final class NativeNoteEditorHeaderQuoteTests: XCTestCase {
         XCTAssertTrue(font?.fontDescriptor.symbolicTraits.contains(.traitItalic) == true)
         XCTAssertNil(attrs[.backgroundColor])
         let style = attrs[.paragraphStyle] as? NSParagraphStyle
-        XCTAssertEqual(style?.firstLineHeadIndent, NoteDocumentCodec.quoteContentInset, accuracy: 0.5)
+        XCTAssertNotNil(style)
+        XCTAssertEqual(style!.firstLineHeadIndent, NoteDocumentCodec.quoteContentInset, accuracy: 0.5)
     }
 
     func testQuoteBackground_resolvesForLightAndDark() {
