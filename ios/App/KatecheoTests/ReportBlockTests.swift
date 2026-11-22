@@ -37,19 +37,41 @@ final class ReportBlockTests: XCTestCase {
     }
 
     func testUniversalDeviceFamily_inProject() throws {
-        let url = Bundle.main.bundleURL
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .appendingPathComponent("Katecheo.xcodeproj/project.pbxproj")
-        // Simulator unit tests may not see the project file; assert Info.plist orientations instead.
+        // iPhone simulators do not surface `UISupportedInterfaceOrientations~ipad` via
+        // infoDictionary (device-family keys). Read the processed Info.plist / project instead.
         let orientations = Bundle.main.infoDictionary?["UISupportedInterfaceOrientations"] as? [String]
         XCTAssertNotNil(orientations)
-        let ipadOrientations = Bundle.main.infoDictionary?["UISupportedInterfaceOrientations~ipad"] as? [String]
-        XCTAssertNotNil(ipadOrientations, "Universal app must declare iPad orientations")
-        XCTAssertEqual(ipadOrientations?.count, 4)
         XCTAssertNil(Bundle.main.infoDictionary?["UIRequiresFullScreen"])
         let caps = Bundle.main.infoDictionary?["UIRequiredDeviceCapabilities"] as? [String]
         XCTAssertFalse(caps?.contains("armv7") == true)
-        _ = url
+
+        let bundleInfo = Bundle.main.bundleURL.appendingPathComponent("Info.plist")
+        let sourceRoot = Bundle.main.bundleURL
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let sourceInfo = sourceRoot.appendingPathComponent("Katecheo/Info.plist")
+        let projectURL = sourceRoot.appendingPathComponent("Katecheo.xcodeproj/project.pbxproj")
+
+        var declaredIpadOrientations = false
+        for url in [bundleInfo, sourceInfo] {
+            guard let dict = NSDictionary(contentsOf: url) as? [String: Any],
+                  let ipad = dict["UISupportedInterfaceOrientations~ipad"] as? [String]
+            else { continue }
+            XCTAssertEqual(ipad.count, 4, "iPad must support all 4 orientations")
+            declaredIpadOrientations = true
+            break
+        }
+        if let project = try? String(contentsOf: projectURL, encoding: .utf8) {
+            XCTAssertTrue(
+                project.contains("TARGETED_DEVICE_FAMILY = \"1,2\""),
+                "project must target universal iPhone+iPad"
+            )
+            declaredIpadOrientations = declaredIpadOrientations
+                || project.contains("TARGETED_DEVICE_FAMILY = \"1,2\"")
+        }
+        XCTAssertTrue(
+            declaredIpadOrientations,
+            "Universal app must declare iPad orientations and/or TARGETED_DEVICE_FAMILY = \"1,2\""
+        )
     }
 }
