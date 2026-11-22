@@ -39,6 +39,15 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     /// Test hooks — group notes cache paint.
     var testing_groupCardsCount: Int { groupCards.count }
     var testing_firstGroupNoteTitle: String? { groupCards.first?.note.title }
+    var testing_filteredRowCount: Int {
+        isGroupMode ? filteredCards.count : filtered.count
+    }
+
+    /// Simulates a row tap (AppTests / CI) without reaching into private `tableView`.
+    func testing_selectRow(at index: Int) {
+        let path = IndexPath(row: index, section: 0)
+        tableView(tableView, didSelectRowAt: path)
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -731,9 +740,10 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
         openNoteDetail(detail, keepingSelectionAt: indexPath)
     }
 
-    /// Regular split: show in detail column and keep the row highlighted. Compact: push (deselect).
+    /// iPad split: show in detail column. iPhone / no split: push (pre-#131).
     private func openNoteDetail(_ detail: NoteDetailViewController, keepingSelectionAt indexPath: IndexPath?) {
-        if let split = notebookSplit {
+        // Never route through a split on iPhone — navigationController push only.
+        if NotebookChrome.prefersSplit, let split = notebookSplit {
             let regular = traitCollection.horizontalSizeClass == .regular && !split.isCollapsed
             if regular, let indexPath {
                 tableView.selectRow(at: indexPath, animated: false, scrollPosition: .none)
@@ -747,7 +757,11 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             tableView.deselectRow(at: indexPath, animated: true)
         }
         detail.hidesBottomBarWhenPushed = true
-        navigationController?.pushViewController(detail, animated: true)
+        guard let nav = navigationController else {
+            assertionFailure("Caderno list must sit in a UINavigationController on iPhone")
+            return
+        }
+        nav.pushViewController(detail, animated: true)
     }
 
     private var notebookSplit: NotebookSplitViewController? {

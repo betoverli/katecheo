@@ -152,8 +152,7 @@ enum NativeDeepLinkRouter {
                 Task { @MainActor in
                     do {
                         let group = try await NativeAPIClient.getGroup(id: id)
-                        let split = NotebookSplitViewController(group: group)
-                        nav.pushViewController(split, animated: animated)
+                        nav.pushViewController(NotebookChrome.makeGroupCaderno(group: group), animated: animated)
                     } catch {
                         // Stay on Grupos home if fetch fails (offline / not a member yet).
                     }
@@ -174,6 +173,8 @@ enum NativeDeepLinkRouter {
                 }
             } else if let split = tabs.selectedViewController as? NotebookSplitViewController {
                 split.popToListRoot(animated: animated)
+            } else if let nav = tabs.selectedViewController as? UINavigationController {
+                nav.popToRootViewController(animated: animated)
             }
         case .readingPlan(let id):
             tabs.selectedIndex = Tab.tools.rawValue

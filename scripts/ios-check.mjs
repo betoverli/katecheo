@@ -1151,17 +1151,34 @@ if (rootTabs.includes("ReadingHomeViewController") || /UITabBarItem\([\s\S]*Leit
   errors.push("Remova a aba Leitura do tab bar — Leitura fica sob Ferramentas.");
 }
 if (
-  !/Notebook(Split|List)ViewController[\s\S]*GroupsListViewController[\s\S]*VersesHomeViewController[\s\S]*ProfileViewController/.test(
+  !/(NotebookChrome\.makeTabRoot|Notebook(Split|List)ViewController)[\s\S]*GroupsListViewController[\s\S]*VersesHomeViewController[\s\S]*ProfileViewController/.test(
     rootTabs
   )
 ) {
   errors.push("Ordem das abas: Caderno, Grupos, Ferramentas, Perfil.");
 }
-if (!rootTabs.includes("NotebookSplitViewController") || !project.includes("NotebookSplitViewController.swift in Sources")) {
-  errors.push("Caderno tab tem de usar NotebookSplitViewController (lista|detalhe no iPad).");
+if (!project.includes("NotebookSplitViewController.swift in Sources")) {
+  errors.push("NotebookSplitViewController.swift tem de estar no target (iPad Caderno split).");
 }
-if (!deep.includes("NotebookSplitViewController")) {
-  errors.push("NativeDeepLinkRouter tem de abrir notas via NotebookSplitViewController.");
+if (!rootTabs.includes("NotebookChrome.makeTabRoot")) {
+  errors.push("Caderno tab tem de usar NotebookChrome.makeTabRoot (iPhone nav / iPad split).");
+}
+if (!rootTabs.includes("NotebookChrome") && !rootTabs.includes("NotebookListViewController")) {
+  errors.push("Ordem das abas: Caderno (NotebookChrome/List), Grupos, Ferramentas, Perfil.");
+}
+const groupsListSrc = read("ios/App/Katecheo/GroupsListViewController.swift");
+if (!groupsListSrc.includes("NotebookChrome.makeGroupCaderno")) {
+  errors.push("Grupos tem de abrir Caderno via NotebookChrome.makeGroupCaderno (iPhone list / iPad split).");
+}
+if (!deep.includes("NotebookChrome.makeGroupCaderno") && !deep.includes("NotebookSplitViewController")) {
+  errors.push("NativeDeepLinkRouter tem de abrir grupos via NotebookChrome / split.");
+}
+const splitSrc = read("ios/App/Katecheo/NotebookSplitViewController.swift");
+if (!splitSrc.includes("userInterfaceIdiom == .pad") || !splitSrc.includes("prefersSplit")) {
+  errors.push("NotebookChrome.prefersSplit tem de ser iPad-only (nunca UISplitView no iPhone).");
+}
+if (!splitSrc.includes("primaryNav.pushViewController") || !splitSrc.includes("collapseSecondary")) {
+  errors.push("Split compacto tem de fazer push no primary nav + collapseSecondary delegate.");
 }
 if (!project.includes("ReadingScreens.swift in Sources")) {
   errors.push("ReadingScreens.swift tem de estar no target Xcode.");

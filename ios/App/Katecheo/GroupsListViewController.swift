@@ -202,7 +202,7 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
         KCHaptics.selection()
         let group = filtered[indexPath.row]
         KCActivityStore.markGroupViewed(group.id)
-        let detail = NotebookSplitViewController(group: group)
+        let detail = NotebookChrome.makeGroupCaderno(group: group)
         navigationController?.pushViewController(detail, animated: true)
     }
 
@@ -278,7 +278,7 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
                 groups.insert(group, at: 0)
                 applyFilter()
                 KCHaptics.success()
-                let detail = NotebookSplitViewController(group: group)
+                let detail = NotebookChrome.makeGroupCaderno(group: group)
                 navigationController?.pushViewController(detail, animated: true)
             } catch {
                 let err = UIAlertController(title: String(localized: "Não foi possível criar"), message: error.localizedDescription, preferredStyle: .alert)
@@ -370,5 +370,22 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
         KCChrome.style(navigationController: nav)
         nav.modalPresentationStyle = .fullScreen
         present(nav, animated: true)
+    }
+
+    // MARK: - Test hooks
+
+    /// Seeds the list without a network round-trip (CI / AppTests).
+    func testing_replaceGroups(_ items: [NativeAPIClient.GroupDTO]) {
+        groups = items
+        applyFilter()
+        tableView.reloadData()
+    }
+
+    var testing_filteredCount: Int { filtered.count }
+
+    /// Simulates a row tap (AppTests / CI) without reaching into private `tableView`.
+    func testing_selectRow(at index: Int) {
+        let path = IndexPath(row: index, section: 0)
+        tableView(tableView, didSelectRowAt: path)
     }
 }
