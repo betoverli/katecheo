@@ -242,13 +242,15 @@ final class KCNoteRowCell: UITableViewCell {
     private let stack = UIStackView()
     /// Speaker pill + #tags, left-aligned with the title (below the full-width preview).
     private let tagsRow = UIStackView()
+    /// iPad plain sidebar vs iPhone insetGrouped — drives warm selection background.
+    private var usesPadSidebarStyle = false
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         selectionStyle = .default
         backgroundColor = KCDesign.surface
         accessoryType = .disclosureIndicator
-        // Notes-like selection: soft accent wash (rounded in layoutSubviews for plain sidebars).
+        // Fallback for any path that still reads selectedBackgroundView.
         let selected = UIView()
         selected.backgroundColor = KCDesign.accentSoft
         selectedBackgroundView = selected
@@ -402,11 +404,13 @@ final class KCNoteRowCell: UITableViewCell {
         if traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection) {
             speakerPill.applyColors(with: traitCollection)
             tagsLabel.textColor = KCDesign.accent
+            setNeedsUpdateConfiguration()
         }
     }
 
     /// iPad Caderno/Grupos sidebar: no chevron, clear fill so rows read edge-to-edge like Notes.
     func applySidebarStyle(isPadSidebar: Bool) {
+        usesPadSidebarStyle = isPadSidebar
         if isPadSidebar {
             accessoryType = .none
             backgroundColor = .clear
@@ -416,15 +420,15 @@ final class KCNoteRowCell: UITableViewCell {
             backgroundColor = KCDesign.surface
             contentView.backgroundColor = KCDesign.surface
         }
+        setNeedsUpdateConfiguration()
     }
 
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        // Rounded selection wash inset slightly from the cell edges (Apple Notes).
-        guard accessoryType == .none, let selected = selectedBackgroundView else { return }
-        selected.layer.cornerRadius = 10
-        selected.layer.cornerCurve = .continuous
-        selected.frame = bounds.insetBy(dx: 8, dy: 2)
+    override func updateConfiguration(using state: UICellConfigurationState) {
+        super.updateConfiguration(using: state)
+        kcApplyWarmSelectionBackground(
+            style: usesPadSidebarStyle ? .plainSidebar : .grouped,
+            state: state
+        )
     }
 
     // MARK: - Testing hooks
@@ -438,6 +442,8 @@ final class KCNoteRowCell: UITableViewCell {
     var testing_speakerPill: UILabel { speakerPill.label }
     var testing_speakerChip: UIView { speakerPill }
     var testing_speakerPillInTagsRow: Bool { speakerPill.superview === tagsRow }
+    var testing_usesPadSidebarStyle: Bool { usesPadSidebarStyle }
+    var testing_backgroundConfigurationColor: UIColor? { backgroundConfiguration?.backgroundColor }
 }
 
 /// Note-list speaker chip: fill via `layer.backgroundColor` (survives cell highlight) + plain UILabel.
@@ -506,6 +512,7 @@ final class KCGroupRowCell: UITableViewCell {
     private let titleLabel = UILabel()
     private let subtitleLabel = UILabel()
     private let unreadDot = UIView()
+    private var usesPadSidebarStyle = false
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -580,6 +587,7 @@ final class KCGroupRowCell: UITableViewCell {
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     func applySidebarStyle(isPadSidebar: Bool) {
+        usesPadSidebarStyle = isPadSidebar
         if isPadSidebar {
             accessoryType = .none
             backgroundColor = .clear
@@ -589,14 +597,15 @@ final class KCGroupRowCell: UITableViewCell {
             backgroundColor = KCDesign.surface
             contentView.backgroundColor = KCDesign.surface
         }
+        setNeedsUpdateConfiguration()
     }
 
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        guard accessoryType == .none, let selected = selectedBackgroundView else { return }
-        selected.layer.cornerRadius = 10
-        selected.layer.cornerCurve = .continuous
-        selected.frame = bounds.insetBy(dx: 8, dy: 2)
+    override func updateConfiguration(using state: UICellConfigurationState) {
+        super.updateConfiguration(using: state)
+        kcApplyWarmSelectionBackground(
+            style: usesPadSidebarStyle ? .plainSidebar : .grouped,
+            state: state
+        )
     }
 
     func configure(_ group: NativeAPIClient.GroupDTO, unread: Bool = false) {
@@ -612,7 +621,10 @@ final class KCGroupRowCell: UITableViewCell {
         } else {
             accessibilityValue = nil
         }
+        setNeedsUpdateConfiguration()
     }
+
+    var testing_backgroundConfigurationColor: UIColor? { backgroundConfiguration?.backgroundColor }
 }
 
 // MARK: - Section header helper
@@ -666,6 +678,44 @@ extension UIListContentConfiguration {
 }
 
 extension UITableViewCell {
+    /// Idle vs highlight/selected fills for Katecheo lists (light + dark).
+    enum KCWarmSelectionStyle {
+        /// insetGrouped cards (iPhone Caderno/Grupos).
+        case grouped
+        /// Plain sidebar rows (iPad Caderno/Grupos) — clear idle, rounded warm selected.
+        case plainSidebar
+    }
+
+    /// iOS 15+: `backgroundConfiguration` overrides `selectedBackgroundView`. Drive the warm
+    /// beige/brown wash here so taps never flash system blue-gray.
+    func kcApplyWarmSelectionBackground(style: KCWarmSelectionStyle, state: UICellConfigurationState) {
+        var bg: UIBackgroundConfiguration
+        switch style {
+        case .grouped:
+            bg = .listGroupedCell()
+        case .plainSidebar:
+            bg = .listPlainCell()
+            bg.cornerRadius = 10
+        }
+        let active = state.isSelected || state.isHighlighted
+        if active {
+            bg.backgroundColor = KCDesign.accentSoft
+        } else if style == .plainSidebar {
+            bg.backgroundColor = .clear
+        } else {
+            bg.backgroundColor = KCDesign.surface
+        }
+        backgroundConfiguration = bg
+        // Keep legacy selectedBackgroundView in sync for older highlight paths / tests.
+        if selectedBackgroundView == nil {
+            let v = UIView()
+            selectedBackgroundView = v
+        }
+        selectedBackgroundView?.backgroundColor = KCDesign.accentSoft
+        contentView.backgroundColor = .clear
+        tintColor = KCDesign.accent
+    }
+
     /// Warm surface cell on `screenBackground` lists (not system bluish grouped fill).
     func kcApplyThemedGroupedCell() {
         // Prefer backgroundConfiguration so defaultContentConfiguration cells don't
@@ -686,6 +736,15 @@ extension UITableViewCell {
 
     func kcApplyBrandChrome() {
         kcApplyThemedGroupedCell()
+    }
+}
+
+/// Grouped list cell that paints warm accent selection (for Profile / Tools system rows).
+final class KCThemedTableViewCell: UITableViewCell {
+    override func updateConfiguration(using state: UICellConfigurationState) {
+        super.updateConfiguration(using: state)
+        guard selectionStyle != .none else { return }
+        kcApplyWarmSelectionBackground(style: .grouped, state: state)
     }
 }
 

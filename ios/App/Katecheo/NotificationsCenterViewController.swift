@@ -352,6 +352,20 @@ private final class NotificationsCenterRowCell: UITableViewCell {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
+    override func updateConfiguration(using state: UICellConfigurationState) {
+        super.updateConfiguration(using: state)
+        // Unread rows keep a soft fill; highlight/selected still uses the same warm wash.
+        if state.isHighlighted || state.isSelected {
+            kcApplyWarmSelectionBackground(style: .grouped, state: state)
+        } else if backgroundColor == KCDesign.accentSoft {
+            var bg = UIBackgroundConfiguration.listGroupedCell()
+            bg.backgroundColor = KCDesign.accentSoft
+            backgroundConfiguration = bg
+        } else {
+            kcApplyWarmSelectionBackground(style: .grouped, state: state)
+        }
+    }
+
     func configure(_ item: NativeAPIClient.InboxItemDTO) {
         iconView.image = UIImage(systemName: NotificationsCenterViewModel.symbolName(forKind: item.kind))
         titleLabel.text = item.title
@@ -371,5 +385,6 @@ private final class NotificationsCenterRowCell: UITableViewCell {
             .filter { !$0.isEmpty }
             .joined(separator: ". ")
         accessibilityValue = unread ? String(localized: "Não lido") : nil
+        setNeedsUpdateConfiguration()
     }
 }

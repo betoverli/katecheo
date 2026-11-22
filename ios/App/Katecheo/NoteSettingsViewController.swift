@@ -53,7 +53,7 @@ final class NoteSettingsViewController: UIViewController, UITableViewDelegate, U
         table.separatorColor = KCDesign.separator
         table.delegate = self
         table.dataSource = self
-        table.register(UITableViewCell.self, forCellReuseIdentifier: "cell")
+        table.register(KCThemedTableViewCell.self, forCellReuseIdentifier: "cell")
         view.addSubview(table)
         NSLayoutConstraint.activate([
             table.topAnchor.constraint(equalTo: view.topAnchor),

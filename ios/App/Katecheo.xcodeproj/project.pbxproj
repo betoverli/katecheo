@@ -13,6 +13,7 @@
 		KCGSPL12FED7965001685GS /* GroupsSplitViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCGSPL11FED7965001685GS /* GroupsSplitViewController.swift */; };
 		KCIPAD22FED7965001685IP /* IPadNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCIPAD21FED7965001685IP /* IPadNavigationTests.swift */; };
 		KCIPAD32FED7965001685IP /* IPadScreenshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCIPAD31FED7965001685IP /* IPadScreenshotTests.swift */; };
+		KCWARM22FED7965001685WS /* WarmSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCWARM21FED7965001685WS /* WarmSelectionTests.swift */; };
 		KCUIT22FED7965001685UI /* IPadChromeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCUIT21FED7965001685UI /* IPadChromeUITests.swift */; };
 		NBFILT22FED7965001685NF /* NotebookNoteFilterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = NBFILT21FED7965001685NF /* NotebookNoteFilterTests.swift */; };
 		NBFILS12FED7965001685NF /* NotebookFilterMultiSelectSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = NBFILS11FED7965001685NF /* NotebookFilterMultiSelectSheet.swift */; };
@@ -266,6 +267,7 @@
 		KCGSPL11FED7965001685GS /* GroupsSplitViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupsSplitViewController.swift; sourceTree = "<group>"; };
 		KCIPAD21FED7965001685IP /* IPadNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IPadNavigationTests.swift; sourceTree = "<group>"; };
 		KCIPAD31FED7965001685IP /* IPadScreenshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IPadScreenshotTests.swift; sourceTree = "<group>"; };
+		KCWARM21FED7965001685WS /* WarmSelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WarmSelectionTests.swift; sourceTree = "<group>"; };
 		KCUIT21FED7965001685UI /* IPadChromeUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IPadChromeUITests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -448,6 +450,7 @@
 				KCSPLIT21FED7965001685SP /* NotebookSplitRoutingTests.swift */,
 				KCIPAD21FED7965001685IP /* IPadNavigationTests.swift */,
 				KCIPAD31FED7965001685IP /* IPadScreenshotTests.swift */,
+				KCWARM21FED7965001685WS /* WarmSelectionTests.swift */,
 				PUPRF21FED7965001685PP /* PublicProfileTests.swift */,
 				FRFROW21FED7965001685FR /* FriendsRequestRowTests.swift */,
 				GINVTST1FED7965001685GI /* GroupInviteDeepLinkTests.swift */,
@@ -757,6 +760,7 @@
 				KCSPLIT22FED7965001685SP /* NotebookSplitRoutingTests.swift in Sources */,
 				KCIPAD22FED7965001685IP /* IPadNavigationTests.swift in Sources */,
 				KCIPAD32FED7965001685IP /* IPadScreenshotTests.swift in Sources */,
+				KCWARM22FED7965001685WS /* WarmSelectionTests.swift in Sources */,
 				PUPRF22FED7965001685PP /* PublicProfileTests.swift in Sources */,
 				FRFROW22FED7965001685FR /* FriendsRequestRowTests.swift in Sources */,
 				GINVTST2FED7965001685GI /* GroupInviteDeepLinkTests.swift in Sources */,

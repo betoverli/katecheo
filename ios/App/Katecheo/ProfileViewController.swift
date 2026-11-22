@@ -56,7 +56,7 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
         KCChrome.styleGroupedTable(tableView)
         tableView.delegate = self
         tableView.dataSource = self
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "cell")
+        tableView.register(KCThemedTableViewCell.self, forCellReuseIdentifier: "cell")
         refresh.addTarget(self, action: #selector(reload), for: .valueChanged)
         tableView.refreshControl = refresh
         view.addSubview(tableView)
