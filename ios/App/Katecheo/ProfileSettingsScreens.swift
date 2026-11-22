@@ -143,7 +143,7 @@ final class ProfileEditViewController: UITableViewController {
             target: self,
             action: #selector(save)
         )
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "field")
+        tableView.register(KCThemedTableViewCell.self, forCellReuseIdentifier: "field")
     }
 
     override func viewDidLayoutSubviews() {
@@ -276,8 +276,8 @@ final class ProfileThemeViewController: UITableViewController {
         super.viewDidLoad()
         kcApplyGroupedChrome()
         title = String(localized: "Aparência")
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "theme")
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "editorLight")
+        tableView.register(KCThemedTableViewCell.self, forCellReuseIdentifier: "theme")
+        tableView.register(KCThemedTableViewCell.self, forCellReuseIdentifier: "editorLight")
     }
 
     override func viewDidLayoutSubviews() {
@@ -377,7 +377,7 @@ final class ProfileLanguageViewController: UITableViewController {
         super.viewDidLoad()
         kcApplyGroupedChrome()
         title = String(localized: "Idioma")
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "lang")
+        tableView.register(KCThemedTableViewCell.self, forCellReuseIdentifier: "lang")
         syncInterfaceLocaleToServer()
     }
 
@@ -490,7 +490,7 @@ final class ProfileBibleViewController: UIViewController, UICollectionViewDelega
         KCChrome.styleGroupedTable(tableView)
         tableView.delegate = self
         tableView.dataSource = self
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "opt")
+        tableView.register(KCThemedTableViewCell.self, forCellReuseIdentifier: "opt")
         tableView.alwaysBounceVertical = true
         tableView.keyboardDismissMode = .onDrag
         view.addSubview(tableView)
@@ -731,7 +731,7 @@ final class ProfileNotifyViewController: UITableViewController {
         super.viewDidLoad()
         kcApplyGroupedChrome()
         title = String(localized: "Avisos")
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "notify")
+        tableView.register(KCThemedTableViewCell.self, forCellReuseIdentifier: "notify")
     }
 
     override func viewDidLayoutSubviews() {

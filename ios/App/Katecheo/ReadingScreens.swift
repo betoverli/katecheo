@@ -507,7 +507,7 @@ final class ReadingPlanDetailViewController: UITableViewController {
         super.viewDidLoad()
         kcApplyGroupedChrome()
         title = String(localized: "Plano")
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "row")
+        tableView.register(KCThemedTableViewCell.self, forCellReuseIdentifier: "row")
         navigationItem.rightBarButtonItems = [
             UIBarButtonItem(
                 image: UIImage(systemName: "square.and.arrow.up"),

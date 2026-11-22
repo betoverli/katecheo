@@ -252,7 +252,7 @@ final class VerseActionsViewController: UITableViewController {
         super.viewDidLoad()
         kcApplyGroupedChrome()
         title = label
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "action")
+        tableView.register(KCThemedTableViewCell.self, forCellReuseIdentifier: "action")
         statusLabel.numberOfLines = 0
         statusLabel.font = KCDesign.caption()
         statusLabel.textColor = .secondaryLabel
@@ -621,7 +621,7 @@ final class ThemesHomeViewController: UITableViewController, UISearchResultsUpda
             navigationItem.rightBarButtonItem?.accessibilityLabel = String(localized: "Novo tema")
             navigationItem.rightBarButtonItem?.tintColor = KCDesign.accent
         }
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "theme")
+        tableView.register(KCThemedTableViewCell.self, forCellReuseIdentifier: "theme")
         tableView.backgroundView = emptyState
         search.searchResultsUpdater = self
         search.obscuresBackgroundDuringPresentation = false
@@ -858,7 +858,7 @@ final class ThemeCategoryViewController: UITableViewController {
         super.viewDidLoad()
         kcApplyGroupedChrome()
         title = category.name
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "theme")
+        tableView.register(KCThemedTableViewCell.self, forCellReuseIdentifier: "theme")
         Task { await load() }
     }
 
@@ -926,7 +926,7 @@ final class ThemeDetailViewController: UITableViewController {
         super.viewDidLoad()
         kcApplyGroupedChrome()
         title = themeName
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "passage")
+        tableView.register(KCThemedTableViewCell.self, forCellReuseIdentifier: "passage")
         Task { await load() }
     }
 
@@ -1018,7 +1018,7 @@ final class MyCollectionsViewController: UITableViewController {
             navigationItem.rightBarButtonItem?.accessibilityLabel = String(localized: "Nova lista")
             navigationItem.rightBarButtonItem?.tintColor = KCDesign.accent
         }
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "list")
+        tableView.register(KCThemedTableViewCell.self, forCellReuseIdentifier: "list")
         // backgroundView + Auto Layout fights UITableView frame ownership (build-238:
         // empty copy + Nova lista sat indented). Use autoresizing fill instead.
         emptyState.translatesAutoresizingMaskIntoConstraints = true
@@ -1199,7 +1199,7 @@ final class MyCollectionDetailViewController: UITableViewController {
         super.viewDidLoad()
         kcApplyGroupedChrome()
         title = collection.title
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "passage")
+        tableView.register(KCThemedTableViewCell.self, forCellReuseIdentifier: "passage")
         tableView.backgroundView = emptyState
         refreshEmptyState()
     }
