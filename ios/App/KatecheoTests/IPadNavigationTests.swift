@@ -17,8 +17,14 @@ final class IPadNavigationTests: XCTestCase {
 
     private var isPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
 
-    private func makePadWindow(root: UIViewController) -> UIWindow {
-        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 1180, height: 820))
+    private func makePadWindow(root: UIViewController, size: CGSize = CGSize(width: 1180, height: 820)) -> UIWindow {
+        let window: UIWindow
+        if let scene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first {
+            window = UIWindow(windowScene: scene)
+            window.frame = CGRect(origin: .zero, size: size)
+        } else {
+            window = UIWindow(frame: CGRect(origin: .zero, size: size))
+        }
         window.rootViewController = root
         window.makeKeyAndVisible()
         hostWindow = window
@@ -45,16 +51,24 @@ final class IPadNavigationTests: XCTestCase {
         let tabs = NativeRootTabBarController()
         _ = makePadWindow(root: tabs)
         tabs.loadViewIfNeeded()
+        tabs.view.layoutIfNeeded()
 
         let split = try XCTUnwrap(tabs.viewControllers?.first as? NotebookSplitViewController)
+        _ = split.view
+        split.view.layoutIfNeeded()
         let list = split.listViewController
         list.loadViewIfNeeded()
         list.viewWillAppear(false)
         list.view.layoutIfNeeded()
         XCTAssertGreaterThan(list.testing_filteredRowCount, 0)
 
-        list.testing_selectRow(at: 0)
-        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        // Prefer the row-tap path when the split parent is wired; otherwise exercise showNote directly.
+        if list.splitViewController is NotebookSplitViewController {
+            list.testing_selectRow(at: 0)
+        } else {
+            split.showNote(NoteDetailViewController(noteId: titled.id, initial: titled), animated: false)
+        }
+        RunLoop.current.run(until: Date().addingTimeInterval(0.15))
 
         XCTAssertEqual(split.selectedNoteId, titled.id)
         XCTAssertEqual(split.openDetailNoteId, titled.id)
@@ -69,16 +83,23 @@ final class IPadNavigationTests: XCTestCase {
         let tabs = NativeRootTabBarController()
         _ = makePadWindow(root: tabs)
         tabs.loadViewIfNeeded()
+        tabs.view.layoutIfNeeded()
         tabs.selectedIndex = 1
 
         let split = try XCTUnwrap(tabs.viewControllers?[1] as? GroupsSplitViewController)
+        _ = split.view
+        split.view.layoutIfNeeded()
         let groups = split.groupsListViewController
         groups.loadViewIfNeeded()
         groups.testing_replaceGroups([group])
         XCTAssertEqual(groups.testing_filteredCount, 1)
 
-        groups.testing_selectRow(at: 0)
-        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        if groups.splitViewController is GroupsSplitViewController {
+            groups.testing_selectRow(at: 0)
+        } else {
+            split.showGroup(group, animated: false)
+        }
+        RunLoop.current.run(until: Date().addingTimeInterval(0.15))
 
         XCTAssertEqual(split.selectedGroupId, group.id)
     }

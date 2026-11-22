@@ -793,11 +793,23 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     }
 
     private var notebookSplit: NotebookSplitViewController? {
-        splitViewController as? NotebookSplitViewController
+        if let split = splitViewController as? NotebookSplitViewController { return split }
+        var parent: UIViewController? = self.parent
+        while let current = parent {
+            if let split = current as? NotebookSplitViewController { return split }
+            parent = current.parent
+        }
+        return nil
     }
 
     private var groupsSplit: GroupsSplitViewController? {
-        splitViewController as? GroupsSplitViewController
+        if let split = splitViewController as? GroupsSplitViewController { return split }
+        var parent: UIViewController? = self.parent
+        while let current = parent {
+            if let split = current as? GroupsSplitViewController { return split }
+            parent = current.parent
+        }
+        return nil
     }
 
     @objc private func openToolsSheet() {

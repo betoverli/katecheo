@@ -240,7 +240,13 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
     }
 
     private var groupsSplit: GroupsSplitViewController? {
-        splitViewController as? GroupsSplitViewController
+        if let split = splitViewController as? GroupsSplitViewController { return split }
+        var parent: UIViewController? = self.parent
+        while let current = parent {
+            if let split = current as? GroupsSplitViewController { return split }
+            parent = current.parent
+        }
+        return nil
     }
 
     /// Highlight the open group in the primary list (iPad regular width).
