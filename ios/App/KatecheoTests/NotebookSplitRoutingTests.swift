@@ -105,9 +105,10 @@ final class NotebookSplitRoutingTests: XCTestCase {
         groups.testing_selectRow(at: 0)
         RunLoop.current.run(until: Date().addingTimeInterval(0.05))
 
-        let top = try XCTUnwrap(nav.topViewController as? NotebookListViewController)
-        XCTAssertEqual(top.title, group.name)
         XCTAssertFalse(nav.topViewController is NotebookSplitViewController)
+        let top = try XCTUnwrap(nav.topViewController as? NotebookListViewController)
+        top.loadViewIfNeeded()
+        XCTAssertEqual(top.title, group.name)
         XCTAssertEqual(nav.viewControllers.count, 2)
     }
 
