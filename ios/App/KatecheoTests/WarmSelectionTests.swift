@@ -45,14 +45,14 @@ final class WarmSelectionTests: XCTestCase {
         XCTAssertEqual(fill, expected)
     }
 
-    func testThemedCell_highlightedUsesAccentSoft() {
-        let cell = KCThemedTableViewCell(style: .default, reuseIdentifier: "cell")
-        cell.selectionStyle = .default
+    func testGroupRow_highlightedUsesAccentSoft() {
+        let cell = KCGroupRowCell(style: .default, reuseIdentifier: KCGroupRowCell.reuseId)
+        cell.applySidebarStyle(isPadSidebar: false)
         cell.setHighlighted(true, animated: false)
         cell.setNeedsUpdateConfiguration()
         cell.updateConfiguration(using: cell.configurationState)
 
-        let fill = cell.backgroundConfiguration?.backgroundColor?
+        let fill = cell.testing_backgroundConfigurationColor?
             .resolvedColor(with: UITraitCollection(userInterfaceStyle: .light))
         let expected = KCDesign.accentSoft.resolvedColor(with: UITraitCollection(userInterfaceStyle: .light))
         XCTAssertEqual(fill, expected)

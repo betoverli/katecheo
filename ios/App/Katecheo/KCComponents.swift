@@ -741,10 +741,29 @@ extension UITableViewCell {
 
 /// Grouped list cell that paints warm accent selection (for Profile / Tools system rows).
 final class KCThemedTableViewCell: UITableViewCell {
+    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
+        super.init(style: style, reuseIdentifier: reuseIdentifier)
+        selectionStyle = .default
+        kcApplyThemedGroupedCell()
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
     override func updateConfiguration(using state: UICellConfigurationState) {
         super.updateConfiguration(using: state)
         guard selectionStyle != .none else { return }
         kcApplyWarmSelectionBackground(style: .grouped, state: state)
+    }
+
+    override func setHighlighted(_ highlighted: Bool, animated: Bool) {
+        super.setHighlighted(highlighted, animated: animated)
+        setNeedsUpdateConfiguration()
+    }
+
+    override func setSelected(_ selected: Bool, animated: Bool) {
+        super.setSelected(selected, animated: animated)
+        setNeedsUpdateConfiguration()
     }
 }
 

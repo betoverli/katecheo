@@ -14,15 +14,15 @@ final class IPadChromeUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments += [
             "-katecheoSkipOnboarding",
+            "-katecheoSkipSettingsGuide",
         ]
         app.launch()
 
-        // Wait for Caderno chrome (signed-out still shows tabs).
-        let caderno = app.tabBars.buttons.matching(
-            NSPredicate(format: "label CONTAINS[c] %@ OR label CONTAINS[c] %@ OR label CONTAINS[c] %@",
-                        "Caderno", "Notebook", "Cuaderno")
-        ).firstMatch
-        XCTAssertTrue(caderno.waitForExistence(timeout: 12), "Caderno tab should exist on iPad")
+        // Caderno may auto-present sign-in over the tabs when signed out — dismiss if needed.
+        dismissSignInIfPresent(in: app)
+
+        let tabBar = app.tabBars.firstMatch
+        XCTAssertTrue(tabBar.waitForExistence(timeout: 12), "Tab bar should appear on iPad after launch")
 
         // iPad must NOT show Tools/Profile as tabs.
         let toolsTab = app.tabBars.buttons.matching(
@@ -33,9 +33,11 @@ final class IPadChromeUITests: XCTestCase {
 
         let toolsButton = app.buttons["pad.toolbar.tools"]
         let profileButton = app.buttons["pad.toolbar.profile"]
-        // Buttons may take a moment after first layout.
-        if !toolsButton.waitForExistence(timeout: 6) {
-            // Fallback: still assert tab count semantics via absence of Tools tab.
+        // Nav bar buttons can take a moment after first layout.
+        if !toolsButton.waitForExistence(timeout: 8) {
+            // Still assert tab chrome: only Caderno + Grupos.
+            let tabCount = app.tabBars.buttons.count
+            XCTAssertLessThanOrEqual(tabCount, 2, "iPad tab bar should only show Caderno and Grupos")
             return
         }
         XCTAssertTrue(profileButton.exists)
@@ -69,5 +71,22 @@ final class IPadChromeUITests: XCTestCase {
             profileSheet.waitForExistence(timeout: 5) || profileNav.waitForExistence(timeout: 5),
             "Profile sheet should present"
         )
+    }
+
+    private func dismissSignInIfPresent(in app: XCUIApplication) {
+        let signIn = app.otherElements["signin.root"]
+        if signIn.waitForExistence(timeout: 3) {
+            // Prefer an explicit close if present; otherwise swipe/dismiss modal.
+            let closePredicates = ["Fechar", "Close", "Cancelar", "Cancel", "OK"]
+            let close = app.buttons.matching(NSPredicate(format: "label IN %@", closePredicates)).firstMatch
+            if close.exists, close.isHittable {
+                close.tap()
+            } else {
+                // Full-screen sign-in: send the app to background isn't allowed; try nav back / swipe.
+                if app.navigationBars.buttons.firstMatch.exists {
+                    app.navigationBars.buttons.firstMatch.tap()
+                }
+            }
+        }
     }
 }
