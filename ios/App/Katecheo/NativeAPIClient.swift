@@ -162,6 +162,14 @@ enum NativeAPIClient {
             )
             return formatted.isEmpty ? nil : formatted
         }
+
+        /// True when title and body text are empty (tags/speaker may still be set).
+        /// Used so the first getNote can still paint after screenBufferIsSourceOfTruth locks.
+        var kcIsSparseEditorSeed: Bool {
+            let titleEmpty = title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            let bodyEmpty = listBodyPreview.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            return titleEmpty && bodyEmpty
+        }
     }
 
     struct SpeakerDTO: Codable, Equatable {

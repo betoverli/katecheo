@@ -752,7 +752,14 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 presentGroupNoteActions(card, at: indexPath)
                 return
             }
-            let detail = NoteDetailViewController(noteId: doc.id, initial: doc)
+            // List title comes from NoteMeta — merge it when the cached document is sparse
+            // (tags/speaker present, title/body empty) so the editor never opens blank.
+            var initial = LocalNoteCache.preferredNote(over: doc)
+            let metaTitle = card.note.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            if initial.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, !metaTitle.isEmpty {
+                initial.title = metaTitle
+            }
+            let detail = NoteDetailViewController(noteId: initial.id, initial: initial)
             openNoteDetail(detail, keepingSelectionAt: indexPath)
             return
         }

@@ -387,6 +387,19 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
                 let localDirty = !self.isGrantedReadOnly && (
                     self.hasLocalEdits || LocalNoteCache.isDirtyOrPending(self.noteId)
                 )
+                // Sparse seed (tags/speaker only, empty title+body) must still accept the first
+                // full getNote paint — otherwise iPad/group opens stay blank under the lock.
+                let seedIsSparse = self.note.kcIsSparseEditorSeed
+                let serverHasBody = !packed.note.kcIsSparseEditorSeed
+                if seedIsSparse, serverHasBody, !localDirty {
+                    self.note = packed.note
+                    self.updateTitle()
+                    self.applySyncState(offline ? .pendingLocal : .synced)
+                    self.editor.pushNote(self.note, speakers: self.speakers, readOnly: self.isGrantedReadOnly)
+                    self.hasLocalEdits = false
+                    self.refreshSpeakerChip()
+                    return
+                }
                 // While this detail screen owns the buffer, never rewrite the editor — even after
                 // a clean persist (hasLocalEdits=false) or outbox flush. List still refreshes via
                 // `.nativeNoteDidChange`; caret / IME stay put.
