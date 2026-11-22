@@ -382,4 +382,10 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
     }
 
     var testing_filteredCount: Int { filtered.count }
+
+    /// Simulates a row tap (AppTests / CI) without reaching into private `tableView`.
+    func testing_selectRow(at index: Int) {
+        let path = IndexPath(row: index, section: 0)
+        tableView(tableView, didSelectRowAt: path)
+    }
 }

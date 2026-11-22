@@ -68,10 +68,9 @@ final class NotebookSplitRoutingTests: XCTestCase {
         list.viewWillAppear(false)
         list.view.layoutIfNeeded()
 
-        let rows = list.tableView(list.tableView, numberOfRowsInSection: 0)
-        XCTAssertGreaterThan(rows, 0, "seeded note must appear in Caderno")
+        XCTAssertGreaterThan(list.testing_filteredRowCount, 0, "seeded note must appear in Caderno")
 
-        list.tableView(list.tableView, didSelectRowAt: IndexPath(row: 0, section: 0))
+        list.testing_selectRow(at: 0)
         RunLoop.current.run(until: Date().addingTimeInterval(0.05))
 
         let top = try XCTUnwrap(nav.topViewController as? NoteDetailViewController)
@@ -103,7 +102,7 @@ final class NotebookSplitRoutingTests: XCTestCase {
         groups.testing_replaceGroups([group])
         XCTAssertEqual(groups.testing_filteredCount, 1)
 
-        groups.tableView(groups.tableView, didSelectRowAt: IndexPath(row: 0, section: 0))
+        groups.testing_selectRow(at: 0)
         RunLoop.current.run(until: Date().addingTimeInterval(0.05))
 
         let top = try XCTUnwrap(nav.topViewController as? NotebookListViewController)

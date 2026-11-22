@@ -39,6 +39,15 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     /// Test hooks — group notes cache paint.
     var testing_groupCardsCount: Int { groupCards.count }
     var testing_firstGroupNoteTitle: String? { groupCards.first?.note.title }
+    var testing_filteredRowCount: Int {
+        isGroupMode ? filteredCards.count : filtered.count
+    }
+
+    /// Simulates a row tap (AppTests / CI) without reaching into private `tableView`.
+    func testing_selectRow(at index: Int) {
+        let path = IndexPath(row: index, section: 0)
+        tableView(tableView, didSelectRowAt: path)
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
