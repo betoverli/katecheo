@@ -122,10 +122,12 @@ final class Build238FeedbackTests: XCTestCase {
         groups.loadViewIfNeeded()
         XCTAssertNotNil(notebook.view)
         XCTAssertNotNil(groups.view)
-        XCTAssertFalse(
-            KCConfirmation.needsPopoverAnchor(for: notebook),
-            "phone-sized host must keep bottom action sheets"
-        )
+        let needsPopover = KCConfirmation.needsPopoverAnchor(for: notebook)
+        if notebook.traitCollection.horizontalSizeClass == .regular {
+            XCTAssertTrue(needsPopover, "regular width (iPad) must anchor action sheets as popovers")
+        } else {
+            XCTAssertFalse(needsPopover, "compact width must keep bottom action sheets")
+        }
     }
 
     // MARK: - 4) Lists empty alignment

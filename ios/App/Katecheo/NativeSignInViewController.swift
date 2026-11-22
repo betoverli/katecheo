@@ -163,6 +163,9 @@ final class NativeSignInViewController: UIViewController {
         stack.setCustomSpacing(KCDesign.Space.sm, after: emailFieldsStack)
         stack.addArrangedSubview(statusLabel)
 
+        let maxContentWidth: CGFloat = 480
+        let stackWidth = stack.widthAnchor.constraint(equalTo: scroll.frameLayoutGuide.widthAnchor, constant: -KCDesign.Space.lg * 2)
+        stackWidth.priority = UILayoutPriority(750)
         NSLayoutConstraint.activate([
             scroll.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             scroll.leadingAnchor.constraint(equalTo: view.leadingAnchor),
@@ -170,10 +173,12 @@ final class NativeSignInViewController: UIViewController {
             scroll.bottomAnchor.constraint(equalTo: view.bottomAnchor),
 
             stack.topAnchor.constraint(equalTo: scroll.contentLayoutGuide.topAnchor, constant: KCDesign.Space.xl),
-            stack.leadingAnchor.constraint(equalTo: scroll.frameLayoutGuide.leadingAnchor, constant: KCDesign.Space.lg),
-            stack.trailingAnchor.constraint(equalTo: scroll.frameLayoutGuide.trailingAnchor, constant: -KCDesign.Space.lg),
+            stack.centerXAnchor.constraint(equalTo: scroll.frameLayoutGuide.centerXAnchor),
+            stack.leadingAnchor.constraint(greaterThanOrEqualTo: scroll.frameLayoutGuide.leadingAnchor, constant: KCDesign.Space.lg),
+            stack.trailingAnchor.constraint(lessThanOrEqualTo: scroll.frameLayoutGuide.trailingAnchor, constant: -KCDesign.Space.lg),
             stack.bottomAnchor.constraint(equalTo: scroll.contentLayoutGuide.bottomAnchor, constant: -KCDesign.Space.xl),
-            stack.widthAnchor.constraint(equalTo: scroll.frameLayoutGuide.widthAnchor, constant: -KCDesign.Space.lg * 2),
+            stack.widthAnchor.constraint(lessThanOrEqualToConstant: maxContentWidth),
+            stackWidth,
         ])
 
         applyEmailMode(.signIn, clearErrors: true)

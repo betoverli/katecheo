@@ -202,7 +202,7 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
         KCHaptics.selection()
         let group = filtered[indexPath.row]
         KCActivityStore.markGroupViewed(group.id)
-        let detail = NotebookListViewController(group: group)
+        let detail = NotebookSplitViewController(group: group)
         navigationController?.pushViewController(detail, animated: true)
     }
 
@@ -278,7 +278,7 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
                 groups.insert(group, at: 0)
                 applyFilter()
                 KCHaptics.success()
-                let detail = NotebookListViewController(group: group)
+                let detail = NotebookSplitViewController(group: group)
                 navigationController?.pushViewController(detail, animated: true)
             } catch {
                 let err = UIAlertController(title: String(localized: "Não foi possível criar"), message: error.localizedDescription, preferredStyle: .alert)

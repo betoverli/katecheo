@@ -331,6 +331,12 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
         container.accessibilityTraits = .staticText
 
         let sidePad = KCDesign.Space.xl
+        let maxContentWidth: CGFloat = 520
+        let stackWidth = stack.widthAnchor.constraint(
+            equalTo: pageScroll.frameLayoutGuide.widthAnchor,
+            constant: -(sidePad * 2)
+        )
+        stackWidth.priority = UILayoutPriority(750)
         NSLayoutConstraint.activate([
             pageScroll.topAnchor.constraint(equalTo: container.topAnchor),
             pageScroll.leadingAnchor.constraint(equalTo: container.leadingAnchor),
@@ -338,10 +344,12 @@ final class OnboardingViewController: UIViewController, UIScrollViewDelegate {
             pageScroll.bottomAnchor.constraint(equalTo: container.bottomAnchor),
 
             stack.topAnchor.constraint(greaterThanOrEqualTo: pageScroll.contentLayoutGuide.topAnchor, constant: KCDesign.Space.lg),
-            stack.leadingAnchor.constraint(equalTo: pageScroll.frameLayoutGuide.leadingAnchor, constant: sidePad),
-            stack.trailingAnchor.constraint(equalTo: pageScroll.frameLayoutGuide.trailingAnchor, constant: -sidePad),
+            stack.centerXAnchor.constraint(equalTo: pageScroll.frameLayoutGuide.centerXAnchor),
+            stack.leadingAnchor.constraint(greaterThanOrEqualTo: pageScroll.frameLayoutGuide.leadingAnchor, constant: sidePad),
+            stack.trailingAnchor.constraint(lessThanOrEqualTo: pageScroll.frameLayoutGuide.trailingAnchor, constant: -sidePad),
             stack.bottomAnchor.constraint(lessThanOrEqualTo: pageScroll.contentLayoutGuide.bottomAnchor, constant: -KCDesign.Space.lg),
-            stack.widthAnchor.constraint(equalTo: pageScroll.frameLayoutGuide.widthAnchor, constant: -(sidePad * 2)),
+            stack.widthAnchor.constraint(lessThanOrEqualToConstant: maxContentWidth),
+            stackWidth,
             stack.centerYAnchor.constraint(equalTo: pageScroll.frameLayoutGuide.centerYAnchor).withPriority(.defaultHigh),
             pageScroll.contentLayoutGuide.heightAnchor.constraint(
                 greaterThanOrEqualTo: pageScroll.frameLayoutGuide.heightAnchor

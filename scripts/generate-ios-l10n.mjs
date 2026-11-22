@@ -532,12 +532,28 @@ const MANUAL = {
     "The interface language follows your iPhone. To change it, open the app’s Settings and choose Portuguese (Brazil), English, or Español.",
     "El idioma de la interfaz sigue el del iPhone. Para cambiarlo, abre Ajustes de la app y elige Português (Brasil), English o Español.",
   ],
+  "O idioma da interface segue o do aparelho. Para mudar, abra as Configurações do app e escolha Português (Brasil), English ou Español.": [
+    "The interface language follows your device. To change it, open the app’s Settings and choose Portuguese (Brazil), English, or Español.",
+    "El idioma de la interfaz sigue el del dispositivo. Para cambiarlo, abre Ajustes de la app y elige Português (Brasil), English o Español.",
+  ],
   "Abrir Configurações do idioma": ["Open language Settings", "Abrir Ajustes de idioma"],
   "Idioma da interface": ["Interface language", "Idioma de la interfaz"],
   "Segue o idioma do iPhone": ["Follows iPhone language", "Sigue el idioma del iPhone"],
+  "Segue o idioma do aparelho": ["Follows your device language", "Sigue el idioma del dispositivo"],
   "Menus, botões e telas seguem o idioma do iPhone (ou o idioma por app em Ajustes).": [
     "Menus, buttons, and screens follow your iPhone language (or the per-app language in Settings).",
     "Menús, botones y pantallas siguen el idioma del iPhone (o el idioma por app en Ajustes).",
+  ],
+  "Menus, botões e telas seguem o idioma do aparelho (ou o idioma por app em Ajustes).": [
+    "Menus, buttons, and screens follow your device language (or the per-app language in Settings).",
+    "Menús, botones y pantallas siguen el idioma del dispositivo (o el idioma por app en Ajustes).",
+  ],
+  "Ativar push neste iPhone": ["Enable push on this iPhone", "Activar push en este iPhone"],
+  "Ativar push neste aparelho": ["Enable push on this device", "Activar push en este dispositivo"],
+  "Selecione uma nota": ["Select a note", "Selecciona una nota"],
+  "Escolha uma nota na lista ao lado para abrir e editar.": [
+    "Choose a note from the list to open and edit it.",
+    "Elige una nota de la lista para abrirla y editarla.",
   ],
   // Format / interpolated templates (catalog keys use %@)
   "Sem rede. %@": ["No network. %@", "Sin red. %@"],

@@ -30,6 +30,15 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
     private var sharedAuthorName: String?
     /// When set (compose from a notebook group), every sync keeps the note published to that group.
     private let publishGroupId: String?
+    /// Regular-width readable column (~Apple Notes / HIG).
+    private static let regularReadableMaxWidth: CGFloat = 700
+    private var editorTopConstraint: NSLayoutConstraint?
+    private var editorBottomConstraint: NSLayoutConstraint?
+    private var editorLeadingConstraint: NSLayoutConstraint?
+    private var editorTrailingConstraint: NSLayoutConstraint?
+    private var editorCenterXConstraint: NSLayoutConstraint?
+    private var editorMaxWidthConstraint: NSLayoutConstraint?
+    private var editorWidthConstraint: NSLayoutConstraint?
 
     init(
         noteId: String,
@@ -46,9 +55,13 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         self.sharedAuthorName = sharedAuthorName
         self.publishGroupId = publishGroupId
         super.init(nibName: nil, bundle: nil)
-        // Hide the root tab bar for the whole push/pop transition (no flicker).
+        // Compact push hides the tab bar; regular-width split secondary keeps it visible.
+        // NotebookSplitViewController updates this via `applyTabBarHidingForSplit`.
         hidesBottomBarWhenPushed = true
     }
+
+    /// Note id for split routing / selection highlight.
+    var openedNoteId: String { noteId }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -85,12 +98,23 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         editor.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(editor)
 
+        editorTopConstraint = editor.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor)
+        editorBottomConstraint = editor.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        editorLeadingConstraint = editor.leadingAnchor.constraint(equalTo: view.leadingAnchor)
+        editorTrailingConstraint = editor.trailingAnchor.constraint(equalTo: view.trailingAnchor)
+        editorCenterXConstraint = editor.centerXAnchor.constraint(equalTo: view.centerXAnchor)
+        editorMaxWidthConstraint = editor.widthAnchor.constraint(lessThanOrEqualToConstant: Self.regularReadableMaxWidth)
+        editorWidthConstraint = editor.widthAnchor.constraint(equalTo: view.widthAnchor)
+        editorCenterXConstraint?.isActive = false
+        editorMaxWidthConstraint?.isActive = false
+
         NSLayoutConstraint.activate([
-            editor.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            editor.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            editor.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            editor.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            editorTopConstraint!,
+            editorBottomConstraint!,
+            editorLeadingConstraint!,
+            editorTrailingConstraint!,
         ])
+        updateEditorReadableWidth()
 
         // Start from the full on-device catalog — never an empty note-scoped list.
         speakers = isGrantedReadOnly ? [] : LocalNoteCache.loadSpeakers()
@@ -139,11 +163,74 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         super.viewWillAppear(animated)
         // Keep the nav compact while editing (parent Caderno uses large titles).
         navigationController?.navigationBar.prefersLargeTitles = false
+        // Regular split secondary: keep tab bar. Compact push: hide it.
+        if let split = splitViewController as? NotebookSplitViewController {
+            applyTabBarHidingForSplit(isCollapsed: split.isCollapsed)
+        } else if traitCollection.horizontalSizeClass == .compact {
+            hidesBottomBarWhenPushed = true
+        }
+        updateEditorReadableWidth()
         applyEditorAppearanceOverride()
         applyEditorChrome()
         editor.refreshAppearanceForCurrentTraits(forceAttachments: true)
         // Opening a note clears Shared unread for that id (build-238).
         KCActivityStore.markSharedNoteOpened(noteId)
+    }
+
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        if previousTraitCollection?.horizontalSizeClass != traitCollection.horizontalSizeClass {
+            updateEditorReadableWidth()
+            if let split = splitViewController as? NotebookSplitViewController {
+                applyTabBarHidingForSplit(isCollapsed: split.isCollapsed)
+            }
+        }
+    }
+
+    /// iPhone / compact: full width. Regular width: centered column ≤ ~700pt.
+    private func updateEditorReadableWidth() {
+        let regular = traitCollection.horizontalSizeClass == .regular
+        editorLeadingConstraint?.isActive = false
+        editorTrailingConstraint?.isActive = false
+        editorCenterXConstraint?.isActive = false
+        editorMaxWidthConstraint?.isActive = false
+        editorWidthConstraint?.isActive = false
+
+        if regular {
+            editorCenterXConstraint = editor.centerXAnchor.constraint(equalTo: view.centerXAnchor)
+            editorMaxWidthConstraint = editor.widthAnchor.constraint(lessThanOrEqualToConstant: Self.regularReadableMaxWidth)
+            editorWidthConstraint = editor.widthAnchor.constraint(equalTo: view.widthAnchor)
+            editorWidthConstraint?.priority = UILayoutPriority(750)
+            editorLeadingConstraint = editor.leadingAnchor.constraint(
+                greaterThanOrEqualTo: view.readableContentGuide.leadingAnchor
+            )
+            editorTrailingConstraint = editor.trailingAnchor.constraint(
+                lessThanOrEqualTo: view.readableContentGuide.trailingAnchor
+            )
+            NSLayoutConstraint.activate([
+                editorCenterXConstraint!,
+                editorMaxWidthConstraint!,
+                editorWidthConstraint!,
+                editorLeadingConstraint!,
+                editorTrailingConstraint!,
+            ])
+        } else {
+            editorLeadingConstraint = editor.leadingAnchor.constraint(equalTo: view.leadingAnchor)
+            editorTrailingConstraint = editor.trailingAnchor.constraint(equalTo: view.trailingAnchor)
+            NSLayoutConstraint.activate([
+                editorLeadingConstraint!,
+                editorTrailingConstraint!,
+            ])
+        }
+    }
+
+    /// Pop on compact; empty secondary column on regular split.
+    private func dismissAfterLeavingNote() {
+        if let split = splitViewController as? NotebookSplitViewController {
+            split.clearDetailAfterDeletingNote(id: noteId)
+        } else {
+            navigationController?.popViewController(animated: true)
+        }
     }
 
     @objc private func refreshAppearanceAfterForeground() {
@@ -624,7 +711,7 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
                         from: self,
                         barButtonItem: self.navigationItem.rightBarButtonItems?.first
                     ) {
-                        self.navigationController?.popViewController(animated: true)
+                        self.dismissAfterLeavingNote()
                     }
                 })
             }
@@ -793,7 +880,7 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
                     } else {
                         try await NativeAPIClient.deleteNote(id: self.noteId)
                     }
-                    self.navigationController?.popViewController(animated: true)
+                    self.dismissAfterLeavingNote()
                 } catch NativeAPIClient.APIError.unauthorized {
                     if LocalNoteCache.isAwaitingFirstSync(self.noteId) {
                         NativeAPIClient.discardLocalOnlyNote(id: self.noteId)
@@ -801,7 +888,7 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
                         LocalNoteCache.removeNote(id: self.noteId)
                         NativeOutbox.enqueueNoteDelete(id: self.noteId)
                     }
-                    self.navigationController?.popViewController(animated: true)
+                    self.dismissAfterLeavingNote()
                 } catch {
                     if LocalNoteCache.isAwaitingFirstSync(self.noteId) {
                         NativeAPIClient.discardLocalOnlyNote(id: self.noteId)
@@ -809,7 +896,7 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
                         LocalNoteCache.removeNote(id: self.noteId)
                         NativeOutbox.enqueueNoteDelete(id: self.noteId)
                     }
-                    self.navigationController?.popViewController(animated: true)
+                    self.dismissAfterLeavingNote()
                 }
             }
         })

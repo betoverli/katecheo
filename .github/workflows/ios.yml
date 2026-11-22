@@ -46,39 +46,59 @@ jobs:
       - name: Testes do editor (KatecheoTests)
         run: |
           set -euo pipefail
-          DEST="$(node -e '
-            const {execSync}=require("child_process");
-            const data=JSON.parse(execSync("xcrun simctl list devices available -j",{encoding:"utf8"}));
-            const preferred=["iPhone 16","iPhone 16 Pro","iPhone 15","iPhone 15 Pro","iPhone SE"];
-            const found=[];
-            for (const [runtime, devices] of Object.entries(data.devices||{})) {
-              if (!/iOS|iPhone/i.test(runtime)) continue;
-              for (const d of devices) {
-                if (d.isAvailable && String(d.name||"").startsWith("iPhone")) found.push(d.name);
+          pick_dest() {
+            local kind="$1"
+            shift
+            node -e '
+              const kind=process.argv[1];
+              const preferred=process.argv.slice(2);
+              const {execSync}=require("child_process");
+              const data=JSON.parse(execSync("xcrun simctl list devices available -j",{encoding:"utf8"}));
+              const found=[];
+              for (const [runtime, devices] of Object.entries(data.devices||{})) {
+                if (!/iOS|iPhone/i.test(runtime)) continue;
+                for (const d of devices) {
+                  if (!d.isAvailable) continue;
+                  const name=String(d.name||"");
+                  if (kind==="iphone" && name.startsWith("iPhone")) found.push(name);
+                  if (kind==="ipad" && name.startsWith("iPad")) found.push(name);
+                }
               }
-            }
-            const pick = preferred.find((n)=>found.includes(n)) || found[0];
-            if (!pick) { console.error("Nenhum iPhone Simulator disponível"); process.exit(1); }
-            process.stdout.write("platform=iOS Simulator,name="+pick);
-          ')"
-          echo "Destino dos testes: $DEST"
+              const pick = preferred.find((n)=>found.includes(n)) || found[0];
+              if (!pick) { console.error("Nenhum "+kind+" Simulator disponível"); process.exit(1); }
+              process.stdout.write("platform=iOS Simulator,name="+pick);
+            ' "$kind" "$@"
+          }
+          DEST_IPHONE="$(pick_dest iphone "iPhone 16" "iPhone 16 Pro" "iPhone 15" "iPhone 15 Pro" "iPhone SE")"
+          DEST_IPAD="$(pick_dest ipad "iPad Pro 13-inch (M4)" "iPad Pro 12.9-inch (6th generation)" "iPad Pro (12.9-inch) (6th generation)" "iPad Air 11-inch (M2)" "iPad Air (5th generation)" "iPad (10th generation)" "iPad Pro 11-inch (M4)")"
+          echo "Destino iPhone: $DEST_IPHONE"
+          echo "Destino iPad: $DEST_IPAD"
           mkdir -p artifacts
+          run_unit_tests() {
+            local DEST="$1"
+            echo "Running KatecheoTests on $DEST"
+            xcodebuild \
+              -project ios/App/Katecheo.xcodeproj \
+              -scheme Katecheo \
+              -configuration Debug \
+              -sdk iphonesimulator \
+              -destination "$DEST" \
+              -derivedDataPath "${RUNNER_TEMP}/katecheo-ios" \
+              -parallel-testing-enabled NO \
+              -skip-testing:KatecheoUITests \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO \
+              CODE_SIGN_IDENTITY="" \
+              DEVELOPMENT_TEAM="" \
+              test
+          }
           set +e
-          xcodebuild \
-            -project ios/App/Katecheo.xcodeproj \
-            -scheme Katecheo \
-            -configuration Debug \
-            -sdk iphonesimulator \
-            -destination "$DEST" \
-            -derivedDataPath "${RUNNER_TEMP}/katecheo-ios" \
-            -parallel-testing-enabled NO \
-            -skip-testing:KatecheoUITests \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            DEVELOPMENT_TEAM="" \
-            test
+          run_unit_tests "$DEST_IPHONE"
           TEST_STATUS=$?
+          if [ "$TEST_STATUS" -eq 0 ]; then
+            run_unit_tests "$DEST_IPAD"
+            TEST_STATUS=$?
+          fi
           set -e
           # KatecheoTests write PNGs inside the Simulator app sandbox — harvest even on failure.
           # Per-pattern finds (no shared head) so b238 is not crowded out by older tf/b234 PNGs.

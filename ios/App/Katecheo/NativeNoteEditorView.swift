@@ -3294,7 +3294,9 @@ final class NoteEditorAccessoryBar: UIView {
         let effect = KCGlassMaterial.effect(withInteractive: true) ?? UIBlurEffect(style: .systemChromeMaterial)
         blur = UIVisualEffectView(effect: effect)
         let totalHeight = Self.capsuleTopInset + Self.capsuleHeight + Self.capsuleBottomInset
-        super.init(frame: CGRect(x: 0, y: 0, width: UIScreen.main.bounds.width, height: totalHeight))
+        // Prefer window/column width over UIScreen (wrong in iPad split / Stage Manager).
+        let initialWidth = Self.preferredAccessoryWidth()
+        super.init(frame: CGRect(x: 0, y: 0, width: initialWidth, height: totalHeight))
         autoresizingMask = [.flexibleWidth]
         // Transparent host — no full-width bar strip behind the capsule.
         backgroundColor = .clear
@@ -3406,8 +3408,14 @@ final class NoteEditorAccessoryBar: UIView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        syncWidthToWindowIfNeeded()
+    }
+
     override func layoutSubviews() {
         super.layoutSubviews()
+        syncWidthToWindowIfNeeded()
         // True capsule: continuous corners follow the laid-out height.
         let radius = max(shadowHost.bounds.height, 1) / 2
         capsule.layer.cornerRadius = radius
@@ -3421,10 +3429,30 @@ final class NoteEditorAccessoryBar: UIView {
 
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
+        syncWidthToWindowIfNeeded()
         guard traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection) else { return }
         capsule.layer.borderColor = KCDesign.separator.resolvedColor(with: traitCollection).cgColor
         let dark = traitCollection.userInterfaceStyle == .dark
         shadowHost.layer.shadowOpacity = dark ? 0.28 : 0.12
+    }
+
+    private func syncWidthToWindowIfNeeded() {
+        let target = window?.bounds.width ?? Self.preferredAccessoryWidth()
+        guard target > 0, abs(bounds.width - target) > 0.5 else { return }
+        var frame = self.frame
+        frame.size.width = target
+        self.frame = frame
+    }
+
+    private static func preferredAccessoryWidth() -> CGFloat {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+        if let width = scene?.windows.first(where: \.isKeyWindow)?.bounds.width ?? scene?.screen.bounds.width,
+           width > 0
+        {
+            return width
+        }
+        return 390
     }
 
     private func makeButton(symbol: String, action: Action, label: String) -> UIButton {

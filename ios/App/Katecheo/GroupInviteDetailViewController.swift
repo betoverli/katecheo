@@ -160,7 +160,7 @@ final class GroupInviteDetailViewController: UIViewController {
                 if accept, let group {
                     if let nav = navigationController {
                         nav.popViewController(animated: false)
-                        nav.pushViewController(NotebookListViewController(group: group), animated: true)
+                        nav.pushViewController(NotebookSplitViewController(group: group), animated: true)
                     }
                 } else {
                     navigationController?.popViewController(animated: true)
