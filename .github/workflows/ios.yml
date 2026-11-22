@@ -112,9 +112,10 @@ jobs:
               | head -80 \
               | while read -r f; do cp -f "$f" artifacts/ 2>/dev/null || true; done
           done
-          # Also copy iPad screenshots into the Cursor review artifacts folder when present.
-          mkdir -p /opt/cursor/artifacts
-          cp -f artifacts/ipad-*.png /opt/cursor/artifacts/ 2>/dev/null || true
+          # Cursor agent VM only — ignore when /opt/cursor is unavailable (GitHub runners).
+          if [ -d /opt/cursor ] || mkdir -p /opt/cursor/artifacts 2>/dev/null; then
+            cp -f artifacts/ipad-*.png /opt/cursor/artifacts/ 2>/dev/null || true
+          fi
           ls -la artifacts || true
           exit "$TEST_STATUS"
       - name: UI tests Get started (SE + Pro Max)

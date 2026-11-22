@@ -24,7 +24,6 @@ final class IPadScreenshotTests: XCTestCase {
         let note = NativeAPIClient.emptyNote()
         var titled = note
         titled.title = "Estudo no iPad"
-        titled.preview = "Margens Notes-like e coluna secundária preenchida."
         LocalNoteCache.saveNotes([titled])
 
         let group = NativeAPIClient.GroupDTO(
@@ -127,11 +126,17 @@ final class IPadScreenshotTests: XCTestCase {
 
         guard let data = image.pngData() else { return }
         let filename = "\(name).png"
-        let dirs = [
+        var dirs = [
             URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("katecheo-ipad", isDirectory: true),
-            URL(fileURLWithPath: "/opt/cursor/artifacts", isDirectory: true),
             URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("artifacts", isDirectory: true),
         ]
+        // Cursor agent VM only — GitHub runners cannot create /opt/cursor.
+        let cursorArtifacts = URL(fileURLWithPath: "/opt/cursor/artifacts", isDirectory: true)
+        if FileManager.default.isWritableFile(atPath: "/opt/cursor")
+            || FileManager.default.fileExists(atPath: "/opt/cursor/artifacts")
+        {
+            dirs.append(cursorArtifacts)
+        }
         for dir in dirs {
             try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
             let url = dir.appendingPathComponent(filename)
