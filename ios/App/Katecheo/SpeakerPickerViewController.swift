@@ -45,7 +45,7 @@ final class SpeakerPickerViewController: UIViewController, UITableViewDelegate, 
         KCChrome.styleGroupedTable(table)
         table.delegate = self
         table.dataSource = self
-        table.register(UITableViewCell.self, forCellReuseIdentifier: "cell")
+        table.register(KCThemedTableViewCell.self, forCellReuseIdentifier: "cell")
         view.addSubview(table)
         NSLayoutConstraint.activate([
             table.topAnchor.constraint(equalTo: view.topAnchor),

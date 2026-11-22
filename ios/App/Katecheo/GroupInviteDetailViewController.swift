@@ -158,6 +158,19 @@ final class GroupInviteDetailViewController: UIViewController {
                 let group = try await NativeAPIClient.respondGroupInvite(id: inviteId, accept: accept)
                 KCHaptics.success()
                 if accept, let group {
+                    // iPad: prefer Grupos triple-column over pushing a nested split.
+                    if PadChrome.isPad, let tabs = nearestRootTabs() {
+                        if presentingViewController != nil {
+                            dismiss(animated: false)
+                        } else {
+                            navigationController?.popViewController(animated: false)
+                        }
+                        tabs.selectedIndex = 1
+                        if let split = tabs.selectedViewController as? GroupsSplitViewController {
+                            split.showGroup(group, animated: true)
+                            return
+                        }
+                    }
                     if let nav = navigationController {
                         nav.popViewController(animated: false)
                         nav.pushViewController(NotebookChrome.makeGroupCaderno(group: group), animated: true)
@@ -175,5 +188,18 @@ final class GroupInviteDetailViewController: UIViewController {
                 present(alert, animated: true)
             }
         }
+    }
+
+    private func nearestRootTabs() -> NativeRootTabBarController? {
+        if let tabs = tabBarController as? NativeRootTabBarController { return tabs }
+        if let tabs = navigationController?.tabBarController as? NativeRootTabBarController { return tabs }
+        var responder: UIResponder? = self
+        while let current = responder {
+            if let tabs = current as? NativeRootTabBarController { return tabs }
+            responder = current.next
+        }
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let window = scenes.first?.windows.first(where: \.isKeyWindow) ?? scenes.first?.windows.first
+        return window?.rootViewController as? NativeRootTabBarController
     }
 }

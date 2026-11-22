@@ -40,7 +40,7 @@ final class GroupMembersViewController: UIViewController, UITableViewDelegate, U
         KCChrome.styleGroupedTable(tableView)
         tableView.delegate = self
         tableView.dataSource = self
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "member")
+        tableView.register(KCThemedTableViewCell.self, forCellReuseIdentifier: "member")
         refresh.addTarget(self, action: #selector(reload), for: .valueChanged)
         tableView.refreshControl = refresh
         view.addSubview(tableView)

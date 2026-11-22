@@ -48,7 +48,7 @@ final class GroupInviteFriendsViewController: UIViewController, UITableViewDeleg
         tableView.delegate = self
         tableView.dataSource = self
         tableView.allowsMultipleSelection = true
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "friend")
+        tableView.register(KCThemedTableViewCell.self, forCellReuseIdentifier: "friend")
         tableView.rowHeight = UITableView.automaticDimension
         tableView.estimatedRowHeight = 56
         view.addSubview(tableView)

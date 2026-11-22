@@ -102,7 +102,7 @@ jobs:
           set -e
           # KatecheoTests write PNGs inside the Simulator app sandbox — harvest even on failure.
           # Per-pattern finds (no shared head) so b238 is not crowded out by older tf/b234 PNGs.
-          for pat in 'tf222-*.png' 'tab-bg-*.png' 'b234-*.png' 'b238-*.png' 'confirm-*.png' 'auth-*.png' 'onboarding-*.png'; do
+          for pat in 'tf222-*.png' 'tab-bg-*.png' 'b234-*.png' 'b238-*.png' 'confirm-*.png' 'auth-*.png' 'onboarding-*.png' 'ipad-*.png'; do
             find \
               "${HOME}/Library/Developer/CoreSimulator" \
               "${RUNNER_TEMP}/katecheo-ios" \
@@ -112,6 +112,10 @@ jobs:
               | head -80 \
               | while read -r f; do cp -f "$f" artifacts/ 2>/dev/null || true; done
           done
+          # Cursor agent VM only — ignore when /opt/cursor is unavailable (GitHub runners).
+          if [ -d /opt/cursor ] || mkdir -p /opt/cursor/artifacts 2>/dev/null; then
+            cp -f artifacts/ipad-*.png /opt/cursor/artifacts/ 2>/dev/null || true
+          fi
           ls -la artifacts || true
           exit "$TEST_STATUS"
       - name: UI tests Get started (SE + Pro Max)
@@ -156,6 +160,42 @@ jobs:
               DEVELOPMENT_TEAM="" \
               test
           done
+      - name: UI tests iPad chrome
+        run: |
+          set -euo pipefail
+          pick_ipad() {
+            node -e '
+              const preferred=process.argv.slice(1);
+              const {execSync}=require("child_process");
+              const data=JSON.parse(execSync("xcrun simctl list devices available -j",{encoding:"utf8"}));
+              const found=[];
+              for (const [runtime, devices] of Object.entries(data.devices||{})) {
+                if (!/iOS|iPhone/i.test(runtime)) continue;
+                for (const d of devices) {
+                  if (d.isAvailable && String(d.name||"").startsWith("iPad")) found.push(d.name);
+                }
+              }
+              const pick = preferred.find((n)=>found.includes(n)) || found[0];
+              if (!pick) { console.error("Nenhum iPad Simulator disponível"); process.exit(1); }
+              process.stdout.write("platform=iOS Simulator,name="+pick);
+            ' "$@"
+          }
+          DEST_IPAD="$(pick_ipad "iPad Pro 13-inch (M4)" "iPad Pro 12.9-inch (6th generation)" "iPad Pro (12.9-inch) (6th generation)" "iPad Air 11-inch (M2)" "iPad Air (5th generation)" "iPad (10th generation)")"
+          echo "iPad UITest dest: $DEST_IPAD"
+          xcodebuild \
+            -project ios/App/Katecheo.xcodeproj \
+            -scheme Katecheo \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination "$DEST_IPAD" \
+            -derivedDataPath "${RUNNER_TEMP}/katecheo-ios" \
+            -parallel-testing-enabled NO \
+            -only-testing:KatecheoUITests/IPadChromeUITests \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            test
       - name: Upload speaker appearance screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -204,6 +244,13 @@ jobs:
         with:
           name: onboarding-first-launch
           path: artifacts/onboarding-*.png
+          if-no-files-found: error
+      - name: Upload iPad chrome screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ipad-chrome-screenshots
+          path: artifacts/ipad-*.png
           if-no-files-found: error
 
   testflight:

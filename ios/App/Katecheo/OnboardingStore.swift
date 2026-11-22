@@ -14,8 +14,11 @@ enum OnboardingStore {
     static let skipSettingsGuideLaunchArgument = "-katecheoSkipSettingsGuide"
     /// Force the settings guide to show again.
     static let resetSettingsGuideLaunchArgument = "-katecheoResetSettingsGuide"
+    /// Skip Caderno's auto full-screen sign-in (CI / UI tests that need the tab shell).
+    static let skipAutoSignInLaunchArgument = "-katecheoSkipAutoSignIn"
 
     private static var launchArgumentsApplied = false
+    private static var skipAutoSignIn = false
 
     static var hasSeenOnboarding: Bool {
         get { UserDefaults.standard.bool(forKey: hasSeenKey) }
@@ -48,6 +51,13 @@ enum OnboardingStore {
         if arguments.contains(skipSettingsGuideLaunchArgument) {
             hasSeenSettingsGuide = true
         }
+        skipAutoSignIn = arguments.contains(skipAutoSignInLaunchArgument)
+    }
+
+    /// When true, Caderno must not auto-present full-screen sign-in (keeps tab chrome reachable in UI tests).
+    static var shouldSkipAutoSignIn: Bool {
+        applyLaunchArgumentsIfNeeded()
+        return skipAutoSignIn
     }
 
     /// Whether cold start should show the intro (before auth / tabs).
@@ -74,6 +84,7 @@ enum OnboardingStore {
     static func resetForTesting() {
         hasSeenOnboarding = false
         hasSeenSettingsGuide = false
+        skipAutoSignIn = false
         launchArgumentsApplied = false
     }
 

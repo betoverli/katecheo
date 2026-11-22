@@ -254,7 +254,7 @@ final class BlockedUsersViewController: UITableViewController {
         title = String(localized: "Usuários bloqueados")
         KCChrome.styleScreen(view)
         KCChrome.styleGroupedTable(tableView)
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "blocked")
+        tableView.register(KCThemedTableViewCell.self, forCellReuseIdentifier: "blocked")
         navigationItem.largeTitleDisplayMode = .never
         refreshControl = UIRefreshControl()
         refreshControl?.addTarget(self, action: #selector(reload), for: .valueChanged)

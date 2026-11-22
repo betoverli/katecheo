@@ -61,7 +61,7 @@ final class NotebookFilterMultiSelectSheet: UIViewController, UITableViewDelegat
         KCChrome.styleGroupedTable(table)
         table.delegate = self
         table.dataSource = self
-        table.register(UITableViewCell.self, forCellReuseIdentifier: "cell")
+        table.register(KCThemedTableViewCell.self, forCellReuseIdentifier: "cell")
         table.allowsMultipleSelection = true
         table.keyboardDismissMode = .onDrag
         view.addSubview(table)

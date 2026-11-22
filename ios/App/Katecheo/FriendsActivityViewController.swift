@@ -32,7 +32,7 @@ final class FriendsActivityViewController: UITableViewController, UISearchResult
         super.viewDidLoad()
         kcApplyGroupedChrome()
         title = String(localized: "Amigos")
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "friend")
+        tableView.register(KCThemedTableViewCell.self, forCellReuseIdentifier: "friend")
         tableView.rowHeight = UITableView.automaticDimension
         tableView.estimatedRowHeight = 52
         refreshControl = UIRefreshControl()

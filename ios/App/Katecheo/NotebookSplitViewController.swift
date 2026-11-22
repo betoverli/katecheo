@@ -64,6 +64,10 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
         if #available(iOS 16.0, *) {
             preferredSplitBehavior = .tile
         }
+        // Apple Notes–like sidebar width (not a cramped strip).
+        preferredPrimaryColumnWidthFraction = PadChrome.notebookPrimaryFraction
+        minimumPrimaryColumnWidth = PadChrome.notebookPrimaryMin
+        maximumPrimaryColumnWidth = PadChrome.notebookPrimaryMax
         setViewController(primaryNav, for: .primary)
         setViewController(secondaryNav, for: .secondary)
         // Compact column is the same primary nav so collapse can push detail there.
@@ -110,6 +114,8 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
         detail.applyTabBarHidingForSplit(isCollapsed: false)
         let nav = UINavigationController(rootViewController: detail)
         KCChrome.style(navigationController: nav)
+        // Sidebar toggle (hide list for full-width reading) — same as Notes.
+        detail.navigationItem.leftBarButtonItem = displayModeButtonItem
         secondaryNav = nav
         setViewController(nav, for: .secondary)
         show(.secondary)
@@ -122,6 +128,7 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
         let empty = NotebookEmptyDetailViewController()
         let nav = UINavigationController(rootViewController: empty)
         KCChrome.style(navigationController: nav)
+        empty.navigationItem.leftBarButtonItem = displayModeButtonItem
         secondaryNav = nav
         setViewController(nav, for: .secondary)
 
@@ -206,6 +213,7 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
             detail.applyTabBarHidingForSplit(isCollapsed: false)
             let nav = UINavigationController(rootViewController: detail)
             KCChrome.style(navigationController: nav)
+            detail.navigationItem.leftBarButtonItem = displayModeButtonItem
             secondaryNav = nav
             setViewController(nav, for: .secondary)
             return
@@ -214,6 +222,7 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
             selectedNoteId = detail.openedNoteId
             listViewController.highlightSelectedNote(id: detail.openedNoteId)
             detail.applyTabBarHidingForSplit(isCollapsed: false)
+            detail.navigationItem.leftBarButtonItem = displayModeButtonItem
             return
         }
         if let id = selectedNoteId {

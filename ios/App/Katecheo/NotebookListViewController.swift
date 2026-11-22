@@ -3,7 +3,11 @@ import UIKit
 /// Phase 1 native notebook list: search, icon-only swipe share/delete, compose.
 /// Phase 2 also reuses this screen for a group's notes (`group` scope).
 final class NotebookListViewController: UIViewController, UITableViewDelegate, UITableViewDataSource, UISearchResultsUpdating {
-    private let tableView = UITableView(frame: .zero, style: .insetGrouped)
+    /// iPad Caderno/Grupos sidebar: plain edge-to-edge rows (Notes). iPhone keeps insetGrouped.
+    private let tableView: UITableView = {
+        let style: UITableView.Style = PadChrome.isPad ? .plain : .insetGrouped
+        return UITableView(frame: .zero, style: style)
+    }()
     private let refresh = UIRefreshControl()
     private var notes: [NativeAPIClient.NoteDocument] = []
     private var filtered: [NativeAPIClient.NoteDocument] = []
@@ -72,11 +76,18 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
         if group == nil || group?.canPost == true {
             trailing.insert(UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(composeNote)), at: 0)
         }
-        navigationItem.rightBarButtonItems = trailing
-        if group == nil || group?.canPost == true {
-            navigationItem.rightBarButtonItems?.first?.accessibilityLabel = String(localized: "Nova nota")
+        // iPad: Tools + Profile live as sheets (not tabs) — expose them in the primary toolbar.
+        if PadChrome.isPad, group == nil {
+            trailing.append(PadChrome.makeToolsBarButton(target: self, action: #selector(openToolsSheet)))
+            trailing.append(PadChrome.makeProfileBarButton(target: self, action: #selector(openProfileSheet)))
         }
-        navigationItem.rightBarButtonItems?.last?.accessibilityLabel = String(localized: "Mais opções")
+        navigationItem.rightBarButtonItems = trailing
+        // Accessibility: first trailing is usually compose; ellipsis keeps its own label.
+        if group == nil || group?.canPost == true {
+            trailing.first?.accessibilityLabel = String(localized: "Nova nota")
+        }
+        trailing.first(where: { $0.action == #selector(moreMenu) })?.accessibilityLabel = String(localized: "Mais opções")
+        view.accessibilityIdentifier = group == nil ? "caderno.list" : "caderno.group.list"
         refreshNotificationsBadge()
 
         search.searchResultsUpdater = self
@@ -89,6 +100,11 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
 
         tableView.translatesAutoresizingMaskIntoConstraints = false
         KCChrome.styleGroupedTable(tableView)
+        if PadChrome.isPad {
+            // Notes-like: full-bleed rows, no inset card gutters.
+            tableView.separatorInset = UIEdgeInsets(top: 0, left: 16, bottom: 0, right: 0)
+            tableView.cellLayoutMarginsFollowReadableWidth = false
+        }
         tableView.delegate = self
         tableView.dataSource = self
         tableView.register(KCNoteRowCell.self, forCellReuseIdentifier: KCNoteRowCell.reuseId)
@@ -356,7 +372,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                         actionTitle: String(localized: "Entrar")
                     )
                 }
-                if notes.isEmpty, presentedViewController == nil {
+                if notes.isEmpty, presentedViewController == nil, !OnboardingStore.shouldSkipAutoSignIn {
                     showSignIn(auto: true)
                 }
                 return
@@ -449,7 +465,9 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                     message: String(localized: "Entre de novo para continuar sincronizando."),
                     actionTitle: String(localized: "Entrar")
                 )
-                showSignIn(auto: true)
+                if !OnboardingStore.shouldSkipAutoSignIn {
+                    showSignIn(auto: true)
+                }
             } catch {
                 guard generation == reloadGeneration else { return }
                 if group == nil {
@@ -694,6 +712,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 speakerName: speakerName,
                 date: day
             )
+            cell.applySidebarStyle(isPadSidebar: PadChrome.isPad)
             return cell
         }
         let note = filtered[indexPath.row]
@@ -707,6 +726,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             speakerName: speakerName,
             date: day
         )
+        cell.applySidebarStyle(isPadSidebar: PadChrome.isPad)
         return cell
     }
 
@@ -753,6 +773,16 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             split.showNote(detail, animated: true)
             return
         }
+        if PadChrome.isPad, let groupsSplit = groupsSplit {
+            let regular = traitCollection.horizontalSizeClass == .regular && !groupsSplit.isCollapsed
+            if regular, let indexPath {
+                tableView.selectRow(at: indexPath, animated: false, scrollPosition: .none)
+            } else if let indexPath {
+                tableView.deselectRow(at: indexPath, animated: true)
+            }
+            groupsSplit.showNote(detail, animated: true)
+            return
+        }
         if let indexPath {
             tableView.deselectRow(at: indexPath, animated: true)
         }
@@ -765,7 +795,31 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     }
 
     private var notebookSplit: NotebookSplitViewController? {
-        splitViewController as? NotebookSplitViewController
+        if let split = splitViewController as? NotebookSplitViewController { return split }
+        var parent: UIViewController? = self.parent
+        while let current = parent {
+            if let split = current as? NotebookSplitViewController { return split }
+            parent = current.parent
+        }
+        return nil
+    }
+
+    private var groupsSplit: GroupsSplitViewController? {
+        if let split = splitViewController as? GroupsSplitViewController { return split }
+        var parent: UIViewController? = self.parent
+        while let current = parent {
+            if let split = current as? GroupsSplitViewController { return split }
+            parent = current.parent
+        }
+        return nil
+    }
+
+    @objc private func openToolsSheet() {
+        (tabBarController as? NativeRootTabBarController)?.presentToolsSheet()
+    }
+
+    @objc private func openProfileSheet() {
+        (tabBarController as? NativeRootTabBarController)?.presentProfileSheet()
     }
 
     /// Highlight the open note in the list (split regular width).

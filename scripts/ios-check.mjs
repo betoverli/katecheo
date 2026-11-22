@@ -1134,14 +1134,18 @@ const rootTabs = read("ios/App/Katecheo/NativeRootTabBarController.swift");
 if (!rootTabs.includes("SettingsGuideViewController") || !rootTabs.includes("presentSettingsGuide")) {
   errors.push("NativeRootTabBarController tem de apresentar o SettingsGuide após o login.");
 }
-if (!rootTabs.includes("GroupsListViewController") || rootTabs.includes('titleText: "Grupos"')) {
-  errors.push("Phase 2: o separador Grupos tem de usar GroupsListViewController.");
+// Grupos: GroupsChrome (iPad triple-column) or GroupsListViewController (iPhone nav).
+if (
+  !(rootTabs.includes("GroupsChrome.makeTabRoot") || rootTabs.includes("GroupsListViewController")) ||
+  rootTabs.includes('titleText: "Grupos"')
+) {
+  errors.push("Phase 2: o separador Grupos tem de usar GroupsChrome / GroupsListViewController.");
 }
 if (!rootTabs.includes("ProfileViewController") || rootTabs.includes('titleText: "Perfil"')) {
-  errors.push("Phase 3: a aba Perfil tem de usar ProfileViewController.");
+  errors.push("Phase 3: Perfil tem de usar ProfileViewController (aba iPhone / sheet iPad).");
 }
 if (!rootTabs.includes("VersesHomeViewController") || rootTabs.includes('titleText: "Versículos"')) {
-  errors.push("Phase 4: a aba Ferramentas tem de usar VersesHomeViewController.");
+  errors.push("Phase 4: Ferramentas tem de usar VersesHomeViewController (aba iPhone / sheet iPad).");
 }
 if (!rootTabs.includes("Ferramentas") || !rootTabs.includes("selectedIndex = 0")) {
   errors.push("Tab bar: Caderno default + Ferramentas (não Versículos).");
@@ -1150,28 +1154,46 @@ if (!rootTabs.includes("Ferramentas") || !rootTabs.includes("selectedIndex = 0")
 if (rootTabs.includes("ReadingHomeViewController") || /UITabBarItem\([\s\S]*Leitura/.test(rootTabs)) {
   errors.push("Remova a aba Leitura do tab bar — Leitura fica sob Ferramentas.");
 }
+// iPhone: 4 tabs. iPad: Caderno+Grupos tabs; Tools/Profile via presentToolsSheet / presentProfileSheet.
 if (
-  !/(NotebookChrome\.makeTabRoot|Notebook(Split|List)ViewController)[\s\S]*GroupsListViewController[\s\S]*VersesHomeViewController[\s\S]*ProfileViewController/.test(
+  !/(NotebookChrome\.makeTabRoot|Notebook(Split|List)ViewController)[\s\S]*(GroupsChrome\.makeTabRoot|GroupsListViewController)[\s\S]*VersesHomeViewController[\s\S]*ProfileViewController/.test(
     rootTabs
   )
 ) {
-  errors.push("Ordem das abas: Caderno, Grupos, Ferramentas, Perfil.");
+  errors.push("Ordem das abas: Caderno, Grupos, Ferramentas, Perfil (iPad: Tools/Profile via sheets).");
+}
+if (!rootTabs.includes("PadChrome.isPad") || !rootTabs.includes("presentToolsSheet") || !rootTabs.includes("presentProfileSheet")) {
+  errors.push("iPad: Tools/Profile têm de ser sheets (presentToolsSheet / presentProfileSheet), não abas.");
 }
 if (!project.includes("NotebookSplitViewController.swift in Sources")) {
   errors.push("NotebookSplitViewController.swift tem de estar no target (iPad Caderno split).");
 }
+if (!project.includes("GroupsSplitViewController.swift in Sources") || !project.includes("PadChrome.swift in Sources")) {
+  errors.push("GroupsSplitViewController + PadChrome têm de estar no target (iPad Grupos / sheets).");
+}
 if (!rootTabs.includes("NotebookChrome.makeTabRoot")) {
   errors.push("Caderno tab tem de usar NotebookChrome.makeTabRoot (iPhone nav / iPad split).");
+}
+if (!rootTabs.includes("GroupsChrome.makeTabRoot")) {
+  errors.push("Grupos tab tem de usar GroupsChrome.makeTabRoot (iPhone nav / iPad triple column).");
 }
 if (!rootTabs.includes("NotebookChrome") && !rootTabs.includes("NotebookListViewController")) {
   errors.push("Ordem das abas: Caderno (NotebookChrome/List), Grupos, Ferramentas, Perfil.");
 }
 const groupsListSrc = read("ios/App/Katecheo/GroupsListViewController.swift");
-if (!groupsListSrc.includes("NotebookChrome.makeGroupCaderno")) {
-  errors.push("Grupos tem de abrir Caderno via NotebookChrome.makeGroupCaderno (iPhone list / iPad split).");
+if (!groupsListSrc.includes("NotebookChrome.makeGroupCaderno") && !groupsListSrc.includes("GroupsSplitViewController")) {
+  errors.push("Grupos tem de abrir notas via GroupsSplit (iPad) ou NotebookChrome.makeGroupCaderno (iPhone).");
 }
-if (!deep.includes("NotebookChrome.makeGroupCaderno") && !deep.includes("NotebookSplitViewController")) {
-  errors.push("NativeDeepLinkRouter tem de abrir grupos via NotebookChrome / split.");
+if (
+  !deep.includes("NotebookChrome.makeGroupCaderno") &&
+  !deep.includes("NotebookSplitViewController") &&
+  !deep.includes("GroupsSplitViewController")
+) {
+  errors.push("NativeDeepLinkRouter tem de abrir grupos via NotebookChrome / GroupsSplit.");
+}
+const groupsSplitSrc = read("ios/App/Katecheo/GroupsSplitViewController.swift");
+if (!groupsSplitSrc.includes("tripleColumn") || !groupsSplitSrc.includes("showGroup")) {
+  errors.push("GroupsSplitViewController tem de ser tripleColumn com showGroup (lista → notas → editor).");
 }
 const splitSrc = read("ios/App/Katecheo/NotebookSplitViewController.swift");
 if (!splitSrc.includes("userInterfaceIdiom == .pad") || !splitSrc.includes("prefersSplit")) {

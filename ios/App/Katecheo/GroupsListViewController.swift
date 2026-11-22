@@ -2,7 +2,10 @@ import UIKit
 
 /// Phase 2 native Grupos tab: list, create, open detail (notes via Caderno-style list).
 final class GroupsListViewController: UIViewController, UITableViewDelegate, UITableViewDataSource, UISearchResultsUpdating {
-    private let tableView = UITableView(frame: .zero, style: .insetGrouped)
+    private let tableView: UITableView = {
+        let style: UITableView.Style = PadChrome.isPad ? .plain : .insetGrouped
+        return UITableView(frame: .zero, style: style)
+    }()
     private let refresh = UIRefreshControl()
     private var groups: [NativeAPIClient.GroupDTO] = []
     private var filtered: [NativeAPIClient.GroupDTO] = []
@@ -13,6 +16,7 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
     override func viewDidLoad() {
         super.viewDidLoad()
         KCChrome.styleScreen(view)
+        view.accessibilityIdentifier = "grupos.list"
         title = String(localized: "Grupos")
         navigationController?.navigationBar.prefersLargeTitles = true
         navigationItem.largeTitleDisplayMode = .always
@@ -20,13 +24,20 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
             KCChrome.style(navigationController: nav)
         }
 
-        navigationItem.rightBarButtonItem = UIBarButtonItem(
-            title: String(localized: "Novo grupo"),
-            style: .plain,
-            target: self,
-            action: #selector(createGroup)
-        )
-        navigationItem.rightBarButtonItem?.accessibilityLabel = String(localized: "Novo grupo")
+        var trailing: [UIBarButtonItem] = [
+            UIBarButtonItem(
+                title: String(localized: "Novo grupo"),
+                style: .plain,
+                target: self,
+                action: #selector(createGroup)
+            ),
+        ]
+        trailing[0].accessibilityLabel = String(localized: "Novo grupo")
+        if PadChrome.isPad {
+            trailing.append(PadChrome.makeToolsBarButton(target: self, action: #selector(openToolsSheet)))
+            trailing.append(PadChrome.makeProfileBarButton(target: self, action: #selector(openProfileSheet)))
+        }
+        navigationItem.rightBarButtonItems = trailing
 
         search.searchResultsUpdater = self
         search.obscuresBackgroundDuringPresentation = false
@@ -36,6 +47,10 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
 
         tableView.translatesAutoresizingMaskIntoConstraints = false
         KCChrome.styleGroupedTable(tableView)
+        if PadChrome.isPad {
+            tableView.separatorInset = UIEdgeInsets(top: 0, left: 16, bottom: 0, right: 0)
+            tableView.cellLayoutMarginsFollowReadableWidth = false
+        }
         tableView.delegate = self
         tableView.dataSource = self
         tableView.register(KCGroupRowCell.self, forCellReuseIdentifier: KCGroupRowCell.reuseId)
@@ -194,16 +209,63 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
         let unread = KCActivityStore.targetIds(kind: .groupActivity).contains(group.id)
             || KCActivityStore.targetIds(kind: .groupPending).contains(group.id)
         cell.configure(group, unread: unread)
+        cell.applySidebarStyle(isPadSidebar: PadChrome.isPad)
         return cell
     }
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        tableView.deselectRow(at: indexPath, animated: true)
         KCHaptics.selection()
         let group = filtered[indexPath.row]
         KCActivityStore.markGroupViewed(group.id)
+        openGroup(group, keepingSelectionAt: indexPath)
+    }
+
+    /// iPad triple-column: show notes in supplementary. iPhone: push group Caderno.
+    private func openGroup(_ group: NativeAPIClient.GroupDTO, keepingSelectionAt indexPath: IndexPath?) {
+        if PadChrome.isPad, let split = groupsSplit {
+            let regular = traitCollection.horizontalSizeClass == .regular && !split.isCollapsed
+            if regular, let indexPath {
+                tableView.selectRow(at: indexPath, animated: false, scrollPosition: .none)
+            } else if let indexPath {
+                tableView.deselectRow(at: indexPath, animated: true)
+            }
+            split.showGroup(group, animated: true)
+            return
+        }
+        if let indexPath {
+            tableView.deselectRow(at: indexPath, animated: true)
+        }
         let detail = NotebookChrome.makeGroupCaderno(group: group)
         navigationController?.pushViewController(detail, animated: true)
+    }
+
+    private var groupsSplit: GroupsSplitViewController? {
+        if let split = splitViewController as? GroupsSplitViewController { return split }
+        var parent: UIViewController? = self.parent
+        while let current = parent {
+            if let split = current as? GroupsSplitViewController { return split }
+            parent = current.parent
+        }
+        return nil
+    }
+
+    /// Highlight the open group in the primary list (iPad regular width).
+    func highlightSelectedGroup(id: String?) {
+        guard let id, let row = filtered.firstIndex(where: { $0.id == id }) else {
+            if let selected = tableView.indexPathForSelectedRow {
+                tableView.deselectRow(at: selected, animated: true)
+            }
+            return
+        }
+        tableView.selectRow(at: IndexPath(row: row, section: 0), animated: false, scrollPosition: .none)
+    }
+
+    @objc private func openToolsSheet() {
+        (tabBarController as? NativeRootTabBarController)?.presentToolsSheet()
+    }
+
+    @objc private func openProfileSheet() {
+        (tabBarController as? NativeRootTabBarController)?.presentProfileSheet()
     }
 
     /// Admin groups: pending join requests are reachable in Membros — keep a groupPending dot.
@@ -278,8 +340,7 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
                 groups.insert(group, at: 0)
                 applyFilter()
                 KCHaptics.success()
-                let detail = NotebookChrome.makeGroupCaderno(group: group)
-                navigationController?.pushViewController(detail, animated: true)
+                openGroup(group, keepingSelectionAt: nil)
             } catch {
                 let err = UIAlertController(title: String(localized: "Não foi possível criar"), message: error.localizedDescription, preferredStyle: .alert)
                 err.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
