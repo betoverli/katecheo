@@ -25,6 +25,8 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     private var applyingRemote = false
     private(set) var isReady = true
     private var baseBottomInset: CGFloat = KCDesign.Space.lg
+    /// Horizontal text inset — bumped on regular iPad so the editor fills the column with Notes-like margins.
+    private var baseHorizontalInset: CGFloat = KCDesign.Space.md
     private var keyboardOverlap: CGFloat = 0
     private var isBodyEditing = false
     /// contentOffset before an edit; restored after UIKit/layout may clamp it to 0.
@@ -69,9 +71,9 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         textView.backgroundColor = KCDesign.canvas
         textView.textContainerInset = UIEdgeInsets(
             top: KCDesign.Space.md,
-            left: KCDesign.Space.md,
+            left: baseHorizontalInset,
             bottom: baseBottomInset,
-            right: KCDesign.Space.md
+            right: baseHorizontalInset
         )
         textView.alwaysBounceVertical = true
         textView.keyboardDismissMode = .interactive
@@ -846,6 +848,19 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     /// Defense in depth for caret jumps: when refreshing an already-displayed note with the
     /// same id, preserve `selectedRange` (clamped) and first-responder. Location 0 only on
     /// the initial load (or when switching to a different note id).
+    /// Regular iPad: ~24pt horizontal insets (Notes-like). Phone / compact: default 16pt.
+    func applyPadReadingInsets(_ enabled: Bool) {
+        let next = enabled ? PadChrome.editorHorizontalInset : KCDesign.Space.md
+        guard abs(baseHorizontalInset - next) > 0.5 else { return }
+        baseHorizontalInset = next
+        var inset = textView.textContainerInset
+        inset.left = next
+        inset.right = next
+        textView.textContainerInset = inset
+        setNeedsLayout()
+        layoutIfNeeded()
+    }
+
     func pushNote(_ note: NativeAPIClient.NoteDocument, speakers: [NativeAPIClient.SpeakerDTO] = [], readOnly: Bool = false) {
         precondition(Thread.isMainThread)
         let previousId = documentBase.id

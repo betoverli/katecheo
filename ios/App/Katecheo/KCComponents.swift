@@ -248,6 +248,10 @@ final class KCNoteRowCell: UITableViewCell {
         selectionStyle = .default
         backgroundColor = KCDesign.surface
         accessoryType = .disclosureIndicator
+        // Notes-like selection: soft accent wash (rounded in layoutSubviews for plain sidebars).
+        let selected = UIView()
+        selected.backgroundColor = KCDesign.accentSoft
+        selectedBackgroundView = selected
 
         spine.translatesAutoresizingMaskIntoConstraints = false
         spine.backgroundColor = KCDesign.spine
@@ -401,6 +405,28 @@ final class KCNoteRowCell: UITableViewCell {
         }
     }
 
+    /// iPad Caderno/Grupos sidebar: no chevron, clear fill so rows read edge-to-edge like Notes.
+    func applySidebarStyle(isPadSidebar: Bool) {
+        if isPadSidebar {
+            accessoryType = .none
+            backgroundColor = .clear
+            contentView.backgroundColor = .clear
+        } else {
+            accessoryType = .disclosureIndicator
+            backgroundColor = KCDesign.surface
+            contentView.backgroundColor = KCDesign.surface
+        }
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        // Rounded selection wash inset slightly from the cell edges (Apple Notes).
+        guard accessoryType == .none, let selected = selectedBackgroundView else { return }
+        selected.layer.cornerRadius = 10
+        selected.layer.cornerCurve = .continuous
+        selected.frame = bounds.insetBy(dx: 8, dy: 2)
+    }
+
     // MARK: - Testing hooks
 
     var testing_titleLabel: UILabel { titleLabel }
@@ -485,6 +511,10 @@ final class KCGroupRowCell: UITableViewCell {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         backgroundColor = KCDesign.surface
         accessoryType = .disclosureIndicator
+        selectionStyle = .default
+        let selected = UIView()
+        selected.backgroundColor = KCDesign.accentSoft
+        selectedBackgroundView = selected
 
         let badgeWrap = UIView()
         badgeWrap.translatesAutoresizingMaskIntoConstraints = false
@@ -548,6 +578,26 @@ final class KCGroupRowCell: UITableViewCell {
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func applySidebarStyle(isPadSidebar: Bool) {
+        if isPadSidebar {
+            accessoryType = .none
+            backgroundColor = .clear
+            contentView.backgroundColor = .clear
+        } else {
+            accessoryType = .disclosureIndicator
+            backgroundColor = KCDesign.surface
+            contentView.backgroundColor = KCDesign.surface
+        }
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        guard accessoryType == .none, let selected = selectedBackgroundView else { return }
+        selected.layer.cornerRadius = 10
+        selected.layer.cornerCurve = .continuous
+        selected.frame = bounds.insetBy(dx: 8, dy: 2)
+    }
 
     func configure(_ group: NativeAPIClient.GroupDTO, unread: Bool = false) {
         titleLabel.text = group.name

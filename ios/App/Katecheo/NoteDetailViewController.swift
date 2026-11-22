@@ -30,15 +30,10 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
     private var sharedAuthorName: String?
     /// When set (compose from a notebook group), every sync keeps the note published to that group.
     private let publishGroupId: String?
-    /// Regular-width readable column (~Apple Notes / HIG).
-    private static let regularReadableMaxWidth: CGFloat = 700
     private var editorTopConstraint: NSLayoutConstraint?
     private var editorBottomConstraint: NSLayoutConstraint?
     private var editorLeadingConstraint: NSLayoutConstraint?
     private var editorTrailingConstraint: NSLayoutConstraint?
-    private var editorCenterXConstraint: NSLayoutConstraint?
-    private var editorMaxWidthConstraint: NSLayoutConstraint?
-    private var editorWidthConstraint: NSLayoutConstraint?
 
     init(
         noteId: String,
@@ -102,11 +97,6 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         editorBottomConstraint = editor.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         editorLeadingConstraint = editor.leadingAnchor.constraint(equalTo: view.leadingAnchor)
         editorTrailingConstraint = editor.trailingAnchor.constraint(equalTo: view.trailingAnchor)
-        editorCenterXConstraint = editor.centerXAnchor.constraint(equalTo: view.centerXAnchor)
-        editorMaxWidthConstraint = editor.widthAnchor.constraint(lessThanOrEqualToConstant: Self.regularReadableMaxWidth)
-        editorWidthConstraint = editor.widthAnchor.constraint(equalTo: view.widthAnchor)
-        editorCenterXConstraint?.isActive = false
-        editorMaxWidthConstraint?.isActive = false
 
         NSLayoutConstraint.activate([
             editorTopConstraint!,
@@ -114,7 +104,8 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
             editorLeadingConstraint!,
             editorTrailingConstraint!,
         ])
-        updateEditorReadableWidth()
+        // Fill the secondary column; Notes-like horizontal insets live in the editor text container.
+        updateEditorReadingInsets()
 
         // Start from the full on-device catalog — never an empty note-scoped list.
         speakers = isGrantedReadOnly ? [] : LocalNoteCache.loadSpeakers()
@@ -166,10 +157,12 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         // Regular split secondary: keep tab bar. Compact push: hide it.
         if let split = splitViewController as? NotebookSplitViewController {
             applyTabBarHidingForSplit(isCollapsed: split.isCollapsed)
+        } else if let split = splitViewController as? GroupsSplitViewController {
+            applyTabBarHidingForSplit(isCollapsed: split.isCollapsed)
         } else if traitCollection.horizontalSizeClass == .compact {
             hidesBottomBarWhenPushed = true
         }
-        updateEditorReadableWidth()
+        updateEditorReadingInsets()
         applyEditorAppearanceOverride()
         applyEditorChrome()
         editor.refreshAppearanceForCurrentTraits(forceAttachments: true)
@@ -180,53 +173,26 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
         if previousTraitCollection?.horizontalSizeClass != traitCollection.horizontalSizeClass {
-            updateEditorReadableWidth()
+            updateEditorReadingInsets()
             if let split = splitViewController as? NotebookSplitViewController {
+                applyTabBarHidingForSplit(isCollapsed: split.isCollapsed)
+            } else if let split = splitViewController as? GroupsSplitViewController {
                 applyTabBarHidingForSplit(isCollapsed: split.isCollapsed)
             }
         }
     }
 
-    /// iPhone / compact: full width. Regular width: centered column ≤ ~700pt.
-    private func updateEditorReadableWidth() {
-        let regular = traitCollection.horizontalSizeClass == .regular
-        editorLeadingConstraint?.isActive = false
-        editorTrailingConstraint?.isActive = false
-        editorCenterXConstraint?.isActive = false
-        editorMaxWidthConstraint?.isActive = false
-        editorWidthConstraint?.isActive = false
-
-        if regular {
-            editorCenterXConstraint = editor.centerXAnchor.constraint(equalTo: view.centerXAnchor)
-            editorMaxWidthConstraint = editor.widthAnchor.constraint(lessThanOrEqualToConstant: Self.regularReadableMaxWidth)
-            editorWidthConstraint = editor.widthAnchor.constraint(equalTo: view.widthAnchor)
-            editorWidthConstraint?.priority = UILayoutPriority(750)
-            editorLeadingConstraint = editor.leadingAnchor.constraint(
-                greaterThanOrEqualTo: view.readableContentGuide.leadingAnchor
-            )
-            editorTrailingConstraint = editor.trailingAnchor.constraint(
-                lessThanOrEqualTo: view.readableContentGuide.trailingAnchor
-            )
-            NSLayoutConstraint.activate([
-                editorCenterXConstraint!,
-                editorMaxWidthConstraint!,
-                editorWidthConstraint!,
-                editorLeadingConstraint!,
-                editorTrailingConstraint!,
-            ])
-        } else {
-            editorLeadingConstraint = editor.leadingAnchor.constraint(equalTo: view.leadingAnchor)
-            editorTrailingConstraint = editor.trailingAnchor.constraint(equalTo: view.trailingAnchor)
-            NSLayoutConstraint.activate([
-                editorLeadingConstraint!,
-                editorTrailingConstraint!,
-            ])
-        }
+    /// Editor fills the column; on regular iPad use ~24pt Notes-like text insets (no narrow max-width column).
+    private func updateEditorReadingInsets() {
+        let padRegular = PadChrome.isPad && traitCollection.horizontalSizeClass == .regular
+        editor.applyPadReadingInsets(padRegular)
     }
 
-    /// Pop on compact; empty secondary column on regular split.
+    /// Pop on compact; empty secondary column on regular split (Caderno or Grupos).
     private func dismissAfterLeavingNote() {
         if let split = splitViewController as? NotebookSplitViewController {
+            split.clearDetailAfterDeletingNote(id: noteId)
+        } else if let split = splitViewController as? GroupsSplitViewController {
             split.clearDetailAfterDeletingNote(id: noteId)
         } else {
             navigationController?.popViewController(animated: true)

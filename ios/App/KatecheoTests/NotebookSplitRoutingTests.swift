@@ -45,6 +45,17 @@ final class NotebookSplitRoutingTests: XCTestCase {
         XCTAssertFalse(vc is NotebookSplitViewController)
     }
 
+    func testGroupsTabRoot_phoneUsesNavigation_padUsesTripleSplit() throws {
+        let root = GroupsChrome.makeTabRoot()
+        if isPhone {
+            let nav = try XCTUnwrap(root as? UINavigationController)
+            XCTAssertTrue(nav.viewControllers.first is GroupsListViewController)
+            XCTAssertFalse(root is GroupsSplitViewController)
+        } else if isPad {
+            XCTAssertTrue(root is GroupsSplitViewController)
+        }
+    }
+
     // MARK: - Real window: note open on iPhone
 
     func testPhone_selectingNoteRow_pushesNoteDetailOntoNavStack() throws {
@@ -106,6 +117,7 @@ final class NotebookSplitRoutingTests: XCTestCase {
         RunLoop.current.run(until: Date().addingTimeInterval(0.05))
 
         XCTAssertFalse(nav.topViewController is NotebookSplitViewController)
+        XCTAssertFalse(nav.topViewController is GroupsSplitViewController)
         let top = try XCTUnwrap(nav.topViewController as? NotebookListViewController)
         top.loadViewIfNeeded()
         XCTAssertEqual(top.title, group.name)
@@ -116,8 +128,11 @@ final class NotebookSplitRoutingTests: XCTestCase {
         try XCTSkipUnless(isPhone, "iPhone root chrome")
         let tabs = NativeRootTabBarController()
         tabs.loadViewIfNeeded()
+        XCTAssertEqual(tabs.viewControllers?.count, 4)
         XCTAssertTrue(tabs.viewControllers?.first is UINavigationController)
         XCTAssertFalse(tabs.viewControllers?.first is NotebookSplitViewController)
+        XCTAssertTrue(tabs.viewControllers?[1] is UINavigationController)
+        XCTAssertFalse(tabs.viewControllers?[1] is GroupsSplitViewController)
     }
 
     // MARK: - Split (iPad) smoke

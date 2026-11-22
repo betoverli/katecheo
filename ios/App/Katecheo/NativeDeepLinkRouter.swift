@@ -96,7 +96,7 @@ enum NativeDeepLinkRouter {
         return .unknown
     }
 
-    /// Tab indices: 0 Caderno · 1 Grupos · 2 Ferramentas · 3 Perfil
+    /// Tab indices: 0 Caderno · 1 Grupos · (iPhone) 2 Ferramentas · 3 Perfil
     private enum Tab: Int {
         case notebook = 0
         case groups = 1
@@ -117,42 +117,46 @@ enum NativeDeepLinkRouter {
 
         switch destination {
         case .verses, .themes, .reading:
-            tabs.selectedIndex = Tab.tools.rawValue
-            if let nav = tabs.selectedViewController as? UINavigationController {
-                nav.popToRootViewController(animated: false)
-                if let home = nav.viewControllers.first as? VersesHomeViewController {
-                    _ = home.view
-                    switch destination {
-                    case .themes:
-                        home.selectHomeFilter("themes")
-                    case .reading:
-                        home.selectHomeFilter("reading")
-                    default:
-                        home.selectHomeFilter("books")
-                    }
+            tabs.presentToolsSheet(animated: animated) { home in
+                switch destination {
+                case .themes:
+                    home.selectHomeFilter("themes")
+                case .reading:
+                    home.selectHomeFilter("reading")
+                default:
+                    home.selectHomeFilter("books")
                 }
             }
         case .groups, .group, .groupInvite:
             tabs.selectedIndex = Tab.groups.rawValue
-            if case .groupInvite(let inviteId) = destination,
-               let nav = tabs.selectedViewController as? UINavigationController
-            {
-                nav.popToRootViewController(animated: false)
+            if case .groupInvite(let inviteId) = destination {
                 if !NativeAPIClient.hasBearer {
                     NotificationCenter.default.post(name: .nativeOpenSignIn, object: nil)
                     return
                 }
-                nav.pushViewController(GroupInviteDetailViewController(inviteId: inviteId), animated: animated)
+                if let split = tabs.selectedViewController as? GroupsSplitViewController {
+                    // Present invite over the groups split.
+                    let invite = GroupInviteDetailViewController(inviteId: inviteId)
+                    let nav = UINavigationController(rootViewController: invite)
+                    KCChrome.style(navigationController: nav)
+                    nav.modalPresentationStyle = PadChrome.isPad ? .formSheet : .pageSheet
+                    split.present(nav, animated: animated)
+                } else if let nav = tabs.selectedViewController as? UINavigationController {
+                    nav.popToRootViewController(animated: false)
+                    nav.pushViewController(GroupInviteDetailViewController(inviteId: inviteId), animated: animated)
+                }
                 return
             }
-            if case .group(let id) = destination,
-               let nav = tabs.selectedViewController as? UINavigationController
-            {
-                nav.popToRootViewController(animated: false)
+            if case .group(let id) = destination {
                 Task { @MainActor in
                     do {
                         let group = try await NativeAPIClient.getGroup(id: id)
-                        nav.pushViewController(NotebookChrome.makeGroupCaderno(group: group), animated: animated)
+                        if let split = tabs.selectedViewController as? GroupsSplitViewController {
+                            split.showGroup(group, animated: animated)
+                        } else if let nav = tabs.selectedViewController as? UINavigationController {
+                            nav.popToRootViewController(animated: false)
+                            nav.pushViewController(NotebookChrome.makeGroupCaderno(group: group), animated: animated)
+                        }
                     } catch {
                         // Stay on Grupos home if fetch fails (offline / not a member yet).
                     }
@@ -177,47 +181,54 @@ enum NativeDeepLinkRouter {
                 nav.popToRootViewController(animated: animated)
             }
         case .readingPlan(let id):
-            tabs.selectedIndex = Tab.tools.rawValue
-            if let nav = tabs.selectedViewController as? UINavigationController {
-                nav.popToRootViewController(animated: false)
-                if let home = nav.viewControllers.first as? VersesHomeViewController {
-                    _ = home.view
-                    home.selectHomeFilter("reading")
+            tabs.presentToolsSheet(animated: animated) { home in
+                home.selectHomeFilter("reading")
+            }
+            // Push plan onto the tools nav (sheet on iPad, tab on iPhone).
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                guard let tabs = rootTabBar() else { return }
+                if PadChrome.isPad {
+                    var top: UIViewController = tabs
+                    while let presented = top.presentedViewController { top = presented }
+                    if let nav = top as? UINavigationController {
+                        nav.pushViewController(ReadingPlanDetailViewController(planId: id), animated: animated)
+                    }
+                } else if let nav = tabs.viewControllers?[Tab.tools.rawValue] as? UINavigationController {
+                    nav.pushViewController(ReadingPlanDetailViewController(planId: id), animated: animated)
                 }
-                nav.pushViewController(ReadingPlanDetailViewController(planId: id), animated: animated)
             }
         case .readingInvite(let groupId):
-            tabs.selectedIndex = Tab.tools.rawValue
-            if let nav = tabs.selectedViewController as? UINavigationController {
-                nav.popToRootViewController(animated: false)
-                if let home = nav.viewControllers.first as? VersesHomeViewController {
-                    _ = home.view
-                    home.selectHomeFilter("reading")
-                }
-                Task { @MainActor in
-                    do {
-                        if NativeAPIClient.hasBearer {
-                            let planId = try await NativeAPIClient.joinReadingPlanGroup(groupId: groupId)
+            tabs.presentToolsSheet(animated: animated) { home in
+                home.selectHomeFilter("reading")
+            }
+            Task { @MainActor in
+                do {
+                    if NativeAPIClient.hasBearer {
+                        let planId = try await NativeAPIClient.joinReadingPlanGroup(groupId: groupId)
+                        guard let tabs = rootTabBar() else { return }
+                        if PadChrome.isPad {
+                            var top: UIViewController = tabs
+                            while let presented = top.presentedViewController { top = presented }
+                            if let nav = top as? UINavigationController {
+                                nav.pushViewController(ReadingPlanDetailViewController(planId: planId), animated: animated)
+                            }
+                        } else if let nav = tabs.viewControllers?[Tab.tools.rawValue] as? UINavigationController {
                             nav.pushViewController(ReadingPlanDetailViewController(planId: planId), animated: animated)
-                        } else {
-                            NotificationCenter.default.post(name: .nativeOpenSignIn, object: nil)
                         }
-                    } catch {
-                        // Stay on Leitura (Ferramentas → Leitura) if join fails.
+                    } else {
+                        NotificationCenter.default.post(name: .nativeOpenSignIn, object: nil)
                     }
+                } catch {
+                    // Stay on Leitura if join fails.
                 }
             }
         case .friends:
-            tabs.selectedIndex = Tab.profile.rawValue
-            if let nav = tabs.selectedViewController as? UINavigationController {
-                nav.popToRootViewController(animated: false)
-                if nav.topViewController is FriendsActivityViewController {
-                    return
-                }
+            tabs.presentProfileSheet(animated: animated) { _, nav in
+                if nav.topViewController is FriendsActivityViewController { return }
                 nav.pushViewController(FriendsActivityViewController(), animated: animated)
             }
         case .profile, .signIn:
-            tabs.selectedIndex = Tab.profile.rawValue
+            tabs.presentProfileSheet(animated: animated)
             if destination == .signIn, !NativeAPIClient.hasBearer {
                 NotificationCenter.default.post(name: .nativeOpenSignIn, object: nil)
             }
