@@ -1,7 +1,7 @@
 import UIKit
 import XCTest
 
-/// iPad XCUITest: Caderno note open, Grupos selection, Tools/Profile sheets.
+/// iPad XCUITest: Tools/Profile sheets via toolbar (not tabs).
 /// Skips automatically on iPhone destinations.
 final class IPadChromeUITests: XCTestCase {
     override func setUpWithError() throws {
@@ -15,32 +15,31 @@ final class IPadChromeUITests: XCTestCase {
         app.launchArguments += [
             "-katecheoSkipOnboarding",
             "-katecheoSkipSettingsGuide",
+            // Full-screen auto sign-in hides tab/toolbar chrome from XCUITest.
+            "-katecheoSkipAutoSignIn",
         ]
         app.launch()
 
-        // Caderno may auto-present sign-in over the tabs when signed out — dismiss if needed.
-        dismissSignInIfPresent(in: app)
+        // Prefer content identifiers over tabBars — iOS 18+ floating tab bar is flaky in queries.
+        let caderno = app.otherElements["caderno.list"]
+        let toolsButton = app.buttons["pad.toolbar.tools"]
+        let profileButton = app.buttons["pad.toolbar.profile"]
 
-        let tabBar = app.tabBars.firstMatch
-        XCTAssertTrue(tabBar.waitForExistence(timeout: 12), "Tab bar should appear on iPad after launch")
+        let shellVisible =
+            caderno.waitForExistence(timeout: 15)
+            || toolsButton.waitForExistence(timeout: 2)
+            || app.otherElements["grupos.list"].waitForExistence(timeout: 2)
+        XCTAssertTrue(shellVisible, "iPad main shell should appear after skipping onboarding/sign-in")
 
-        // iPad must NOT show Tools/Profile as tabs.
+        // iPad must NOT show Tools/Profile as tabs (when tab bar is queryable).
         let toolsTab = app.tabBars.buttons.matching(
             NSPredicate(format: "label CONTAINS[c] %@ OR label CONTAINS[c] %@ OR label CONTAINS[c] %@",
                         "Ferramentas", "Tools", "Herramientas")
         ).firstMatch
         XCTAssertFalse(toolsTab.exists, "Tools must not be a tab on iPad")
 
-        let toolsButton = app.buttons["pad.toolbar.tools"]
-        let profileButton = app.buttons["pad.toolbar.profile"]
-        // Nav bar buttons can take a moment after first layout.
-        if !toolsButton.waitForExistence(timeout: 8) {
-            // Still assert tab chrome: only Caderno + Grupos.
-            let tabCount = app.tabBars.buttons.count
-            XCTAssertLessThanOrEqual(tabCount, 2, "iPad tab bar should only show Caderno and Grupos")
-            return
-        }
-        XCTAssertTrue(profileButton.exists)
+        XCTAssertTrue(toolsButton.waitForExistence(timeout: 8), "Tools toolbar button should exist on Caderno/Grupos")
+        XCTAssertTrue(profileButton.exists, "Profile toolbar button should exist")
 
         toolsButton.tap()
         let toolsSheet = app.otherElements["pad.sheet.tools"]
@@ -71,22 +70,5 @@ final class IPadChromeUITests: XCTestCase {
             profileSheet.waitForExistence(timeout: 5) || profileNav.waitForExistence(timeout: 5),
             "Profile sheet should present"
         )
-    }
-
-    private func dismissSignInIfPresent(in app: XCUIApplication) {
-        let signIn = app.otherElements["signin.root"]
-        if signIn.waitForExistence(timeout: 3) {
-            // Prefer an explicit close if present; otherwise swipe/dismiss modal.
-            let closePredicates = ["Fechar", "Close", "Cancelar", "Cancel", "OK"]
-            let close = app.buttons.matching(NSPredicate(format: "label IN %@", closePredicates)).firstMatch
-            if close.exists, close.isHittable {
-                close.tap()
-            } else {
-                // Full-screen sign-in: send the app to background isn't allowed; try nav back / swipe.
-                if app.navigationBars.buttons.firstMatch.exists {
-                    app.navigationBars.buttons.firstMatch.tap()
-                }
-            }
-        }
     }
 }

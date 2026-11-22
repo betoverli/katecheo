@@ -372,7 +372,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                         actionTitle: String(localized: "Entrar")
                     )
                 }
-                if notes.isEmpty, presentedViewController == nil {
+                if notes.isEmpty, presentedViewController == nil, !OnboardingStore.shouldSkipAutoSignIn {
                     showSignIn(auto: true)
                 }
                 return
@@ -465,7 +465,9 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                     message: String(localized: "Entre de novo para continuar sincronizando."),
                     actionTitle: String(localized: "Entrar")
                 )
-                showSignIn(auto: true)
+                if !OnboardingStore.shouldSkipAutoSignIn {
+                    showSignIn(auto: true)
+                }
             } catch {
                 guard generation == reloadGeneration else { return }
                 if group == nil {
