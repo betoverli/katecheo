@@ -1,7 +1,8 @@
 import XCTest
 @testable import Katecheo
 
-/// iPad navigation contracts: note opens in detail, group shows notes, Tools/Profile sheets.
+/// iPad navigation contracts: note opens in detail, group pushes notes in sidebar,
+/// Tools/Profile sheets. iPhone keeps 4 tabs.
 @MainActor
 final class IPadNavigationTests: XCTestCase {
     private var hostWindow: UIWindow?
@@ -62,7 +63,6 @@ final class IPadNavigationTests: XCTestCase {
         list.view.layoutIfNeeded()
         XCTAssertGreaterThan(list.testing_filteredRowCount, 0)
 
-        // Prefer the row-tap path when the split parent is wired; otherwise exercise showNote directly.
         if list.splitViewController is NotebookSplitViewController {
             list.testing_selectRow(at: 0)
         } else {
@@ -74,8 +74,8 @@ final class IPadNavigationTests: XCTestCase {
         XCTAssertEqual(split.openDetailNoteId, titled.id)
     }
 
-    func testPad_selectingGroup_showsGroupNotesColumn() throws {
-        try XCTSkipUnless(isPad, "iPad-only groups triple column")
+    func testPad_selectingGroup_pushesNotesInSidebar() throws {
+        try XCTSkipUnless(isPad, "iPad-only groups double column")
 
         let group = Self.sampleGroup()
         LocalSessionCache.saveGroups([group])
@@ -87,6 +87,7 @@ final class IPadNavigationTests: XCTestCase {
         tabs.selectedIndex = 1
 
         let split = try XCTUnwrap(tabs.viewControllers?[1] as? GroupsSplitViewController)
+        XCTAssertEqual(split.style, .doubleColumn)
         _ = split.view
         split.view.layoutIfNeeded()
         let groups = split.groupsListViewController
@@ -102,6 +103,8 @@ final class IPadNavigationTests: XCTestCase {
         RunLoop.current.run(until: Date().addingTimeInterval(0.15))
 
         XCTAssertEqual(split.selectedGroupId, group.id)
+        XCTAssertNotNil(split.openGroupNotesList)
+        XCTAssertEqual(split.openGroupNotesList?.testing_groupId, group.id)
     }
 
     func testPad_toolsButton_presentsToolsSheet() throws {
@@ -118,6 +121,9 @@ final class IPadNavigationTests: XCTestCase {
         XCTAssertEqual(presented.view.accessibilityIdentifier, "pad.sheet.tools")
         XCTAssertTrue(presented.viewControllers.first is VersesHomeViewController)
         XCTAssertEqual(presented.modalPresentationStyle, .formSheet)
+        let done = presented.viewControllers.first?.navigationItem.leftBarButtonItem
+        XCTAssertEqual(done?.accessibilityIdentifier, "pad.sheet.done")
+        XCTAssertEqual(done?.tintColor, KCDesign.accent)
     }
 
     func testPad_profileButton_presentsProfileSheet() throws {
@@ -145,11 +151,12 @@ final class IPadNavigationTests: XCTestCase {
         XCTAssertEqual(split.maximumPrimaryColumnWidth, PadChrome.notebookPrimaryMax)
     }
 
-    func testPad_groupsSplit_isTripleColumn() throws {
-        try XCTSkipUnless(isPad, "iPad-only triple column")
+    func testPad_groupsSplit_isDoubleColumn() throws {
+        try XCTSkipUnless(isPad, "iPad-only double column")
         let split = GroupsSplitViewController()
         _ = split.view
-        XCTAssertEqual(split.style, .tripleColumn)
+        XCTAssertEqual(split.style, .doubleColumn)
+        XCTAssertEqual(split.preferredPrimaryColumnWidthFraction, PadChrome.notebookPrimaryFraction, accuracy: 0.001)
     }
 
     func testPhone_stillHasFourTabs() throws {

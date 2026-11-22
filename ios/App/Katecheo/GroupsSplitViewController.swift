@@ -1,6 +1,6 @@
 import UIKit
 
-/// Chooses Grupos chrome: nav stack on iPhone; Notes-like triple column on iPad.
+/// Chooses Grupos chrome: nav stack on iPhone; Notes-folder 2-column split on iPad.
 enum GroupsChrome {
     static func makeTabRoot() -> UIViewController {
         if PadChrome.isPad {
@@ -13,12 +13,13 @@ enum GroupsChrome {
     }
 }
 
-/// iPad Grupos: primary = groups list, supplementary = that group's Caderno notes,
-/// secondary = note editor (empty until a note is opened). Compact collapses to push.
+/// iPad Grupos: double-column like Caderno / Apple Notes folders.
+/// Primary sidebar: groups list; tapping a group **pushes** that group's notes onto the
+/// same sidebar (back → groups). Secondary: note editor (empty until a note is opened).
+/// Compact collapses to the classic push stack.
 final class GroupsSplitViewController: UISplitViewController, UISplitViewControllerDelegate {
     let groupsListViewController = GroupsListViewController()
     private let primaryNav: UINavigationController
-    private var supplementaryNav: UINavigationController
     private var secondaryNav: UINavigationController
     private(set) var selectedGroupId: String?
     private(set) var selectedNoteId: String?
@@ -27,15 +28,12 @@ final class GroupsSplitViewController: UISplitViewController, UISplitViewControl
     init() {
         primaryNav = UINavigationController(rootViewController: groupsListViewController)
         KCChrome.style(navigationController: primaryNav)
-        let emptyNotes = GroupsEmptyNotesViewController()
-        supplementaryNav = UINavigationController(rootViewController: emptyNotes)
-        KCChrome.style(navigationController: supplementaryNav)
         let emptyDetail = NotebookEmptyDetailViewController()
         secondaryNav = UINavigationController(rootViewController: emptyDetail)
         KCChrome.style(navigationController: secondaryNav)
-        super.init(style: .tripleColumn)
+        super.init(style: .doubleColumn)
         delegate = self
-        preferredDisplayMode = .twoBesideSecondary
+        preferredDisplayMode = .oneBesideSecondary
         presentsWithGesture = true
         if #available(iOS 14.5, *) {
             displayModeButtonVisibility = .automatic
@@ -43,15 +41,12 @@ final class GroupsSplitViewController: UISplitViewController, UISplitViewControl
         if #available(iOS 16.0, *) {
             preferredSplitBehavior = .tile
         }
-        preferredPrimaryColumnWidthFraction = PadChrome.groupsPrimaryFraction
-        preferredSupplementaryColumnWidthFraction = PadChrome.groupsSupplementaryFraction
-        minimumPrimaryColumnWidth = PadChrome.groupsColumnMin
-        maximumPrimaryColumnWidth = PadChrome.groupsColumnMax
-        minimumSupplementaryColumnWidth = PadChrome.groupsColumnMin
-        maximumSupplementaryColumnWidth = PadChrome.groupsColumnMax
+        // Same Notes-like sidebar width as Caderno.
+        preferredPrimaryColumnWidthFraction = PadChrome.notebookPrimaryFraction
+        minimumPrimaryColumnWidth = PadChrome.notebookPrimaryMin
+        maximumPrimaryColumnWidth = PadChrome.notebookPrimaryMax
 
         setViewController(primaryNav, for: .primary)
-        setViewController(supplementaryNav, for: .supplementary)
         setViewController(secondaryNav, for: .secondary)
         setViewController(primaryNav, for: .compact)
     }
@@ -62,39 +57,40 @@ final class GroupsSplitViewController: UISplitViewController, UISplitViewControl
     override func viewDidLoad() {
         super.viewDidLoad()
         KCChrome.styleScreen(view)
-        showEmptyGroupNotes(animated: false)
+        showEmptyDetail(animated: false)
     }
 
     // MARK: - Routing
 
-    /// Open a group's notes in the supplementary column (or push on compact).
+    /// Push the group's notes list onto the **primary** sidebar (Notes-folder pattern).
     func showGroup(_ group: NativeAPIClient.GroupDTO, animated: Bool) {
         selectedGroupId = group.id
         selectedNoteId = nil
-        groupsListViewController.highlightSelectedGroup(id: group.id)
+        groupsListViewController.highlightSelectedGroup(id: nil)
+
+        // Already showing this group's notes — keep stack, just clear detail.
+        if let existing = openGroupList, existing.testing_groupId == group.id,
+           primaryNav.viewControllers.contains(where: { $0 === existing })
+        {
+            showEmptyDetail(animated: false)
+            return
+        }
 
         let list = NotebookListViewController(group: group)
         openGroupList = list
 
         if isCollapsed {
-            // Compact: push group Caderno list onto primary (pre-triple push path).
-            if let existing = primaryNav.viewControllers.compactMap({ $0 as? NotebookListViewController }).last,
-               existing.title == group.name
-            {
-                return
-            }
-            // Pop any prior group list / note.
             primaryNav.popToRootViewController(animated: false)
             primaryNav.pushViewController(list, animated: animated)
             return
         }
 
-        let nav = UINavigationController(rootViewController: list)
-        KCChrome.style(navigationController: nav)
-        supplementaryNav = nav
-        setViewController(nav, for: .supplementary)
+        // Regular: replace any prior group notes VC, push onto primary (back → Grupos).
+        if primaryNav.viewControllers.count > 1 {
+            primaryNav.popToRootViewController(animated: false)
+        }
+        primaryNav.pushViewController(list, animated: animated)
         showEmptyDetail(animated: false)
-        show(.supplementary)
     }
 
     func showNote(_ detail: NoteDetailViewController, animated: Bool) {
@@ -141,26 +137,19 @@ final class GroupsSplitViewController: UISplitViewController, UISplitViewControl
         }
     }
 
-    func showEmptyGroupNotes(animated: Bool) {
-        selectedGroupId = nil
-        selectedNoteId = nil
-        openGroupList = nil
-        groupsListViewController.highlightSelectedGroup(id: nil)
-        let empty = GroupsEmptyNotesViewController()
-        let nav = UINavigationController(rootViewController: empty)
-        KCChrome.style(navigationController: nav)
-        supplementaryNav = nav
-        setViewController(nav, for: .supplementary)
-        showEmptyDetail(animated: animated)
-        if isCollapsed {
-            primaryNav.popToRootViewController(animated: animated)
-        }
-    }
-
     func clearDetailAfterDeletingNote(id: String) {
         if selectedNoteId == id || selectedNoteId == nil {
             showEmptyDetail(animated: true)
         }
+    }
+
+    /// Pop group notes back to the groups list (sidebar root).
+    func popToGroupsList(animated: Bool) {
+        selectedGroupId = nil
+        selectedNoteId = nil
+        openGroupList = nil
+        primaryNav.popToRootViewController(animated: animated)
+        showEmptyDetail(animated: false)
     }
 
     var openDetailNoteId: String? {
@@ -173,38 +162,50 @@ final class GroupsSplitViewController: UISplitViewController, UISplitViewControl
         return selectedNoteId
     }
 
+    var openGroupNotesList: NotebookListViewController? { openGroupList }
+
     // MARK: - UISplitViewControllerDelegate
 
     func splitViewController(
+        _ splitViewController: UISplitViewController,
+        collapseSecondary secondaryViewController: UIViewController,
+        onto primaryViewController: UIViewController
+    ) -> Bool {
+        guard let secondary = secondaryViewController as? UINavigationController,
+              let detail = secondary.topViewController as? NoteDetailViewController
+        else {
+            return true
+        }
+        detail.applyTabBarHidingForSplit(isCollapsed: true)
+        if let primary = primaryViewController as? UINavigationController {
+            primary.pushViewController(detail, animated: false)
+        }
+        selectedNoteId = detail.openedNoteId
+        return true
+    }
+
+    func splitViewController(
         _ svc: UISplitViewController,
-        topColumnForCollapsingToProposedTopColumn proposedTopColumn: UISplitViewController.Column
-    ) -> UISplitViewController.Column {
-        if secondaryNav.topViewController is NoteDetailViewController {
-            return .secondary
-        }
-        if openGroupList != nil || supplementaryNav.topViewController is NotebookListViewController {
-            return .supplementary
-        }
-        return .primary
+        displayModeForExpandingToProposedDisplayMode proposedDisplayMode: UISplitViewController.DisplayMode
+    ) -> UISplitViewController.DisplayMode {
+        .oneBesideSecondary
     }
 
     func splitViewControllerDidExpand(_ svc: UISplitViewController) {
-        // Rebuild supplementary / secondary from primary stack if we collapsed with content.
-        var groupList: NotebookListViewController?
+        // Rebuild secondary from a note that was pushed onto primary while collapsed.
         var detail: NoteDetailViewController?
+        var groupList: NotebookListViewController?
         for vc in primaryNav.viewControllers {
             if let list = vc as? NotebookListViewController { groupList = list }
             if let note = vc as? NoteDetailViewController { detail = note }
         }
-        primaryNav.popToRootViewController(animated: false)
-        if let groupList, let groupId = selectedGroupId {
+        // Keep groups root + optional group notes; strip note from primary.
+        var keep: [UIViewController] = [groupsListViewController]
+        if let groupList {
             openGroupList = groupList
-            let nav = UINavigationController(rootViewController: groupList)
-            KCChrome.style(navigationController: nav)
-            supplementaryNav = nav
-            setViewController(nav, for: .supplementary)
-            groupsListViewController.highlightSelectedGroup(id: groupId)
+            keep.append(groupList)
         }
+        primaryNav.setViewControllers(keep, animated: false)
         if let detail {
             showNote(detail, animated: false)
         } else {
@@ -213,13 +214,6 @@ final class GroupsSplitViewController: UISplitViewController, UISplitViewControl
     }
 
     func splitViewControllerDidCollapse(_ svc: UISplitViewController) {
-        // Fold supplementary list + secondary note onto primary.
-        if let list = supplementaryNav.topViewController as? NotebookListViewController {
-            openGroupList = list
-            if !(primaryNav.viewControllers.contains(where: { $0 === list })) {
-                primaryNav.pushViewController(list, animated: false)
-            }
-        }
         if let detail = secondaryNav.topViewController as? NoteDetailViewController {
             detail.applyTabBarHidingForSplit(isCollapsed: true)
             let placeholder = UINavigationController(rootViewController: NotebookEmptyDetailViewController())
@@ -230,35 +224,5 @@ final class GroupsSplitViewController: UISplitViewController, UISplitViewControl
                 primaryNav.pushViewController(detail, animated: false)
             }
         }
-    }
-}
-
-// MARK: - Empty supplementary (no group selected)
-
-final class GroupsEmptyNotesViewController: UIViewController {
-    private let empty = KCEmptyStateView()
-
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        KCChrome.styleScreen(view)
-        title = String(localized: "Notas do grupo")
-        navigationItem.largeTitleDisplayMode = .always
-
-        empty.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(empty)
-        NSLayoutConstraint.activate([
-            empty.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            empty.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            empty.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            empty.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-        ])
-        empty.show(
-            symbol: "person.2",
-            title: String(localized: "Selecione um grupo"),
-            message: String(localized: "Escolha um grupo na lista ao lado para ver as notas publicadas.")
-        )
-        empty.isHidden = false
-        empty.alpha = 1
-        empty.transform = .identity
     }
 }

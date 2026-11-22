@@ -115,14 +115,16 @@ final class NativeRootTabBarController: UITabBarController {
         toolsHome = home
         _ = home.view
         configure?(home)
-        let host = topMostPresenter()
+        if presentedViewController != nil {
+            dismiss(animated: false)
+        }
         PadChrome.presentUtilitySheet(
             root: home,
-            from: host,
+            from: self,
             animated: animated,
             accessibilityId: "pad.sheet.tools"
         )
-        presentedToolsNav = host.presentedViewController as? UINavigationController
+        presentedToolsNav = presentedViewController as? UINavigationController
     }
 
     /// Present Perfil as a large form sheet (iPad).
@@ -148,14 +150,19 @@ final class NativeRootTabBarController: UITabBarController {
         }
         let home = ProfileViewController()
         profileHome = home
-        let host = topMostPresenter()
+        // Force view load so header/table paint before the sheet snapshot / first frame.
+        _ = home.view
+        // Clear any prior Tools/utility sheet so Profile is the presented root (not Caderno).
+        if presentedViewController != nil {
+            dismiss(animated: false)
+        }
         PadChrome.presentUtilitySheet(
             root: home,
-            from: host,
+            from: self,
             animated: animated,
             accessibilityId: "pad.sheet.profile"
         )
-        if let nav = host.presentedViewController as? UINavigationController {
+        if let nav = presentedViewController as? UINavigationController {
             presentedProfileNav = nav
             configure?(home, nav)
         }

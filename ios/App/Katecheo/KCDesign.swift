@@ -245,6 +245,13 @@ enum KCChrome {
             .font: KCDesign.preferred(.largeTitle, weight: .bold),
         ]
         nav.shadowColor = .clear
+        // Keep bar button titles/icons on accent — never white-on-beige (sheet Close).
+        let button = UIBarButtonItemAppearance()
+        button.normal.titleTextAttributes = [.foregroundColor: KCDesign.accent]
+        button.highlighted.titleTextAttributes = [.foregroundColor: KCDesign.accent]
+        button.disabled.titleTextAttributes = [.foregroundColor: KCDesign.accent.withAlphaComponent(0.4)]
+        nav.buttonAppearance = button
+        nav.doneButtonAppearance = button
         return nav
     }
 

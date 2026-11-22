@@ -12,12 +12,6 @@ enum PadChrome {
     static let notebookPrimaryMin: CGFloat = 320
     static let notebookPrimaryMax: CGFloat = 420
 
-    /// Groups triple-column fractions (primary = groups, supplementary = notes).
-    static let groupsPrimaryFraction: CGFloat = 0.28
-    static let groupsSupplementaryFraction: CGFloat = 0.34
-    static let groupsColumnMin: CGFloat = 280
-    static let groupsColumnMax: CGFloat = 400
-
     /// Horizontal reading inset inside the note editor on regular-width iPad (~Notes).
     static let editorHorizontalInset: CGFloat = 24
 
@@ -62,17 +56,21 @@ enum PadChrome {
 
     @MainActor
     private static func installDoneButton(on root: UIViewController, nav: UINavigationController) {
+        // `.plain` + explicit accent tint — `.done` can paint white on warm beige (invisible).
         let done = UIBarButtonItem(
             title: String(localized: "Fechar"),
-            style: .done,
+            style: .plain,
             target: nil,
             action: nil
         )
         done.primaryAction = UIAction { [weak nav] _ in
             nav?.dismiss(animated: true)
         }
+        done.tintColor = KCDesign.accent
         done.accessibilityLabel = String(localized: "Fechar")
         done.accessibilityIdentifier = "pad.sheet.done"
+        nav.navigationBar.tintColor = KCDesign.accent
+        nav.view.tintColor = KCDesign.accent
         // Prefer left so we don't collide with Profile / Tools trailing actions.
         if root.navigationItem.leftBarButtonItem == nil {
             root.navigationItem.leftBarButtonItem = done

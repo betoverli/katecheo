@@ -2692,6 +2692,11 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         refreshEditingChrome()
     }
 
+    /// Plain string currently in the editor (title + body) — screenshot assertions.
+    var testing_plainText: String {
+        textView.textStorage.string
+    }
+
     func testing_textStorage() -> NSTextStorage {
         textView.textStorage
     }

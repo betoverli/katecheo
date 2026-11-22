@@ -43,8 +43,17 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     /// Test hooks — group notes cache paint.
     var testing_groupCardsCount: Int { groupCards.count }
     var testing_firstGroupNoteTitle: String? { groupCards.first?.note.title }
+    var testing_groupId: String? { group?.id }
     var testing_filteredRowCount: Int {
         isGroupMode ? filteredCards.count : filtered.count
+    }
+
+    /// Seed group note cards without waiting on the network (screenshots / unit tests).
+    func testing_replaceGroupCards(_ cards: [NativeAPIClient.GroupNoteCardDTO]) {
+        groupCards = cards
+        notes = cards.compactMap(\.document)
+        groupNotesAwaitingFirstPaint = false
+        applyFilter()
     }
 
     /// Simulates a row tap (AppTests / CI) without reaching into private `tableView`.
@@ -76,12 +85,14 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
         if group == nil || group?.canPost == true {
             trailing.insert(UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(composeNote)), at: 0)
         }
-        // iPad: Tools + Profile live as sheets (not tabs) — expose them in the primary toolbar.
-        if PadChrome.isPad, group == nil {
-            trailing.append(PadChrome.makeToolsBarButton(target: self, action: #selector(openToolsSheet)))
-            trailing.append(PadChrome.makeProfileBarButton(target: self, action: #selector(openProfileSheet)))
-        }
         navigationItem.rightBarButtonItems = trailing
+        // iPad: Tools + Profile as leading items so they stay clear of the floating tab bar.
+        if PadChrome.isPad, group == nil {
+            navigationItem.leftBarButtonItems = [
+                PadChrome.makeProfileBarButton(target: self, action: #selector(openProfileSheet)),
+                PadChrome.makeToolsBarButton(target: self, action: #selector(openToolsSheet)),
+            ]
+        }
         // Accessibility: first trailing is usually compose; ellipsis keeps its own label.
         if group == nil || group?.canPost == true {
             trailing.first?.accessibilityLabel = String(localized: "Nova nota")
@@ -348,6 +359,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             guard NativeAPIClient.hasBearer else {
                 guard generation == reloadGeneration else { return }
                 if group != nil {
+                    groupNotesAwaitingFirstPaint = false
                     groupCards = []
                     applyFilter()
                     setBannerStatus(String(localized: "Faça login para ver as notas do grupo."), kind: .warning)
@@ -454,6 +466,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 }
             } catch NativeAPIClient.APIError.unauthorized {
                 guard generation == reloadGeneration else { return }
+                groupNotesAwaitingFirstPaint = false
                 setBannerStatus(String(localized: "Sessão expirada. Entre novamente."), kind: .error)
                 if group == nil {
                     adoptPersonalNotes(LocalNoteCache.loadNotes(), source: .localCache, allowingShorter: true)
@@ -470,11 +483,11 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 }
             } catch {
                 guard generation == reloadGeneration else { return }
+                groupNotesAwaitingFirstPaint = false
                 if group == nil {
                     adoptPersonalNotes(LocalNoteCache.loadNotes(), source: .localCache, allowingShorter: true)
                     setBannerStatus(Self.offlineCacheBanner(pending: NativeOutbox.pendingCount), kind: .warning)
                 } else {
-                    groupNotesAwaitingFirstPaint = false
                     if groupCards.isEmpty {
                         setBannerStatus(String(localized: "Sem rede. \(error.localizedDescription)"), kind: .error)
                     } else {
