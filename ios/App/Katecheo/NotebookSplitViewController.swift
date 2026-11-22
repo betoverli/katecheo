@@ -1,14 +1,43 @@
 import UIKit
 
-/// Apple Notes–style Caderno: list + detail columns on regular width; push on compact.
-/// Used as the Caderno tab root and when opening a group's notebook from Grupos.
+/// Chooses Caderno chrome: pre-#131 nav stack on iPhone; Notes-style split on iPad.
+/// Using `UIDevice` idiom (not size class) so iPhone never mounts a split — TF 460
+/// proved double-column `show(.secondary)` fails to open notes on phone.
+enum NotebookChrome {
+    /// iPad only. iPhone keeps the exact pre-#131 hierarchy.
+    static var prefersSplit: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad
+    }
+
+    /// Caderno tab root.
+    static func makeTabRoot() -> UIViewController {
+        if prefersSplit {
+            return NotebookSplitViewController()
+        }
+        let list = NotebookListViewController()
+        let nav = UINavigationController(rootViewController: list)
+        KCChrome.style(navigationController: nav)
+        return nav
+    }
+
+    /// Group Caderno pushed from Grupos / deep links / invites.
+    static func makeGroupCaderno(group: NativeAPIClient.GroupDTO) -> UIViewController {
+        if prefersSplit {
+            return NotebookSplitViewController(group: group)
+        }
+        return NotebookListViewController(group: group)
+    }
+}
+
+/// Apple Notes–style Caderno on iPad: list + detail columns on regular width;
+/// compact (narrow Split View / Stage Manager) pushes onto the primary nav.
 final class NotebookSplitViewController: UISplitViewController, UISplitViewControllerDelegate {
     let listViewController: NotebookListViewController
     private let primaryNav: UINavigationController
     private var secondaryNav: UINavigationController
     private(set) var selectedNoteId: String?
 
-    /// Personal Caderno (tab root).
+    /// Personal Caderno (tab root on iPad).
     convenience init() {
         self.init(group: nil)
     }
@@ -37,7 +66,7 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
         }
         setViewController(primaryNav, for: .primary)
         setViewController(secondaryNav, for: .secondary)
-        // Same stack for compact — `show(.secondary)` pushes detail when collapsed.
+        // Compact column is the same primary nav so collapse can push detail there.
         setViewController(primaryNav, for: .compact)
     }
 
@@ -52,31 +81,38 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
 
     // MARK: - Public routing
 
-    /// Opens a note in the detail column (regular) or pushes via `show(.secondary)` (compact).
+    /// Regular: show in secondary column. Compact: push onto primary nav (tab bar hides).
     func showNote(_ detail: NoteDetailViewController, animated: Bool) {
         let noteId = detail.openedNoteId
         selectedNoteId = noteId
         listViewController.highlightSelectedNote(id: noteId)
-        detail.applyTabBarHidingForSplit(isCollapsed: isCollapsed)
 
-        // Avoid stacking duplicate details for the same note on compact.
-        if isCollapsed,
-           let existing = primaryNav.viewControllers.compactMap({ $0 as? NoteDetailViewController }).last,
-           existing.openedNoteId == noteId
-        {
+        if isCollapsed {
+            detail.applyTabBarHidingForSplit(isCollapsed: true)
+            // Explicit push — do not rely on `show(.secondary)` (broken on some compact paths).
+            if let existing = primaryNav.viewControllers.compactMap({ $0 as? NoteDetailViewController }).last,
+               existing.openedNoteId == noteId
+            {
+                return
+            }
+            if primaryNav.topViewController is NoteDetailViewController {
+                primaryNav.popViewController(animated: false)
+            }
+            // Keep secondary as empty placeholder so expand has a clean column.
+            let placeholder = UINavigationController(rootViewController: NotebookEmptyDetailViewController())
+            KCChrome.style(navigationController: placeholder)
+            secondaryNav = placeholder
+            setViewController(placeholder, for: .secondary)
+            primaryNav.pushViewController(detail, animated: animated)
             return
         }
 
+        detail.applyTabBarHidingForSplit(isCollapsed: false)
         let nav = UINavigationController(rootViewController: detail)
         KCChrome.style(navigationController: nav)
         secondaryNav = nav
         setViewController(nav, for: .secondary)
-        // Collapsed: pushes secondary onto the compact (primary) nav. Expanded: shows column.
         show(.secondary)
-        if !animated {
-            // `show` is always animated by the system; no public non-animated API —
-            // callers that need an immediate paint already forced layout via `view`.
-        }
     }
 
     /// Clears the detail column back to the empty state (after delete / deselect).
@@ -135,6 +171,26 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
         return .primary
     }
 
+    /// Classic collapse path: fold an open note into the primary nav stack.
+    func splitViewController(
+        _ splitViewController: UISplitViewController,
+        collapseSecondary secondaryViewController: UIViewController,
+        onto primaryViewController: UIViewController
+    ) -> Bool {
+        guard let secondary = secondaryViewController as? UINavigationController,
+              let detail = secondary.topViewController as? NoteDetailViewController
+        else {
+            // Empty secondary — stay on list.
+            return true
+        }
+        detail.applyTabBarHidingForSplit(isCollapsed: true)
+        if let primary = primaryViewController as? UINavigationController {
+            primary.pushViewController(detail, animated: false)
+        }
+        selectedNoteId = detail.openedNoteId
+        return true
+    }
+
     func splitViewController(
         _ svc: UISplitViewController,
         displayModeForExpandingToProposedDisplayMode proposedDisplayMode: UISplitViewController.DisplayMode
@@ -144,7 +200,6 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
 
     func splitViewControllerDidExpand(_ svc: UISplitViewController) {
         if let detail = primaryNav.viewControllers.compactMap({ $0 as? NoteDetailViewController }).last {
-            // Detail was pushed on the compact stack — move the same VC into secondary.
             primaryNav.popToRootViewController(animated: false)
             selectedNoteId = detail.openedNoteId
             listViewController.highlightSelectedNote(id: detail.openedNoteId)
@@ -172,7 +227,15 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
 
     func splitViewControllerDidCollapse(_ svc: UISplitViewController) {
         if let detail = secondaryNav.topViewController as? NoteDetailViewController {
+            // Move note onto primary if still sitting in secondary.
             detail.applyTabBarHidingForSplit(isCollapsed: true)
+            if !(primaryNav.topViewController is NoteDetailViewController) {
+                let placeholder = UINavigationController(rootViewController: NotebookEmptyDetailViewController())
+                KCChrome.style(navigationController: placeholder)
+                secondaryNav = placeholder
+                setViewController(placeholder, for: .secondary)
+                primaryNav.pushViewController(detail, animated: false)
+            }
         }
     }
 }
