@@ -130,6 +130,7 @@ for (const rel of [
   "ios/App/Katecheo/ProfileViewController.swift",
   "ios/App/Katecheo/NativeRootTabBarController.swift",
   "ios/App/Katecheo/NotebookListViewController.swift",
+  "ios/App/Katecheo/NotebookSplitViewController.swift",
   "ios/App/Katecheo/VersesScreens.swift",
 ]) {
   const src = fs.readFileSync(path.join(root, rel), "utf8");

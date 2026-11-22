@@ -36,7 +36,7 @@ final class ReportBlockTests: XCTestCase {
         XCTAssertTrue(message.contains("Katecheo") == false)
     }
 
-    func testIphoneOnlyDeviceFamily_inProject() throws {
+    func testUniversalDeviceFamily_inProject() throws {
         let url = Bundle.main.bundleURL
             .deletingLastPathComponent()
             .deletingLastPathComponent()
@@ -44,7 +44,12 @@ final class ReportBlockTests: XCTestCase {
         // Simulator unit tests may not see the project file; assert Info.plist orientations instead.
         let orientations = Bundle.main.infoDictionary?["UISupportedInterfaceOrientations"] as? [String]
         XCTAssertNotNil(orientations)
-        XCTAssertNil(Bundle.main.infoDictionary?["UISupportedInterfaceOrientations~ipad"])
+        let ipadOrientations = Bundle.main.infoDictionary?["UISupportedInterfaceOrientations~ipad"] as? [String]
+        XCTAssertNotNil(ipadOrientations, "Universal app must declare iPad orientations")
+        XCTAssertEqual(ipadOrientations?.count, 4)
+        XCTAssertNil(Bundle.main.infoDictionary?["UIRequiresFullScreen"])
+        let caps = Bundle.main.infoDictionary?["UIRequiredDeviceCapabilities"] as? [String]
+        XCTAssertFalse(caps?.contains("armv7") == true)
         _ = url
     }
 }

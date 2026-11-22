@@ -713,8 +713,11 @@ if (noteDetail.includes("WKWebView") || noteDetail.includes("import WebKit") || 
 if (!noteDetail.includes("NativeNoteEditorView")) {
   errors.push("NoteDetailViewController tem de hospedar NativeNoteEditorView.");
 }
-if (!noteDetail.includes("hidesBottomBarWhenPushed = true")) {
-  errors.push("A tela da nota tem de esconder a tab bar (hidesBottomBarWhenPushed).");
+if (!noteDetail.includes("hidesBottomBarWhenPushed")) {
+  errors.push("A tela da nota tem de controlar a tab bar (hidesBottomBarWhenPushed) no push compacto.");
+}
+if (!noteDetail.includes("applyTabBarHidingForSplit") && !read("ios/App/Katecheo/NotebookSplitViewController.swift").includes("hidesBottomBarWhenPushed")) {
+  errors.push("Split Caderno: hidesBottomBarWhenPushed só no compacto (tab bar visível no detalhe regular).");
 }
 if (noteDetail.includes("Salvo no aparelho — sincroniza") || noteDetail.includes("Editor nativo") || noteDetail.includes('statusLabel.text')) {
   errors.push("A nota não pode mostrar texto de sync no topo — use ícone discreto.");
@@ -944,16 +947,25 @@ if (!forgotForm.includes("codeLength = 6") || !forgotForm.includes("resendCooldo
   errors.push("NativeForgotPasswordForm tem de validar código de 6 dígitos e cooldown de reenvio.");
 }
 
-// iPhone-only v1 (App Store device family) + Guideline 1.2 report/block.
+// Universal iPhone + iPad (App Store device family) + Guideline 1.2 report/block.
 {
-  if (/TARGETED_DEVICE_FAMILY\s*=\s*"1,2"/.test(project) || /TARGETED_DEVICE_FAMILY\s*=\s*2/.test(project)) {
-    errors.push("TARGETED_DEVICE_FAMILY tem de ser 1 (iPhone-only) em todos os targets.");
+  if (/TARGETED_DEVICE_FAMILY\s*=\s*1;/.test(project) && !/TARGETED_DEVICE_FAMILY\s*=\s*"1,2"/.test(project)) {
+    errors.push("TARGETED_DEVICE_FAMILY tem de ser \"1,2\" (universal iPhone+iPad) em todos os targets.");
   }
-  if (!/TARGETED_DEVICE_FAMILY\s*=\s*1;/.test(project)) {
-    errors.push("Falta TARGETED_DEVICE_FAMILY = 1 no project.pbxproj.");
+  if (!/TARGETED_DEVICE_FAMILY\s*=\s*"1,2"/.test(project)) {
+    errors.push('Falta TARGETED_DEVICE_FAMILY = "1,2" no project.pbxproj.');
   }
-  if (plist.includes("UISupportedInterfaceOrientations~ipad")) {
-    errors.push("Info.plist não pode ter UISupportedInterfaceOrientations~ipad (iPhone-only).");
+  if (/TARGETED_DEVICE_FAMILY\s*=\s*2;/.test(project)) {
+    errors.push("TARGETED_DEVICE_FAMILY não pode ser só iPad (2) — use \"1,2\".");
+  }
+  if (!plist.includes("UISupportedInterfaceOrientations~ipad")) {
+    errors.push("Info.plist tem de declarar UISupportedInterfaceOrientations~ipad (universal).");
+  }
+  if (plist.includes("UIRequiresFullScreen")) {
+    errors.push("Info.plist não pode ter UIRequiresFullScreen (Split View / Stage Manager).");
+  }
+  if (plist.includes("<string>armv7</string>")) {
+    errors.push("UIRequiredDeviceCapabilities não pode exigir armv7 — use arm64 ou remova.");
   }
   const reportUi = read("ios/App/Katecheo/ReportBlockSupport.swift");
   if (
@@ -1138,8 +1150,18 @@ if (!rootTabs.includes("Ferramentas") || !rootTabs.includes("selectedIndex = 0")
 if (rootTabs.includes("ReadingHomeViewController") || /UITabBarItem\([\s\S]*Leitura/.test(rootTabs)) {
   errors.push("Remova a aba Leitura do tab bar — Leitura fica sob Ferramentas.");
 }
-if (!/NotebookListViewController[\s\S]*GroupsListViewController[\s\S]*VersesHomeViewController[\s\S]*ProfileViewController/.test(rootTabs)) {
+if (
+  !/Notebook(Split|List)ViewController[\s\S]*GroupsListViewController[\s\S]*VersesHomeViewController[\s\S]*ProfileViewController/.test(
+    rootTabs
+  )
+) {
   errors.push("Ordem das abas: Caderno, Grupos, Ferramentas, Perfil.");
+}
+if (!rootTabs.includes("NotebookSplitViewController") || !project.includes("NotebookSplitViewController.swift in Sources")) {
+  errors.push("Caderno tab tem de usar NotebookSplitViewController (lista|detalhe no iPad).");
+}
+if (!deep.includes("NotebookSplitViewController")) {
+  errors.push("NativeDeepLinkRouter tem de abrir notas via NotebookSplitViewController.");
 }
 if (!project.includes("ReadingScreens.swift in Sources")) {
   errors.push("ReadingScreens.swift tem de estar no target Xcode.");
@@ -1536,8 +1558,8 @@ if (!project.includes("NativeNoteEditorTitleAppearanceTests.swift in Sources")) 
   if (!project.includes("NativeNoteEditorHeaderQuoteTests.swift in Sources")) {
     errors.push("AppTests NativeNoteEditorHeaderQuoteTests têm de estar no target.");
   }
-  if ((project.match(/MARKETING_VERSION = 1\.0\.3;/g) || []).length < 6) {
-    errors.push("MARKETING_VERSION tem de ser 1.0.3 em todas as configurações do pbxproj.");
+  if ((project.match(/MARKETING_VERSION = 1\.1\.0;/g) || []).length < 6) {
+    errors.push("MARKETING_VERSION tem de ser 1.1.0 em todas as configurações do pbxproj.");
   }
   const titleAppearanceTests = read("ios/App/KatecheoTests/NativeNoteEditorTitleAppearanceTests.swift");
   if (!titleAppearanceTests.includes("testTitleColor_resolvesCorrectlyWhenUserInterfaceStyleToggles")) {

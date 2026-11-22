@@ -413,7 +413,7 @@ final class ProfileLanguageViewController: UITableViewController {
 
     override func tableView(_ tableView: UITableView, titleForFooterInSection section: Int) -> String? {
         if section == 0 {
-            return String(localized: "O idioma da interface segue o do iPhone. Para mudar, abra as Configurações do app e escolha Português (Brasil), English ou Español.")
+            return String(localized: "O idioma da interface segue o do aparelho. Para mudar, abra as Configurações do app e escolha Português (Brasil), English ou Español.")
         }
         return String(localized: "Nomes e siglas ao copiar um versículo.")
     }
@@ -562,7 +562,10 @@ final class ProfileBibleViewController: UIViewController, UICollectionViewDelega
 
         logoCollection = logos
         headerContainer = header
-        relayoutHeader(width: view.bounds.width > 0 ? view.bounds.width : UIScreen.main.bounds.width)
+        // Prefer the view/column width — never UIScreen (wrong in iPad split / Stage Manager).
+        let fallback = view.window?.bounds.width
+            ?? (traitCollection.horizontalSizeClass == .regular ? 700 : 390)
+        relayoutHeader(width: view.bounds.width > 0 ? view.bounds.width : fallback)
     }
 
     private func logoGridHeight(columns: Int) -> CGFloat {
@@ -761,7 +764,7 @@ final class ProfileNotifyViewController: UITableViewController {
         var config = cell.defaultContentConfiguration()
         if indexPath.section == 0 {
             let count = notify.apnsDevices ?? 0
-            config.text = String(localized: "Ativar push neste iPhone")
+            config.text = String(localized: "Ativar push neste aparelho")
             config.secondaryText = count > 0 ? String(localized: "Registrado (\(count))") : String(localized: "Toque para pedir permissão")
             cell.accessoryType = .disclosureIndicator
             cell.selectionStyle = .default

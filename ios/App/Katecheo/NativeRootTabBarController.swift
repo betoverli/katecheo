@@ -15,8 +15,8 @@ final class NativeRootTabBarController: UITabBarController {
             tabBar.scrollEdgeAppearance?.backgroundColor = KCDesign.screenBackground
         }
 
-        let notebook = UINavigationController(rootViewController: NotebookListViewController())
-        KCChrome.style(navigationController: notebook)
+        // Caderno: Notes-style split (list | detail) on regular width; push on compact.
+        let notebook = NotebookSplitViewController()
         notebook.tabBarItem = UITabBarItem(
             title: String(localized: "Caderno"),
             image: UIImage(systemName: "note.text"),

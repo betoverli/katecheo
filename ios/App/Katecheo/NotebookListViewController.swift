@@ -481,7 +481,8 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
 
     /// Status banner stays in the table header; Caderno chips are pinned above the table.
     private func installTableHeader() {
-        let width = max(view.bounds.width, UIScreen.main.bounds.width)
+        // Use the list/column width — never UIScreen (wrong in iPad split / Stage Manager).
+        let width = max(view.bounds.width, tableView.bounds.width, 1)
         let header = UIView(frame: CGRect(x: 0, y: 0, width: width, height: 1))
         header.backgroundColor = .clear
 
@@ -701,16 +702,16 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     }
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        tableView.deselectRow(at: indexPath, animated: true)
         KCHaptics.selection()
         if isGroupMode {
             let card = filteredCards[indexPath.row]
             guard card.owned, let doc = card.document else {
+                tableView.deselectRow(at: indexPath, animated: true)
                 presentGroupNoteActions(card, at: indexPath)
                 return
             }
             let detail = NoteDetailViewController(noteId: doc.id, initial: doc)
-            navigationController?.pushViewController(detail, animated: true)
+            openNoteDetail(detail, keepingSelectionAt: indexPath)
             return
         }
         let note = filtered[indexPath.row]
@@ -727,7 +728,53 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             sharedAuthorUserId: nil,
             sharedAuthorName: isGranted ? String(localized: "Nota compartilhada") : nil
         )
+        openNoteDetail(detail, keepingSelectionAt: indexPath)
+    }
+
+    /// Regular split: show in detail column and keep the row highlighted. Compact: push (deselect).
+    private func openNoteDetail(_ detail: NoteDetailViewController, keepingSelectionAt indexPath: IndexPath?) {
+        if let split = notebookSplit {
+            let regular = traitCollection.horizontalSizeClass == .regular && !split.isCollapsed
+            if regular, let indexPath {
+                tableView.selectRow(at: indexPath, animated: false, scrollPosition: .none)
+            } else if let indexPath {
+                tableView.deselectRow(at: indexPath, animated: true)
+            }
+            split.showNote(detail, animated: true)
+            return
+        }
+        if let indexPath {
+            tableView.deselectRow(at: indexPath, animated: true)
+        }
+        detail.hidesBottomBarWhenPushed = true
         navigationController?.pushViewController(detail, animated: true)
+    }
+
+    private var notebookSplit: NotebookSplitViewController? {
+        splitViewController as? NotebookSplitViewController
+    }
+
+    /// Highlight the open note in the list (split regular width).
+    func highlightSelectedNote(id: String?) {
+        guard !isGroupMode else {
+            if id == nil {
+                if let selected = tableView.indexPathForSelectedRow {
+                    tableView.deselectRow(at: selected, animated: true)
+                }
+            } else if let row = filteredCards.firstIndex(where: { $0.note.id == id }) {
+                tableView.selectRow(at: IndexPath(row: row, section: 0), animated: false, scrollPosition: .none)
+            }
+            return
+        }
+        guard let id,
+              let row = filtered.firstIndex(where: { $0.id == id })
+        else {
+            if let selected = tableView.indexPathForSelectedRow {
+                tableView.deselectRow(at: selected, animated: true)
+            }
+            return
+        }
+        tableView.selectRow(at: IndexPath(row: row, section: 0), animated: false, scrollPosition: .none)
     }
 
     func tableView(
@@ -1039,7 +1086,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 initial: created,
                 publishGroupId: group?.id
             )
-            navigationController?.pushViewController(detail, animated: true)
+            openNoteDetail(detail, keepingSelectionAt: IndexPath(row: 0, section: 0))
 
             // Best-effort first sync; outbox covers offline / failure.
             do {

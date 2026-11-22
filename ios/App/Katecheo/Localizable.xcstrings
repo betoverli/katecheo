@@ -19598,6 +19598,144 @@
           }
         }
       }
+    },
+    "Ativar push neste aparelho": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ativar push neste aparelho"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable push on this device"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activar push en este dispositivo"
+          }
+        }
+      }
+    },
+    "Escolha uma nota na lista ao lado para abrir e editar.": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escolha uma nota na lista ao lado para abrir e editar."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a note from the list to open and edit it."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elige una nota de la lista para abrirla y editarla."
+          }
+        }
+      }
+    },
+    "Menus, botões e telas seguem o idioma do aparelho (ou o idioma por app em Ajustes).": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Menus, botões e telas seguem o idioma do aparelho (ou o idioma por app em Ajustes)."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Menus, buttons, and screens follow your device language (or the per-app language in Settings)."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Menús, botones y pantallas siguen el idioma del dispositivo (o el idioma por app en Ajustes)."
+          }
+        }
+      }
+    },
+    "O idioma da interface segue o do aparelho. Para mudar, abra as Configurações do app e escolha Português (Brasil), English ou Español.": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O idioma da interface segue o do aparelho. Para mudar, abra as Configurações do app e escolha Português (Brasil), English ou Español."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The interface language follows your device. To change it, open the app’s Settings and choose Portuguese (Brazil), English, or Español."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El idioma de la interfaz sigue el del dispositivo. Para cambiarlo, abre Ajustes de la app y elige Português (Brasil), English o Español."
+          }
+        }
+      }
+    },
+    "Segue o idioma do aparelho": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Segue o idioma do aparelho"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Follows your device language"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sigue el idioma del dispositivo"
+          }
+        }
+      }
+    },
+    "Selecione uma nota": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selecione uma nota"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a note"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selecciona una nota"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

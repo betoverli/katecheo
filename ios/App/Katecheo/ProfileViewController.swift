@@ -352,7 +352,7 @@ final class ProfileViewController: UIViewController, UITableViewDelegate, UITabl
                 config.image = UIImage(systemName: "circle.lefthalf.filled")
             case .language:
                 config.text = String(localized: "Idioma")
-                config.secondaryText = String(localized: "Segue o idioma do iPhone")
+                config.secondaryText = String(localized: "Segue o idioma do aparelho")
                 config.image = UIImage(systemName: "globe")
             case .bible:
                 config.text = String(localized: "App de Bíblia")

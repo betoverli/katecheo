@@ -152,8 +152,8 @@ enum NativeDeepLinkRouter {
                 Task { @MainActor in
                     do {
                         let group = try await NativeAPIClient.getGroup(id: id)
-                        let list = NotebookListViewController(group: group)
-                        nav.pushViewController(list, animated: animated)
+                        let split = NotebookSplitViewController(group: group)
+                        nav.pushViewController(split, animated: animated)
                     } catch {
                         // Stay on Grupos home if fetch fails (offline / not a member yet).
                     }
@@ -161,12 +161,19 @@ enum NativeDeepLinkRouter {
             }
         case .notebook, .note:
             tabs.selectedIndex = Tab.notebook.rawValue
-            if case .note(let id) = destination,
-               let nav = tabs.selectedViewController as? UINavigationController
-            {
-                nav.popToRootViewController(animated: false)
+            if case .note(let id) = destination {
                 let cached = LocalNoteCache.loadNotes().first { $0.id == id }
-                nav.pushViewController(NoteDetailViewController(noteId: id, initial: cached), animated: animated)
+                let detail = NoteDetailViewController(noteId: id, initial: cached)
+                if let split = tabs.selectedViewController as? NotebookSplitViewController {
+                    split.popToListRoot(animated: false)
+                    split.showNote(detail, animated: animated)
+                } else if let nav = tabs.selectedViewController as? UINavigationController {
+                    nav.popToRootViewController(animated: false)
+                    detail.hidesBottomBarWhenPushed = true
+                    nav.pushViewController(detail, animated: animated)
+                }
+            } else if let split = tabs.selectedViewController as? NotebookSplitViewController {
+                split.popToListRoot(animated: animated)
             }
         case .readingPlan(let id):
             tabs.selectedIndex = Tab.tools.rawValue
