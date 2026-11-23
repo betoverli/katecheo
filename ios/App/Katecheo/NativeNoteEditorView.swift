@@ -245,6 +245,9 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     /// Keep the TextKit container sized for a scrolling UITextView. When the iPad
     /// secondary column first gets a non-zero width, force a full glyph relayout so
     /// title/body painted at width 0 become visible.
+    ///
+    /// Height stays at `scrollingContainerHeight` during editing — shrinking it on every
+    /// layout pass crushed `contentSize` and broke caret-follow Enter scrolling.
     private func ensureTextContainerMatchesBounds() {
         let inset = textView.textContainerInset
         let width = max(
@@ -256,11 +259,14 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         // Explicit width every pass — tracking alone left width at 0 in split secondary.
         container.widthTracksTextView = true
         container.heightTracksTextView = false
+        let target = CGSize(width: width, height: Self.scrollingContainerHeight)
         let widthChanged = abs(width - lastLaidOutTextWidth) > 0.5
-            || abs(container.size.width - width) > 0.5
-        if widthChanged {
-            // Lay out with a generous height first, then fit to usedRect (below).
-            container.size = CGSize(width: width, height: Self.scrollingContainerHeight)
+        let sizeChanged = abs(container.size.width - target.width) > 0.5
+            || abs(container.size.height - target.height) > 0.5
+        if sizeChanged {
+            container.size = target
+        }
+        if widthChanged || sizeChanged {
             lastLaidOutTextWidth = width
             let length = textView.textStorage.length
             if length > 0 {
@@ -269,34 +275,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
                 textView.layoutManager.invalidateDisplay(forCharacterRange: full)
             }
             textView.layoutManager.ensureLayout(for: container)
-        }
-        // Fit container height to the laid-out text. A lingering 1e6pt height makes
-        // UITextView inflate contentSize and scroll title/body off-screen (portrait
-        // snapshots showed only a trailing "e." fragment).
-        fitTextContainerHeightToUsedRect()
-        textView.setNeedsDisplay()
-    }
-
-    /// Shrink the scrolling container to used text (+ padding) so contentSize stays sane.
-    private func fitTextContainerHeightToUsedRect() {
-        let container = textView.textContainer
-        let inset = textView.textContainerInset
-        textView.layoutManager.ensureLayout(for: container)
-        let used = textView.layoutManager.usedRect(for: container)
-        let fitted = max(
-            textView.bounds.height,
-            ceil(used.maxY) + inset.top + inset.bottom + 64
-        )
-        guard fitted.isFinite, fitted > 1 else { return }
-        if abs(container.size.height - fitted) > 1 {
-            container.size = CGSize(width: container.size.width, height: fitted)
-            textView.layoutManager.ensureLayout(for: container)
-        }
-        let contentH = max(textView.bounds.height, fitted)
-        if abs(textView.contentSize.height - contentH) > 1
-            || abs(textView.contentSize.width - textView.bounds.width) > 1
-        {
-            textView.contentSize = CGSize(width: textView.bounds.width, height: contentH)
+            textView.setNeedsDisplay()
         }
     }
 
@@ -322,12 +301,20 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             textView.layoutManager.invalidateLayout(forCharacterRange: full, actualCharacterRange: nil)
             textView.layoutManager.invalidateDisplay(forCharacterRange: full)
             textView.layoutManager.ensureLayout(for: textView.textContainer)
-            fitTextContainerHeightToUsedRect()
         }
         refreshDynamicTextColors()
-        // Sticky caret-scroll / inflated contentSize can leave title/body off-screen.
+        // Sticky caret-scroll can pin a non-zero offset and scroll title/body off-screen.
         textView.stickyContentOffset = nil
         textView.setContentOffset(.zero, animated: false)
+        // If UIKit inflated contentSize from a huge container, pin it to used text for
+        // this open only — do not re-run from layoutSubviews (breaks Enter scrolling).
+        let inset = textView.textContainerInset
+        let used = textView.layoutManager.usedRect(for: textView.textContainer)
+        let fitted = max(textView.bounds.height, ceil(used.maxY) + inset.top + inset.bottom + 64)
+        if fitted.isFinite, textView.contentSize.height > fitted + 500 {
+            textView.contentSize = CGSize(width: textView.bounds.width, height: fitted)
+            textView.setContentOffset(.zero, animated: false)
+        }
         repositionTagsStrip()
         repositionPlaceholders()
         repositionHeaderDivider()
