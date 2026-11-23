@@ -58,7 +58,9 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         // Do NOT rely on `widthTracksTextView` with a custom TextKit stack inside a
         // UISplitViewController secondary column — it often leaves width at 0.
         let container = NSTextContainer(size: CGSize(width: 0, height: Self.scrollingContainerHeight))
-        container.widthTracksTextView = false
+        // Keep tracking on so UITextView stays in sync; we still write an explicit
+        // size in `ensureTextContainerMatchesBounds` (tracking alone left width at 0).
+        container.widthTracksTextView = true
         container.heightTracksTextView = false
         layout.addTextContainer(container)
         storage.addLayoutManager(layout)
@@ -98,8 +100,10 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         textView.allowsEditingTextAttributes = true
         // Contiguous layout so title/body glyphs exist for split-column snapshots.
         textView.layoutManager.allowsNonContiguousLayout = false
-        // Dynamic label ink — never leave UITextView's default (can wash out on canvas).
-        textView.textColor = .label
+        // Solid ink on canvas — dynamic `.label` can resolve near-white under ambient Dark
+        // during split-column snapshots and wash out on the warm paper.
+        textView.textColor = Self.editorInkColor(for: .light)
+        textView.isOpaque = true
         // Sentence autocap for title + every new body/list line. Custom path also
         // capitalizes after list markers (plain "• " defeats UIKit sentence detection).
         textView.autocapitalizationType = .sentences
@@ -249,9 +253,8 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         )
         guard width > 1 else { return }
         let container = textView.textContainer
-        // Explicit size — `widthTracksTextView` left width at 0 in split secondary columns
-        // (init height was already "unbounded", so an older guard never wrote width).
-        container.widthTracksTextView = false
+        // Explicit size every pass — tracking alone left width at 0 in split secondary.
+        container.widthTracksTextView = true
         container.heightTracksTextView = false
         let target = CGSize(width: width, height: Self.scrollingContainerHeight)
         let widthChanged = abs(width - lastLaidOutTextWidth) > 0.5
@@ -297,11 +300,22 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             textView.layoutManager.ensureLayout(for: textView.textContainer)
         }
         refreshDynamicTextColors()
-        textView.contentOffset = .zero
+        // Sticky caret-scroll can pin a non-zero offset and scroll title/body off-screen.
+        textView.stickyContentOffset = nil
+        textView.setContentOffset(.zero, animated: false)
         repositionTagsStrip()
         repositionPlaceholders()
         repositionHeaderDivider()
         textView.setNeedsDisplay()
+        textView.layoutIfNeeded()
+    }
+
+    /// Warm near-black (light) / near-white (dark) — concrete, not dynamic `.label`.
+    static func editorInkColor(for style: UIUserInterfaceStyle) -> UIColor {
+        if style == .dark {
+            return UIColor(red: 0.96, green: 0.94, blue: 0.90, alpha: 1)
+        }
+        return UIColor(red: 0.14, green: 0.12, blue: 0.10, alpha: 1)
     }
 
     /// Glyph / used-rect probes for screenshot assertions (not string length).
@@ -418,13 +432,15 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
                 storage.addAttribute(.foregroundColor, value: KCDesign.bookmark, range: range)
                 return
             }
-            storage.addAttribute(.foregroundColor, value: UIColor.label, range: range)
+            let style = effectiveEditorInterfaceStyle()
+            storage.addAttribute(.foregroundColor, value: Self.editorInkColor(for: style), range: range)
             // Quote chrome is layout-manager fill only — strip any leftover text-run highlight.
             if (attrs[NoteDocumentCodec.blockTypeKey] as? String) == "quote" {
                 storage.removeAttribute(.backgroundColor, range: range)
             }
         }
         storage.endEditing()
+        textView.textColor = Self.editorInkColor(for: effectiveEditorInterfaceStyle())
         // Nudge layout so glyph colors rebuild against the current trait collection.
         textView.setNeedsDisplay()
         textView.layoutManager.invalidateLayout(
@@ -635,7 +651,10 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         let leading = textContentLeading()
         let width = textContentWidth()
         let height = NoteEditorTagsStrip.preferredHeight
-        var y = inset.top + 28
+        // Always leave room for a title1 line so a bad/zero title glyph rect cannot
+        // park the tags strip on top of the title ink (the empty-detail look).
+        let titleLine = ceil(UIFont.preferredFont(forTextStyle: .title1).lineHeight)
+        var y = inset.top + titleLine + 8
         if textView.textStorage.length > 0 {
             textView.layoutManager.ensureLayout(for: textView.textContainer)
             let titlePara = (textView.textStorage.string as NSString).paragraphRange(
@@ -650,7 +669,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
                 in: textView.textContainer
             )
             // Sit in the title's reserved paragraphSpacing band (tags under the title).
-            y = inset.top + rect.maxY + 4
+            y = max(y, inset.top + max(rect.maxY, titleLine) + 4)
         }
         tagsStrip.frame = CGRect(x: leading, y: y, width: width, height: height)
     }
@@ -995,6 +1014,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         // Attachments may have been baked offline / under the wrong traits — sync to this view.
         refreshAttachmentAppearances()
         refreshSpeakerRails()
+        refreshDynamicTextColors()
         refreshPlaceholders()
         // If we already have a non-zero width (re-open / split expand), lay out glyphs now.
         // Otherwise `layoutSubviews` will pick it up when the secondary column sizes.
@@ -2712,7 +2732,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         frame = CGRect(origin: .zero, size: size)
         textView.frame = bounds
         // Explicit width + large finite height so long notes lay out (matches production).
-        textView.textContainer.widthTracksTextView = false
+        textView.textContainer.widthTracksTextView = true
         textView.textContainer.heightTracksTextView = false
         textView.textContainer.size = CGSize(
             width: max(0, size.width - textView.textContainerInset.left - textView.textContainerInset.right - 5),

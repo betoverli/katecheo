@@ -103,6 +103,11 @@ final class IPadScreenshotTests: XCTestCase {
                 40,
                 "Caderno editor usedRect must include title+body height"
             )
+            XCTAssertGreaterThan(
+                detail.testing_editor.testing_tagsStripFrame().minY,
+                40,
+                "Tags strip must sit below the title line (not cover title ink)"
+            )
             XCTAssertNil(detail.navigationItem.leftBarButtonItem, "No ghost displayMode button")
             XCTAssertEqual(list.testing_highlightedNoteId, titled.id, "Open note row must stay highlighted")
             XCTAssertTrue(list.testing_hasSelectedRow, "UITableView selection must survive reload")
@@ -255,22 +260,22 @@ final class IPadScreenshotTests: XCTestCase {
         }
     }
 
-    /// Detail column title band must contain dark ink (not empty parchment).
+    /// Detail column body band (below tags/divider) must contain dark title/body ink.
+    /// Do not sample the tags row — that chrome alone previously made empty editors pass.
     private func assertDetailHasVisibleInk(_ image: UIImage, size: CGSize, label: String) {
         let primaryFraction = PadChrome.notebookPrimaryFraction
         let detailLeft = size.width * primaryFraction
-        // Title sits just under the nav / safe area in the secondary column.
         let band = CGRect(
-            x: detailLeft + 28,
-            y: size.height * 0.09,
-            width: min(480, size.width - detailLeft - 60),
-            height: size.height * 0.22
+            x: detailLeft + 36,
+            y: size.height * 0.14,
+            width: min(420, size.width - detailLeft - 80),
+            height: size.height * 0.16
         )
-        let dark = sampleDarkPixelCount(image, in: band, lumaBelow: 0.55)
+        let dark = sampleDarkPixelCount(image, in: band, lumaBelow: 0.50)
         XCTAssertGreaterThan(
             dark,
-            25,
-            "\(label): detail title/body must paint visible ink (darkPixels=\(dark) in \(band))"
+            80,
+            "\(label): detail title/body must paint visible ink below tags (darkPixels=\(dark) in \(band))"
         )
     }
 

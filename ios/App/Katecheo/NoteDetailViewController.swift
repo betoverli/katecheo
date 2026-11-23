@@ -172,6 +172,15 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         super.viewWillAppear(animated)
         // Keep the nav compact while editing (parent Caderno uses large titles).
         navigationController?.navigationBar.prefersLargeTitles = false
+        // Never show the split's displayMode control on the detail — empty Liquid Glass circle.
+        navigationItem.leftBarButtonItem = nil
+        navigationItem.leftBarButtonItems = []
+        navigationItem.hidesBackButton = true
+        if let split = splitViewController {
+            if #available(iOS 14.5, *) {
+                split.displayModeButtonVisibility = .never
+            }
+        }
         // Regular split secondary: keep tab bar. Compact push: hide it.
         if let split = splitViewController as? NotebookSplitViewController {
             applyTabBarHidingForSplit(isCollapsed: split.isCollapsed)
@@ -186,6 +195,14 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         editor.refreshAppearanceForCurrentTraits(forceAttachments: true)
         // Opening a note clears Shared unread for that id (build-238).
         KCActivityStore.markSharedNoteOpened(noteId)
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        // UIKit can re-inject displayModeButtonItem after appear — clear again.
+        navigationItem.leftBarButtonItem = nil
+        navigationItem.leftBarButtonItems = []
+        ensureEditorContentVisible()
     }
 
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
