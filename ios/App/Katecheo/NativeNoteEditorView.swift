@@ -19,8 +19,6 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
     private let textView: NoteEditorTextView
     private let railLayoutManager: NoteSpeakerRailLayoutManager
-    /// Draws TextKit glyphs when UITextView's layer skips them (iPad split secondary).
-    private let glyphPaintView = NoteEditorGlyphPaintView()
     private let accessory = NoteEditorAccessoryBar()
     private var documentBase: NativeAPIClient.NoteDocument = NativeAPIClient.emptyNote(id: "pending")
     private var speakers: [NativeAPIClient.SpeakerDTO] = []
@@ -120,16 +118,6 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         textView.onRequestCaretScroll = { [weak self] in
             self?.scrollCaretVisible(animated: false)
         }
-        // Transparent text view over a glyph paint layer — UITextView still owns editing /
-        // selection / caret; the paint view guarantees title/body ink in split columns.
-        textView.backgroundColor = .clear
-        textView.isOpaque = false
-        glyphPaintView.translatesAutoresizingMaskIntoConstraints = false
-        glyphPaintView.isUserInteractionEnabled = false
-        glyphPaintView.layoutManager = railLayoutManager
-        glyphPaintView.textContainer = textView.textContainer
-        glyphPaintView.textView = textView
-        addSubview(glyphPaintView)
         addSubview(textView)
 
         // Placeholders live inside the text view so they share the same content-offset
@@ -178,10 +166,6 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         textView.inputAccessoryView = nil
 
         NSLayoutConstraint.activate([
-            glyphPaintView.topAnchor.constraint(equalTo: topAnchor),
-            glyphPaintView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            glyphPaintView.trailingAnchor.constraint(equalTo: trailingAnchor),
-            glyphPaintView.bottomAnchor.constraint(equalTo: bottomAnchor),
             textView.topAnchor.constraint(equalTo: topAnchor),
             textView.leadingAnchor.constraint(equalTo: leadingAnchor),
             textView.trailingAnchor.constraint(equalTo: trailingAnchor),
@@ -191,7 +175,6 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         textView.sendSubviewToBack(headerDivider)
         textView.sendSubviewToBack(titlePlaceholderLabel)
         textView.sendSubviewToBack(bodyPlaceholderLabel)
-        sendSubviewToBack(glyphPaintView)
 
         let tap = UITapGestureRecognizer(target: self, action: #selector(handleTap(_:)))
         tap.delegate = self
@@ -239,9 +222,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         bodyPlaceholderLabel.textColor = .tertiaryLabel
         headerDivider.backgroundColor = KCDesign.headerDivider
         backgroundColor = KCDesign.canvas
-        // Text view stays clear so `glyphPaintView` ink shows through.
-        textView.backgroundColor = .clear
-        glyphPaintView.backgroundColor = KCDesign.canvas
+        textView.backgroundColor = KCDesign.canvas
         // Thickness is style-dependent (1pt dark / hairline light) — re-layout on trait flips.
         repositionHeaderDivider()
         // Quote chrome uses dynamic colors — redraw without rebaking insert-time CGColors.
@@ -251,7 +232,6 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         } else {
             refreshAttachmentAppearances()
         }
-        glyphPaintView.setNeedsDisplay()
     }
 
     override func layoutSubviews() {
@@ -260,7 +240,6 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         repositionTagsStrip()
         repositionPlaceholders()
         repositionHeaderDivider()
-        glyphPaintView.setNeedsDisplay()
     }
 
     /// Keep the TextKit container sized for a scrolling UITextView. When the iPad
@@ -274,17 +253,14 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         )
         guard width > 1 else { return }
         let container = textView.textContainer
-        // Explicit size every pass — tracking alone left width at 0 in split secondary.
+        // Explicit width every pass — tracking alone left width at 0 in split secondary.
         container.widthTracksTextView = true
         container.heightTracksTextView = false
-        let target = CGSize(width: width, height: Self.scrollingContainerHeight)
         let widthChanged = abs(width - lastLaidOutTextWidth) > 0.5
-        let sizeChanged = abs(container.size.width - target.width) > 0.5
-            || abs(container.size.height - target.height) > 0.5
-        if sizeChanged {
-            container.size = target
-        }
-        if widthChanged || sizeChanged {
+            || abs(container.size.width - width) > 0.5
+        if widthChanged {
+            // Lay out with a generous height first, then fit to usedRect (below).
+            container.size = CGSize(width: width, height: Self.scrollingContainerHeight)
             lastLaidOutTextWidth = width
             let length = textView.textStorage.length
             if length > 0 {
@@ -293,7 +269,34 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
                 textView.layoutManager.invalidateDisplay(forCharacterRange: full)
             }
             textView.layoutManager.ensureLayout(for: container)
-            textView.setNeedsDisplay()
+        }
+        // Fit container height to the laid-out text. A lingering 1e6pt height makes
+        // UITextView inflate contentSize and scroll title/body off-screen (portrait
+        // snapshots showed only a trailing "e." fragment).
+        fitTextContainerHeightToUsedRect()
+        textView.setNeedsDisplay()
+    }
+
+    /// Shrink the scrolling container to used text (+ padding) so contentSize stays sane.
+    private func fitTextContainerHeightToUsedRect() {
+        let container = textView.textContainer
+        let inset = textView.textContainerInset
+        textView.layoutManager.ensureLayout(for: container)
+        let used = textView.layoutManager.usedRect(for: container)
+        let fitted = max(
+            textView.bounds.height,
+            ceil(used.maxY) + inset.top + inset.bottom + 64
+        )
+        guard fitted.isFinite, fitted > 1 else { return }
+        if abs(container.size.height - fitted) > 1 {
+            container.size = CGSize(width: container.size.width, height: fitted)
+            textView.layoutManager.ensureLayout(for: container)
+        }
+        let contentH = max(textView.bounds.height, fitted)
+        if abs(textView.contentSize.height - contentH) > 1
+            || abs(textView.contentSize.width - textView.bounds.width) > 1
+        {
+            textView.contentSize = CGSize(width: textView.bounds.width, height: contentH)
         }
     }
 
@@ -319,53 +322,17 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             textView.layoutManager.invalidateLayout(forCharacterRange: full, actualCharacterRange: nil)
             textView.layoutManager.invalidateDisplay(forCharacterRange: full)
             textView.layoutManager.ensureLayout(for: textView.textContainer)
+            fitTextContainerHeightToUsedRect()
         }
         refreshDynamicTextColors()
-        // Sticky caret-scroll can pin a non-zero offset and scroll title/body off-screen.
+        // Sticky caret-scroll / inflated contentSize can leave title/body off-screen.
         textView.stickyContentOffset = nil
         textView.setContentOffset(.zero, animated: false)
         repositionTagsStrip()
         repositionPlaceholders()
         repositionHeaderDivider()
-        // Kick the text render server — custom TextKit stacks inside a split secondary
-        // column often have glyphs + usedRect but never paint until first-responder once.
-        let restoreResponder = textView.isFirstResponder
-        if textView.window != nil, textView.canBecomeFirstResponder {
-            _ = textView.becomeFirstResponder()
-            if textView.textStorage.length > 0 {
-                textView.selectedRange = NSRange(location: 0, length: 0)
-            }
-            if !restoreResponder {
-                _ = textView.resignFirstResponder()
-            }
-        }
         textView.setNeedsDisplay()
-        glyphPaintView.setNeedsDisplay()
         textView.layoutIfNeeded()
-    }
-
-    /// Draw title/body glyphs into an image via the layout manager (bypasses UITextView
-    /// layer compositing). Used for iPad split screenshots when drawHierarchy skips ink.
-    func testing_renderGlyphsImage() -> UIImage? {
-        ensureVisibleGlyphsLaidOut()
-        let size = textView.bounds.size
-        guard size.width > 1, size.height > 1, textView.textStorage.length > 0 else { return nil }
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 2
-        format.opaque = false
-        let renderer = UIGraphicsImageRenderer(size: size, format: format)
-        return renderer.image { _ in
-            KCDesign.canvas.setFill()
-            UIRectFill(CGRect(origin: .zero, size: size))
-            let origin = CGPoint(
-                x: textView.textContainerInset.left - textView.contentOffset.x,
-                y: textView.textContainerInset.top - textView.contentOffset.y
-            )
-            let range = textView.layoutManager.glyphRange(for: textView.textContainer)
-            guard range.length > 0 else { return }
-            textView.layoutManager.drawBackground(forGlyphRange: range, at: origin)
-            textView.layoutManager.drawGlyphs(forGlyphRange: range, at: origin)
-        }
     }
 
 
@@ -383,6 +350,16 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     /// Text container width after layout — must be real (>0) or title/body never paint.
     var testing_textContainerWidth: CGFloat {
         textView.textContainer.size.width
+    }
+
+    /// Content offset Y — must stay near 0 when opening a note or title scrolls away.
+    var testing_contentOffsetY: CGFloat {
+        textView.contentOffset.y
+    }
+
+    /// contentSize height — must not stay at the 1e6 scrolling sentinel.
+    var testing_contentSizeHeight: CGFloat {
+        textView.contentSize.height
     }
 
     override func didMoveToWindow() {
@@ -1226,7 +1203,6 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
             reseedEmptyDocument()
             refreshPlaceholders()
             refreshEditingChrome()
-            glyphPaintView.setNeedsDisplay()
             return
         }
         // Deleting the last title character can leave only the body-styled `\n` —
@@ -1246,11 +1222,6 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         refreshPlaceholders()
         refreshEditingChrome()
         scrollCaretVisible(animated: false)
-        glyphPaintView.setNeedsDisplay()
-    }
-
-    func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        glyphPaintView.setNeedsDisplay()
     }
 
     func textViewDidChangeSelection(_ textView: UITextView) {
@@ -3296,40 +3267,6 @@ enum SpeakerEnterDecision: Equatable {
             return .continueInSection
         }
         return .defaultNewline
-    }
-}
-
-// MARK: - Glyph paint (split-column ink)
-
-/// Renders TextKit glyphs into a plain UIView so iPad split detail always shows title/body
-/// even when `UITextView`'s layer omits them from the compositor / snapshots.
-final class NoteEditorGlyphPaintView: UIView {
-    weak var layoutManager: NSLayoutManager?
-    weak var textContainer: NSTextContainer?
-    weak var textView: UITextView?
-
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        isOpaque = true
-        backgroundColor = KCDesign.canvas
-        contentMode = .redraw
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-
-    override func draw(_ rect: CGRect) {
-        guard let layoutManager, let textContainer, let textView else { return }
-        backgroundColor?.setFill()
-        UIRectFill(bounds)
-        let origin = CGPoint(
-            x: textView.textContainerInset.left - textView.contentOffset.x,
-            y: textView.textContainerInset.top - textView.contentOffset.y
-        )
-        let range = layoutManager.glyphRange(for: textContainer)
-        guard range.length > 0 else { return }
-        layoutManager.drawBackground(forGlyphRange: range, at: origin)
-        layoutManager.drawGlyphs(forGlyphRange: range, at: origin)
     }
 }
 

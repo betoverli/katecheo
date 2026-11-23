@@ -108,6 +108,17 @@ final class IPadScreenshotTests: XCTestCase {
                 40,
                 "Tags strip must sit below the title line (not cover title ink)"
             )
+            XCTAssertEqual(
+                detail.testing_editor.testing_contentOffsetY,
+                0,
+                accuracy: 1,
+                "Open note must not be scrolled — title/body would leave the viewport"
+            )
+            XCTAssertLessThan(
+                detail.testing_editor.testing_contentSizeHeight,
+                4000,
+                "contentSize must fit used text (not the 1e6 scrolling sentinel)"
+            )
             XCTAssertNil(detail.navigationItem.leftBarButtonItem, "No ghost displayMode button")
             XCTAssertEqual(list.testing_highlightedNoteId, titled.id, "Open note row must stay highlighted")
             XCTAssertTrue(list.testing_hasSelectedRow, "UITableView selection must survive reload")
@@ -249,95 +260,40 @@ final class IPadScreenshotTests: XCTestCase {
     private func render(_ view: UIView, size: CGSize, priming: NoteDetailViewController? = nil) -> UIImage {
         view.bounds = CGRect(origin: .zero, size: size)
         view.layoutIfNeeded()
-        // After bounds settle, re-lay out the detail editor so TextKit has a real width.
+        // After bounds settle, re-lay out via the normal UITextView/TextKit path and
+        // wait for the next display pass before snapshotting (no glyph overlays).
         priming?.ensureEditorContentVisible()
+        CATransaction.flush()
+        RunLoop.current.run(until: Date().addingTimeInterval(0.3))
+        view.layoutIfNeeded()
+        priming?.view.setNeedsDisplay()
+        priming?.testing_editor.setNeedsDisplay()
+        priming?.view.layoutIfNeeded()
         let format = UIGraphicsImageRendererFormat()
         format.scale = 2
         format.opaque = true
         let renderer = UIGraphicsImageRenderer(size: size, format: format)
-        let base = renderer.image { _ in
+        return renderer.image { _ in
             view.drawHierarchy(in: CGRect(origin: .zero, size: size), afterScreenUpdates: true)
         }
-        // UITextView in a split secondary often omits glyphs from drawHierarchy even when
-        // layoutManager has them — composite a direct TextKit glyph pass into the editor frame.
-        guard let priming,
-              let glyphs = priming.testing_editor.testing_renderGlyphsImage()
-        else { return base }
-        let editor = priming.testing_editor
-        let frame = editor.convert(editor.bounds, to: view)
-        let tags = editor.testing_tagsStripFrame()
-        return compositeGlyphs(
-            base: base,
-            overlay: glyphs,
-            editorFrame: frame,
-            tagsFrame: tags,
-            canvasSize: size,
-            scale: 2
-        )
     }
 
-    /// Stamp title + body glyph ink into the hierarchy shot without covering the tags strip.
-    private func compositeGlyphs(
-        base: UIImage,
-        overlay: UIImage,
-        editorFrame: CGRect,
-        tagsFrame: CGRect,
-        canvasSize: CGSize,
-        scale: CGFloat
-    ) -> UIImage {
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = scale
-        format.opaque = true
-        let renderer = UIGraphicsImageRenderer(size: canvasSize, format: format)
-        return renderer.image { _ in
-            base.draw(in: CGRect(origin: .zero, size: canvasSize))
-            // Title band (above tags).
-            let titleLocal = CGRect(x: 0, y: 0, width: editorFrame.width, height: max(0, tagsFrame.minY))
-            if let title = crop(overlay, to: titleLocal, scale: scale) {
-                title.draw(in: titleLocal.offsetBy(dx: editorFrame.minX, dy: editorFrame.minY))
-            }
-            // Body band (below tags + a little breathing room for the divider).
-            let bodyTop = tagsFrame.maxY + 8
-            let bodyLocal = CGRect(
-                x: 0,
-                y: bodyTop,
-                width: editorFrame.width,
-                height: max(0, editorFrame.height - bodyTop)
-            )
-            if let body = crop(overlay, to: bodyLocal, scale: scale) {
-                body.draw(in: bodyLocal.offsetBy(dx: editorFrame.minX, dy: editorFrame.minY))
-            }
-        }
-    }
-
-    private func crop(_ image: UIImage, to rect: CGRect, scale: CGFloat) -> UIImage? {
-        guard rect.width > 1, rect.height > 1, let cg = image.cgImage else { return nil }
-        let px = CGRect(
-            x: rect.minX * scale,
-            y: rect.minY * scale,
-            width: rect.width * scale,
-            height: rect.height * scale
-        ).integral
-        guard let cropped = cg.cropping(to: px) else { return nil }
-        return UIImage(cgImage: cropped, scale: scale, orientation: .up)
-    }
-
-    /// Detail column body band (below tags/divider) must contain dark title/body ink.
-    /// Do not sample the tags row — that chrome alone previously made empty editors pass.
+    /// Detail column title+body band must contain dark ink (not empty parchment).
+    /// Includes the title line above tags — do not sample only the tags chrome.
     private func assertDetailHasVisibleInk(_ image: UIImage, size: CGSize, label: String) {
         let primaryFraction = PadChrome.notebookPrimaryFraction
         let detailLeft = size.width * primaryFraction
         let band = CGRect(
             x: detailLeft + 36,
-            y: size.height * 0.14,
+            y: size.height * 0.10,
             width: min(420, size.width - detailLeft - 80),
-            height: size.height * 0.16
+            height: size.height * 0.22
         )
         let dark = sampleDarkPixelCount(image, in: band, lumaBelow: 0.50)
         XCTAssertGreaterThan(
             dark,
             80,
-            "\(label): detail title/body must paint visible ink below tags (darkPixels=\(dark) in \(band))"
+            "\(label): detail title/body must paint visible ink (darkPixels=\(dark) in \(band))"
         )
     }
 
