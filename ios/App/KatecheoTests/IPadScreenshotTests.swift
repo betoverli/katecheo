@@ -241,16 +241,11 @@ final class IPadScreenshotTests: XCTestCase {
         return window
     }
 
-    private func render(_ view: UIView, size: CGSize, priming: UIView? = nil) -> UIImage {
+    private func render(_ view: UIView, size: CGSize, priming: NoteDetailViewController? = nil) -> UIImage {
         view.bounds = CGRect(origin: .zero, size: size)
         view.layoutIfNeeded()
         // After bounds settle, re-lay out the detail editor so TextKit has a real width.
-        if let detail = priming as? NoteDetailViewController {
-            detail.ensureEditorContentVisible()
-        } else if let priming {
-            priming.setNeedsDisplay()
-            priming.layoutIfNeeded()
-        }
+        priming?.ensureEditorContentVisible()
         let format = UIGraphicsImageRendererFormat()
         format.scale = 2
         format.opaque = true
