@@ -340,11 +340,13 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         editor.overrideUserInterfaceStyle = .unspecified
     }
 
-    /// After the split column is on screen, guarantee title/body glyphs are laid out.
+    /// After the split column is on screen, re-paint the document at real bounds so
+    /// title/body glyphs exist (TextKit often skips fragments when first painted at width 0).
     func ensureEditorContentVisible() {
         loadViewIfNeeded()
         didEnsureGlyphsForCurrentBounds = false
         view.layoutIfNeeded()
+        editor.pushNote(note, speakers: speakers, readOnly: isGrantedReadOnly)
         editor.ensureVisibleGlyphsLaidOut()
         didEnsureGlyphsForCurrentBounds = view.bounds.width > 1
     }

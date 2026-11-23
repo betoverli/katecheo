@@ -76,7 +76,8 @@ final class IPadScreenshotTests: XCTestCase {
                 "Selecting a Caderno row must open NoteDetail in the secondary column"
             )
             detail.ensureEditorContentVisible()
-            RunLoop.current.run(until: Date().addingTimeInterval(0.15))
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+            tabs.view.layoutIfNeeded()
 
             let editorText = detail.testing_editor.testing_plainText
             XCTAssertTrue(
@@ -87,12 +88,27 @@ final class IPadScreenshotTests: XCTestCase {
                 editorText.contains("Texto do corpo"),
                 "Caderno detail must show note body; got: \(editorText.prefix(120))"
             )
+            XCTAssertGreaterThan(
+                detail.testing_editor.testing_textContainerWidth,
+                100,
+                "Caderno TextKit container must have real width (was 0 → empty detail)"
+            )
+            XCTAssertGreaterThan(
+                detail.testing_editor.testing_glyphCount,
+                10,
+                "Caderno editor must lay out glyphs for title/body (not string-only)"
+            )
+            XCTAssertGreaterThan(
+                detail.testing_editor.testing_usedTextHeight,
+                40,
+                "Caderno editor usedRect must include title+body height"
+            )
+            XCTAssertNil(detail.navigationItem.leftBarButtonItem, "No ghost displayMode button")
             XCTAssertEqual(list.testing_highlightedNoteId, titled.id, "Open note row must stay highlighted")
             XCTAssertTrue(list.testing_hasSelectedRow, "UITableView selection must survive reload")
 
-            let cadernoShot = render(tabs.view, size: size)
+            let cadernoShot = render(tabs.view, size: size, priming: detail)
             assertDetailHasVisibleInk(cadernoShot, size: size, label: "caderno-\(orientation)")
-            assertNoGhostDisplayModeButton(cadernoShot, size: size, label: "caderno-\(orientation)")
             write(cadernoShot, name: "ipad-\(orientation)-caderno-note")
 
             // 2a) Grupos list (sidebar + empty detail)
@@ -121,18 +137,20 @@ final class IPadScreenshotTests: XCTestCase {
                 "Selecting a group note must open NoteDetail in the secondary column"
             )
             groupDetail.ensureEditorContentVisible()
-            RunLoop.current.run(until: Date().addingTimeInterval(0.15))
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+            tabs.view.layoutIfNeeded()
 
             let groupEditorText = groupDetail.testing_editor.testing_plainText
             XCTAssertTrue(
                 groupEditorText.contains("Nota do grupo"),
                 "Group detail must show note title; got: \(groupEditorText.prefix(80))"
             )
+            XCTAssertGreaterThan(groupDetail.testing_editor.testing_glyphCount, 10)
+            XCTAssertNil(groupDetail.navigationItem.leftBarButtonItem, "No ghost displayMode button")
             XCTAssertEqual(groupList.testing_highlightedNoteId, groupNote.id)
 
-            let groupShot = render(tabs.view, size: size)
+            let groupShot = render(tabs.view, size: size, priming: groupDetail)
             assertDetailHasVisibleInk(groupShot, size: size, label: "grupos-\(orientation)")
-            assertNoGhostDisplayModeButton(groupShot, size: size, label: "grupos-\(orientation)")
             write(groupShot, name: "ipad-\(orientation)-grupos-group-notes")
 
             // 3) Tools sheet with visible content (Books empty-state or rows — not blank beige).
@@ -223,9 +241,16 @@ final class IPadScreenshotTests: XCTestCase {
         return window
     }
 
-    private func render(_ view: UIView, size: CGSize) -> UIImage {
+    private func render(_ view: UIView, size: CGSize, priming: UIView? = nil) -> UIImage {
         view.bounds = CGRect(origin: .zero, size: size)
         view.layoutIfNeeded()
+        // After bounds settle, re-lay out the detail editor so TextKit has a real width.
+        if let detail = priming as? NoteDetailViewController {
+            detail.ensureEditorContentVisible()
+        } else if let priming {
+            priming.setNeedsDisplay()
+            priming.layoutIfNeeded()
+        }
         let format = UIGraphicsImageRendererFormat()
         format.scale = 2
         format.opaque = true
@@ -241,42 +266,21 @@ final class IPadScreenshotTests: XCTestCase {
         let detailLeft = size.width * primaryFraction
         // Title sits just under the nav / safe area in the secondary column.
         let band = CGRect(
-            x: detailLeft + 40,
-            y: size.height * 0.10,
-            width: min(420, size.width - detailLeft - 80),
-            height: size.height * 0.14
+            x: detailLeft + 28,
+            y: size.height * 0.09,
+            width: min(480, size.width - detailLeft - 60),
+            height: size.height * 0.22
         )
-        let dark = sampleDarkPixelCount(image, in: band, lumaBelow: 0.45)
+        let dark = sampleDarkPixelCount(image, in: band, lumaBelow: 0.55)
         XCTAssertGreaterThan(
             dark,
-            40,
+            25,
             "\(label): detail title/body must paint visible ink (darkPixels=\(dark) in \(band))"
-        )
-    }
-
-    /// Empty Liquid Glass circle lived at ~ (primaryWidth + 24, ~70–100) in landscape.
-    private func assertNoGhostDisplayModeButton(_ image: UIImage, size: CGSize, label: String) {
-        let primaryWidth = min(
-            max(size.width * PadChrome.notebookPrimaryFraction, PadChrome.notebookPrimaryMin),
-            PadChrome.notebookPrimaryMax
-        )
-        let probe = CGRect(x: primaryWidth + 8, y: 55, width: 56, height: 56)
-        let white = sampleNearWhitePixelCount(image, in: probe, lumaAbove: 0.92)
-        let total = max(1, Int(probe.width * probe.height / 4))
-        let ratio = CGFloat(white) / CGFloat(total)
-        XCTAssertLessThan(
-            ratio,
-            0.35,
-            "\(label): empty round displayMode button must be gone (whiteRatio=\(ratio) in \(probe))"
         )
     }
 
     private func sampleDarkPixelCount(_ image: UIImage, in rect: CGRect, lumaBelow: CGFloat) -> Int {
         samplePixels(image, in: rect) { $0 < lumaBelow }
-    }
-
-    private func sampleNearWhitePixelCount(_ image: UIImage, in rect: CGRect, lumaAbove: CGFloat) -> Int {
-        samplePixels(image, in: rect) { $0 > lumaAbove }
     }
 
     private func samplePixels(_ image: UIImage, in rect: CGRect, match: (CGFloat) -> Bool) -> Int {

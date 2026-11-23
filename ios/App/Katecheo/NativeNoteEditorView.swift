@@ -46,15 +46,19 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     /// from 0 → real width, TextKit must invalidate or title/body glyphs never appear.
     private var lastLaidOutTextWidth: CGFloat = -1
 
+    /// Large finite scrolling height. `CGFloat.greatestFiniteMagnitude` overflows
+    /// TextKit fragment math; a million points is enough for any note.
+    private static let scrollingContainerHeight: CGFloat = 1_000_000
+
     override init(frame: CGRect) {
         let storage = NSTextStorage()
         let layout = NoteSpeakerRailLayoutManager()
-        // Scrolling note body: width tracks the view; height stays unbounded so glyphs
-        // can lay out. A `.zero` height container (previous default) left iPad split
-        // detail with tags chrome but no title/body ink until AppTests called
-        // `testing_prepare` — production never did.
-        let container = NSTextContainer(size: CGSize(width: 0, height: CGFloat.greatestFiniteMagnitude))
-        container.widthTracksTextView = true
+        // Scrolling note body: explicit width + large finite height. A `.zero` height
+        // container left iPad split detail with tags chrome but no title/body ink.
+        // Do NOT rely on `widthTracksTextView` with a custom TextKit stack inside a
+        // UISplitViewController secondary column — it often leaves width at 0.
+        let container = NSTextContainer(size: CGSize(width: 0, height: Self.scrollingContainerHeight))
+        container.widthTracksTextView = false
         container.heightTracksTextView = false
         layout.addTextContainer(container)
         storage.addLayoutManager(layout)
@@ -92,6 +96,10 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         textView.contentInsetAdjustmentBehavior = .never
         textView.adjustsFontForContentSizeCategory = true
         textView.allowsEditingTextAttributes = true
+        // Contiguous layout so title/body glyphs exist for split-column snapshots.
+        textView.layoutManager.allowsNonContiguousLayout = false
+        // Dynamic label ink — never leave UITextView's default (can wash out on canvas).
+        textView.textColor = .label
         // Sentence autocap for title + every new body/list line. Custom path also
         // capitalizes after list markers (plain "• " defeats UIKit sentence detection).
         textView.autocapitalizationType = .sentences
@@ -241,13 +249,18 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         )
         guard width > 1 else { return }
         let container = textView.textContainer
-        container.widthTracksTextView = true
+        // Explicit size — `widthTracksTextView` left width at 0 in split secondary columns
+        // (init height was already "unbounded", so an older guard never wrote width).
+        container.widthTracksTextView = false
         container.heightTracksTextView = false
-        if abs(container.size.height - CGFloat.greatestFiniteMagnitude) > 1 {
-            container.size = CGSize(width: width, height: CGFloat.greatestFiniteMagnitude)
-        }
+        let target = CGSize(width: width, height: Self.scrollingContainerHeight)
         let widthChanged = abs(width - lastLaidOutTextWidth) > 0.5
-        if widthChanged {
+        let sizeChanged = abs(container.size.width - target.width) > 0.5
+            || abs(container.size.height - target.height) > 0.5
+        if sizeChanged {
+            container.size = target
+        }
+        if widthChanged || sizeChanged {
             lastLaidOutTextWidth = width
             let length = textView.textStorage.length
             if length > 0 {
@@ -261,22 +274,50 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     }
 
     /// Production + screenshot seam: after the detail column has real bounds, guarantee
-    /// glyphs exist for whatever is already in `textStorage` (no re-decode needed).
+    /// glyphs exist for whatever is already in `textStorage`.
     func ensureVisibleGlyphsLaidOut() {
         precondition(Thread.isMainThread)
         layoutIfNeeded()
+        // Force a width rewrite even if we previously cached the same points.
+        lastLaidOutTextWidth = -1
         ensureTextContainerMatchesBounds()
         let length = textView.textStorage.length
         if length > 0 {
-            let full = NSRange(location: 0, length: length)
+            // Re-stamp the attributed string so TextKit rebuilds line fragments after the
+            // split secondary column grows from 0 → real width (invalidate alone was not enough).
+            let snapshot = NSAttributedString(attributedString: textView.textStorage)
+            let selected = textView.selectedRange
+            textView.textStorage.setAttributedString(snapshot)
+            let loc = min(max(0, selected.location), textView.textStorage.length)
+            let len = min(max(0, selected.length), max(0, textView.textStorage.length - loc))
+            textView.selectedRange = NSRange(location: loc, length: len)
+            let full = NSRange(location: 0, length: textView.textStorage.length)
             textView.layoutManager.invalidateLayout(forCharacterRange: full, actualCharacterRange: nil)
+            textView.layoutManager.invalidateDisplay(forCharacterRange: full)
             textView.layoutManager.ensureLayout(for: textView.textContainer)
         }
         refreshDynamicTextColors()
+        textView.contentOffset = .zero
         repositionTagsStrip()
         repositionPlaceholders()
         repositionHeaderDivider()
         textView.setNeedsDisplay()
+    }
+
+    /// Glyph / used-rect probes for screenshot assertions (not string length).
+    var testing_usedTextHeight: CGFloat {
+        textView.layoutManager.ensureLayout(for: textView.textContainer)
+        return textView.layoutManager.usedRect(for: textView.textContainer).height
+    }
+
+    var testing_glyphCount: Int {
+        textView.layoutManager.ensureLayout(for: textView.textContainer)
+        return textView.layoutManager.numberOfGlyphs
+    }
+
+    /// Text container width after layout — must be real (>0) or title/body never paint.
+    var testing_textContainerWidth: CGFloat {
+        textView.textContainer.size.width
     }
 
     override func didMoveToWindow() {
@@ -2670,13 +2711,14 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     func testing_prepare(size: CGSize = CGSize(width: 390, height: 844)) {
         frame = CGRect(origin: .zero, size: size)
         textView.frame = bounds
-        // Width tracks the view; height must stay unbounded so long notes actually lay out
-        // (a finite height clips TextKit and breaks caret/contentOffset math).
+        // Explicit width + large finite height so long notes lay out (matches production).
+        textView.textContainer.widthTracksTextView = false
+        textView.textContainer.heightTracksTextView = false
         textView.textContainer.size = CGSize(
             width: max(0, size.width - textView.textContainerInset.left - textView.textContainerInset.right - 5),
-            height: CGFloat.greatestFiniteMagnitude
+            height: Self.scrollingContainerHeight
         )
-        textView.textContainer.heightTracksTextView = false
+        lastLaidOutTextWidth = textView.textContainer.size.width
         textView.layoutManager.ensureLayout(for: textView.textContainer)
         layoutIfNeeded()
     }
