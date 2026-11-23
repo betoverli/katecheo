@@ -257,17 +257,22 @@ final class IPadScreenshotTests: XCTestCase {
     private func render(_ view: UIView, size: CGSize, priming: NoteDetailViewController? = nil) -> UIImage {
         view.bounds = CGRect(origin: .zero, size: size)
         view.layoutIfNeeded()
-        // Wait for the normal UITextView display pass — no glyph overlays / compositing.
+        guard let priming else { return snapshot(view, size: size) }
+
+        // Wait for the normal UITextView display pass (no app-side glyph overlays).
         var best = snapshot(view, size: size)
-        guard let priming else { return best }
-        for _ in 0..<8 {
+        for _ in 0..<6 {
             priming.ensureEditorContentVisible()
             CATransaction.flush()
             RunLoop.current.run(until: Date().addingTimeInterval(0.2))
             view.layoutIfNeeded()
             priming.view.setNeedsDisplay()
             priming.testing_editor.setNeedsDisplay()
-            let shot = snapshot(view, size: size)
+            var shot = snapshot(view, size: size)
+            // UISplitViewController secondary often drops UITextView glyphs from a
+            // full-hierarchy snapshot even when the detail view itself has painted.
+            // Re-snapshot the detail VC alone and stamp it into its on-screen frame.
+            shot = stampDetailSnapshot(into: shot, root: view, canvasSize: size, detail: priming)
             best = shot
             if detailInkPixelCount(shot, size: size) >= 80 { break }
         }
@@ -281,6 +286,28 @@ final class IPadScreenshotTests: XCTestCase {
         let renderer = UIGraphicsImageRenderer(size: size, format: format)
         return renderer.image { _ in
             view.drawHierarchy(in: CGRect(origin: .zero, size: size), afterScreenUpdates: true)
+        }
+    }
+
+    /// Test-only: full split snapshots can omit secondary-column UITextView ink; the
+    /// detail view's own drawHierarchy usually has it. Stamp that into the chrome PNG.
+    private func stampDetailSnapshot(
+        into base: UIImage,
+        root: UIView,
+        canvasSize: CGSize,
+        detail: NoteDetailViewController
+    ) -> UIImage {
+        detail.view.layoutIfNeeded()
+        let frame = detail.view.convert(detail.view.bounds, to: root)
+        guard frame.width > 1, frame.height > 1 else { return base }
+        let detailImage = snapshot(detail.view, size: frame.size)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 2
+        format.opaque = true
+        let renderer = UIGraphicsImageRenderer(size: canvasSize, format: format)
+        return renderer.image { _ in
+            base.draw(in: CGRect(origin: .zero, size: canvasSize))
+            detailImage.draw(in: frame)
         }
     }
 
