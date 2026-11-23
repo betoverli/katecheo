@@ -161,6 +161,43 @@ jobs:
               DEVELOPMENT_TEAM="" \
               test
           done
+      - name: UI tests iPhone notebook back
+        run: |
+          set -euo pipefail
+          pick_dest() {
+            local preferred="$1"
+            node -e '
+              const preferred=process.argv[1].split("|");
+              const {execSync}=require("child_process");
+              const data=JSON.parse(execSync("xcrun simctl list devices available -j",{encoding:"utf8"}));
+              const found=[];
+              for (const [runtime, devices] of Object.entries(data.devices||{})) {
+                if (!/iOS|iPhone/i.test(runtime)) continue;
+                for (const d of devices) {
+                  if (d.isAvailable && String(d.name||"").startsWith("iPhone")) found.push(d.name);
+                }
+              }
+              const pick = preferred.find((n)=>found.includes(n)) || found.find((n)=>/SE/i.test(n)) || found[0];
+              if (!pick) { console.error("Nenhum iPhone Simulator disponível"); process.exit(1); }
+              process.stdout.write("platform=iOS Simulator,name="+pick);
+            ' "$preferred"
+          }
+          DEST="$(pick_dest "iPhone 16|iPhone 15|iPhone 14|iPhone SE (3rd generation)|iPhone SE")"
+          echo "iPhone notebook-back dest: $DEST"
+          xcodebuild \
+            -project ios/App/Katecheo.xcodeproj \
+            -scheme Katecheo \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination "$DEST" \
+            -derivedDataPath "${RUNNER_TEMP}/katecheo-ios" \
+            -parallel-testing-enabled NO \
+            -only-testing:KatecheoUITests/IPhoneNotebookBackUITests \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            test
       - name: UI tests iPad chrome
         run: |
           set -euo pipefail

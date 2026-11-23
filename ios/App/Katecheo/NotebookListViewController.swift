@@ -72,6 +72,8 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
         super.viewDidLoad()
         KCChrome.styleScreen(view)
         title = group?.name ?? String(localized: "Caderno")
+        // iPhone push: back chevron on NoteDetail must read "Caderno" (personal) / group name.
+        navigationItem.backButtonTitle = group?.name ?? String(localized: "Caderno")
         navigationController?.navigationBar.prefersLargeTitles = true
         navigationItem.largeTitleDisplayMode = .always
         if let nav = navigationController {
