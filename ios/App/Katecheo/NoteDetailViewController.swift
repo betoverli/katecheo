@@ -265,6 +265,20 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         }
     }
 
+    /// Server fills at least one gap the incomplete seed is missing (title and/or body).
+    private static func serverFillsIncompleteSeed(
+        seed: NativeAPIClient.NoteDocument,
+        server: NativeAPIClient.NoteDocument
+    ) -> Bool {
+        let seedTitleEmpty = seed.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let seedBodyEmpty = seed.listBodyPreview.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let serverTitle = !server.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let serverBody = !server.listBodyPreview.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        if seedTitleEmpty, serverTitle { return true }
+        if seedBodyEmpty, serverBody { return true }
+        return false
+    }
+
     /// Compare note payload ignoring fields the editor round-trip may normalize
     /// (`updatedAt`, empty span arrays ↔ nil, schemaVersion). Prevents reopen→close
     /// without typing from restamping / replacing the outbox job.
@@ -414,11 +428,11 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
                 let localDirty = !self.isGrantedReadOnly && (
                     self.hasLocalEdits || LocalNoteCache.isDirtyOrPending(self.noteId)
                 )
-                // Sparse seed (tags/speaker only, empty title+body) must still accept the first
-                // full getNote paint — otherwise iPad/group opens stay blank under the lock.
-                let seedIsSparse = self.note.kcIsSparseEditorSeed
-                let serverHasBody = !packed.note.kcIsSparseEditorSeed
-                if seedIsSparse, serverHasBody, !localDirty {
+                // Incomplete seed (missing title and/or body) must still accept a fuller getNote
+                // paint — otherwise iPad/group opens stay blank under the buffer lock.
+                let seedIncomplete = self.note.kcIsIncompleteEditorSeed
+                let serverFillsGap = Self.serverFillsIncompleteSeed(seed: self.note, server: packed.note)
+                if seedIncomplete, serverFillsGap, !localDirty {
                     self.note = packed.note
                     self.updateTitle()
                     self.applySyncState(offline ? .pendingLocal : .synced)

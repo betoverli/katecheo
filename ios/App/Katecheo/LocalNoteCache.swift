@@ -371,8 +371,15 @@ enum LocalNoteCache {
     }
 
     /// Prefer the on-disk owned note when it is dirty/pending or newer than the list/memory row.
+    /// Never let a sparse/empty disk beat a candidate that already has title or body — that is
+    /// what left iPad detail blank while the sidebar still showed NoteMeta text.
     static func preferredNote(over candidate: NativeAPIClient.NoteDocument) -> NativeAPIClient.NoteDocument {
         guard let disk = note(id: candidate.id) else { return candidate }
+        let diskSparse = disk.kcIsSparseEditorSeed
+        let candidateRich = !candidate.kcIsSparseEditorSeed
+        if diskSparse, candidateRich {
+            return candidate
+        }
         if isDirtyOrPending(candidate.id) { return disk }
         if isUpdatedAt(disk.updatedAt, newerThanOrEqual: candidate.updatedAt) { return disk }
         return candidate

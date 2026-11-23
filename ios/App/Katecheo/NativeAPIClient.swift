@@ -170,6 +170,14 @@ enum NativeAPIClient {
             let bodyEmpty = listBodyPreview.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             return titleEmpty && bodyEmpty
         }
+
+        /// True when the seed is missing title and/or body that a fuller document may supply.
+        /// Broader than `kcIsSparseEditorSeed` so title-only or body-only seeds still accept getNote.
+        var kcIsIncompleteEditorSeed: Bool {
+            let titleEmpty = title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            let bodyEmpty = listBodyPreview.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            return titleEmpty || bodyEmpty
+        }
     }
 
     struct SpeakerDTO: Codable, Equatable {
