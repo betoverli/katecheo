@@ -5,6 +5,8 @@ import Foundation
 /// so a fake bearer cannot 401-wipe the seed.
 enum UITestSeed {
     static let launchArgument = "-katecheoUITestSeedNotes"
+    /// After seeding, land on the Grupos tab (avoids flaky floating-tab switches in XCUITest).
+    static let openGruposLaunchArgument = "-katecheoUITestOpenGrupos"
 
     static let userId = "uitest-user"
     static let groupId = "uitest-group"
@@ -20,11 +22,13 @@ enum UITestSeed {
 
     private static var applied = false
     private(set) static var isActive = false
+    private(set) static var preferGruposTab = false
 
     /// Call once at process start (before the root VC loads lists).
     static func applyIfNeeded(arguments: [String] = ProcessInfo.processInfo.arguments) {
         guard !applied else { return }
         applied = true
+        preferGruposTab = arguments.contains(openGruposLaunchArgument)
         guard arguments.contains(launchArgument) else { return }
         isActive = true
 

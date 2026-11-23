@@ -28,6 +28,7 @@ final class NativeRootTabBarController: UITabBarController {
             selectedImage: UIImage(systemName: "note.text")
         )
         notebook.tabBarItem.accessibilityLabel = String(localized: "Caderno")
+        notebook.tabBarItem.accessibilityIdentifier = "tab.caderno"
         notebook.tabBarItem.tag = 0
 
         let groups = GroupsChrome.makeTabRoot()
@@ -37,6 +38,7 @@ final class NativeRootTabBarController: UITabBarController {
             tag: 1
         )
         groups.tabBarItem.accessibilityLabel = String(localized: "Grupos")
+        groups.tabBarItem.accessibilityIdentifier = "tab.grupos"
 
         if PadChrome.isPad {
             // Tools + Profile are sheets on iPad — only Caderno / Grupos in the tab bar.
@@ -62,7 +64,7 @@ final class NativeRootTabBarController: UITabBarController {
 
             viewControllers = [notebook, groups, tools, profile]
         }
-        selectedIndex = 0
+        selectedIndex = UITestSeed.preferGruposTab ? 1 : 0
 
         // Liquid Glass paints system chrome on iOS 26; older OS keeps classic appearances from KCChrome.
         _ = KCGlassMaterial.sdkHasLiquidGlass()

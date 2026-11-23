@@ -1061,6 +1061,11 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         let uitest = UITestSeed.isActive
         titleA11yProbe.isAccessibilityElement = uitest
         bodyA11yProbe.isAccessibilityElement = uitest
+        // Zero-size views are often omitted from the XCUITest hierarchy; keep a 1×1 hit box.
+        if uitest {
+            titleA11yProbe.frame = CGRect(x: 0, y: 0, width: 1, height: 1)
+            bodyA11yProbe.frame = CGRect(x: 0, y: 1, width: 1, height: 1)
+        }
         // Production VoiceOver: only the real UITextView. UITest: expose title/body probes too.
         accessibilityElements = uitest ? [titleA11yProbe, bodyA11yProbe, textView] : [textView]
     }
@@ -1069,12 +1074,14 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     private func refreshEditorAccessibilityProbes() {
         configureEditorAccessibilityElements()
         let plain = textView.textStorage.string
+            .replacingOccurrences(of: "\u{200B}", with: "")
         let parts = plain.split(separator: "\n", omittingEmptySubsequences: false)
-        let title = parts.first.map(String.init) ?? ""
+        let title = (parts.first.map(String.init) ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
         let body: String = {
             guard parts.count > 1 else { return "" }
             return parts.dropFirst().joined(separator: "\n")
-                .trimmingCharacters(in: CharacterSet(charactersIn: "\n"))
+                .trimmingCharacters(in: .whitespacesAndNewlines)
         }()
         titleA11yProbe.accessibilityValue = title
         bodyA11yProbe.accessibilityValue = body
