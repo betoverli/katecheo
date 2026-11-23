@@ -37,16 +37,35 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     private let tagsStrip = NoteEditorTagsStrip()
     /// Divider between header (title + tags) and body — view decoration, not document text.
     private let headerDivider = UIView()
+    /// Zero-size accessibility probes so XCUITest can assert title vs body separately
+    /// from the single UITextView (VoiceOver still uses `textView` via accessibilityElements).
+    private let titleA11yProbe = UIView()
+    private let bodyA11yProbe = UIView()
     /// After the user deletes an auto-capitalized first letter, the next lowercase insert is kept.
     private var suppressSentenceAutocapitalize = false
     /// `shouldChange` already mutated storage (autocap / suppress path) — testing insert must not retry.
     private var shouldChangeConsumedInsertion = false
 
+    /// Last text-view width we laid out for — when the split secondary column grows
+    /// from 0 → real width, TextKit must invalidate or title/body glyphs never appear.
+    private var lastLaidOutTextWidth: CGFloat = -1
+
+    /// Large finite scrolling height. `CGFloat.greatestFiniteMagnitude` overflows
+    /// TextKit fragment math; a million points is enough for any note.
+    private static let scrollingContainerHeight: CGFloat = 1_000_000
+
     override init(frame: CGRect) {
         let storage = NSTextStorage()
         let layout = NoteSpeakerRailLayoutManager()
-        let container = NSTextContainer(size: .zero)
+        // Scrolling note body: explicit width + large finite height. A `.zero` height
+        // container left iPad split detail with tags chrome but no title/body ink.
+        // Do NOT rely on `widthTracksTextView` with a custom TextKit stack inside a
+        // UISplitViewController secondary column — it often leaves width at 0.
+        let container = NSTextContainer(size: CGSize(width: 0, height: Self.scrollingContainerHeight))
+        // Keep tracking on so UITextView stays in sync; we still write an explicit
+        // size in `ensureTextContainerMatchesBounds` (tracking alone left width at 0).
         container.widthTracksTextView = true
+        container.heightTracksTextView = false
         layout.addTextContainer(container)
         storage.addLayoutManager(layout)
         railLayoutManager = layout
@@ -83,6 +102,12 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         textView.contentInsetAdjustmentBehavior = .never
         textView.adjustsFontForContentSizeCategory = true
         textView.allowsEditingTextAttributes = true
+        // Contiguous layout so title/body glyphs exist for split-column snapshots.
+        textView.layoutManager.allowsNonContiguousLayout = false
+        // Solid ink on canvas — dynamic `.label` can resolve near-white under ambient Dark
+        // during split-column snapshots and wash out on the warm paper.
+        textView.textColor = KCDesign.editorInk(for: .light)
+        textView.isOpaque = true
         // Sentence autocap for title + every new body/list line. Custom path also
         // capitalizes after list markers (plain "• " defeats UIKit sentence detection).
         textView.autocapitalizationType = .sentences
@@ -90,8 +115,23 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         textView.smartDashesType = .default
         textView.smartQuotesType = .default
         textView.tintColor = KCDesign.accent
+        textView.accessibilityIdentifier = "note.editor"
         textView.accessibilityLabel = String(localized: "Corpo da nota")
         textView.accessibilityHint = String(localized: "A primeira linha é o título")
+        // Logical title/body probes for XCUITest only (zero-size; excluded from VoiceOver).
+        titleA11yProbe.accessibilityIdentifier = "note.editor.title"
+        titleA11yProbe.accessibilityTraits = .staticText
+        titleA11yProbe.accessibilityLabel = String(localized: "Título")
+        titleA11yProbe.frame = .zero
+        titleA11yProbe.isUserInteractionEnabled = false
+        addSubview(titleA11yProbe)
+        bodyA11yProbe.accessibilityIdentifier = "note.editor.body"
+        bodyA11yProbe.accessibilityTraits = .staticText
+        bodyA11yProbe.accessibilityLabel = String(localized: "Corpo da nota")
+        bodyA11yProbe.frame = .zero
+        bodyA11yProbe.isUserInteractionEnabled = false
+        addSubview(bodyA11yProbe)
+        configureEditorAccessibilityElements()
         // Replace UIKit's pin-to-top `scrollRangeToVisible` with our minimal helper so
         // typing / Enter still follow the caret without jumping the viewport.
         textView.onRequestCaretScroll = { [weak self] in
@@ -215,9 +255,116 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
     override func layoutSubviews() {
         super.layoutSubviews()
+        ensureTextContainerMatchesBounds()
         repositionTagsStrip()
         repositionPlaceholders()
         repositionHeaderDivider()
+    }
+
+    /// Keep the TextKit container sized for a scrolling UITextView. When the iPad
+    /// secondary column first gets a non-zero width, force a full glyph relayout so
+    /// title/body painted at width 0 become visible.
+    ///
+    /// Height stays at `scrollingContainerHeight` during editing — shrinking it on every
+    /// layout pass crushed `contentSize` and broke caret-follow Enter scrolling.
+    private func ensureTextContainerMatchesBounds() {
+        let inset = textView.textContainerInset
+        let width = max(
+            0,
+            textView.bounds.width - inset.left - inset.right - textView.textContainer.lineFragmentPadding * 2
+        )
+        guard width > 1 else { return }
+        let container = textView.textContainer
+        // Explicit width every pass — tracking alone left width at 0 in split secondary.
+        container.widthTracksTextView = true
+        container.heightTracksTextView = false
+        let target = CGSize(width: width, height: Self.scrollingContainerHeight)
+        let widthChanged = abs(width - lastLaidOutTextWidth) > 0.5
+        let sizeChanged = abs(container.size.width - target.width) > 0.5
+            || abs(container.size.height - target.height) > 0.5
+        if sizeChanged {
+            container.size = target
+        }
+        if widthChanged || sizeChanged {
+            lastLaidOutTextWidth = width
+            let length = textView.textStorage.length
+            if length > 0 {
+                let full = NSRange(location: 0, length: length)
+                textView.layoutManager.invalidateLayout(forCharacterRange: full, actualCharacterRange: nil)
+                textView.layoutManager.invalidateDisplay(forCharacterRange: full)
+            }
+            textView.layoutManager.ensureLayout(for: container)
+            textView.setNeedsDisplay()
+        }
+    }
+
+    /// Production + screenshot seam: after the detail column has real bounds, guarantee
+    /// glyphs exist for whatever is already in `textStorage`.
+    func ensureVisibleGlyphsLaidOut() {
+        precondition(Thread.isMainThread)
+        layoutIfNeeded()
+        // Force a width rewrite even if we previously cached the same points.
+        lastLaidOutTextWidth = -1
+        ensureTextContainerMatchesBounds()
+        let length = textView.textStorage.length
+        if length > 0 {
+            // Re-assign via attributedText so UITextView's display path rebuilds at the
+            // real column width (same as a fresh pushNote load).
+            let snapshot = NSAttributedString(attributedString: textView.textStorage)
+            let selected = textView.selectedRange
+            textView.attributedText = snapshot
+            let loc = min(max(0, selected.location), textView.textStorage.length)
+            let len = min(max(0, selected.length), max(0, textView.textStorage.length - loc))
+            textView.selectedRange = NSRange(location: loc, length: len)
+            ensureTextContainerMatchesBounds()
+            textView.layoutManager.ensureLayout(for: textView.textContainer)
+        }
+        refreshDynamicTextColors()
+        // Sticky caret-scroll can pin a non-zero offset and scroll title/body off-screen.
+        textView.stickyContentOffset = nil
+        textView.setContentOffset(.zero, animated: false)
+        // If UIKit inflated contentSize from a huge container, pin it to used text for
+        // this open only — do not re-run from layoutSubviews (breaks Enter scrolling).
+        let inset = textView.textContainerInset
+        let used = textView.layoutManager.usedRect(for: textView.textContainer)
+        let fitted = max(textView.bounds.height, ceil(used.maxY) + inset.top + inset.bottom + 64)
+        if fitted.isFinite, textView.contentSize.height > fitted + 500 {
+            textView.contentSize = CGSize(width: textView.bounds.width, height: fitted)
+            textView.setContentOffset(.zero, animated: false)
+        }
+        repositionTagsStrip()
+        repositionPlaceholders()
+        repositionHeaderDivider()
+        refreshEditorAccessibilityProbes()
+        textView.setNeedsDisplay()
+        textView.layoutIfNeeded()
+    }
+
+
+    /// Glyph / used-rect probes for screenshot / host-test assertions (not string length).
+    var testing_usedTextHeight: CGFloat {
+        textView.layoutManager.ensureLayout(for: textView.textContainer)
+        return textView.layoutManager.usedRect(for: textView.textContainer).height
+    }
+
+    var testing_glyphCount: Int {
+        textView.layoutManager.ensureLayout(for: textView.textContainer)
+        return textView.layoutManager.numberOfGlyphs
+    }
+
+    /// Text container width after layout — must be real (>0) or title/body never paint.
+    var testing_textContainerWidth: CGFloat {
+        textView.textContainer.size.width
+    }
+
+    /// Content offset Y — must stay near 0 when opening a note or title scrolls away.
+    var testing_contentOffsetY: CGFloat {
+        textView.contentOffset.y
+    }
+
+    /// contentSize height — must not stay at the 1e6 scrolling sentinel.
+    var testing_contentSizeHeight: CGFloat {
+        textView.contentSize.height
     }
 
     override func didMoveToWindow() {
@@ -318,13 +465,15 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
                 storage.addAttribute(.foregroundColor, value: KCDesign.bookmark, range: range)
                 return
             }
-            storage.addAttribute(.foregroundColor, value: UIColor.label, range: range)
+            let style = effectiveEditorInterfaceStyle()
+            storage.addAttribute(.foregroundColor, value: KCDesign.editorInk(for: style), range: range)
             // Quote chrome is layout-manager fill only — strip any leftover text-run highlight.
             if (attrs[NoteDocumentCodec.blockTypeKey] as? String) == "quote" {
                 storage.removeAttribute(.backgroundColor, range: range)
             }
         }
         storage.endEditing()
+        textView.textColor = KCDesign.editorInk(for: effectiveEditorInterfaceStyle())
         // Nudge layout so glyph colors rebuild against the current trait collection.
         textView.setNeedsDisplay()
         textView.layoutManager.invalidateLayout(
@@ -535,7 +684,10 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         let leading = textContentLeading()
         let width = textContentWidth()
         let height = NoteEditorTagsStrip.preferredHeight
-        var y = inset.top + 28
+        // Always leave room for a title1 line so a bad/zero title glyph rect cannot
+        // park the tags strip on top of the title ink (the empty-detail look).
+        let titleLine = ceil(UIFont.preferredFont(forTextStyle: .title1).lineHeight)
+        var y = inset.top + titleLine + 8
         if textView.textStorage.length > 0 {
             textView.layoutManager.ensureLayout(for: textView.textContainer)
             let titlePara = (textView.textStorage.string as NSString).paragraphRange(
@@ -550,7 +702,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
                 in: textView.textContainer
             )
             // Sit in the title's reserved paragraphSpacing band (tags under the title).
-            y = inset.top + rect.maxY + 4
+            y = max(y, inset.top + max(rect.maxY, titleLine) + 4)
         }
         tagsStrip.frame = CGRect(x: leading, y: y, width: width, height: height)
     }
@@ -871,9 +1023,10 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         self.speakers = speakers
         applyingRemote = true
         let attributed = attributedStringForEditor(from: note, speakers: speakers)
-        // Prefer textStorage mutation over attributedText reassign when possible so we
-        // don't thrash selection — but a full load must replace content once.
-        textView.textStorage.setAttributedString(attributed)
+        // Full load goes through `attributedText` so UITextView rebuilds its normal
+        // TextKit display path (textStorage-only updates can leave the split secondary
+        // column with glyphs in metrics but no painted ink).
+        textView.attributedText = attributed
         let length = textView.textStorage.length
         if wasReady, previousId == note.id, previousId != "pending" {
             let loc = min(max(0, savedRange.location), length)
@@ -895,8 +1048,44 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         // Attachments may have been baked offline / under the wrong traits — sync to this view.
         refreshAttachmentAppearances()
         refreshSpeakerRails()
+        refreshDynamicTextColors()
         refreshPlaceholders()
+        // If we already have a non-zero width (re-open / split expand), lay out glyphs now.
+        // Otherwise `layoutSubviews` will pick it up when the secondary column sizes.
+        ensureTextContainerMatchesBounds()
         repositionTagsStrip()
+        refreshEditorAccessibilityProbes()
+    }
+
+    private func configureEditorAccessibilityElements() {
+        let uitest = UITestSeed.isActive
+        titleA11yProbe.isAccessibilityElement = uitest
+        bodyA11yProbe.isAccessibilityElement = uitest
+        // Zero-size views are often omitted from the XCUITest hierarchy; keep a 1×1 hit box.
+        if uitest {
+            titleA11yProbe.frame = CGRect(x: 0, y: 0, width: 1, height: 1)
+            bodyA11yProbe.frame = CGRect(x: 0, y: 1, width: 1, height: 1)
+        }
+        // Production VoiceOver: only the real UITextView. UITest: expose title/body probes too.
+        accessibilityElements = uitest ? [titleA11yProbe, bodyA11yProbe, textView] : [textView]
+    }
+
+    /// Keep `note.editor.title` / `note.editor.body` values in sync with the document.
+    private func refreshEditorAccessibilityProbes() {
+        configureEditorAccessibilityElements()
+        let plain = textView.textStorage.string
+            .replacingOccurrences(of: "\u{200B}", with: "")
+        let parts = plain.split(separator: "\n", omittingEmptySubsequences: false)
+        let title = (parts.first.map(String.init) ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let body: String = {
+            guard parts.count > 1 else { return "" }
+            return parts.dropFirst().joined(separator: "\n")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        }()
+        titleA11yProbe.accessibilityValue = title
+        bodyA11yProbe.accessibilityValue = body
+        textView.accessibilityValue = plain
     }
 
     /// Refresh the in-memory speaker catalog without rewriting the note body.
@@ -1070,6 +1259,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         refreshSpeakerRails()
         refreshPlaceholders()
         refreshEditingChrome()
+        refreshEditorAccessibilityProbes()
         scrollCaretVisible(animated: false)
     }
 
@@ -2608,13 +2798,14 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     func testing_prepare(size: CGSize = CGSize(width: 390, height: 844)) {
         frame = CGRect(origin: .zero, size: size)
         textView.frame = bounds
-        // Width tracks the view; height must stay unbounded so long notes actually lay out
-        // (a finite height clips TextKit and breaks caret/contentOffset math).
+        // Explicit width + large finite height so long notes lay out (matches production).
+        textView.textContainer.widthTracksTextView = true
+        textView.textContainer.heightTracksTextView = false
         textView.textContainer.size = CGSize(
             width: max(0, size.width - textView.textContainerInset.left - textView.textContainerInset.right - 5),
-            height: .greatestFiniteMagnitude
+            height: Self.scrollingContainerHeight
         )
-        textView.textContainer.heightTracksTextView = false
+        lastLaidOutTextWidth = textView.textContainer.size.width
         textView.layoutManager.ensureLayout(for: textView.textContainer)
         layoutIfNeeded()
     }
@@ -2690,6 +2881,11 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         // leak into the body after a selection move (TF194 list promote/Enter).
         textView.typingAttributes = typingAttributesForCaret()
         refreshEditingChrome()
+    }
+
+    /// Plain string currently in the editor (title + body) — screenshot assertions.
+    var testing_plainText: String {
+        textView.textStorage.string
     }
 
     func testing_textStorage() -> NSTextStorage {

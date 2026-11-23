@@ -34,6 +34,8 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
     private var editorBottomConstraint: NSLayoutConstraint?
     private var editorLeadingConstraint: NSLayoutConstraint?
     private var editorTrailingConstraint: NSLayoutConstraint?
+    /// Avoid re-laying out glyphs on every Auto Layout pass once the column has size.
+    private var didEnsureGlyphsForCurrentBounds = false
 
     init(
         noteId: String,
@@ -137,9 +139,13 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
             name: UIApplication.didBecomeActiveNotification,
             object: nil
         )
-        if !isGrantedReadOnly, let disk = LocalNoteCache.note(id: noteId) {
-            note = LocalNoteCache.preferredNote(over: disk)
-            editor.pushNote(note, speakers: speakers, readOnly: false)
+        if !isGrantedReadOnly, LocalNoteCache.note(id: noteId) != nil {
+            // Prefer dirty/newer disk over the in-memory seed (candidate = live VC note).
+            let preferred = LocalNoteCache.preferredNote(over: note)
+            if preferred != note {
+                note = preferred
+                editor.pushNote(note, speakers: speakers, readOnly: false)
+            }
             if LocalNoteCache.isDirtyOrPending(noteId) {
                 hasLocalEdits = true
                 applySyncState(.pendingLocal)
@@ -150,10 +156,31 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         Task { await refreshFromAPI() }
     }
 
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        // Split secondary often loads at width 0; once the column has size, force glyphs.
+        let width = view.bounds.width
+        if width > 1, !didEnsureGlyphsForCurrentBounds {
+            didEnsureGlyphsForCurrentBounds = true
+            editor.ensureVisibleGlyphsLaidOut()
+        } else if width <= 1 {
+            didEnsureGlyphsForCurrentBounds = false
+        }
+    }
+
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         // Keep the nav compact while editing (parent Caderno uses large titles).
         navigationController?.navigationBar.prefersLargeTitles = false
+        // Never show the split's displayMode control on the detail — empty Liquid Glass circle.
+        navigationItem.leftBarButtonItem = nil
+        navigationItem.leftBarButtonItems = []
+        navigationItem.hidesBackButton = true
+        if let split = splitViewController {
+            if #available(iOS 14.5, *) {
+                split.displayModeButtonVisibility = .never
+            }
+        }
         // Regular split secondary: keep tab bar. Compact push: hide it.
         if let split = splitViewController as? NotebookSplitViewController {
             applyTabBarHidingForSplit(isCollapsed: split.isCollapsed)
@@ -168,6 +195,14 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         editor.refreshAppearanceForCurrentTraits(forceAttachments: true)
         // Opening a note clears Shared unread for that id (build-238).
         KCActivityStore.markSharedNoteOpened(noteId)
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        // UIKit can re-inject displayModeButtonItem after appear — clear again.
+        navigationItem.leftBarButtonItem = nil
+        navigationItem.leftBarButtonItems = []
+        ensureEditorContentVisible()
     }
 
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
@@ -247,6 +282,20 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         }
     }
 
+    /// Server fills at least one gap the incomplete seed is missing (title and/or body).
+    private static func serverFillsIncompleteSeed(
+        seed: NativeAPIClient.NoteDocument,
+        server: NativeAPIClient.NoteDocument
+    ) -> Bool {
+        let seedTitleEmpty = seed.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let seedBodyEmpty = seed.listBodyPreview.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let serverTitle = !server.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let serverBody = !server.listBodyPreview.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        if seedTitleEmpty, serverTitle { return true }
+        if seedBodyEmpty, serverBody { return true }
+        return false
+    }
+
     /// Compare note payload ignoring fields the editor round-trip may normalize
     /// (`updatedAt`, empty span arrays ↔ nil, schemaVersion). Prevents reopen→close
     /// without typing from restamping / replacing the outbox job.
@@ -306,6 +355,17 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         overrideUserInterfaceStyle = .unspecified
         navigationController?.overrideUserInterfaceStyle = .unspecified
         editor.overrideUserInterfaceStyle = .unspecified
+    }
+
+    /// After the split column is on screen, re-paint the document at real bounds so
+    /// title/body glyphs exist (TextKit often skips fragments when first painted at width 0).
+    func ensureEditorContentVisible() {
+        loadViewIfNeeded()
+        didEnsureGlyphsForCurrentBounds = false
+        view.layoutIfNeeded()
+        editor.pushNote(note, speakers: speakers, readOnly: isGrantedReadOnly)
+        editor.ensureVisibleGlyphsLaidOut()
+        didEnsureGlyphsForCurrentBounds = view.bounds.width > 1
     }
 
     @objc private func noteDidChangeExternally(_ note: Notification) {
@@ -387,6 +447,19 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
                 let localDirty = !self.isGrantedReadOnly && (
                     self.hasLocalEdits || LocalNoteCache.isDirtyOrPending(self.noteId)
                 )
+                // Incomplete seed (missing title and/or body) must still accept a fuller getNote
+                // paint — otherwise iPad/group opens stay blank under the buffer lock.
+                let seedIncomplete = self.note.kcIsIncompleteEditorSeed
+                let serverFillsGap = Self.serverFillsIncompleteSeed(seed: self.note, server: packed.note)
+                if seedIncomplete, serverFillsGap, !localDirty {
+                    self.note = packed.note
+                    self.updateTitle()
+                    self.applySyncState(offline ? .pendingLocal : .synced)
+                    self.editor.pushNote(self.note, speakers: self.speakers, readOnly: self.isGrantedReadOnly)
+                    self.hasLocalEdits = false
+                    self.refreshSpeakerChip()
+                    return
+                }
                 // While this detail screen owns the buffer, never rewrite the editor — even after
                 // a clean persist (hasLocalEdits=false) or outbox flush. List still refreshes via
                 // `.nativeNoteDidChange`; caret / IME stay put.

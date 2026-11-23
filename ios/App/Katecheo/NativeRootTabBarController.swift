@@ -28,6 +28,7 @@ final class NativeRootTabBarController: UITabBarController {
             selectedImage: UIImage(systemName: "note.text")
         )
         notebook.tabBarItem.accessibilityLabel = String(localized: "Caderno")
+        notebook.tabBarItem.accessibilityIdentifier = "tab.caderno"
         notebook.tabBarItem.tag = 0
 
         let groups = GroupsChrome.makeTabRoot()
@@ -37,6 +38,7 @@ final class NativeRootTabBarController: UITabBarController {
             tag: 1
         )
         groups.tabBarItem.accessibilityLabel = String(localized: "Grupos")
+        groups.tabBarItem.accessibilityIdentifier = "tab.grupos"
 
         if PadChrome.isPad {
             // Tools + Profile are sheets on iPad — only Caderno / Grupos in the tab bar.
@@ -63,6 +65,10 @@ final class NativeRootTabBarController: UITabBarController {
             viewControllers = [notebook, groups, tools, profile]
         }
         selectedIndex = 0
+        // UITest-only: land on Grupos without tapping the floating tab bar.
+        if UITestSeed.preferGruposTab {
+            selectedIndex = 1
+        }
 
         // Liquid Glass paints system chrome on iOS 26; older OS keeps classic appearances from KCChrome.
         _ = KCGlassMaterial.sdkHasLiquidGlass()
@@ -115,14 +121,10 @@ final class NativeRootTabBarController: UITabBarController {
         toolsHome = home
         _ = home.view
         configure?(home)
-        let host = topMostPresenter()
-        PadChrome.presentUtilitySheet(
-            root: home,
-            from: host,
-            animated: animated,
-            accessibilityId: "pad.sheet.tools"
-        )
-        presentedToolsNav = host.presentedViewController as? UINavigationController
+        presentUtilityAfterClearing(root: home, animated: animated, accessibilityId: "pad.sheet.tools") { [weak self] nav in
+            self?.presentedToolsNav = nav
+            self?.presentedProfileNav = nil
+        }
     }
 
     /// Present Perfil as a large form sheet (iPad).
@@ -148,16 +150,41 @@ final class NativeRootTabBarController: UITabBarController {
         }
         let home = ProfileViewController()
         profileHome = home
-        let host = topMostPresenter()
-        PadChrome.presentUtilitySheet(
-            root: home,
-            from: host,
-            animated: animated,
-            accessibilityId: "pad.sheet.profile"
-        )
-        if let nav = host.presentedViewController as? UINavigationController {
-            presentedProfileNav = nav
+        // Force view load so header/table paint before the sheet snapshot / first frame.
+        _ = home.view
+        presentUtilityAfterClearing(root: home, animated: animated, accessibilityId: "pad.sheet.profile") { [weak self] nav in
+            self?.presentedProfileNav = nav
+            self?.presentedToolsNav = nil
             configure?(home, nav)
+        }
+    }
+
+    /// Dismiss any existing sheet fully before presenting — UIKit keeps the old
+    /// `presentedViewController` until the dismiss completion runs, so a back-to-back
+    /// Tools→Profile present otherwise leaves `pad.sheet.tools` on screen.
+    @MainActor
+    private func presentUtilityAfterClearing(
+        root: UIViewController,
+        animated: Bool,
+        accessibilityId: String,
+        onPresented: @escaping (UINavigationController) -> Void
+    ) {
+        let present = { [weak self] in
+            guard let self else { return }
+            PadChrome.presentUtilitySheet(
+                root: root,
+                from: self,
+                animated: animated,
+                accessibilityId: accessibilityId
+            )
+            if let nav = self.presentedViewController as? UINavigationController {
+                onPresented(nav)
+            }
+        }
+        if presentedViewController != nil {
+            dismiss(animated: false, completion: present)
+        } else {
+            present()
         }
     }
 

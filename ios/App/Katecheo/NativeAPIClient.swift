@@ -32,6 +32,8 @@ enum NativeAPIClient {
     /// Clear Keychain bearer and notify UI to re-login. Idempotent.
     /// Only call for explicit 401 / invalid token — never for transport/network failures.
     static func handleUnauthorized() {
+        // Never wipe XCUITest seed data if a stray request still 401s.
+        if UITestSeed.isActive { return }
         testAuthToken = nil
         KeychainStore.deleteBearerToken()
         LocalSessionCache.clearAll()
@@ -161,6 +163,22 @@ enum NativeAPIClient {
                 verseEnd: span.verseEnd
             )
             return formatted.isEmpty ? nil : formatted
+        }
+
+        /// True when title and body text are empty (tags/speaker may still be set).
+        /// Used so the first getNote can still paint after screenBufferIsSourceOfTruth locks.
+        var kcIsSparseEditorSeed: Bool {
+            let titleEmpty = title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            let bodyEmpty = listBodyPreview.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            return titleEmpty && bodyEmpty
+        }
+
+        /// True when the seed is missing title and/or body that a fuller document may supply.
+        /// Broader than `kcIsSparseEditorSeed` so title-only or body-only seeds still accept getNote.
+        var kcIsIncompleteEditorSeed: Bool {
+            let titleEmpty = title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            let bodyEmpty = listBodyPreview.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            return titleEmpty || bodyEmpty
         }
     }
 
@@ -638,7 +656,8 @@ enum NativeAPIClient {
     }
 
     static func listNotes(force: Bool = false) async throws -> [NoteDocument] {
-        try await NativeSWR.fetch(
+        if UITestSeed.isActive { return LocalNoteCache.loadNotes() }
+        return try await NativeSWR.fetch(
             key: .notes,
             ttl: NativeSWR.TTL.lists,
             force: force,
@@ -671,6 +690,10 @@ enum NativeAPIClient {
     }
 
     static func getNote(id: String, force: Bool = false) async throws -> (note: NoteDocument, speakers: [SpeakerDTO], via: String) {
+        if UITestSeed.isActive {
+            let note = LocalNoteCache.note(id: id) ?? emptyNote(id: id)
+            return (note, LocalNoteCache.loadSpeakers(), "owned")
+        }
         let pack: NotePack = try await NativeSWR.fetch(
             key: .note(id),
             ttl: NativeSWR.TTL.note,
@@ -1173,7 +1196,8 @@ enum NativeAPIClient {
     // MARK: - Groups (Phase 2)
 
     static func listGroups(force: Bool = false) async throws -> [GroupDTO] {
-        try await NativeSWR.fetch(
+        if UITestSeed.isActive { return LocalSessionCache.loadGroups() }
+        return try await NativeSWR.fetch(
             key: .groups,
             ttl: NativeSWR.TTL.lists,
             force: force,
@@ -1264,6 +1288,9 @@ enum NativeAPIClient {
     /// Pull-to-refresh passes `force: true`. Cache is keyed by signed-in user + group id.
     static func listGroupNotes(groupId: String, force: Bool = false) async throws -> [GroupNoteCardDTO] {
         let userId = LocalSessionCache.loadMe()?.id ?? ""
+        if UITestSeed.isActive {
+            return LocalGroupNotesCache.load(userId: userId, groupId: groupId) ?? []
+        }
         return try await NativeSWR.fetch(
             key: .groupNotes(groupId),
             ttl: NativeSWR.TTL.groupNotes,

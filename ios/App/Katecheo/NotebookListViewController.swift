@@ -31,9 +31,15 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     private var groupNotesAwaitingFirstPaint = false
     /// Bumps on every reload start; only the latest generation may apply async results.
     private var reloadGeneration = 0
+    /// Note id kept selected in the iPad sidebar while its detail is open (survives reloadData).
+    private var highlightedNoteId: String?
 
     /// Test hook — current reload generation token.
     var testing_reloadGeneration: Int { reloadGeneration }
+    /// Test hook — sidebar selection id after highlight / applyFilter restore.
+    var testing_highlightedNoteId: String? { highlightedNoteId }
+    /// Test hook — whether the table currently has a selected row (warm state).
+    var testing_hasSelectedRow: Bool { tableView.indexPathForSelectedRow != nil }
 
     convenience init(group: NativeAPIClient.GroupDTO) {
         self.init(nibName: nil, bundle: nil)
@@ -43,8 +49,17 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     /// Test hooks — group notes cache paint.
     var testing_groupCardsCount: Int { groupCards.count }
     var testing_firstGroupNoteTitle: String? { groupCards.first?.note.title }
+    var testing_groupId: String? { group?.id }
     var testing_filteredRowCount: Int {
         isGroupMode ? filteredCards.count : filtered.count
+    }
+
+    /// Seed group note cards without waiting on the network (screenshots / unit tests).
+    func testing_replaceGroupCards(_ cards: [NativeAPIClient.GroupNoteCardDTO]) {
+        groupCards = cards
+        notes = cards.compactMap(\.document)
+        groupNotesAwaitingFirstPaint = false
+        applyFilter()
     }
 
     /// Simulates a row tap (AppTests / CI) without reaching into private `tableView`.
@@ -76,12 +91,14 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
         if group == nil || group?.canPost == true {
             trailing.insert(UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(composeNote)), at: 0)
         }
-        // iPad: Tools + Profile live as sheets (not tabs) — expose them in the primary toolbar.
-        if PadChrome.isPad, group == nil {
-            trailing.append(PadChrome.makeToolsBarButton(target: self, action: #selector(openToolsSheet)))
-            trailing.append(PadChrome.makeProfileBarButton(target: self, action: #selector(openProfileSheet)))
-        }
         navigationItem.rightBarButtonItems = trailing
+        // iPad: Tools + Profile as leading items so they stay clear of the floating tab bar.
+        if PadChrome.isPad, group == nil {
+            navigationItem.leftBarButtonItems = [
+                PadChrome.makeProfileBarButton(target: self, action: #selector(openProfileSheet)),
+                PadChrome.makeToolsBarButton(target: self, action: #selector(openToolsSheet)),
+            ]
+        }
         // Accessibility: first trailing is usually compose; ellipsis keeps its own label.
         if group == nil || group?.canPost == true {
             trailing.first?.accessibilityLabel = String(localized: "Nova nota")
@@ -348,6 +365,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             guard NativeAPIClient.hasBearer else {
                 guard generation == reloadGeneration else { return }
                 if group != nil {
+                    groupNotesAwaitingFirstPaint = false
                     groupCards = []
                     applyFilter()
                     setBannerStatus(String(localized: "Faça login para ver as notas do grupo."), kind: .warning)
@@ -454,6 +472,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 }
             } catch NativeAPIClient.APIError.unauthorized {
                 guard generation == reloadGeneration else { return }
+                groupNotesAwaitingFirstPaint = false
                 setBannerStatus(String(localized: "Sessão expirada. Entre novamente."), kind: .error)
                 if group == nil {
                     adoptPersonalNotes(LocalNoteCache.loadNotes(), source: .localCache, allowingShorter: true)
@@ -470,11 +489,11 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 }
             } catch {
                 guard generation == reloadGeneration else { return }
+                groupNotesAwaitingFirstPaint = false
                 if group == nil {
                     adoptPersonalNotes(LocalNoteCache.loadNotes(), source: .localCache, allowingShorter: true)
                     setBannerStatus(Self.offlineCacheBanner(pending: NativeOutbox.pendingCount), kind: .warning)
                 } else {
-                    groupNotesAwaitingFirstPaint = false
                     if groupCards.isEmpty {
                         setBannerStatus(String(localized: "Sem rede. \(error.localizedDescription)"), kind: .error)
                     } else {
@@ -641,6 +660,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 hideEmpty()
             }
             tableView.reloadData()
+            restoreHighlightedSelection()
             return
         }
         let source = NotebookNoteFilter.filterNotes(
@@ -684,6 +704,7 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
             hideEmpty()
         }
         tableView.reloadData()
+        restoreHighlightedSelection()
     }
 
     func updateSearchResults(for searchController: UISearchController) {
@@ -739,7 +760,14 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
                 presentGroupNoteActions(card, at: indexPath)
                 return
             }
-            let detail = NoteDetailViewController(noteId: doc.id, initial: doc)
+            // List title comes from NoteMeta — merge it when the cached document is sparse
+            // (tags/speaker present, title/body empty) so the editor never opens blank.
+            var initial = LocalNoteCache.preferredNote(over: doc)
+            let metaTitle = card.note.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            if initial.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, !metaTitle.isEmpty {
+                initial.title = metaTitle
+            }
+            let detail = NoteDetailViewController(noteId: initial.id, initial: initial)
             openNoteDetail(detail, keepingSelectionAt: indexPath)
             return
         }
@@ -824,25 +852,41 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
 
     /// Highlight the open note in the list (split regular width).
     func highlightSelectedNote(id: String?) {
-        guard !isGroupMode else {
-            if id == nil {
-                if let selected = tableView.indexPathForSelectedRow {
-                    tableView.deselectRow(at: selected, animated: true)
-                }
-            } else if let row = filteredCards.firstIndex(where: { $0.note.id == id }) {
-                tableView.selectRow(at: IndexPath(row: row, section: 0), animated: false, scrollPosition: .none)
+        highlightedNoteId = id
+        restoreHighlightedSelection()
+    }
+
+    /// Re-apply warm selection after `reloadData` (which clears UITableView selection).
+    private func restoreHighlightedSelection() {
+        guard PadChrome.isPad else {
+            if let selected = tableView.indexPathForSelectedRow {
+                tableView.deselectRow(at: selected, animated: false)
             }
             return
         }
-        guard let id,
-              let row = filtered.firstIndex(where: { $0.id == id })
-        else {
+        guard let id = highlightedNoteId else {
             if let selected = tableView.indexPathForSelectedRow {
                 tableView.deselectRow(at: selected, animated: true)
             }
             return
         }
-        tableView.selectRow(at: IndexPath(row: row, section: 0), animated: false, scrollPosition: .none)
+        let path: IndexPath?
+        if isGroupMode {
+            path = filteredCards.firstIndex(where: { $0.note.id == id }).map { IndexPath(row: $0, section: 0) }
+        } else {
+            path = filtered.firstIndex(where: { $0.id == id }).map { IndexPath(row: $0, section: 0) }
+        }
+        guard let path else {
+            if let selected = tableView.indexPathForSelectedRow {
+                tableView.deselectRow(at: selected, animated: true)
+            }
+            return
+        }
+        tableView.selectRow(at: path, animated: false, scrollPosition: .none)
+        if let cell = tableView.cellForRow(at: path) {
+            cell.setSelected(true, animated: false)
+            cell.setNeedsUpdateConfiguration()
+        }
     }
 
     func tableView(

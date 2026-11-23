@@ -102,7 +102,7 @@ jobs:
           set -e
           # KatecheoTests write PNGs inside the Simulator app sandbox — harvest even on failure.
           # Per-pattern finds (no shared head) so b238 is not crowded out by older tf/b234 PNGs.
-          for pat in 'tf222-*.png' 'tab-bg-*.png' 'b234-*.png' 'b238-*.png' 'confirm-*.png' 'auth-*.png' 'onboarding-*.png' 'ipad-*.png'; do
+          for pat in 'tf222-*.png' 'tab-bg-*.png' 'b234-*.png' 'b238-*.png' 'confirm-*.png' 'auth-*.png' 'onboarding-*.png' 'ipad-*.png' 'iphone-*.png'; do
             find \
               "${HOME}/Library/Developer/CoreSimulator" \
               "${RUNNER_TEMP}/katecheo-ios" \
@@ -115,6 +115,7 @@ jobs:
           # Cursor agent VM only — ignore when /opt/cursor is unavailable (GitHub runners).
           if [ -d /opt/cursor ] || mkdir -p /opt/cursor/artifacts 2>/dev/null; then
             cp -f artifacts/ipad-*.png /opt/cursor/artifacts/ 2>/dev/null || true
+            cp -f artifacts/iphone-*.png /opt/cursor/artifacts/ 2>/dev/null || true
           fi
           ls -la artifacts || true
           exit "$TEST_STATUS"
@@ -252,6 +253,13 @@ jobs:
           name: ipad-chrome-screenshots
           path: artifacts/ipad-*.png
           if-no-files-found: error
+      - name: Upload iPhone chrome screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iphone-chrome-screenshots
+          path: artifacts/iphone-*.png
+          if-no-files-found: warn
 
   testflight:
     name: Assinar e enviar ao TestFlight

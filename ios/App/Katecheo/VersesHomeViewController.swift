@@ -115,6 +115,14 @@ final class VersesHomeViewController: UIViewController, UISearchResultsUpdating 
         selectTool(tool, animated: false)
     }
 
+    /// Screenshot / UITest helper — force a tool and lay out embedded content.
+    func testing_selectToolAndLayout(_ id: String) {
+        selectHomeFilter(id)
+        view.setNeedsLayout()
+        view.layoutIfNeeded()
+        contentHost.layoutIfNeeded()
+    }
+
     private func restoredTool() -> Tool {
         if let raw = UserDefaults.standard.string(forKey: Self.lastToolKey),
            let tool = Tool(rawValue: raw)

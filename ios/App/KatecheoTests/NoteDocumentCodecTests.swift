@@ -13,7 +13,7 @@ final class NoteDocumentCodecTests: XCTestCase {
         XCTAssertEqual(titleAttrs[NoteDocumentCodec.blockIdKey] as? String, "title")
         XCTAssertNotNil(titleAttrs[.font] as? UIFont)
         XCTAssertNotNil(titleAttrs[.paragraphStyle] as? NSParagraphStyle)
-        XCTAssertEqual(titleAttrs[.foregroundColor] as? UIColor, .label)
+        XCTAssertEqual(titleAttrs[.foregroundColor] as? UIColor, KCDesign.editorInk(for: .light))
 
         let style = titleAttrs[.paragraphStyle] as! NSParagraphStyle
         XCTAssertEqual(

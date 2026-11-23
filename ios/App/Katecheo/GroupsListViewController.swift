@@ -19,25 +19,35 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
         view.accessibilityIdentifier = "grupos.list"
         title = String(localized: "Grupos")
         navigationController?.navigationBar.prefersLargeTitles = true
+        // iPad floating tab bar sits at the top center — keep large titles but use compact
+        // trailing icons so ••• / + / “Novo grupo” never overlap Caderno/Grupos.
         navigationItem.largeTitleDisplayMode = .always
         if let nav = navigationController {
             KCChrome.style(navigationController: nav)
         }
 
-        var trailing: [UIBarButtonItem] = [
-            UIBarButtonItem(
+        let createItem: UIBarButtonItem
+        if PadChrome.isPad {
+            createItem = UIBarButtonItem(
+                barButtonSystemItem: .add,
+                target: self,
+                action: #selector(createGroup)
+            )
+            // Tools / Profile on the leading edge, away from the floating tab bar.
+            navigationItem.leftBarButtonItems = [
+                PadChrome.makeProfileBarButton(target: self, action: #selector(openProfileSheet)),
+                PadChrome.makeToolsBarButton(target: self, action: #selector(openToolsSheet)),
+            ]
+        } else {
+            createItem = UIBarButtonItem(
                 title: String(localized: "Novo grupo"),
                 style: .plain,
                 target: self,
                 action: #selector(createGroup)
-            ),
-        ]
-        trailing[0].accessibilityLabel = String(localized: "Novo grupo")
-        if PadChrome.isPad {
-            trailing.append(PadChrome.makeToolsBarButton(target: self, action: #selector(openToolsSheet)))
-            trailing.append(PadChrome.makeProfileBarButton(target: self, action: #selector(openProfileSheet)))
+            )
         }
-        navigationItem.rightBarButtonItems = trailing
+        createItem.accessibilityLabel = String(localized: "Novo grupo")
+        navigationItem.rightBarButtonItems = [createItem]
 
         search.searchResultsUpdater = self
         search.obscuresBackgroundDuringPresentation = false
@@ -220,20 +230,15 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
         openGroup(group, keepingSelectionAt: indexPath)
     }
 
-    /// iPad triple-column: show notes in supplementary. iPhone: push group Caderno.
+    /// iPad: push group notes inside the same sidebar column (Notes folders). iPhone: push Caderno.
     private func openGroup(_ group: NativeAPIClient.GroupDTO, keepingSelectionAt indexPath: IndexPath?) {
+        if let indexPath {
+            // Warm highlight flash, then deselect — drill-in covers this list (like Notes folders).
+            tableView.deselectRow(at: indexPath, animated: true)
+        }
         if PadChrome.isPad, let split = groupsSplit {
-            let regular = traitCollection.horizontalSizeClass == .regular && !split.isCollapsed
-            if regular, let indexPath {
-                tableView.selectRow(at: indexPath, animated: false, scrollPosition: .none)
-            } else if let indexPath {
-                tableView.deselectRow(at: indexPath, animated: true)
-            }
             split.showGroup(group, animated: true)
             return
-        }
-        if let indexPath {
-            tableView.deselectRow(at: indexPath, animated: true)
         }
         let detail = NotebookChrome.makeGroupCaderno(group: group)
         navigationController?.pushViewController(detail, animated: true)

@@ -405,7 +405,8 @@ enum NoteDocumentCodec {
         // Breathing room between paragraphs (reading + editing) — not blank lines.
         style.paragraphSpacing = 10
         var font = UIFont.preferredFont(forTextStyle: .body)
-        var foreground: UIColor = .label
+        // Concrete ink — dynamic `.label` can wash out on warm canvas in split snapshots.
+        var foreground: UIColor = KCDesign.editorInk(for: .light)
         switch type {
         case "heading":
             font = UIFont.preferredFont(forTextStyle: id == "title" ? .title1 : .title2)
@@ -417,7 +418,7 @@ enum NoteDocumentCodec {
             font = KCDesign.preferred(.title3, weight: .semibold)
             style.paragraphSpacingBefore = 14
             style.paragraphSpacing = 8
-            foreground = .label
+            foreground = KCDesign.editorInk(for: .light)
             _ = speakers
         case "bullet", "numbered", "check":
             // Marker on first line; wraps hang by the measured marker width (TF210).

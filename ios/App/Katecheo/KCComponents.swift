@@ -431,6 +431,31 @@ final class KCNoteRowCell: UITableViewCell {
         )
     }
 
+    override func setHighlighted(_ highlighted: Bool, animated: Bool) {
+        super.setHighlighted(highlighted, animated: animated)
+        setNeedsUpdateConfiguration()
+        if highlighted || isSelected {
+            paintWarmSelectionActive()
+        }
+    }
+
+    override func setSelected(_ selected: Bool, animated: Bool) {
+        super.setSelected(selected, animated: animated)
+        setNeedsUpdateConfiguration()
+        if selected || isHighlighted {
+            paintWarmSelectionActive()
+        }
+    }
+
+    private func paintWarmSelectionActive() {
+        var bg: UIBackgroundConfiguration = usesPadSidebarStyle ? .listPlainCell() : .listGroupedCell()
+        if usesPadSidebarStyle { bg.cornerRadius = 10 }
+        bg.backgroundColor = KCDesign.accentSoft
+        backgroundConfiguration = bg
+        selectedBackgroundView?.backgroundColor = KCDesign.accentSoft
+        contentView.backgroundColor = .clear
+    }
+
     // MARK: - Testing hooks
 
     var testing_titleLabel: UILabel { titleLabel }
@@ -606,6 +631,32 @@ final class KCGroupRowCell: UITableViewCell {
             style: usesPadSidebarStyle ? .plainSidebar : .grouped,
             state: state
         )
+    }
+
+    override func setHighlighted(_ highlighted: Bool, animated: Bool) {
+        super.setHighlighted(highlighted, animated: animated)
+        setNeedsUpdateConfiguration()
+        // Force warm wash immediately — configurationState can lag on iPad split lists.
+        if highlighted || isSelected {
+            paintWarmSelectionActive()
+        }
+    }
+
+    override func setSelected(_ selected: Bool, animated: Bool) {
+        super.setSelected(selected, animated: animated)
+        setNeedsUpdateConfiguration()
+        if selected || isHighlighted {
+            paintWarmSelectionActive()
+        }
+    }
+
+    private func paintWarmSelectionActive() {
+        var bg: UIBackgroundConfiguration = usesPadSidebarStyle ? .listPlainCell() : .listGroupedCell()
+        if usesPadSidebarStyle { bg.cornerRadius = 10 }
+        bg.backgroundColor = KCDesign.accentSoft
+        backgroundConfiguration = bg
+        selectedBackgroundView?.backgroundColor = KCDesign.accentSoft
+        contentView.backgroundColor = .clear
     }
 
     func configure(_ group: NativeAPIClient.GroupDTO, unread: Bool = false) {

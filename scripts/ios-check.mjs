@@ -1192,8 +1192,8 @@ if (
   errors.push("NativeDeepLinkRouter tem de abrir grupos via NotebookChrome / GroupsSplit.");
 }
 const groupsSplitSrc = read("ios/App/Katecheo/GroupsSplitViewController.swift");
-if (!groupsSplitSrc.includes("tripleColumn") || !groupsSplitSrc.includes("showGroup")) {
-  errors.push("GroupsSplitViewController tem de ser tripleColumn com showGroup (lista → notas → editor).");
+if (!groupsSplitSrc.includes("doubleColumn") || !groupsSplitSrc.includes("showGroup")) {
+  errors.push("GroupsSplitViewController tem de ser doubleColumn com showGroup (push notas na sidebar, como Notes).");
 }
 const splitSrc = read("ios/App/Katecheo/NotebookSplitViewController.swift");
 if (!splitSrc.includes("userInterfaceIdiom == .pad") || !splitSrc.includes("prefersSplit")) {

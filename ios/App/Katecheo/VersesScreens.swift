@@ -1027,6 +1027,10 @@ final class MyCollectionsViewController: UITableViewController {
         refreshControl = UIRefreshControl()
         refreshControl?.tintColor = KCDesign.accent
         refreshControl?.addTarget(self, action: #selector(reload), for: .valueChanged)
+        // Paint signed-out empty state immediately so sheet snapshots aren't blank beige.
+        if !NativeAPIClient.hasBearer {
+            refreshEmptyState(signedOut: true)
+        }
     }
 
     override func viewDidLayoutSubviews() {

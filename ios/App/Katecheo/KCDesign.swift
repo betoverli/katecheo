@@ -45,6 +45,14 @@ enum KCDesign {
         return UIColor(red: 0.961, green: 0.929, blue: 0.878, alpha: 1) // #F5EDE0
     }
 
+    /// Concrete title/body ink on `canvas` — not dynamic `.label` (washes out in split snapshots).
+    static func editorInk(for style: UIUserInterfaceStyle) -> UIColor {
+        if style == .dark {
+            return UIColor(red: 0.96, green: 0.94, blue: 0.90, alpha: 1)
+        }
+        return UIColor(red: 0.14, green: 0.12, blue: 0.10, alpha: 1)
+    }
+
     /// Elevated card / grouped cell surface.
     static let surface = UIColor { traits in
         if traits.userInterfaceStyle == .dark {
@@ -245,6 +253,13 @@ enum KCChrome {
             .font: KCDesign.preferred(.largeTitle, weight: .bold),
         ]
         nav.shadowColor = .clear
+        // Keep bar button titles/icons on accent — never white-on-beige (sheet Close).
+        let button = UIBarButtonItemAppearance()
+        button.normal.titleTextAttributes = [.foregroundColor: KCDesign.accent]
+        button.highlighted.titleTextAttributes = [.foregroundColor: KCDesign.accent]
+        button.disabled.titleTextAttributes = [.foregroundColor: KCDesign.accent.withAlphaComponent(0.4)]
+        nav.buttonAppearance = button
+        nav.doneButtonAppearance = button
         return nav
     }
 

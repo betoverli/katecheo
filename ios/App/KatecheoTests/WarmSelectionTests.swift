@@ -57,4 +57,17 @@ final class WarmSelectionTests: XCTestCase {
         let expected = KCDesign.accentSoft.resolvedColor(with: UITraitCollection(userInterfaceStyle: .light))
         XCTAssertEqual(fill, expected)
     }
+
+    func testGroupRow_selectedPadSidebarUsesAccentSoft() {
+        let cell = KCGroupRowCell(style: .default, reuseIdentifier: KCGroupRowCell.reuseId)
+        cell.applySidebarStyle(isPadSidebar: true)
+        cell.setSelected(true, animated: false)
+        cell.setNeedsUpdateConfiguration()
+        cell.updateConfiguration(using: cell.configurationState)
+
+        let fill = cell.testing_backgroundConfigurationColor?
+            .resolvedColor(with: UITraitCollection(userInterfaceStyle: .light))
+        let expected = KCDesign.accentSoft.resolvedColor(with: UITraitCollection(userInterfaceStyle: .light))
+        XCTAssertEqual(fill, expected)
+    }
 }
