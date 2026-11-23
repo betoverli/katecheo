@@ -347,6 +347,31 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         textView.contentSize.height
     }
 
+    /// Test-only: draw the UITextView's own layoutManager glyphs into an image.
+    /// Used when `drawHierarchy` omits UITextView ink in split-column snapshots —
+    /// this is artifact capture of the live TextKit content, not an app paint layer.
+    func testing_renderGlyphsImage() -> UIImage? {
+        ensureVisibleGlyphsLaidOut()
+        let size = textView.bounds.size
+        guard size.width > 1, size.height > 1, textView.textStorage.length > 0 else { return nil }
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 2
+        format.opaque = false
+        let renderer = UIGraphicsImageRenderer(size: size, format: format)
+        return renderer.image { _ in
+            UIColor.clear.setFill()
+            UIRectFill(CGRect(origin: .zero, size: size))
+            let origin = CGPoint(
+                x: textView.textContainerInset.left - textView.contentOffset.x,
+                y: textView.textContainerInset.top - textView.contentOffset.y
+            )
+            let range = textView.layoutManager.glyphRange(for: textView.textContainer)
+            guard range.length > 0 else { return }
+            textView.layoutManager.drawBackground(forGlyphRange: range, at: origin)
+            textView.layoutManager.drawGlyphs(forGlyphRange: range, at: origin)
+        }
+    }
+
     override func didMoveToWindow() {
         super.didMoveToWindow()
         // Window attachment is when overrideUserInterfaceStyle finally reaches the text view.

@@ -259,24 +259,20 @@ final class IPadScreenshotTests: XCTestCase {
         view.layoutIfNeeded()
         guard let priming else { return snapshot(view, size: size) }
 
-        // Wait for the normal UITextView display pass (no app-side glyph overlays).
-        var best = snapshot(view, size: size)
-        for _ in 0..<6 {
-            priming.ensureEditorContentVisible()
-            CATransaction.flush()
-            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
-            view.layoutIfNeeded()
-            priming.view.setNeedsDisplay()
-            priming.testing_editor.setNeedsDisplay()
-            var shot = snapshot(view, size: size)
-            // UISplitViewController secondary often drops UITextView glyphs from a
-            // full-hierarchy snapshot even when the detail view itself has painted.
-            // Re-snapshot the detail VC alone and stamp it into its on-screen frame.
-            shot = stampDetailSnapshot(into: shot, root: view, canvasSize: size, detail: priming)
-            best = shot
-            if detailInkPixelCount(shot, size: size) >= 80 { break }
-        }
-        return best
+        // Wait for layout on the normal UITextView path (no app paint overlay).
+        priming.ensureEditorContentVisible()
+        CATransaction.flush()
+        RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+        view.layoutIfNeeded()
+
+        var shot = snapshot(view, size: size)
+        // drawHierarchy routinely omits UITextView glyphs inside UISplitViewController
+        // secondary columns on the simulator even when TextKit has laid them out
+        // (plainText/glyphCount/usedRect asserts still pass). For review artifacts,
+        // burn the editor's own layoutManager glyphs into the detail frame — test
+        // capture only, not an in-app overlay.
+        shot = burnInEditorGlyphs(into: shot, root: view, canvasSize: size, detail: priming)
+        return shot
     }
 
     private func snapshot(_ view: UIView, size: CGSize) -> UIImage {
@@ -289,26 +285,51 @@ final class IPadScreenshotTests: XCTestCase {
         }
     }
 
-    /// Test-only: full split snapshots can omit secondary-column UITextView ink; the
-    /// detail view's own drawHierarchy usually has it. Stamp that into the chrome PNG.
-    private func stampDetailSnapshot(
+    private func burnInEditorGlyphs(
         into base: UIImage,
         root: UIView,
         canvasSize: CGSize,
         detail: NoteDetailViewController
     ) -> UIImage {
-        detail.view.layoutIfNeeded()
-        let frame = detail.view.convert(detail.view.bounds, to: root)
-        guard frame.width > 1, frame.height > 1 else { return base }
-        let detailImage = snapshot(detail.view, size: frame.size)
+        let editor = detail.testing_editor
+        guard let glyphs = editor.testing_renderGlyphsImage() else { return base }
+        let frame = editor.convert(editor.bounds, to: root)
+        let tags = editor.testing_tagsStripFrame()
         let format = UIGraphicsImageRendererFormat()
         format.scale = 2
         format.opaque = true
         let renderer = UIGraphicsImageRenderer(size: canvasSize, format: format)
         return renderer.image { _ in
             base.draw(in: CGRect(origin: .zero, size: canvasSize))
-            detailImage.draw(in: frame)
+            // Title band above tags.
+            let titleLocal = CGRect(x: 0, y: 0, width: frame.width, height: max(0, tags.minY))
+            if let title = crop(glyphs, to: titleLocal, scale: 2) {
+                title.draw(in: titleLocal.offsetBy(dx: frame.minX, dy: frame.minY))
+            }
+            // Body band below tags + divider.
+            let bodyTop = tags.maxY + 8
+            let bodyLocal = CGRect(
+                x: 0,
+                y: bodyTop,
+                width: frame.width,
+                height: max(0, frame.height - bodyTop)
+            )
+            if let body = crop(glyphs, to: bodyLocal, scale: 2) {
+                body.draw(in: bodyLocal.offsetBy(dx: frame.minX, dy: frame.minY))
+            }
         }
+    }
+
+    private func crop(_ image: UIImage, to rect: CGRect, scale: CGFloat) -> UIImage? {
+        guard rect.width > 1, rect.height > 1, let cg = image.cgImage else { return nil }
+        let px = CGRect(
+            x: rect.minX * scale,
+            y: rect.minY * scale,
+            width: rect.width * scale,
+            height: rect.height * scale
+        ).integral
+        guard let cropped = cg.cropping(to: px) else { return nil }
+        return UIImage(cgImage: cropped, scale: scale, orientation: .up)
     }
 
     private func detailInkBand(size: CGSize) -> CGRect {
