@@ -53,7 +53,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         // can lay out. A `.zero` height container (previous default) left iPad split
         // detail with tags chrome but no title/body ink until AppTests called
         // `testing_prepare` — production never did.
-        let container = NSTextContainer(size: CGSize(width: 0, height: .greatestFiniteMagnitude))
+        let container = NSTextContainer(size: CGSize(width: 0, height: CGFloat.greatestFiniteMagnitude))
         container.widthTracksTextView = true
         container.heightTracksTextView = false
         layout.addTextContainer(container)
@@ -243,8 +243,8 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         let container = textView.textContainer
         container.widthTracksTextView = true
         container.heightTracksTextView = false
-        if abs(container.size.height - .greatestFiniteMagnitude) > 1 {
-            container.size = CGSize(width: width, height: .greatestFiniteMagnitude)
+        if abs(container.size.height - CGFloat.greatestFiniteMagnitude) > 1 {
+            container.size = CGSize(width: width, height: CGFloat.greatestFiniteMagnitude)
         }
         let widthChanged = abs(width - lastLaidOutTextWidth) > 0.5
         if widthChanged {
@@ -2674,7 +2674,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         // (a finite height clips TextKit and breaks caret/contentOffset math).
         textView.textContainer.size = CGSize(
             width: max(0, size.width - textView.textContainerInset.left - textView.textContainerInset.right - 5),
-            height: .greatestFiniteMagnitude
+            height: CGFloat.greatestFiniteMagnitude
         )
         textView.textContainer.heightTracksTextView = false
         textView.layoutManager.ensureLayout(for: textView.textContainer)
