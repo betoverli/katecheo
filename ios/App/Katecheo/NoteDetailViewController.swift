@@ -172,15 +172,7 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         super.viewWillAppear(animated)
         // Keep the nav compact while editing (parent Caderno uses large titles).
         navigationController?.navigationBar.prefersLargeTitles = false
-        // Never show the split's displayMode control on the detail — empty Liquid Glass circle.
-        navigationItem.leftBarButtonItem = nil
-        navigationItem.leftBarButtonItems = []
-        navigationItem.hidesBackButton = true
-        if let split = splitViewController {
-            if #available(iOS 14.5, *) {
-                split.displayModeButtonVisibility = .never
-            }
-        }
+        applySplitSecondaryChrome()
         // Regular split secondary: keep tab bar. Compact push: hide it.
         if let split = splitViewController as? NotebookSplitViewController {
             applyTabBarHidingForSplit(isCollapsed: split.isCollapsed)
@@ -199,10 +191,35 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        // UIKit can re-inject displayModeButtonItem after appear — clear again.
-        navigationItem.leftBarButtonItem = nil
-        navigationItem.leftBarButtonItems = []
+        // UIKit can re-inject displayModeButtonItem after appear — clear again on split secondary.
+        applySplitSecondaryChrome()
         ensureEditorContentVisible()
+    }
+
+    /// iPad expanded split secondary: hide the empty displayMode control and the back chevron
+    /// (detail is a column, not a push). iPhone / compact push must keep system back + swipe-pop.
+    private func applySplitSecondaryChrome() {
+        if isExpandedSplitSecondaryDetail {
+            navigationItem.leftBarButtonItem = nil
+            navigationItem.leftBarButtonItems = []
+            navigationItem.hidesBackButton = true
+            if let split = splitViewController, #available(iOS 14.5, *) {
+                split.displayModeButtonVisibility = .never
+            }
+            return
+        }
+        navigationItem.hidesBackButton = false
+        // Ensure edge-swipe pop works after any prior hidesBackButton=true (TF 496).
+        navigationController?.interactivePopGestureRecognizer?.isEnabled = true
+    }
+
+    /// True when this VC is the note column of an expanded Caderno/Grupos split (not a push).
+    private var isExpandedSplitSecondaryDetail: Bool {
+        guard let split = splitViewController, !split.isCollapsed else { return false }
+        guard let secondary = split.viewController(for: .secondary) as? UINavigationController else {
+            return false
+        }
+        return secondary.viewControllers.contains(where: { $0 === self })
     }
 
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
