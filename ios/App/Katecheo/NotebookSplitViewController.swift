@@ -58,8 +58,10 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
         delegate = self
         preferredDisplayMode = .oneBesideSecondary
         presentsWithGesture = true
+        // One sidebar toggle only (primary column). Assigning `displayModeButtonItem` on
+        // the secondary paints an empty Liquid Glass circle with no icon — hide it.
         if #available(iOS 14.5, *) {
-            displayModeButtonVisibility = .automatic
+            displayModeButtonVisibility = .never
         }
         if #available(iOS 16.0, *) {
             preferredSplitBehavior = .tile
@@ -114,11 +116,12 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
         detail.applyTabBarHidingForSplit(isCollapsed: false)
         let nav = UINavigationController(rootViewController: detail)
         KCChrome.style(navigationController: nav)
-        // Sidebar toggle (hide list for full-width reading) — same as Notes.
-        detail.navigationItem.leftBarButtonItem = displayModeButtonItem
+        // Do not assign displayModeButtonItem — primary already has the sidebar control.
+        detail.navigationItem.leftBarButtonItem = nil
         secondaryNav = nav
         setViewController(nav, for: .secondary)
         show(.secondary)
+        detail.ensureEditorContentVisible()
     }
 
     /// Clears the detail column back to the empty state (after delete / deselect).
@@ -128,7 +131,7 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
         let empty = NotebookEmptyDetailViewController()
         let nav = UINavigationController(rootViewController: empty)
         KCChrome.style(navigationController: nav)
-        empty.navigationItem.leftBarButtonItem = displayModeButtonItem
+        empty.navigationItem.leftBarButtonItem = nil
         secondaryNav = nav
         setViewController(nav, for: .secondary)
 
@@ -213,16 +216,18 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
             detail.applyTabBarHidingForSplit(isCollapsed: false)
             let nav = UINavigationController(rootViewController: detail)
             KCChrome.style(navigationController: nav)
-            detail.navigationItem.leftBarButtonItem = displayModeButtonItem
+            detail.navigationItem.leftBarButtonItem = nil
             secondaryNav = nav
             setViewController(nav, for: .secondary)
+            detail.ensureEditorContentVisible()
             return
         }
         if let detail = secondaryNav.topViewController as? NoteDetailViewController {
             selectedNoteId = detail.openedNoteId
             listViewController.highlightSelectedNote(id: detail.openedNoteId)
             detail.applyTabBarHidingForSplit(isCollapsed: false)
-            detail.navigationItem.leftBarButtonItem = displayModeButtonItem
+            detail.navigationItem.leftBarButtonItem = nil
+            detail.ensureEditorContentVisible()
             return
         }
         if let id = selectedNoteId {

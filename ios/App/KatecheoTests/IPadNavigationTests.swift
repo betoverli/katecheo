@@ -72,6 +72,22 @@ final class IPadNavigationTests: XCTestCase {
 
         XCTAssertEqual(split.selectedNoteId, titled.id)
         XCTAssertEqual(split.openDetailNoteId, titled.id)
+        XCTAssertEqual(list.testing_highlightedNoteId, titled.id)
+        XCTAssertTrue(list.testing_hasSelectedRow, "Selected Caderno row must stay highlighted")
+
+        let detail = try XCTUnwrap(
+            (split.viewController(for: .secondary) as? UINavigationController)?
+                .topViewController as? NoteDetailViewController
+        )
+        detail.ensureEditorContentVisible()
+        XCTAssertTrue(
+            detail.testing_editor.testing_plainText.contains("Nota iPad"),
+            "Detail editor must show the selected note title"
+        )
+        XCTAssertNil(
+            detail.navigationItem.leftBarButtonItem,
+            "Secondary must not show the empty displayMode circle"
+        )
     }
 
     func testPad_selectingGroup_pushesNotesInSidebar() throws {

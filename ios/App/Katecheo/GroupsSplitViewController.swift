@@ -35,8 +35,9 @@ final class GroupsSplitViewController: UISplitViewController, UISplitViewControl
         delegate = self
         preferredDisplayMode = .oneBesideSecondary
         presentsWithGesture = true
+        // Match Caderno: one sidebar toggle on the primary column only.
         if #available(iOS 14.5, *) {
-            displayModeButtonVisibility = .automatic
+            displayModeButtonVisibility = .never
         }
         if #available(iOS 16.0, *) {
             preferredSplitBehavior = .tile
@@ -115,10 +116,11 @@ final class GroupsSplitViewController: UISplitViewController, UISplitViewControl
         detail.applyTabBarHidingForSplit(isCollapsed: false)
         let nav = UINavigationController(rootViewController: detail)
         KCChrome.style(navigationController: nav)
-        detail.navigationItem.leftBarButtonItem = displayModeButtonItem
+        detail.navigationItem.leftBarButtonItem = nil
         secondaryNav = nav
         setViewController(nav, for: .secondary)
         show(.secondary)
+        detail.ensureEditorContentVisible()
     }
 
     func showEmptyDetail(animated: Bool) {
@@ -127,7 +129,7 @@ final class GroupsSplitViewController: UISplitViewController, UISplitViewControl
         let empty = NotebookEmptyDetailViewController()
         let nav = UINavigationController(rootViewController: empty)
         KCChrome.style(navigationController: nav)
-        empty.navigationItem.leftBarButtonItem = displayModeButtonItem
+        empty.navigationItem.leftBarButtonItem = nil
         secondaryNav = nav
         setViewController(nav, for: .secondary)
         if isCollapsed {

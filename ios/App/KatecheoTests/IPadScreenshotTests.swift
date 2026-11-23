@@ -25,7 +25,7 @@ final class IPadScreenshotTests: XCTestCase {
         try XCTSkipUnless(isPad, "Screenshot suite runs on iPad Simulator in CI")
 
         let titled = Self.sampleNote(
-            title: "Estudo no iPad",
+            title: "Nota iPad",
             body: "Texto do corpo da nota aberto no detalhe."
         )
         LocalNoteCache.saveNotes([titled])
@@ -59,21 +59,41 @@ final class IPadScreenshotTests: XCTestCase {
             tabs.loadViewIfNeeded()
             tabs.view.layoutIfNeeded()
 
-            // 1) Caderno with a note open — title + body must be visible in the editor.
+            // 1) Caderno — paint list from cache, open via real row selection (wiring under test).
             let split = try XCTUnwrap(tabs.viewControllers?.first as? NotebookSplitViewController)
-            let detail = NoteDetailViewController(noteId: titled.id, initial: titled)
-            split.showNote(detail, animated: false)
-            detail.loadViewIfNeeded()
-            detail.view.layoutIfNeeded()
-            detail.testing_editor.layoutIfNeeded()
-            RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+            let list = split.listViewController
+            list.loadViewIfNeeded()
+            list.viewWillAppear(false)
+            list.view.layoutIfNeeded()
+            XCTAssertGreaterThan(list.testing_filteredRowCount, 0, "Caderno list must show cached note")
+            list.testing_selectRow(at: 0)
+            RunLoop.current.run(until: Date().addingTimeInterval(0.35))
             tabs.view.layoutIfNeeded()
+
+            let detail = try XCTUnwrap(
+                (split.viewController(for: .secondary) as? UINavigationController)?
+                    .topViewController as? NoteDetailViewController,
+                "Selecting a Caderno row must open NoteDetail in the secondary column"
+            )
+            detail.ensureEditorContentVisible()
+            RunLoop.current.run(until: Date().addingTimeInterval(0.15))
+
             let editorText = detail.testing_editor.testing_plainText
             XCTAssertTrue(
-                editorText.contains("Estudo no iPad"),
+                editorText.contains("Nota iPad"),
                 "Caderno detail must show note title; got: \(editorText.prefix(80))"
             )
-            write(render(tabs.view, size: size), name: "ipad-\(orientation)-caderno-note")
+            XCTAssertTrue(
+                editorText.contains("Texto do corpo"),
+                "Caderno detail must show note body; got: \(editorText.prefix(120))"
+            )
+            XCTAssertEqual(list.testing_highlightedNoteId, titled.id, "Open note row must stay highlighted")
+            XCTAssertTrue(list.testing_hasSelectedRow, "UITableView selection must survive reload")
+
+            let cadernoShot = render(tabs.view, size: size)
+            assertDetailHasVisibleInk(cadernoShot, size: size, label: "caderno-\(orientation)")
+            assertNoGhostDisplayModeButton(cadernoShot, size: size, label: "caderno-\(orientation)")
+            write(cadernoShot, name: "ipad-\(orientation)-caderno-note")
 
             // 2a) Grupos list (sidebar + empty detail)
             tabs.selectedIndex = 1
@@ -91,13 +111,29 @@ final class IPadScreenshotTests: XCTestCase {
             let groupList = try XCTUnwrap(groupsSplit.openGroupNotesList)
             groupList.loadViewIfNeeded()
             groupList.testing_replaceGroupCards([card])
-            let groupDetail = NoteDetailViewController(noteId: groupNote.id, initial: groupNote)
-            groupsSplit.showNote(groupDetail, animated: false)
-            groupDetail.loadViewIfNeeded()
-            groupDetail.view.layoutIfNeeded()
-            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+            groupList.testing_selectRow(at: 0)
+            RunLoop.current.run(until: Date().addingTimeInterval(0.35))
             tabs.view.layoutIfNeeded()
-            write(render(tabs.view, size: size), name: "ipad-\(orientation)-grupos-group-notes")
+
+            let groupDetail = try XCTUnwrap(
+                (groupsSplit.viewController(for: .secondary) as? UINavigationController)?
+                    .topViewController as? NoteDetailViewController,
+                "Selecting a group note must open NoteDetail in the secondary column"
+            )
+            groupDetail.ensureEditorContentVisible()
+            RunLoop.current.run(until: Date().addingTimeInterval(0.15))
+
+            let groupEditorText = groupDetail.testing_editor.testing_plainText
+            XCTAssertTrue(
+                groupEditorText.contains("Nota do grupo"),
+                "Group detail must show note title; got: \(groupEditorText.prefix(80))"
+            )
+            XCTAssertEqual(groupList.testing_highlightedNoteId, groupNote.id)
+
+            let groupShot = render(tabs.view, size: size)
+            assertDetailHasVisibleInk(groupShot, size: size, label: "grupos-\(orientation)")
+            assertNoGhostDisplayModeButton(groupShot, size: size, label: "grupos-\(orientation)")
+            write(groupShot, name: "ipad-\(orientation)-grupos-group-notes")
 
             // 3) Tools sheet with visible content (Books empty-state or rows — not blank beige).
             tabs.selectedIndex = 0
@@ -115,7 +151,6 @@ final class IPadScreenshotTests: XCTestCase {
             )
 
             // 4) Profile sheet — must be Perfil, not Caderno / leftover Tools.
-            // presentProfileSheet dismisses Tools in its completion before presenting.
             tabs.presentProfileSheet(animated: false)
             var profileNav: UINavigationController?
             for _ in 0 ..< 20 {
@@ -193,10 +228,98 @@ final class IPadScreenshotTests: XCTestCase {
         view.layoutIfNeeded()
         let format = UIGraphicsImageRendererFormat()
         format.scale = 2
+        format.opaque = true
         let renderer = UIGraphicsImageRenderer(size: size, format: format)
         return renderer.image { _ in
             view.drawHierarchy(in: CGRect(origin: .zero, size: size), afterScreenUpdates: true)
         }
+    }
+
+    /// Detail column title band must contain dark ink (not empty parchment).
+    private func assertDetailHasVisibleInk(_ image: UIImage, size: CGSize, label: String) {
+        let primaryFraction = PadChrome.notebookPrimaryFraction
+        let detailLeft = size.width * primaryFraction
+        // Title sits just under the nav / safe area in the secondary column.
+        let band = CGRect(
+            x: detailLeft + 40,
+            y: size.height * 0.10,
+            width: min(420, size.width - detailLeft - 80),
+            height: size.height * 0.14
+        )
+        let dark = sampleDarkPixelCount(image, in: band, lumaBelow: 0.45)
+        XCTAssertGreaterThan(
+            dark,
+            40,
+            "\(label): detail title/body must paint visible ink (darkPixels=\(dark) in \(band))"
+        )
+    }
+
+    /// Empty Liquid Glass circle lived at ~ (primaryWidth + 24, ~70–100) in landscape.
+    private func assertNoGhostDisplayModeButton(_ image: UIImage, size: CGSize, label: String) {
+        let primaryWidth = min(
+            max(size.width * PadChrome.notebookPrimaryFraction, PadChrome.notebookPrimaryMin),
+            PadChrome.notebookPrimaryMax
+        )
+        let probe = CGRect(x: primaryWidth + 8, y: 55, width: 56, height: 56)
+        let white = sampleNearWhitePixelCount(image, in: probe, lumaAbove: 0.92)
+        let total = max(1, Int(probe.width * probe.height / 4))
+        let ratio = CGFloat(white) / CGFloat(total)
+        XCTAssertLessThan(
+            ratio,
+            0.35,
+            "\(label): empty round displayMode button must be gone (whiteRatio=\(ratio) in \(probe))"
+        )
+    }
+
+    private func sampleDarkPixelCount(_ image: UIImage, in rect: CGRect, lumaBelow: CGFloat) -> Int {
+        samplePixels(image, in: rect) { $0 < lumaBelow }
+    }
+
+    private func sampleNearWhitePixelCount(_ image: UIImage, in rect: CGRect, lumaAbove: CGFloat) -> Int {
+        samplePixels(image, in: rect) { $0 > lumaAbove }
+    }
+
+    private func samplePixels(_ image: UIImage, in rect: CGRect, match: (CGFloat) -> Bool) -> Int {
+        guard let cg = image.cgImage else { return 0 }
+        let scale = image.scale
+        let px = CGRect(
+            x: rect.minX * scale,
+            y: rect.minY * scale,
+            width: rect.width * scale,
+            height: rect.height * scale
+        ).integral
+        guard let cropped = cg.cropping(to: px) else { return 0 }
+        let width = cropped.width
+        let height = cropped.height
+        let bytesPerPixel = 4
+        let bytesPerRow = bytesPerPixel * width
+        var data = [UInt8](repeating: 0, count: height * bytesPerRow)
+        guard let ctx = CGContext(
+            data: &data,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: bytesPerRow,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return 0 }
+        ctx.draw(cropped, in: CGRect(x: 0, y: 0, width: width, height: height))
+        var count = 0
+        var y = 0
+        while y < height {
+            var x = 0
+            while x < width {
+                let i = y * bytesPerRow + x * bytesPerPixel
+                let r = CGFloat(data[i]) / 255
+                let g = CGFloat(data[i + 1]) / 255
+                let b = CGFloat(data[i + 2]) / 255
+                let luma = 0.2126 * r + 0.7152 * g + 0.0722 * b
+                if match(luma) { count += 1 }
+                x += 2
+            }
+            y += 2
+        }
+        return count
     }
 
     private func write(_ image: UIImage, name: String) {

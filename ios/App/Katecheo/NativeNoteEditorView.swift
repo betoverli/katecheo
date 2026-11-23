@@ -42,11 +42,20 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     /// `shouldChange` already mutated storage (autocap / suppress path) — testing insert must not retry.
     private var shouldChangeConsumedInsertion = false
 
+    /// Last text-view width we laid out for — when the split secondary column grows
+    /// from 0 → real width, TextKit must invalidate or title/body glyphs never appear.
+    private var lastLaidOutTextWidth: CGFloat = -1
+
     override init(frame: CGRect) {
         let storage = NSTextStorage()
         let layout = NoteSpeakerRailLayoutManager()
-        let container = NSTextContainer(size: .zero)
+        // Scrolling note body: width tracks the view; height stays unbounded so glyphs
+        // can lay out. A `.zero` height container (previous default) left iPad split
+        // detail with tags chrome but no title/body ink until AppTests called
+        // `testing_prepare` — production never did.
+        let container = NSTextContainer(size: CGSize(width: 0, height: .greatestFiniteMagnitude))
         container.widthTracksTextView = true
+        container.heightTracksTextView = false
         layout.addTextContainer(container)
         storage.addLayoutManager(layout)
         railLayoutManager = layout
@@ -215,9 +224,59 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
     override func layoutSubviews() {
         super.layoutSubviews()
+        ensureTextContainerMatchesBounds()
         repositionTagsStrip()
         repositionPlaceholders()
         repositionHeaderDivider()
+    }
+
+    /// Keep the TextKit container sized for a scrolling UITextView. When the iPad
+    /// secondary column first gets a non-zero width, force a full glyph relayout so
+    /// title/body painted at width 0 become visible.
+    private func ensureTextContainerMatchesBounds() {
+        let inset = textView.textContainerInset
+        let width = max(
+            0,
+            textView.bounds.width - inset.left - inset.right - textView.textContainer.lineFragmentPadding * 2
+        )
+        guard width > 1 else { return }
+        let container = textView.textContainer
+        container.widthTracksTextView = true
+        container.heightTracksTextView = false
+        if abs(container.size.height - .greatestFiniteMagnitude) > 1 {
+            container.size = CGSize(width: width, height: .greatestFiniteMagnitude)
+        }
+        let widthChanged = abs(width - lastLaidOutTextWidth) > 0.5
+        if widthChanged {
+            lastLaidOutTextWidth = width
+            let length = textView.textStorage.length
+            if length > 0 {
+                let full = NSRange(location: 0, length: length)
+                textView.layoutManager.invalidateLayout(forCharacterRange: full, actualCharacterRange: nil)
+                textView.layoutManager.invalidateDisplay(forCharacterRange: full)
+            }
+            textView.layoutManager.ensureLayout(for: container)
+            textView.setNeedsDisplay()
+        }
+    }
+
+    /// Production + screenshot seam: after the detail column has real bounds, guarantee
+    /// glyphs exist for whatever is already in `textStorage` (no re-decode needed).
+    func ensureVisibleGlyphsLaidOut() {
+        precondition(Thread.isMainThread)
+        layoutIfNeeded()
+        ensureTextContainerMatchesBounds()
+        let length = textView.textStorage.length
+        if length > 0 {
+            let full = NSRange(location: 0, length: length)
+            textView.layoutManager.invalidateLayout(forCharacterRange: full, actualCharacterRange: nil)
+            textView.layoutManager.ensureLayout(for: textView.textContainer)
+        }
+        refreshDynamicTextColors()
+        repositionTagsStrip()
+        repositionPlaceholders()
+        repositionHeaderDivider()
+        textView.setNeedsDisplay()
     }
 
     override func didMoveToWindow() {
@@ -896,6 +955,9 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         refreshAttachmentAppearances()
         refreshSpeakerRails()
         refreshPlaceholders()
+        // If we already have a non-zero width (re-open / split expand), lay out glyphs now.
+        // Otherwise `layoutSubviews` will pick it up when the secondary column sizes.
+        ensureTextContainerMatchesBounds()
         repositionTagsStrip()
     }
 

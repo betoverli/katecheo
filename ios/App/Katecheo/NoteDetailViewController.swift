@@ -34,6 +34,8 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
     private var editorBottomConstraint: NSLayoutConstraint?
     private var editorLeadingConstraint: NSLayoutConstraint?
     private var editorTrailingConstraint: NSLayoutConstraint?
+    /// Avoid re-laying out glyphs on every Auto Layout pass once the column has size.
+    private var didEnsureGlyphsForCurrentBounds = false
 
     init(
         noteId: String,
@@ -137,9 +139,13 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
             name: UIApplication.didBecomeActiveNotification,
             object: nil
         )
-        if !isGrantedReadOnly, let disk = LocalNoteCache.note(id: noteId) {
-            note = LocalNoteCache.preferredNote(over: disk)
-            editor.pushNote(note, speakers: speakers, readOnly: false)
+        if !isGrantedReadOnly, LocalNoteCache.note(id: noteId) != nil {
+            // Prefer dirty/newer disk over the in-memory seed (candidate = live VC note).
+            let preferred = LocalNoteCache.preferredNote(over: note)
+            if preferred != note {
+                note = preferred
+                editor.pushNote(note, speakers: speakers, readOnly: false)
+            }
             if LocalNoteCache.isDirtyOrPending(noteId) {
                 hasLocalEdits = true
                 applySyncState(.pendingLocal)
@@ -148,6 +154,18 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         // Initial paint done — keep the live buffer across persist / outbox / SWR refresh.
         screenBufferIsSourceOfTruth = true
         Task { await refreshFromAPI() }
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        // Split secondary often loads at width 0; once the column has size, force glyphs.
+        let width = view.bounds.width
+        if width > 1, !didEnsureGlyphsForCurrentBounds {
+            didEnsureGlyphsForCurrentBounds = true
+            editor.ensureVisibleGlyphsLaidOut()
+        } else if width <= 1 {
+            didEnsureGlyphsForCurrentBounds = false
+        }
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -306,6 +324,15 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         overrideUserInterfaceStyle = .unspecified
         navigationController?.overrideUserInterfaceStyle = .unspecified
         editor.overrideUserInterfaceStyle = .unspecified
+    }
+
+    /// After the split column is on screen, guarantee title/body glyphs are laid out.
+    func ensureEditorContentVisible() {
+        loadViewIfNeeded()
+        didEnsureGlyphsForCurrentBounds = false
+        view.layoutIfNeeded()
+        editor.ensureVisibleGlyphsLaidOut()
+        didEnsureGlyphsForCurrentBounds = view.bounds.width > 1
     }
 
     @objc private func noteDidChangeExternally(_ note: Notification) {
