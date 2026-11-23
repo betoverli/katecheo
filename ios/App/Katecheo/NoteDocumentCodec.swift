@@ -406,7 +406,7 @@ enum NoteDocumentCodec {
         style.paragraphSpacing = 10
         var font = UIFont.preferredFont(forTextStyle: .body)
         // Concrete ink — dynamic `.label` can wash out on warm canvas in split snapshots.
-        var foreground: UIColor = NativeNoteEditorView.editorInkColor(for: .light)
+        var foreground: UIColor = KCDesign.editorInk(for: .light)
         switch type {
         case "heading":
             font = UIFont.preferredFont(forTextStyle: id == "title" ? .title1 : .title2)
@@ -418,7 +418,7 @@ enum NoteDocumentCodec {
             font = KCDesign.preferred(.title3, weight: .semibold)
             style.paragraphSpacingBefore = 14
             style.paragraphSpacing = 8
-            foreground = NativeNoteEditorView.editorInkColor(for: .light)
+            foreground = KCDesign.editorInk(for: .light)
             _ = speakers
         case "bullet", "numbered", "check":
             // Marker on first line; wraps hang by the measured marker width (TF210).

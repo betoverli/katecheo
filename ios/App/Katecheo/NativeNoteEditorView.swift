@@ -102,7 +102,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         textView.layoutManager.allowsNonContiguousLayout = false
         // Solid ink on canvas — dynamic `.label` can resolve near-white under ambient Dark
         // during split-column snapshots and wash out on the warm paper.
-        textView.textColor = Self.editorInkColor(for: .light)
+        textView.textColor = KCDesign.editorInk(for: .light)
         textView.isOpaque = true
         // Sentence autocap for title + every new body/list line. Custom path also
         // capitalizes after list markers (plain "• " defeats UIKit sentence detection).
@@ -310,13 +310,6 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         textView.layoutIfNeeded()
     }
 
-    /// Warm near-black (light) / near-white (dark) — concrete, not dynamic `.label`.
-    static func editorInkColor(for style: UIUserInterfaceStyle) -> UIColor {
-        if style == .dark {
-            return UIColor(red: 0.96, green: 0.94, blue: 0.90, alpha: 1)
-        }
-        return UIColor(red: 0.14, green: 0.12, blue: 0.10, alpha: 1)
-    }
 
     /// Glyph / used-rect probes for screenshot assertions (not string length).
     var testing_usedTextHeight: CGFloat {
@@ -433,14 +426,14 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
                 return
             }
             let style = effectiveEditorInterfaceStyle()
-            storage.addAttribute(.foregroundColor, value: Self.editorInkColor(for: style), range: range)
+            storage.addAttribute(.foregroundColor, value: KCDesign.editorInk(for: style), range: range)
             // Quote chrome is layout-manager fill only — strip any leftover text-run highlight.
             if (attrs[NoteDocumentCodec.blockTypeKey] as? String) == "quote" {
                 storage.removeAttribute(.backgroundColor, range: range)
             }
         }
         storage.endEditing()
-        textView.textColor = Self.editorInkColor(for: effectiveEditorInterfaceStyle())
+        textView.textColor = KCDesign.editorInk(for: effectiveEditorInterfaceStyle())
         // Nudge layout so glyph colors rebuild against the current trait collection.
         textView.setNeedsDisplay()
         textView.layoutManager.invalidateLayout(
