@@ -115,16 +115,10 @@ final class NativeRootTabBarController: UITabBarController {
         toolsHome = home
         _ = home.view
         configure?(home)
-        if presentedViewController != nil {
-            dismiss(animated: false)
+        presentUtilityAfterClearing(root: home, animated: animated, accessibilityId: "pad.sheet.tools") { [weak self] nav in
+            self?.presentedToolsNav = nav
+            self?.presentedProfileNav = nil
         }
-        PadChrome.presentUtilitySheet(
-            root: home,
-            from: self,
-            animated: animated,
-            accessibilityId: "pad.sheet.tools"
-        )
-        presentedToolsNav = presentedViewController as? UINavigationController
     }
 
     /// Present Perfil as a large form sheet (iPad).
@@ -152,19 +146,39 @@ final class NativeRootTabBarController: UITabBarController {
         profileHome = home
         // Force view load so header/table paint before the sheet snapshot / first frame.
         _ = home.view
-        // Clear any prior Tools/utility sheet so Profile is the presented root (not Caderno).
-        if presentedViewController != nil {
-            dismiss(animated: false)
-        }
-        PadChrome.presentUtilitySheet(
-            root: home,
-            from: self,
-            animated: animated,
-            accessibilityId: "pad.sheet.profile"
-        )
-        if let nav = presentedViewController as? UINavigationController {
-            presentedProfileNav = nav
+        presentUtilityAfterClearing(root: home, animated: animated, accessibilityId: "pad.sheet.profile") { [weak self] nav in
+            self?.presentedProfileNav = nav
+            self?.presentedToolsNav = nil
             configure?(home, nav)
+        }
+    }
+
+    /// Dismiss any existing sheet fully before presenting — UIKit keeps the old
+    /// `presentedViewController` until the dismiss completion runs, so a back-to-back
+    /// Tools→Profile present otherwise leaves `pad.sheet.tools` on screen.
+    @MainActor
+    private func presentUtilityAfterClearing(
+        root: UIViewController,
+        animated: Bool,
+        accessibilityId: String,
+        onPresented: @escaping (UINavigationController) -> Void
+    ) {
+        let present = { [weak self] in
+            guard let self else { return }
+            PadChrome.presentUtilitySheet(
+                root: root,
+                from: self,
+                animated: animated,
+                accessibilityId: accessibilityId
+            )
+            if let nav = self.presentedViewController as? UINavigationController {
+                onPresented(nav)
+            }
+        }
+        if presentedViewController != nil {
+            dismiss(animated: false, completion: present)
+        } else {
+            present()
         }
     }
 

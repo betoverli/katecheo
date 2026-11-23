@@ -113,22 +113,31 @@ final class IPadScreenshotTests: XCTestCase {
                 render(toolsNav.view, size: PadChrome.utilitySheetSize),
                 name: "ipad-\(orientation)-tools-sheet"
             )
-            tabs.dismiss(animated: false)
-            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
 
-            // 4) Profile sheet — must be Perfil, not Caderno.
+            // 4) Profile sheet — must be Perfil, not Caderno / leftover Tools.
+            // presentProfileSheet dismisses Tools in its completion before presenting.
             tabs.presentProfileSheet(animated: false)
-            RunLoop.current.run(until: Date().addingTimeInterval(0.3))
-            let profileNav = try XCTUnwrap(tabs.presentedViewController as? UINavigationController)
-            XCTAssertEqual(profileNav.view.accessibilityIdentifier, "pad.sheet.profile")
-            XCTAssertTrue(profileNav.viewControllers.first is ProfileViewController)
-            profileNav.viewControllers.first?.loadViewIfNeeded()
-            profileNav.view.layoutIfNeeded()
+            var profileNav: UINavigationController?
+            for _ in 0 ..< 20 {
+                RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+                if let nav = tabs.presentedViewController as? UINavigationController,
+                   nav.view.accessibilityIdentifier == "pad.sheet.profile"
+                {
+                    profileNav = nav
+                    break
+                }
+            }
+            let profile = try XCTUnwrap(profileNav, "Profile sheet must replace Tools sheet")
+            XCTAssertEqual(profile.view.accessibilityIdentifier, "pad.sheet.profile")
+            XCTAssertTrue(profile.viewControllers.first is ProfileViewController)
+            profile.viewControllers.first?.loadViewIfNeeded()
+            profile.view.layoutIfNeeded()
             write(
-                render(profileNav.view, size: PadChrome.utilitySheetSize),
+                render(profile.view, size: PadChrome.utilitySheetSize),
                 name: "ipad-\(orientation)-profile-sheet"
             )
             tabs.dismiss(animated: false)
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
 
             window.isHidden = true
             hostWindow = nil
