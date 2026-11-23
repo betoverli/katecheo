@@ -257,15 +257,24 @@ final class IPadScreenshotTests: XCTestCase {
     private func render(_ view: UIView, size: CGSize, priming: NoteDetailViewController? = nil) -> UIImage {
         view.bounds = CGRect(origin: .zero, size: size)
         view.layoutIfNeeded()
-        // After bounds settle, re-lay out via the normal UITextView/TextKit path and
-        // wait for the next display pass before snapshotting (no glyph overlays).
-        priming?.ensureEditorContentVisible()
-        CATransaction.flush()
-        RunLoop.current.run(until: Date().addingTimeInterval(0.3))
-        view.layoutIfNeeded()
-        priming?.view.setNeedsDisplay()
-        priming?.testing_editor.setNeedsDisplay()
-        priming?.view.layoutIfNeeded()
+        // Wait for the normal UITextView display pass — no glyph overlays / compositing.
+        var best = snapshot(view, size: size)
+        guard let priming else { return best }
+        for _ in 0..<8 {
+            priming.ensureEditorContentVisible()
+            CATransaction.flush()
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+            view.layoutIfNeeded()
+            priming.view.setNeedsDisplay()
+            priming.testing_editor.setNeedsDisplay()
+            let shot = snapshot(view, size: size)
+            best = shot
+            if detailInkPixelCount(shot, size: size) >= 80 { break }
+        }
+        return best
+    }
+
+    private func snapshot(_ view: UIView, size: CGSize) -> UIImage {
         let format = UIGraphicsImageRendererFormat()
         format.scale = 2
         format.opaque = true
@@ -275,18 +284,25 @@ final class IPadScreenshotTests: XCTestCase {
         }
     }
 
-    /// Detail column title+body band must contain dark ink (not empty parchment).
-    /// Includes the title line above tags — do not sample only the tags chrome.
-    private func assertDetailHasVisibleInk(_ image: UIImage, size: CGSize, label: String) {
+    private func detailInkBand(size: CGSize) -> CGRect {
         let primaryFraction = PadChrome.notebookPrimaryFraction
         let detailLeft = size.width * primaryFraction
-        let band = CGRect(
+        return CGRect(
             x: detailLeft + 36,
             y: size.height * 0.10,
             width: min(420, size.width - detailLeft - 80),
             height: size.height * 0.22
         )
-        let dark = sampleDarkPixelCount(image, in: band, lumaBelow: 0.50)
+    }
+
+    private func detailInkPixelCount(_ image: UIImage, size: CGSize) -> Int {
+        sampleDarkPixelCount(image, in: detailInkBand(size: size), lumaBelow: 0.50)
+    }
+
+    /// Detail column title+body band must contain dark ink (not empty parchment).
+    private func assertDetailHasVisibleInk(_ image: UIImage, size: CGSize, label: String) {
+        let band = detailInkBand(size: size)
+        let dark = detailInkPixelCount(image, size: size)
         XCTAssertGreaterThan(
             dark,
             80,

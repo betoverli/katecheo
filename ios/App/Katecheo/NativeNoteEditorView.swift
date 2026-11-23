@@ -289,17 +289,15 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         ensureTextContainerMatchesBounds()
         let length = textView.textStorage.length
         if length > 0 {
-            // Re-stamp the attributed string so TextKit rebuilds line fragments after the
-            // split secondary column grows from 0 → real width (invalidate alone was not enough).
+            // Re-assign via attributedText so UITextView's display path rebuilds at the
+            // real column width (same as a fresh pushNote load).
             let snapshot = NSAttributedString(attributedString: textView.textStorage)
             let selected = textView.selectedRange
-            textView.textStorage.setAttributedString(snapshot)
+            textView.attributedText = snapshot
             let loc = min(max(0, selected.location), textView.textStorage.length)
             let len = min(max(0, selected.length), max(0, textView.textStorage.length - loc))
             textView.selectedRange = NSRange(location: loc, length: len)
-            let full = NSRange(location: 0, length: textView.textStorage.length)
-            textView.layoutManager.invalidateLayout(forCharacterRange: full, actualCharacterRange: nil)
-            textView.layoutManager.invalidateDisplay(forCharacterRange: full)
+            ensureTextContainerMatchesBounds()
             textView.layoutManager.ensureLayout(for: textView.textContainer)
         }
         refreshDynamicTextColors()
@@ -1005,9 +1003,10 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         self.speakers = speakers
         applyingRemote = true
         let attributed = attributedStringForEditor(from: note, speakers: speakers)
-        // Prefer textStorage mutation over attributedText reassign when possible so we
-        // don't thrash selection — but a full load must replace content once.
-        textView.textStorage.setAttributedString(attributed)
+        // Full load goes through `attributedText` so UITextView rebuilds its normal
+        // TextKit display path (textStorage-only updates can leave the split secondary
+        // column with glyphs in metrics but no painted ink).
+        textView.attributedText = attributed
         let length = textView.textStorage.length
         if wasReady, previousId == note.id, previousId != "pending" {
             let loc = min(max(0, savedRange.location), length)
