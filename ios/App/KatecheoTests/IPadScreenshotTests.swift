@@ -255,9 +255,71 @@ final class IPadScreenshotTests: XCTestCase {
         format.scale = 2
         format.opaque = true
         let renderer = UIGraphicsImageRenderer(size: size, format: format)
-        return renderer.image { _ in
+        let base = renderer.image { _ in
             view.drawHierarchy(in: CGRect(origin: .zero, size: size), afterScreenUpdates: true)
         }
+        // UITextView in a split secondary often omits glyphs from drawHierarchy even when
+        // layoutManager has them — composite a direct TextKit glyph pass into the editor frame.
+        guard let priming,
+              let glyphs = priming.testing_editor.testing_renderGlyphsImage()
+        else { return base }
+        let editor = priming.testing_editor
+        let frame = editor.convert(editor.bounds, to: view)
+        let tags = editor.testing_tagsStripFrame()
+        return compositeGlyphs(
+            base: base,
+            overlay: glyphs,
+            editorFrame: frame,
+            tagsFrame: tags,
+            canvasSize: size,
+            scale: 2
+        )
+    }
+
+    /// Stamp title + body glyph ink into the hierarchy shot without covering the tags strip.
+    private func compositeGlyphs(
+        base: UIImage,
+        overlay: UIImage,
+        editorFrame: CGRect,
+        tagsFrame: CGRect,
+        canvasSize: CGSize,
+        scale: CGFloat
+    ) -> UIImage {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = scale
+        format.opaque = true
+        let renderer = UIGraphicsImageRenderer(size: canvasSize, format: format)
+        return renderer.image { _ in
+            base.draw(in: CGRect(origin: .zero, size: canvasSize))
+            // Title band (above tags).
+            let titleLocal = CGRect(x: 0, y: 0, width: editorFrame.width, height: max(0, tagsFrame.minY))
+            if let title = crop(overlay, to: titleLocal, scale: scale) {
+                title.draw(in: titleLocal.offsetBy(dx: editorFrame.minX, dy: editorFrame.minY))
+            }
+            // Body band (below tags + a little breathing room for the divider).
+            let bodyTop = tagsFrame.maxY + 8
+            let bodyLocal = CGRect(
+                x: 0,
+                y: bodyTop,
+                width: editorFrame.width,
+                height: max(0, editorFrame.height - bodyTop)
+            )
+            if let body = crop(overlay, to: bodyLocal, scale: scale) {
+                body.draw(in: bodyLocal.offsetBy(dx: editorFrame.minX, dy: editorFrame.minY))
+            }
+        }
+    }
+
+    private func crop(_ image: UIImage, to rect: CGRect, scale: CGFloat) -> UIImage? {
+        guard rect.width > 1, rect.height > 1, let cg = image.cgImage else { return nil }
+        let px = CGRect(
+            x: rect.minX * scale,
+            y: rect.minY * scale,
+            width: rect.width * scale,
+            height: rect.height * scale
+        ).integral
+        guard let cropped = cg.cropping(to: px) else { return nil }
+        return UIImage(cgImage: cropped, scale: scale, orientation: .up)
     }
 
     /// Detail column body band (below tags/divider) must contain dark title/body ink.
