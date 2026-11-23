@@ -6,6 +6,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        // UITest seed before any list VC paints (must precede AppRoot).
+        UITestSeed.applyIfNeeded()
+        OnboardingStore.applyLaunchArgumentsIfNeeded()
         KCChrome.applyAppWide()
         // Seed Appearance from cache early so SceneDelegate windows inherit the right style.
         AppAppearance.syncFromCacheAndApply()

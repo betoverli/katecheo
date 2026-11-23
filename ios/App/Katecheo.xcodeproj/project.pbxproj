@@ -110,6 +110,7 @@
 		TBHQTE12FED7965001685TB /* NativeNoteEditorHeaderQuoteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TBHQTE11FED7965001685TB /* NativeNoteEditorHeaderQuoteTests.swift */; };
 		TBACBAR2FED7965001685TB /* NativeNoteEditorAccessoryBarTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TBACBAR1FED7965001685TB /* NativeNoteEditorAccessoryBarTests.swift */; };
 		KCONB12FED7965001685V2 /* OnboardingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCONB11FED7965001685V2 /* OnboardingStore.swift */; };
+		KCUISEED2FED7965001685V2 /* UITestSeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCUISEED1FED7965001685V2 /* UITestSeed.swift */; };
 		KCONB22FED7965001685V2 /* OnboardingViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCONB21FED7965001685V2 /* OnboardingViewController.swift */; };
 		KCSET12FED7965001685V2 /* SettingsGuideViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCSET11FED7965001685V2 /* SettingsGuideViewController.swift */; };
 		F5A2C0102FED796500168570 /* GroupsListViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A2C0112FED796500168570 /* GroupsListViewController.swift */; };
@@ -209,6 +210,7 @@
 		TBAUTH1FED7965001685TB /* AuthSignInScreenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthSignInScreenTests.swift; sourceTree = "<group>"; };
 		TBONB21FED7965001685TB /* OnboardingFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingFlowTests.swift; sourceTree = "<group>"; };
 		KCONB11FED7965001685V2 /* OnboardingStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingStore.swift; sourceTree = "<group>"; };
+		KCUISEED1FED7965001685V2 /* UITestSeed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITestSeed.swift; sourceTree = "<group>"; };
 		KCONB21FED7965001685V2 /* OnboardingViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingViewController.swift; sourceTree = "<group>"; };
 		KCSET11FED7965001685V2 /* SettingsGuideViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsGuideViewController.swift; sourceTree = "<group>"; };
 		TBSET11FED7965001685TB /* SettingsGuideTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsGuideTests.swift; sourceTree = "<group>"; };
@@ -383,6 +385,7 @@
 				E4F1B0192FED796500168560 /* NativeForgotPasswordViewController.swift */,
 				E4F1B01B2FED796500168560 /* NativeForgotPasswordForm.swift */,
 				KCONB11FED7965001685V2 /* OnboardingStore.swift */,
+				KCUISEED1FED7965001685V2 /* UITestSeed.swift */,
 				KCONB21FED7965001685V2 /* OnboardingViewController.swift */,
 				KCSET11FED7965001685V2 /* SettingsGuideViewController.swift */,
 				F5A2C0112FED796500168570 /* GroupsListViewController.swift */,
@@ -701,6 +704,7 @@
 				E4F1B0182FED796500168560 /* NativeForgotPasswordViewController.swift in Sources */,
 				E4F1B01A2FED796500168560 /* NativeForgotPasswordForm.swift in Sources */,
 				KCONB12FED7965001685V2 /* OnboardingStore.swift in Sources */,
+				KCUISEED2FED7965001685V2 /* UITestSeed.swift in Sources */,
 				KCONB22FED7965001685V2 /* OnboardingViewController.swift in Sources */,
 				KCSET12FED7965001685V2 /* SettingsGuideViewController.swift in Sources */,
 				F5A2C0102FED796500168570 /* GroupsListViewController.swift in Sources */,

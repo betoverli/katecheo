@@ -32,6 +32,8 @@ enum NativeAPIClient {
     /// Clear Keychain bearer and notify UI to re-login. Idempotent.
     /// Only call for explicit 401 / invalid token — never for transport/network failures.
     static func handleUnauthorized() {
+        // Never wipe XCUITest seed data if a stray request still 401s.
+        if UITestSeed.isActive { return }
         testAuthToken = nil
         KeychainStore.deleteBearerToken()
         LocalSessionCache.clearAll()
@@ -654,6 +656,7 @@ enum NativeAPIClient {
     }
 
     static func listNotes(force: Bool = false) async throws -> [NoteDocument] {
+        if UITestSeed.isActive { return LocalNoteCache.loadNotes() }
         try await NativeSWR.fetch(
             key: .notes,
             ttl: NativeSWR.TTL.lists,
@@ -687,6 +690,10 @@ enum NativeAPIClient {
     }
 
     static func getNote(id: String, force: Bool = false) async throws -> (note: NoteDocument, speakers: [SpeakerDTO], via: String) {
+        if UITestSeed.isActive {
+            let note = LocalNoteCache.note(id: id) ?? emptyNote(id: id)
+            return (note, LocalNoteCache.loadSpeakers(), "owned")
+        }
         let pack: NotePack = try await NativeSWR.fetch(
             key: .note(id),
             ttl: NativeSWR.TTL.note,
@@ -1189,6 +1196,7 @@ enum NativeAPIClient {
     // MARK: - Groups (Phase 2)
 
     static func listGroups(force: Bool = false) async throws -> [GroupDTO] {
+        if UITestSeed.isActive { return LocalSessionCache.loadGroups() }
         try await NativeSWR.fetch(
             key: .groups,
             ttl: NativeSWR.TTL.lists,
@@ -1280,6 +1288,9 @@ enum NativeAPIClient {
     /// Pull-to-refresh passes `force: true`. Cache is keyed by signed-in user + group id.
     static func listGroupNotes(groupId: String, force: Bool = false) async throws -> [GroupNoteCardDTO] {
         let userId = LocalSessionCache.loadMe()?.id ?? ""
+        if UITestSeed.isActive {
+            return LocalGroupNotesCache.load(userId: userId, groupId: groupId) ?? []
+        }
         return try await NativeSWR.fetch(
             key: .groupNotes(groupId),
             ttl: NativeSWR.TTL.groupNotes,

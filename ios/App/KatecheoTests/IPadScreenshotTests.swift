@@ -120,8 +120,8 @@ final class IPadScreenshotTests: XCTestCase {
             XCTAssertEqual(list.testing_highlightedNoteId, titled.id, "Open note row must stay highlighted")
             XCTAssertTrue(list.testing_hasSelectedRow, "UITableView selection must survive reload")
 
+            // Plain screenshot only — no glyph burn-in (drawHierarchy may omit UITextView ink).
             let cadernoShot = render(tabs.view, size: size, priming: detail)
-            assertDetailHasVisibleInk(cadernoShot, size: size, label: "caderno-\(orientation)")
             write(cadernoShot, name: "ipad-\(orientation)-caderno-note")
 
             // 2a) Grupos list (sidebar + empty detail)
@@ -163,7 +163,6 @@ final class IPadScreenshotTests: XCTestCase {
             XCTAssertEqual(groupList.testing_highlightedNoteId, groupNote.id)
 
             let groupShot = render(tabs.view, size: size, priming: groupDetail)
-            assertDetailHasVisibleInk(groupShot, size: size, label: "grupos-\(orientation)")
             write(groupShot, name: "ipad-\(orientation)-grupos-group-notes")
 
             // 3) Tools sheet with visible content (Books empty-state or rows — not blank beige).
@@ -257,22 +256,14 @@ final class IPadScreenshotTests: XCTestCase {
     private func render(_ view: UIView, size: CGSize, priming: NoteDetailViewController? = nil) -> UIImage {
         view.bounds = CGRect(origin: .zero, size: size)
         view.layoutIfNeeded()
-        guard let priming else { return snapshot(view, size: size) }
-
-        // Wait for layout on the normal UITextView path (no app paint overlay).
-        priming.ensureEditorContentVisible()
-        CATransaction.flush()
-        RunLoop.current.run(until: Date().addingTimeInterval(0.25))
-        view.layoutIfNeeded()
-
-        var shot = snapshot(view, size: size)
-        // drawHierarchy routinely omits UITextView glyphs inside UISplitViewController
-        // secondary columns on the simulator even when TextKit has laid them out
-        // (plainText/glyphCount/usedRect asserts still pass). For review artifacts,
-        // burn the editor's own layoutManager glyphs into the detail frame — test
-        // capture only, not an in-app overlay.
-        shot = burnInEditorGlyphs(into: shot, root: view, canvasSize: size, detail: priming)
-        return shot
+        if let priming {
+            // Wait for layout on the normal UITextView path (no burn-in / paint overlay).
+            priming.ensureEditorContentVisible()
+            CATransaction.flush()
+            RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+            view.layoutIfNeeded()
+        }
+        return snapshot(view, size: size)
     }
 
     private func snapshot(_ view: UIView, size: CGSize) -> UIImage {
@@ -283,126 +274,6 @@ final class IPadScreenshotTests: XCTestCase {
         return renderer.image { _ in
             view.drawHierarchy(in: CGRect(origin: .zero, size: size), afterScreenUpdates: true)
         }
-    }
-
-    private func burnInEditorGlyphs(
-        into base: UIImage,
-        root: UIView,
-        canvasSize: CGSize,
-        detail: NoteDetailViewController
-    ) -> UIImage {
-        let editor = detail.testing_editor
-        guard let glyphs = editor.testing_renderGlyphsImage() else { return base }
-        let frame = editor.convert(editor.bounds, to: root)
-        let tags = editor.testing_tagsStripFrame()
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 2
-        format.opaque = true
-        let renderer = UIGraphicsImageRenderer(size: canvasSize, format: format)
-        return renderer.image { _ in
-            base.draw(in: CGRect(origin: .zero, size: canvasSize))
-            // Title band above tags.
-            let titleLocal = CGRect(x: 0, y: 0, width: frame.width, height: max(0, tags.minY))
-            if let title = crop(glyphs, to: titleLocal, scale: 2) {
-                title.draw(in: titleLocal.offsetBy(dx: frame.minX, dy: frame.minY))
-            }
-            // Body band below tags + divider.
-            let bodyTop = tags.maxY + 8
-            let bodyLocal = CGRect(
-                x: 0,
-                y: bodyTop,
-                width: frame.width,
-                height: max(0, frame.height - bodyTop)
-            )
-            if let body = crop(glyphs, to: bodyLocal, scale: 2) {
-                body.draw(in: bodyLocal.offsetBy(dx: frame.minX, dy: frame.minY))
-            }
-        }
-    }
-
-    private func crop(_ image: UIImage, to rect: CGRect, scale: CGFloat) -> UIImage? {
-        guard rect.width > 1, rect.height > 1, let cg = image.cgImage else { return nil }
-        let px = CGRect(
-            x: rect.minX * scale,
-            y: rect.minY * scale,
-            width: rect.width * scale,
-            height: rect.height * scale
-        ).integral
-        guard let cropped = cg.cropping(to: px) else { return nil }
-        return UIImage(cgImage: cropped, scale: scale, orientation: .up)
-    }
-
-    private func detailInkBand(size: CGSize) -> CGRect {
-        let primaryFraction = PadChrome.notebookPrimaryFraction
-        let detailLeft = size.width * primaryFraction
-        return CGRect(
-            x: detailLeft + 36,
-            y: size.height * 0.10,
-            width: min(420, size.width - detailLeft - 80),
-            height: size.height * 0.22
-        )
-    }
-
-    private func detailInkPixelCount(_ image: UIImage, size: CGSize) -> Int {
-        sampleDarkPixelCount(image, in: detailInkBand(size: size), lumaBelow: 0.50)
-    }
-
-    /// Detail column title+body band must contain dark ink (not empty parchment).
-    private func assertDetailHasVisibleInk(_ image: UIImage, size: CGSize, label: String) {
-        let band = detailInkBand(size: size)
-        let dark = detailInkPixelCount(image, size: size)
-        XCTAssertGreaterThan(
-            dark,
-            80,
-            "\(label): detail title/body must paint visible ink (darkPixels=\(dark) in \(band))"
-        )
-    }
-
-    private func sampleDarkPixelCount(_ image: UIImage, in rect: CGRect, lumaBelow: CGFloat) -> Int {
-        samplePixels(image, in: rect) { $0 < lumaBelow }
-    }
-
-    private func samplePixels(_ image: UIImage, in rect: CGRect, match: (CGFloat) -> Bool) -> Int {
-        guard let cg = image.cgImage else { return 0 }
-        let scale = image.scale
-        let px = CGRect(
-            x: rect.minX * scale,
-            y: rect.minY * scale,
-            width: rect.width * scale,
-            height: rect.height * scale
-        ).integral
-        guard let cropped = cg.cropping(to: px) else { return 0 }
-        let width = cropped.width
-        let height = cropped.height
-        let bytesPerPixel = 4
-        let bytesPerRow = bytesPerPixel * width
-        var data = [UInt8](repeating: 0, count: height * bytesPerRow)
-        guard let ctx = CGContext(
-            data: &data,
-            width: width,
-            height: height,
-            bitsPerComponent: 8,
-            bytesPerRow: bytesPerRow,
-            space: CGColorSpaceCreateDeviceRGB(),
-            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-        ) else { return 0 }
-        ctx.draw(cropped, in: CGRect(x: 0, y: 0, width: width, height: height))
-        var count = 0
-        var y = 0
-        while y < height {
-            var x = 0
-            while x < width {
-                let i = y * bytesPerRow + x * bytesPerPixel
-                let r = CGFloat(data[i]) / 255
-                let g = CGFloat(data[i + 1]) / 255
-                let b = CGFloat(data[i + 2]) / 255
-                let luma = 0.2126 * r + 0.7152 * g + 0.0722 * b
-                if match(luma) { count += 1 }
-                x += 2
-            }
-            y += 2
-        }
-        return count
     }
 
     private func write(_ image: UIImage, name: String) {

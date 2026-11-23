@@ -37,6 +37,10 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     private let tagsStrip = NoteEditorTagsStrip()
     /// Divider between header (title + tags) and body — view decoration, not document text.
     private let headerDivider = UIView()
+    /// Zero-size accessibility probes so XCUITest can assert title vs body separately
+    /// from the single UITextView (VoiceOver still uses `textView` via accessibilityElements).
+    private let titleA11yProbe = UIView()
+    private let bodyA11yProbe = UIView()
     /// After the user deletes an auto-capitalized first letter, the next lowercase insert is kept.
     private var suppressSentenceAutocapitalize = false
     /// `shouldChange` already mutated storage (autocap / suppress path) — testing insert must not retry.
@@ -111,8 +115,23 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         textView.smartDashesType = .default
         textView.smartQuotesType = .default
         textView.tintColor = KCDesign.accent
+        textView.accessibilityIdentifier = "note.editor"
         textView.accessibilityLabel = String(localized: "Corpo da nota")
         textView.accessibilityHint = String(localized: "A primeira linha é o título")
+        // Logical title/body probes for XCUITest only (zero-size; excluded from VoiceOver).
+        titleA11yProbe.accessibilityIdentifier = "note.editor.title"
+        titleA11yProbe.accessibilityTraits = .staticText
+        titleA11yProbe.accessibilityLabel = String(localized: "Título")
+        titleA11yProbe.frame = .zero
+        titleA11yProbe.isUserInteractionEnabled = false
+        addSubview(titleA11yProbe)
+        bodyA11yProbe.accessibilityIdentifier = "note.editor.body"
+        bodyA11yProbe.accessibilityTraits = .staticText
+        bodyA11yProbe.accessibilityLabel = String(localized: "Corpo da nota")
+        bodyA11yProbe.frame = .zero
+        bodyA11yProbe.isUserInteractionEnabled = false
+        addSubview(bodyA11yProbe)
+        configureEditorAccessibilityElements()
         // Replace UIKit's pin-to-top `scrollRangeToVisible` with our minimal helper so
         // typing / Enter still follow the caret without jumping the viewport.
         textView.onRequestCaretScroll = { [weak self] in
@@ -316,12 +335,13 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         repositionTagsStrip()
         repositionPlaceholders()
         repositionHeaderDivider()
+        refreshEditorAccessibilityProbes()
         textView.setNeedsDisplay()
         textView.layoutIfNeeded()
     }
 
 
-    /// Glyph / used-rect probes for screenshot assertions (not string length).
+    /// Glyph / used-rect probes for screenshot / host-test assertions (not string length).
     var testing_usedTextHeight: CGFloat {
         textView.layoutManager.ensureLayout(for: textView.textContainer)
         return textView.layoutManager.usedRect(for: textView.textContainer).height
@@ -345,31 +365,6 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     /// contentSize height — must not stay at the 1e6 scrolling sentinel.
     var testing_contentSizeHeight: CGFloat {
         textView.contentSize.height
-    }
-
-    /// Test-only: draw the UITextView's own layoutManager glyphs into an image.
-    /// Used when `drawHierarchy` omits UITextView ink in split-column snapshots —
-    /// this is artifact capture of the live TextKit content, not an app paint layer.
-    func testing_renderGlyphsImage() -> UIImage? {
-        ensureVisibleGlyphsLaidOut()
-        let size = textView.bounds.size
-        guard size.width > 1, size.height > 1, textView.textStorage.length > 0 else { return nil }
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 2
-        format.opaque = false
-        let renderer = UIGraphicsImageRenderer(size: size, format: format)
-        return renderer.image { _ in
-            UIColor.clear.setFill()
-            UIRectFill(CGRect(origin: .zero, size: size))
-            let origin = CGPoint(
-                x: textView.textContainerInset.left - textView.contentOffset.x,
-                y: textView.textContainerInset.top - textView.contentOffset.y
-            )
-            let range = textView.layoutManager.glyphRange(for: textView.textContainer)
-            guard range.length > 0 else { return }
-            textView.layoutManager.drawBackground(forGlyphRange: range, at: origin)
-            textView.layoutManager.drawGlyphs(forGlyphRange: range, at: origin)
-        }
     }
 
     override func didMoveToWindow() {
@@ -1059,6 +1054,31 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         // Otherwise `layoutSubviews` will pick it up when the secondary column sizes.
         ensureTextContainerMatchesBounds()
         repositionTagsStrip()
+        refreshEditorAccessibilityProbes()
+    }
+
+    private func configureEditorAccessibilityElements() {
+        let uitest = UITestSeed.isActive
+        titleA11yProbe.isAccessibilityElement = uitest
+        bodyA11yProbe.isAccessibilityElement = uitest
+        // Production VoiceOver: only the real UITextView. UITest: expose title/body probes too.
+        accessibilityElements = uitest ? [titleA11yProbe, bodyA11yProbe, textView] : [textView]
+    }
+
+    /// Keep `note.editor.title` / `note.editor.body` values in sync with the document.
+    private func refreshEditorAccessibilityProbes() {
+        configureEditorAccessibilityElements()
+        let plain = textView.textStorage.string
+        let parts = plain.split(separator: "\n", omittingEmptySubsequences: false)
+        let title = parts.first.map(String.init) ?? ""
+        let body: String = {
+            guard parts.count > 1 else { return "" }
+            return parts.dropFirst().joined(separator: "\n")
+                .trimmingCharacters(in: CharacterSet(charactersIn: "\n"))
+        }()
+        titleA11yProbe.accessibilityValue = title
+        bodyA11yProbe.accessibilityValue = body
+        textView.accessibilityValue = plain
     }
 
     /// Refresh the in-memory speaker catalog without rewriting the note body.
@@ -1232,6 +1252,7 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         refreshSpeakerRails()
         refreshPlaceholders()
         refreshEditingChrome()
+        refreshEditorAccessibilityProbes()
         scrollCaretVisible(animated: false)
     }
 
