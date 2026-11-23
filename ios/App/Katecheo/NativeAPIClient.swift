@@ -657,7 +657,7 @@ enum NativeAPIClient {
 
     static func listNotes(force: Bool = false) async throws -> [NoteDocument] {
         if UITestSeed.isActive { return LocalNoteCache.loadNotes() }
-        try await NativeSWR.fetch(
+        return try await NativeSWR.fetch(
             key: .notes,
             ttl: NativeSWR.TTL.lists,
             force: force,
@@ -1197,7 +1197,7 @@ enum NativeAPIClient {
 
     static func listGroups(force: Bool = false) async throws -> [GroupDTO] {
         if UITestSeed.isActive { return LocalSessionCache.loadGroups() }
-        try await NativeSWR.fetch(
+        return try await NativeSWR.fetch(
             key: .groups,
             ttl: NativeSWR.TTL.lists,
             force: force,
