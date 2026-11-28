@@ -216,9 +216,11 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
             detail.applyTabBarHidingForSplit(isCollapsed: false)
             let nav = UINavigationController(rootViewController: detail)
             KCChrome.style(navigationController: nav)
+            nav.view.accessibilityIdentifier = "caderno.split.secondary"
             detail.navigationItem.leftBarButtonItem = nil
             secondaryNav = nav
             setViewController(nav, for: .secondary)
+            PadChrome.applyNotesFolderSplitChrome(to: self)
             detail.ensureEditorContentVisible()
             return
         }
