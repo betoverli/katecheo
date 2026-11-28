@@ -42,12 +42,19 @@ enum PadChrome {
     }
 
     /// If UIKit flips into overlay/over-secondary, snap back to beside.
+    /// Only when the host is wide enough for two columns — setting
+    /// `preferredDisplayMode` in a narrow XCTest window (e.g. 390pt) while
+    /// UIKit keeps overlay causes an infinite layout loop / hang.
     @MainActor
     static func enforceBesideDisplayMode(on split: UISplitViewController) {
         guard !split.isCollapsed else { return }
+        let minWidthForTile = notebookPrimaryMin + 320
+        guard split.view.bounds.width >= minWidthForTile else { return }
         switch split.displayMode {
         case .oneOverSecondary, .primaryOverlay:
-            split.preferredDisplayMode = .oneBesideSecondary
+            if split.preferredDisplayMode != .oneBesideSecondary {
+                split.preferredDisplayMode = .oneBesideSecondary
+            }
         default:
             break
         }

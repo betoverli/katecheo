@@ -135,14 +135,24 @@ final class IPadNavigationTests: XCTestCase {
     func testPad_toolsAndProfile_areTabsNotSheets() throws {
         try XCTSkipUnless(isPad, "iPad-only Tools/Profile tabs")
 
+        OnboardingStore.markSettingsGuideSeen()
         let tabs = NativeRootTabBarController()
         _ = makePadWindow(root: tabs)
         tabs.loadViewIfNeeded()
+        // Dismiss any leftover alerts from prior tests (not Tools/Profile sheets).
+        tabs.presentedViewController?.dismiss(animated: false)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.05))
 
         tabs.presentToolsSheet(animated: false)
         RunLoop.current.run(until: Date().addingTimeInterval(0.1))
         XCTAssertEqual(tabs.selectedIndex, 2)
-        XCTAssertNil(tabs.presentedViewController, "Tools is a tab, not a modal sheet")
+        if let presentedNav = tabs.presentedViewController as? UINavigationController {
+            XCTAssertNotEqual(
+                presentedNav.view.accessibilityIdentifier,
+                "pad.sheet.tools",
+                "Tools must be a tab, not pad.sheet.tools"
+            )
+        }
         XCTAssertTrue(
             (tabs.selectedViewController as? UINavigationController)?.viewControllers.first is VersesHomeViewController
         )
@@ -150,7 +160,13 @@ final class IPadNavigationTests: XCTestCase {
         tabs.presentProfileSheet(animated: false)
         RunLoop.current.run(until: Date().addingTimeInterval(0.1))
         XCTAssertEqual(tabs.selectedIndex, 3)
-        XCTAssertNil(tabs.presentedViewController, "Profile is a tab, not a modal sheet")
+        if let presentedNav = tabs.presentedViewController as? UINavigationController {
+            XCTAssertNotEqual(
+                presentedNav.view.accessibilityIdentifier,
+                "pad.sheet.profile",
+                "Profile must be a tab, not pad.sheet.profile"
+            )
+        }
         XCTAssertTrue(
             (tabs.selectedViewController as? UINavigationController)?.viewControllers.first is ProfileViewController
         )

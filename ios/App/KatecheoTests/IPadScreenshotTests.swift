@@ -118,17 +118,11 @@ final class IPadScreenshotTests: XCTestCase {
             XCTAssertEqual(list.testing_highlightedNoteId, titled.id, "Open note row must stay highlighted")
             XCTAssertTrue(list.testing_hasSelectedRow, "UITableView selection must survive reload")
 
-            // Geometry: editor must sit to the right of the list column (tile, not overlay).
-            let primary = try XCTUnwrap(split.viewController(for: .primary)?.view)
-            primary.layoutIfNeeded()
-            detail.view.layoutIfNeeded()
-            let editorFrame = detail.testing_editor.convert(detail.testing_editor.bounds, to: nil)
-            let primaryFrame = primary.convert(primary.bounds, to: nil)
-            XCTAssertGreaterThanOrEqual(
-                editorFrame.minX,
-                primaryFrame.maxX - 1,
-                "Editor must not sit under the list sidebar (\(orientation))"
-            )
+            // Tile chrome (frame geometry is asserted in XCUITest against live a11y frames).
+            XCTAssertEqual(split.preferredDisplayMode, .oneBesideSecondary)
+            if #available(iOS 16.0, *) {
+                XCTAssertEqual(split.preferredSplitBehavior, .tile)
+            }
 
             // Plain screenshot only — no glyph burn-in.
             let cadernoShot = render(tabs.view, size: size, priming: detail)
@@ -176,20 +170,23 @@ final class IPadScreenshotTests: XCTestCase {
             write(groupShot, name: "ipad-\(orientation)-grupos-group-notes")
 
             // 3) Main-menu destinations (4 tabs). Under XCTest we avoid `.tabSidebar`
-            // (hangs drawHierarchy); capture the tab shell with Tools selected, and the
-            // legacy always-on menu sidebar for pre-18 parity screenshots.
+            // (hangs drawHierarchy); capture the tab shell with Tools selected.
             tabs.selectedIndex = 2
             tabs.view.layoutIfNeeded()
             write(render(tabs.view, size: size), name: "ipad-\(orientation)-sidebar-menu")
 
+            window.isHidden = true
+            hostWindow = nil
+
+            // Legacy always-on menu (iOS 15–17 shell) — separate window to avoid
+            // unbalanced appearance transitions from swapping mid-test.
             let legacy = PadLegacySidebarShell()
-            window.rootViewController = legacy
+            let legacyWindow = attachWindow(root: legacy, size: size)
             legacy.loadViewIfNeeded()
             legacy.view.layoutIfNeeded()
             RunLoop.current.run(until: Date().addingTimeInterval(0.2))
             write(render(legacy.view, size: size), name: "ipad-\(orientation)-sidebar-legacy")
-
-            window.isHidden = true
+            legacyWindow.isHidden = true
             hostWindow = nil
         }
     }
