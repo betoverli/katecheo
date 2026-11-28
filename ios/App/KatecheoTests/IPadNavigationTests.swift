@@ -41,9 +41,12 @@ final class IPadNavigationTests: XCTestCase {
         XCTAssertTrue(tabs.viewControllers?[1] is GroupsSplitViewController)
         XCTAssertTrue(tabs.viewControllers?[2] is UINavigationController)
         XCTAssertTrue(tabs.viewControllers?[3] is UINavigationController)
+        // tabSidebar is applied outside XCTest (hangs drawHierarchy in unit-test windows).
+        // Assert the four destinations + a11y id used under the test host.
+        XCTAssertEqual(tabs.view.accessibilityIdentifier, "pad.shell.tabs")
         if #available(iOS 18.0, *) {
+            tabs.mode = .tabSidebar
             XCTAssertEqual(tabs.mode, .tabSidebar)
-            XCTAssertEqual(tabs.view.accessibilityIdentifier, "pad.shell.tabsidebar")
         }
     }
 

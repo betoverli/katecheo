@@ -175,20 +175,19 @@ final class IPadScreenshotTests: XCTestCase {
             let groupShot = render(tabs.view, size: size, priming: groupDetail)
             write(groupShot, name: "ipad-\(orientation)-grupos-group-notes")
 
-            // 3) Main-menu sidebar (legacy shell on iOS 15–17; tabSidebar chrome on 18+).
-            if #available(iOS 18.0, *) {
-                // Capture tab bar / sidebar destinations visible with Tools selected.
-                tabs.selectedIndex = 2
-                tabs.view.layoutIfNeeded()
-                write(render(tabs.view, size: size), name: "ipad-\(orientation)-sidebar-menu")
-            } else {
-                let legacy = PadLegacySidebarShell()
-                window.rootViewController = legacy
-                legacy.loadViewIfNeeded()
-                legacy.view.layoutIfNeeded()
-                RunLoop.current.run(until: Date().addingTimeInterval(0.2))
-                write(render(legacy.view, size: size), name: "ipad-\(orientation)-sidebar-menu")
-            }
+            // 3) Main-menu destinations (4 tabs). Under XCTest we avoid `.tabSidebar`
+            // (hangs drawHierarchy); capture the tab shell with Tools selected, and the
+            // legacy always-on menu sidebar for pre-18 parity screenshots.
+            tabs.selectedIndex = 2
+            tabs.view.layoutIfNeeded()
+            write(render(tabs.view, size: size), name: "ipad-\(orientation)-sidebar-menu")
+
+            let legacy = PadLegacySidebarShell()
+            window.rootViewController = legacy
+            legacy.loadViewIfNeeded()
+            legacy.view.layoutIfNeeded()
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+            write(render(legacy.view, size: size), name: "ipad-\(orientation)-sidebar-legacy")
 
             window.isHidden = true
             hostWindow = nil

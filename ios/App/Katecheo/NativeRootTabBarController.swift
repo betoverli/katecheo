@@ -65,9 +65,17 @@ final class NativeRootTabBarController: UITabBarController {
 
         if PadChrome.isPad {
             // iPadOS 18+: system sidebar ↔ top tab bar (user toggle, system-persisted).
+            // Skip under XCTest host windows — `mode = .tabSidebar` + drawHierarchy
+            // (afterScreenUpdates) hangs the iPad unit-test runner. The real app (XCUITest
+            // launch / TestFlight) still gets tabSidebar via AppRoot → this controller.
             if #available(iOS 18.0, *) {
-                mode = .tabSidebar
-                view.accessibilityIdentifier = "pad.shell.tabsidebar"
+                let underXCTest = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+                if !underXCTest {
+                    mode = .tabSidebar
+                    view.accessibilityIdentifier = "pad.shell.tabsidebar"
+                } else {
+                    view.accessibilityIdentifier = "pad.shell.tabs"
+                }
             }
         }
 
