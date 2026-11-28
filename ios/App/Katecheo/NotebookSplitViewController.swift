@@ -112,6 +112,7 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
         detail.applyTabBarHidingForSplit(isCollapsed: false)
         let nav = UINavigationController(rootViewController: detail)
         KCChrome.style(navigationController: nav)
+        nav.view.accessibilityIdentifier = "caderno.split.secondary"
         // Do not assign displayModeButtonItem — primary already has the sidebar control.
         detail.navigationItem.leftBarButtonItem = nil
         secondaryNav = nav
@@ -129,6 +130,7 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
         let empty = NotebookEmptyDetailViewController()
         let nav = UINavigationController(rootViewController: empty)
         KCChrome.style(navigationController: nav)
+        nav.view.accessibilityIdentifier = "caderno.split.secondary"
         empty.navigationItem.leftBarButtonItem = nil
         secondaryNav = nav
         setViewController(nav, for: .secondary)

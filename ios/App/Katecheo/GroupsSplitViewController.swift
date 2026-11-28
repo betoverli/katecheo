@@ -113,6 +113,7 @@ final class GroupsSplitViewController: UISplitViewController, UISplitViewControl
         detail.applyTabBarHidingForSplit(isCollapsed: false)
         let nav = UINavigationController(rootViewController: detail)
         KCChrome.style(navigationController: nav)
+        nav.view.accessibilityIdentifier = "grupos.split.secondary"
         detail.navigationItem.leftBarButtonItem = nil
         secondaryNav = nav
         setViewController(nav, for: .secondary)
@@ -127,6 +128,7 @@ final class GroupsSplitViewController: UISplitViewController, UISplitViewControl
         let empty = NotebookEmptyDetailViewController()
         let nav = UINavigationController(rootViewController: empty)
         KCChrome.style(navigationController: nav)
+        nav.view.accessibilityIdentifier = "grupos.split.secondary"
         empty.navigationItem.leftBarButtonItem = nil
         secondaryNav = nav
         setViewController(nav, for: .secondary)
