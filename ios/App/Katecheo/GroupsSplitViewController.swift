@@ -116,7 +116,8 @@ final class GroupsSplitViewController: UISplitViewController, UISplitViewControl
         detail.navigationItem.leftBarButtonItem = nil
         secondaryNav = nav
         setViewController(nav, for: .secondary)
-        show(.secondary)
+        // Avoid `show(.secondary)` — it can force `.secondaryOnly` and break tile (TF 499).
+        PadChrome.applyNotesFolderSplitChrome(to: self)
         detail.ensureEditorContentVisible()
     }
 

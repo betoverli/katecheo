@@ -116,7 +116,9 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
         detail.navigationItem.leftBarButtonItem = nil
         secondaryNav = nav
         setViewController(nav, for: .secondary)
-        show(.secondary)
+        // Do not call `show(.secondary)` — on recent iPadOS it flips preferredDisplayMode
+        // to `.secondaryOnly` and the list overlays / hides under the detail (TF 499).
+        PadChrome.applyNotesFolderSplitChrome(to: self)
         detail.ensureEditorContentVisible()
     }
 
