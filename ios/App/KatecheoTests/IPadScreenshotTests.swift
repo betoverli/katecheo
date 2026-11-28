@@ -54,13 +54,14 @@ final class IPadScreenshotTests: XCTestCase {
         ]
 
         for (orientation, size) in sizes {
+            let isLandscape = size.width > size.height
             let tabs = NativeRootTabBarController()
             let window = attachWindow(root: tabs, size: size)
             tabs.loadViewIfNeeded()
-            // iPadOS 18+: force tabSidebar expanded for sidebar+list+note screenshots
-            // (afterScreenUpdates:false snapshot path avoids the prior hang).
+            // Apple default: sidebar collapsed in portrait, expanded in landscape.
+            // preferredLayout = .tile so list/note are not under the translucent material.
             if #available(iOS 18.0, *) {
-                tabs.applyTabSidebarForScreenshotsIfNeeded()
+                tabs.applyTabSidebarForScreenshotsIfNeeded(sidebarHidden: !isLandscape)
             }
             tabs.view.layoutIfNeeded()
 
@@ -129,22 +130,54 @@ final class IPadScreenshotTests: XCTestCase {
                 XCTAssertEqual(split.preferredSplitBehavior, .tile)
             }
 
-            // Plain screenshot — main-menu sidebar + list + note (default expanded).
+            // Portrait: list + note side by side (sidebar collapsed). Landscape: sidebar + list + note.
+            list.testing_scrollToTopForLargeTitle()
+            tabs.view.layoutIfNeeded()
+            assertCadernoLargeTitleVisible(on: list, context: "\(orientation) caderno-note")
             let cadernoShot = render(tabs.view, size: size, priming: detail)
             write(cadernoShot, name: "ipad-\(orientation)-caderno-note")
-            write(cadernoShot, name: "ipad-\(orientation)-sidebar-menu")
 
-            // Toggle to the top tab bar (system control) and capture again.
             if #available(iOS 18.0, *), tabs.mode == .tabSidebar {
-                tabs.sidebar.isHidden = true
-                tabs.view.layoutIfNeeded()
-                RunLoop.current.run(until: Date().addingTimeInterval(0.2))
-                write(
-                    render(tabs.view, size: size, priming: detail),
-                    name: "ipad-\(orientation)-top-tabbar"
-                )
-                tabs.sidebar.isHidden = false
-                tabs.view.layoutIfNeeded()
+                if isLandscape {
+                    // Landscape sidebar-menu = same expanded state as caderno-note.
+                    write(cadernoShot, name: "ipad-\(orientation)-sidebar-menu")
+                    assertCadernoLargeTitleVisible(on: list, context: "\(orientation) sidebar-menu")
+
+                    // Top tab bar mode — large title must still show on the list.
+                    tabs.sidebar.isHidden = true
+                    list.testing_scrollToTopForLargeTitle()
+                    tabs.view.layoutIfNeeded()
+                    RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+                    assertCadernoLargeTitleVisible(on: list, context: "\(orientation) top-tabbar")
+                    write(
+                        render(tabs.view, size: size, priming: detail),
+                        name: "ipad-\(orientation)-top-tabbar"
+                    )
+                    // Restore expanded sidebar for Grupos shots.
+                    tabs.sidebar.isHidden = false
+                    tabs.view.layoutIfNeeded()
+                } else {
+                    // Portrait sidebar-menu: briefly expand to show the main menu.
+                    tabs.sidebar.isHidden = false
+                    tabs.view.layoutIfNeeded()
+                    RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+                    write(
+                        render(tabs.view, size: size, priming: detail),
+                        name: "ipad-\(orientation)-sidebar-menu"
+                    )
+                    // Collapse again (Apple portrait default) before Grupos shots.
+                    tabs.sidebar.isHidden = true
+                    tabs.view.layoutIfNeeded()
+
+                    // Portrait top-tab-bar (sidebar already collapsed).
+                    list.testing_scrollToTopForLargeTitle()
+                    write(
+                        render(tabs.view, size: size, priming: detail),
+                        name: "ipad-\(orientation)-top-tabbar"
+                    )
+                }
+            } else {
+                write(cadernoShot, name: "ipad-\(orientation)-sidebar-menu")
             }
 
             // 2a) Grupos list (sidebar + empty detail)
@@ -233,6 +266,25 @@ final class IPadScreenshotTests: XCTestCase {
     }
 
     // MARK: - Helpers
+
+    /// Large title must be expanded on the Caderno list (collapses on scroll).
+    private func assertCadernoLargeTitleVisible(on list: NotebookListViewController, context: String) {
+        list.testing_scrollToTopForLargeTitle()
+        XCTAssertTrue(
+            list.navigationController?.navigationBar.prefersLargeTitles == true,
+            "\(context): Caderno nav prefersLargeTitles"
+        )
+        XCTAssertEqual(
+            list.navigationItem.largeTitleDisplayMode,
+            .always,
+            "\(context): Caderno largeTitleDisplayMode must be .always"
+        )
+        XCTAssertGreaterThan(
+            list.testing_navigationBarHeight,
+            52,
+            "\(context): Caderno large-title nav bar must be expanded (height \(list.testing_navigationBarHeight))"
+        )
+    }
 
     private func attachWindow(root: UIViewController, size: CGSize) -> UIWindow {
         let window: UIWindow

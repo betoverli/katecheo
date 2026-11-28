@@ -7,8 +7,12 @@ import UIKit
 /// - iPad iOS 15–17: `PadLegacySidebarShell` is the window root instead (see AppRoot).
 final class NativeRootTabBarController: UITabBarController {
     private var didScheduleSettingsGuide = false
-    /// Apply default sidebar-expanded once per process (don't fight mid-session toggles).
+    /// Apply default sidebar visibility once per process (don't fight mid-session toggles).
     private var didApplyDefaultTabSidebarVisibility = false
+
+    /// XCUITest opt-in: expand the production tabSidebar (tiled) so landscape honesty
+    /// tests can tap a real hittable list row beside the editor.
+    static let expandTabSidebarLaunchArgument = "-katecheoUITestExpandTabSidebar"
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -74,7 +78,7 @@ final class NativeRootTabBarController: UITabBarController {
             if #available(iOS 18.0, *) {
                 let underXCTest = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
                 if !underXCTest {
-                    applyTabSidebarDefaultExpanded()
+                    applyTabSidebarAppleDefault()
                 } else {
                     view.accessibilityIdentifier = "pad.shell.tabs"
                 }
@@ -100,44 +104,83 @@ final class NativeRootTabBarController: UITabBarController {
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        // System defaults to hiding the sidebar in portrait — re-assert expanded once.
+        // Re-assert Apple default once after the window/scene orientation is known.
         if #available(iOS 18.0, *), PadChrome.isPad, mode == .tabSidebar {
             applyDefaultTabSidebarVisibilityIfNeeded(forceExpand: false)
         }
         presentSettingsGuideIfNeeded()
     }
 
-    /// iPadOS 18+ tabSidebar with the main-menu sidebar visible by default.
+    /// iPadOS 18+ tabSidebar: tile content beside the sidebar (opaque column — no
+    /// ghosting under the system material) with Apple's portrait/landscape visibility.
     @available(iOS 18.0, *)
-    func applyTabSidebarDefaultExpanded() {
+    func applyTabSidebarAppleDefault() {
         mode = .tabSidebar
+        sidebar.preferredLayout = .tile
+        view.backgroundColor = KCDesign.screenBackground
         view.accessibilityIdentifier = "pad.shell.tabsidebar"
         applyDefaultTabSidebarVisibilityIfNeeded(forceExpand: false)
     }
 
-    /// Screenshot helper: enable tabSidebar + expand even under the XCTest host.
+    /// Screenshot helper: enable tabSidebar + tile even under the XCTest host.
+    /// Pass `sidebarHidden` to match Apple's portrait (true) / landscape (false) default.
     @available(iOS 18.0, *)
-    func applyTabSidebarForScreenshotsIfNeeded() {
+    func applyTabSidebarForScreenshotsIfNeeded(sidebarHidden: Bool? = nil) {
         mode = .tabSidebar
+        sidebar.preferredLayout = .tile
+        view.backgroundColor = KCDesign.screenBackground
         view.accessibilityIdentifier = "pad.shell.tabsidebar"
-        applyDefaultTabSidebarVisibilityIfNeeded(forceExpand: true)
+        didApplyDefaultTabSidebarVisibility = true
+        if let sidebarHidden {
+            sidebar.isHidden = sidebarHidden
+        } else {
+            sidebar.isHidden = !isLandscapeInterface
+        }
     }
 
     @available(iOS 18.0, *)
     private func applyDefaultTabSidebarVisibilityIfNeeded(forceExpand: Bool) {
         guard mode == .tabSidebar, !didApplyDefaultTabSidebarVisibility else { return }
         didApplyDefaultTabSidebarVisibility = true
-        // XCUITest launches pass `-katecheoSkip*` / `-katecheoUITest*` — keep the top tab
-        // bar so list rows stay hittable. Production + screenshot captures expand the
-        // left main-menu sidebar by default (user can still toggle to the top bar).
-        if !forceExpand {
-            let args = ProcessInfo.processInfo.arguments
+        sidebar.preferredLayout = .tile
+        view.backgroundColor = KCDesign.screenBackground
+
+        let args = ProcessInfo.processInfo.arguments
+        let expandForUITest = args.contains(Self.expandTabSidebarLaunchArgument)
+
+        // Most XCUITest launches keep the top tab bar so list rows stay hittable.
+        // Opt in with `-katecheoUITestExpandTabSidebar` for production-default honesty.
+        if !forceExpand && !expandForUITest {
             let underUITest = args.contains {
                 $0.hasPrefix("-katecheoSkip") || $0.hasPrefix("-katecheoUITest")
             }
             if underUITest { return }
         }
-        sidebar.isHidden = false
+
+        if forceExpand || expandForUITest {
+            sidebar.isHidden = false
+            return
+        }
+
+        // Production: Apple default — collapsed in portrait, expanded in landscape.
+        sidebar.isHidden = !isLandscapeInterface
+    }
+
+    /// True when the interface is landscape (window scene, else bounds).
+    private var isLandscapeInterface: Bool {
+        if let scene = view.window?.windowScene {
+            switch scene.interfaceOrientation {
+            case .landscapeLeft, .landscapeRight:
+                return true
+            case .portrait, .portraitUpsideDown:
+                return false
+            case .unknown:
+                break
+            @unknown default:
+                break
+            }
+        }
+        return view.bounds.width > view.bounds.height
     }
 
     // MARK: - Tools / Profile (tabs on iPad + iPhone; deep-link API)

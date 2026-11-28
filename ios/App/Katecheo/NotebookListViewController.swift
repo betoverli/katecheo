@@ -68,6 +68,20 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
         tableView(tableView, didSelectRowAt: path)
     }
 
+    /// Scrolls the list to the top so the large title is expanded (screenshot / a11y asserts).
+    func testing_scrollToTopForLargeTitle() {
+        navigationController?.navigationBar.prefersLargeTitles = true
+        navigationItem.largeTitleDisplayMode = .always
+        tableView.setContentOffset(.zero, animated: false)
+        tableView.layoutIfNeeded()
+        navigationController?.navigationBar.layoutIfNeeded()
+    }
+
+    /// Expanded large-title nav bar height (0 if missing).
+    var testing_navigationBarHeight: CGFloat {
+        navigationController?.navigationBar.bounds.height ?? 0
+    }
+
     override func viewDidLoad() {
         super.viewDidLoad()
         KCChrome.styleScreen(view)

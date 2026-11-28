@@ -110,6 +110,50 @@ final class IPadChromeUITests: XCTestCase {
         )
     }
 
+    /// Production default: tabSidebar expanded in landscape with `.tile` layout.
+    /// Taps a real hittable note row (no coordinate fallback) and asserts the editor
+    /// sits beside the list, not covered by the main-menu sidebar.
+    func testIPad_sidebarExpandedLandscape_hittableRow_editorBesideList() throws {
+        let app = launchApp(seedNotes: true, openGrupos: false, expandTabSidebar: true)
+
+        XCUIDevice.shared.orientation = .landscapeLeft
+        RunLoop.current.run(until: Date().addingTimeInterval(1.2))
+
+        let caderno = app.otherElements["caderno.list"]
+        XCTAssertTrue(caderno.waitForExistence(timeout: 15), "Caderno list should appear")
+
+        let cadernoRow = app.cells.matching(
+            NSPredicate(format: "label CONTAINS %@", "Nota UITest Caderno")
+        ).firstMatch
+        XCTAssertTrue(cadernoRow.waitForExistence(timeout: 8), "Seeded Caderno note row should exist")
+
+        // Honesty: must be a real hittable element under tiled sidebar — no coordinate tap.
+        let hittableDeadline = Date().addingTimeInterval(6)
+        while Date() < hittableDeadline, !cadernoRow.isHittable {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+        XCTAssertTrue(
+            cadernoRow.isHittable,
+            "sidebar-expanded landscape: note row must be hittable (tiled layout, not under sidebar)"
+        )
+        cadernoRow.tap()
+
+        let editor = app.textViews["note.editor"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 10), "Caderno editor should open")
+
+        let primary = app.otherElements["caderno.list"]
+        XCTAssertTrue(primary.waitForExistence(timeout: 5), "Caderno list sidebar should exist")
+        waitForEditorRightOfPrimary(editor: editor, primary: primary, timeout: 5)
+        assertEditorTextViewRightOfPrimary(
+            editor: editor,
+            primary: primary,
+            context: "sidebar-expanded landscape"
+        )
+
+        XCUIDevice.shared.orientation = .portrait
+        RunLoop.current.run(until: Date().addingTimeInterval(0.5))
+    }
+
     /// Grupos detail: launch on Grupos, open group → note, assert title/body a11y.
     func testIPad_groupNote_detailEditorShowsTitleAndBody() throws {
         let app = launchApp(seedNotes: true, openGrupos: true)
@@ -159,7 +203,11 @@ final class IPadChromeUITests: XCTestCase {
         }
     }
 
-    private func launchApp(seedNotes: Bool, openGrupos: Bool = false) -> XCUIApplication {
+    private func launchApp(
+        seedNotes: Bool,
+        openGrupos: Bool = false,
+        expandTabSidebar: Bool = false
+    ) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments += [
             "-katecheoSkipOnboarding",
@@ -172,6 +220,10 @@ final class IPadChromeUITests: XCTestCase {
         }
         if openGrupos {
             app.launchArguments += ["-katecheoUITestOpenGrupos"]
+        }
+        if expandTabSidebar {
+            // Must match NativeRootTabBarController.expandTabSidebarLaunchArgument.
+            app.launchArguments += ["-katecheoUITestExpandTabSidebar"]
         }
         app.launch()
         return app
