@@ -281,6 +281,13 @@ if (!selector.includes("export function chooseXcode") || !selector.includes("sdk
   errors.push("O selector de Xcode tem de exigir o SDK do iOS 26 com runtime de simulador instalado.");
 }
 
+function plistIncludesSupportsMultipleScenes(plist) {
+  const idx = plist.indexOf("UIApplicationSupportsMultipleScenes");
+  if (idx < 0) return false;
+  const slice = plist.slice(idx, idx + 160);
+  return /<true\s*\/>/.test(slice) || /<true>/.test(slice);
+}
+
 const scene = read("ios/App/Katecheo/SceneDelegate.swift");
 if (!scene.includes("AppRoot.makeRootViewController")) {
   errors.push("SceneDelegate tem de montar a root via AppRoot.");
@@ -293,6 +300,12 @@ if (!scene.includes("NativeDeepLinkRouter") || !scene.includes("NSUserActivityTy
 }
 if (!scene.includes("AppAppearance") || scene.includes("overrideUserInterfaceStyle = .unspecified")) {
   errors.push("SceneDelegate tem de aplicar AppAppearance no connect (não forçar .unspecified) — TF219.");
+}
+if (!scene.includes("shouldBuildRootUI") || !scene.includes("windowExternalDisplay")) {
+  errors.push("SceneDelegate tem de rejeitar roles de external display / mirroring (shouldBuildRootUI).");
+}
+if (!plistIncludesSupportsMultipleScenes(read("ios/App/Katecheo/Info.plist"))) {
+  errors.push("Info.plist: UIApplicationSupportsMultipleScenes tem de ser true (Stage Manager).");
 }
 try {
   const appearance = read("ios/App/Katecheo/AppAppearance.swift");
@@ -1166,7 +1179,20 @@ if (!rootTabs.includes("PadChrome.isPad") || !rootTabs.includes("mode = .tabSide
   errors.push("iPadOS 18+: NativeRootTabBarController tem de usar mode = .tabSidebar.");
 }
 if (!rootTabs.includes("presentToolsSheet") || !rootTabs.includes("presentProfileSheet")) {
-  errors.push("Deep-link API: presentToolsSheet / presentProfileSheet têm de existir (selecionam abas).");
+  errors.push("Deep-link API: presentToolsSheet / presentProfileSheet têm de existir (abas no iPhone; sheets no iPad).");
+}
+if (!rootTabs.includes("pad.sheet.tools") || !rootTabs.includes("pad.sheet.profile") || !rootTabs.includes("formSheet")) {
+  errors.push("iPad regular: Tools/Profile têm de abrir como formSheet (pad.sheet.tools / pad.sheet.profile).");
+}
+const noteEditorSrc = read("ios/App/Katecheo/NativeNoteEditorView.swift");
+if (!noteEditorSrc.includes("leadingBarButtonGroups") || !noteEditorSrc.includes("trailingBarButtonGroups")) {
+  errors.push("iPad editor: limpar inputAssistantItem leading/trailingBarButtonGroups (toolbar Katecheo).");
+}
+if (!noteEditorSrc.includes("dockPadAccessory") && !noteEditorSrc.includes("isPadAccessoryDocked")) {
+  errors.push("iPad editor: dock da toolbar Katecheo com teclado físico (dockPadAccessory).");
+}
+if (!project.includes("SceneDelegateExternalDisplayTests.swift")) {
+  errors.push("SceneDelegateExternalDisplayTests.swift tem de estar no target de testes.");
 }
 if (!appRoot.includes("PadLegacySidebarShell") || !appRoot.includes("PadChrome.isPad")) {
   errors.push("AppRoot: iPad <18 tem de usar PadLegacySidebarShell; iPadOS 18+ NativeRootTabBarController.");

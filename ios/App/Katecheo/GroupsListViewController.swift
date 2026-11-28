@@ -22,6 +22,7 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
         navigationItem.largeTitleDisplayMode = .always
         if let nav = navigationController {
             KCChrome.style(navigationController: nav)
+            nav.navigationBar.prefersLargeTitles = true
         }
 
         let createItem: UIBarButtonItem

@@ -143,10 +143,11 @@ final class IPadNavigationTests: XCTestCase {
             primaryFrame.maxX - 2,
             "UITextView must start to the right of the primary column (not under the sidebar); text.minX=\(textFrame.minX) primary.maxX=\(primaryFrame.maxX) displayMode=\(split.displayMode.rawValue)"
         )
+        // Leading-aligned Notes margins (~20pt inset) — within ~40pt of the detail column.
         XCTAssertLessThanOrEqual(
             textFrame.minX,
-            secondaryLeading + 60,
-            "Editor text must sit near the detail column leading edge (readable margin), not a huge empty gap; text.minX=\(textFrame.minX) secondaryLeading=\(secondaryLeading)"
+            secondaryLeading + 40,
+            "Editor text must sit within ~40pt of the detail column leading edge; text.minX=\(textFrame.minX) secondaryLeading=\(secondaryLeading)"
         )
     }
 
@@ -183,44 +184,134 @@ final class IPadNavigationTests: XCTestCase {
         XCTAssertEqual(split.openGroupNotesList?.testing_groupId, group.id)
     }
 
-    func testPad_toolsAndProfile_areTabsNotSheets() throws {
-        try XCTSkipUnless(isPad, "iPad-only Tools/Profile tabs")
+    func testPad_toolsAndProfile_presentAsFormSheets() throws {
+        try XCTSkipUnless(isPad, "iPad-only Tools/Profile sheets")
 
         OnboardingStore.markSettingsGuideSeen()
         let tabs = NativeRootTabBarController()
-        _ = makePadWindow(root: tabs)
+        _ = makePadWindow(root: tabs, size: CGSize(width: 1180, height: 820))
         tabs.loadViewIfNeeded()
-        // Dismiss any leftover alerts from prior tests (not Tools/Profile sheets).
+        tabs.view.layoutIfNeeded()
+        // Stay on Caderno — sheets keep the previous section visible behind.
+        XCTAssertEqual(tabs.selectedIndex, 0)
         tabs.presentedViewController?.dismiss(animated: false)
         RunLoop.current.run(until: Date().addingTimeInterval(0.05))
 
         tabs.presentToolsSheet(animated: false)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.15))
+        XCTAssertEqual(tabs.selectedIndex, 0, "Caderno stays selected behind the Tools panel")
+        let toolsNav = try XCTUnwrap(
+            tabs.presentedViewController as? UINavigationController,
+            "Tools must present a modal navigation controller"
+        )
+        XCTAssertEqual(toolsNav.view.accessibilityIdentifier, "pad.sheet.tools")
+        XCTAssertEqual(toolsNav.modalPresentationStyle, .formSheet)
+        XCTAssertTrue(toolsNav.viewControllers.first is VersesHomeViewController)
+        XCTAssertNotNil(toolsNav.viewControllers.first?.navigationItem.leftBarButtonItem)
+
+        toolsNav.dismiss(animated: false)
         RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+
+        tabs.presentProfileSheet(animated: false)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.15))
+        XCTAssertEqual(tabs.selectedIndex, 0, "Caderno stays selected behind the Profile panel")
+        let profileNav = try XCTUnwrap(
+            tabs.presentedViewController as? UINavigationController,
+            "Profile must present a modal navigation controller"
+        )
+        XCTAssertEqual(profileNav.view.accessibilityIdentifier, "pad.sheet.profile")
+        XCTAssertTrue(
+            profileNav.modalPresentationStyle == .formSheet
+                || profileNav.modalPresentationStyle == .pageSheet
+        )
+        XCTAssertTrue(profileNav.viewControllers.first is ProfileViewController)
+    }
+
+    func testPhone_toolsAndProfile_areTabsNotSheets() throws {
+        try XCTSkipUnless(UIDevice.current.userInterfaceIdiom == .phone, "iPhone tab contract")
+
+        OnboardingStore.markSettingsGuideSeen()
+        let tabs = NativeRootTabBarController()
+        _ = makePadWindow(root: tabs, size: CGSize(width: 390, height: 844))
+        tabs.loadViewIfNeeded()
+        tabs.presentedViewController?.dismiss(animated: false)
+
+        tabs.presentToolsSheet(animated: false)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.05))
         XCTAssertEqual(tabs.selectedIndex, 2)
-        if let presentedNav = tabs.presentedViewController as? UINavigationController {
-            XCTAssertNotEqual(
-                presentedNav.view.accessibilityIdentifier,
-                "pad.sheet.tools",
-                "Tools must be a tab, not pad.sheet.tools"
-            )
-        }
+        XCTAssertNil(
+            (tabs.presentedViewController as? UINavigationController)?
+                .view.accessibilityIdentifier,
+            "iPhone Tools stays a tab — no pad.sheet.tools"
+        )
         XCTAssertTrue(
             (tabs.selectedViewController as? UINavigationController)?.viewControllers.first is VersesHomeViewController
         )
 
         tabs.presentProfileSheet(animated: false)
-        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        RunLoop.current.run(until: Date().addingTimeInterval(0.05))
         XCTAssertEqual(tabs.selectedIndex, 3)
-        if let presentedNav = tabs.presentedViewController as? UINavigationController {
-            XCTAssertNotEqual(
-                presentedNav.view.accessibilityIdentifier,
-                "pad.sheet.profile",
-                "Profile must be a tab, not pad.sheet.profile"
-            )
-        }
         XCTAssertTrue(
             (tabs.selectedViewController as? UINavigationController)?.viewControllers.first is ProfileViewController
         )
+    }
+
+    func testPhone_editorHorizontalInset_matchesPre136() throws {
+        try XCTSkipUnless(UIDevice.current.userInterfaceIdiom == .phone, "iPhone editor inset")
+        let detail = NoteDetailViewController(noteId: "phone-inset", initial: NativeAPIClient.emptyNote(id: "phone-inset"))
+        _ = makePadWindow(root: UINavigationController(rootViewController: detail), size: CGSize(width: 390, height: 844))
+        detail.loadViewIfNeeded()
+        detail.view.layoutIfNeeded()
+        let inset = detail.testing_editor.testing_textView.textContainerInset.left
+        XCTAssertEqual(
+            inset,
+            PadChrome.phoneEditorHorizontalInset,
+            accuracy: 0.5,
+            "iPhone editor left inset must equal pre-#136 value (\(PadChrome.phoneEditorHorizontalInset))"
+        )
+        XCTAssertEqual(inset, 16, accuracy: 0.5)
+    }
+
+    func testPad_editorFormatToolbar_clearsSystemAssistantAndDocks() throws {
+        try XCTSkipUnless(isPad, "iPad format toolbar")
+
+        var note = NativeAPIClient.emptyNote(id: "pad-toolbar")
+        note.title = "Nota"
+        note.body.blocks = [
+            NativeAPIClient.LineBlock(
+                id: "p1",
+                type: "paragraph",
+                spans: [.init(type: "text", text: "corpo", marks: nil, bookId: nil, chapter: nil, verseStart: nil, verseEnd: nil, href: nil)],
+                speakerId: nil,
+                title: nil,
+                collapsed: nil,
+                checked: nil,
+                blocks: nil
+            ),
+        ]
+        let detail = NoteDetailViewController(noteId: note.id, initial: note)
+        let nav = UINavigationController(rootViewController: detail)
+        _ = makePadWindow(root: nav, size: CGSize(width: 900, height: 700))
+        detail.loadViewIfNeeded()
+        detail.view.layoutIfNeeded()
+        let editor = detail.testing_editor
+        editor.testing_forcePadDockedToolbar()
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+
+        XCTAssertTrue(
+            editor.testing_inputAssistantBarButtonGroupsAreEmpty(),
+            "iPad inputAssistantItem leading/trailing groups must be empty"
+        )
+        XCTAssertTrue(
+            editor.testing_isFormattingToolbarVisible(),
+            "Katecheo format toolbar must be visible while editing on iPad"
+        )
+        let frame = try XCTUnwrap(
+            editor.testing_dockedFormatToolbarFrame(),
+            "Docked toolbar must be in the hierarchy with a real frame"
+        )
+        XCTAssertGreaterThan(frame.width, 100)
+        XCTAssertGreaterThan(frame.height, 40)
     }
 
     func testPad_notebookSplit_tilesBesideNeverOverlay() throws {

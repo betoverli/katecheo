@@ -29,6 +29,9 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     private var baseHorizontalInset: CGFloat = KCDesign.Space.md
     private var keyboardOverlap: CGFloat = 0
     private var isBodyEditing = false
+    /// iPad hardware-keyboard path: accessory docked at the editor bottom (not inputAccessoryView).
+    private var padDockedAccessoryConstraints: [NSLayoutConstraint] = []
+    private var isPadAccessoryDocked = false
     /// contentOffset before an edit; restored after UIKit/layout may clamp it to 0.
     private var pendingScrollAnchor: CGPoint?
     private var tapGesture: UITapGestureRecognizer!
@@ -183,6 +186,8 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         }
         // Formatting toolbar appears only after the user taps into the body (edit mode).
         textView.inputAccessoryView = nil
+        // iPad: hide the system shortcuts / floating input assistant bar so our toolbar wins.
+        suppressSystemInputAssistant()
 
         NSLayoutConstraint.activate([
             textView.topAnchor.constraint(equalTo: topAnchor),
@@ -595,32 +600,148 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
 
         keyboardOverlap = overlap
         // Accessory bar sits above the keyboard; add a little breathing room for the caret.
-        let accessoryH = (textView.isFirstResponder && textView.inputAccessoryView != nil) ? max(accessory.bounds.height, 44) : 0
-        let bottom = overlap + (overlap > 0 ? accessoryH + KCDesign.Space.md : 0)
+        let accessoryAttached = textView.isFirstResponder
+            && (textView.inputAccessoryView != nil || isPadAccessoryDocked)
+        let accessoryH = accessoryAttached ? max(accessory.bounds.height, accessory.intrinsicContentSize.height, 44) : 0
+        let dockedPad: CGFloat = isPadAccessoryDocked ? accessoryH + KCDesign.Space.md : 0
+        let keyboardPad: CGFloat = overlap > 0 ? accessoryH + KCDesign.Space.md : 0
+        let bottom = overlap + (isPadAccessoryDocked ? dockedPad : keyboardPad)
 
         UIView.animate(withDuration: duration, delay: 0, options: options) {
             self.textView.contentInset.bottom = bottom
             self.textView.verticalScrollIndicatorInsets.bottom = bottom
-            self.textView.textContainerInset.bottom = self.baseBottomInset + (overlap > 0 ? KCDesign.Space.sm : 0)
+            self.textView.textContainerInset.bottom = self.baseBottomInset
+                + ((overlap > 0 || self.isPadAccessoryDocked) ? KCDesign.Space.sm : 0)
         } completion: { _ in
             self.scrollCaretVisible(animated: true)
+        }
+        // Soft keyboard ↔ hardware keyboard: re-home the iPad format toolbar.
+        if UIDevice.current.userInterfaceIdiom == .pad, isBodyEditing {
+            updatePadAccessoryPlacement()
+        }
+    }
+
+    /// Hide UITextInputAssistantItem shortcuts so Katecheo's capsule is the only bar.
+    private func suppressSystemInputAssistant() {
+        let item = textView.inputAssistantItem
+        item.leadingBarButtonGroups = []
+        item.trailingBarButtonGroups = []
+        if #available(iOS 16.0, *) {
+            item.allowsHidingShortcuts = true
         }
     }
 
     private func setEditingChrome(_ editing: Bool) {
         isBodyEditing = editing
-        // Attach the capsule host itself as `inputAccessoryView` (transparent full-width
-        // wrapper; the rounded pill is a subview). Never leave a hidden strip attached —
-        // title / tags clear the accessory entirely so `testing_isFormattingToolbarVisible`
-        // stays an identity check on `accessory`.
+        suppressSystemInputAssistant()
+        // Capsule must stay un-hidden when attached (scroll clips inside it).
+        accessory.isHidden = false
+        accessory.alpha = 1
+
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            if editing {
+                updatePadAccessoryPlacement()
+            } else {
+                undockPadAccessory()
+                if textView.inputAccessoryView != nil {
+                    textView.inputAccessoryView = nil
+                    textView.reloadInputViews()
+                }
+                applyDockedContentInset(extra: 0)
+            }
+            return
+        }
+
+        // iPhone: attach the capsule host as `inputAccessoryView` only while editing the body.
         let next: UIView? = editing ? accessory : nil
         if textView.inputAccessoryView !== next {
             textView.inputAccessoryView = next
-            // Capsule must stay un-hidden when attached (scroll clips inside it).
-            accessory.isHidden = false
-            accessory.alpha = 1
             textView.reloadInputViews()
         }
+    }
+
+    /// iPad: use inputAccessoryView above the software keyboard; with a hardware keyboard
+    /// (no soft keyboard overlap) dock the same capsule at the editor bottom above the safe area.
+    private func updatePadAccessoryPlacement() {
+        suppressSystemInputAssistant()
+        guard isBodyEditing, textView.isFirstResponder else {
+            undockPadAccessory()
+            if textView.inputAccessoryView != nil {
+                textView.inputAccessoryView = nil
+                textView.reloadInputViews()
+            }
+            applyDockedContentInset(extra: 0)
+            return
+        }
+
+        let useSoftKeyboardAccessory = keyboardOverlap > 1
+        if useSoftKeyboardAccessory {
+            undockPadAccessory()
+            if textView.inputAccessoryView !== accessory {
+                // Frame-based host for UIKit's input accessory sizing.
+                accessory.translatesAutoresizingMaskIntoConstraints = true
+                accessory.autoresizingMask = [.flexibleWidth]
+                textView.inputAccessoryView = accessory
+                textView.reloadInputViews()
+            }
+            applyDockedContentInset(extra: 0)
+            return
+        }
+
+        // Hardware / no soft keyboard — dock above the safe area.
+        if textView.inputAccessoryView != nil {
+            textView.inputAccessoryView = nil
+            textView.reloadInputViews()
+        }
+        dockPadAccessory()
+    }
+
+    private func dockPadAccessory() {
+        if isPadAccessoryDocked, accessory.superview === self { return }
+        undockPadAccessory()
+        accessory.translatesAutoresizingMaskIntoConstraints = false
+        accessory.autoresizingMask = []
+        addSubview(accessory)
+        let height = max(accessory.intrinsicContentSize.height, 60)
+        let constraints = [
+            accessory.leadingAnchor.constraint(equalTo: leadingAnchor),
+            accessory.trailingAnchor.constraint(equalTo: trailingAnchor),
+            accessory.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor),
+            accessory.heightAnchor.constraint(equalToConstant: height),
+        ]
+        NSLayoutConstraint.activate(constraints)
+        padDockedAccessoryConstraints = constraints
+        isPadAccessoryDocked = true
+        accessory.isHidden = false
+        accessory.alpha = 1
+        accessory.accessibilityIdentifier = "note.editor.formatToolbar"
+        bringSubviewToFront(accessory)
+        applyDockedContentInset(extra: height + KCDesign.Space.md)
+        setNeedsLayout()
+        layoutIfNeeded()
+    }
+
+    private func undockPadAccessory() {
+        guard isPadAccessoryDocked || accessory.superview === self else {
+            NSLayoutConstraint.deactivate(padDockedAccessoryConstraints)
+            padDockedAccessoryConstraints = []
+            isPadAccessoryDocked = false
+            return
+        }
+        NSLayoutConstraint.deactivate(padDockedAccessoryConstraints)
+        padDockedAccessoryConstraints = []
+        accessory.removeFromSuperview()
+        isPadAccessoryDocked = false
+        // Restore frame-based sizing for a future inputAccessoryView attach.
+        accessory.translatesAutoresizingMaskIntoConstraints = true
+        accessory.autoresizingMask = [.flexibleWidth]
+    }
+
+    private func applyDockedContentInset(extra: CGFloat) {
+        let bottom = keyboardOverlap + extra
+        textView.contentInset.bottom = bottom
+        textView.verticalScrollIndicatorInsets.bottom = bottom
+        textView.textContainerInset.bottom = baseBottomInset + (extra > 0 || keyboardOverlap > 0 ? KCDesign.Space.sm : 0)
     }
 
     /// Toolbar only while editing the body — hidden for title / tags (TF210).
@@ -1000,9 +1121,9 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     /// Defense in depth for caret jumps: when refreshing an already-displayed note with the
     /// same id, preserve `selectedRange` (clamped) and first-responder. Location 0 only on
     /// the initial load (or when switching to a different note id).
-    /// Regular iPad: ~24pt horizontal insets (Notes-like). Phone / compact: default 16pt.
+    /// Regular iPad: Notes-like horizontal insets. Phone / compact: pre-#136 16pt.
     func applyPadReadingInsets(_ enabled: Bool) {
-        let next = enabled ? PadChrome.editorHorizontalInset : KCDesign.Space.md
+        let next = enabled ? PadChrome.editorHorizontalInset : PadChrome.phoneEditorHorizontalInset
         guard abs(baseHorizontalInset - next) > 0.5 else { return }
         baseHorizontalInset = next
         var inset = textView.textContainerInset
@@ -3028,13 +3149,34 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
         textView.autocapitalizationType
     }
 
-    /// Format toolbar is visible iff the capsule host is the active `inputAccessoryView`.
-    /// Title / tags clear it (`nil`); body editing attaches `accessory` (not a permanent
-    /// full-width strip toggled via `isHidden` / alpha).
+    /// Format toolbar is visible iff the capsule host is the active `inputAccessoryView`
+    /// (iPhone / iPad soft keyboard) or the iPad docked hardware-keyboard bar.
+    /// Title / tags clear it; body editing attaches `accessory`.
     func testing_isFormattingToolbarVisible() -> Bool {
-        textView.inputAccessoryView === accessory
-            && !accessory.isHidden
-            && accessory.alpha > 0.01
+        let attached = textView.inputAccessoryView === accessory || isPadAccessoryDocked
+        return attached && !accessory.isHidden && accessory.alpha > 0.01
+    }
+
+    /// Test hook: empty system assistant groups (iPad contract).
+    func testing_inputAssistantBarButtonGroupsAreEmpty() -> Bool {
+        let item = textView.inputAssistantItem
+        return item.leadingBarButtonGroups.isEmpty && item.trailingBarButtonGroups.isEmpty
+    }
+
+    /// Test hook: docked iPad toolbar frame (window coords) when hardware-keyboard path is active.
+    func testing_dockedFormatToolbarFrame() -> CGRect? {
+        guard isPadAccessoryDocked, accessory.superview != nil, !accessory.isHidden else { return nil }
+        return accessory.convert(accessory.bounds, to: nil)
+    }
+
+    /// Test hook: force the iPad docked (hardware keyboard) placement for screenshots / unit tests.
+    func testing_forcePadDockedToolbar() {
+        guard UIDevice.current.userInterfaceIdiom == .pad else { return }
+        keyboardOverlap = 0
+        isBodyEditing = true
+        _ = textView.becomeFirstResponder()
+        suppressSystemInputAssistant()
+        dockPadAccessory()
     }
 
     func testing_refreshSpeakerHeaderAppearances() {

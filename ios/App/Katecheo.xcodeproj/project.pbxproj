@@ -13,6 +13,7 @@
 		KCPAD22FED7965001685PD /* PadLegacySidebarShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCPAD21FED7965001685PD /* PadLegacySidebarShell.swift */; };
 		KCGSPL12FED7965001685GS /* GroupsSplitViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCGSPL11FED7965001685GS /* GroupsSplitViewController.swift */; };
 		KCIPAD22FED7965001685IP /* IPadNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCIPAD21FED7965001685IP /* IPadNavigationTests.swift */; };
+		KCSCENE2FED7965001685SC /* SceneDelegateExternalDisplayTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCSCENE1FED7965001685SC /* SceneDelegateExternalDisplayTests.swift */; };
 		KCIPAD32FED7965001685IP /* IPadScreenshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCIPAD31FED7965001685IP /* IPadScreenshotTests.swift */; };
 		KCWARM22FED7965001685WS /* WarmSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCWARM21FED7965001685WS /* WarmSelectionTests.swift */; };
 		KCUIT22FED7965001685UI /* IPadChromeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCUIT21FED7965001685UI /* IPadChromeUITests.swift */; };
@@ -273,6 +274,7 @@
 		KCPAD21FED7965001685PD /* PadLegacySidebarShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PadLegacySidebarShell.swift; sourceTree = "<group>"; };
 		KCGSPL11FED7965001685GS /* GroupsSplitViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupsSplitViewController.swift; sourceTree = "<group>"; };
 		KCIPAD21FED7965001685IP /* IPadNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IPadNavigationTests.swift; sourceTree = "<group>"; };
+		KCSCENE1FED7965001685SC /* SceneDelegateExternalDisplayTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegateExternalDisplayTests.swift; sourceTree = "<group>"; };
 		KCIPAD31FED7965001685IP /* IPadScreenshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IPadScreenshotTests.swift; sourceTree = "<group>"; };
 		KCWARM21FED7965001685WS /* WarmSelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WarmSelectionTests.swift; sourceTree = "<group>"; };
 		KCUIT21FED7965001685UI /* IPadChromeUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IPadChromeUITests.swift; sourceTree = "<group>"; };
@@ -460,6 +462,7 @@
 				RPTBLK21FED7965001685RB /* ReportBlockTests.swift */,
 				KCSPLIT21FED7965001685SP /* NotebookSplitRoutingTests.swift */,
 				KCIPAD21FED7965001685IP /* IPadNavigationTests.swift */,
+				KCSCENE1FED7965001685SC /* SceneDelegateExternalDisplayTests.swift */,
 				KCIPAD31FED7965001685IP /* IPadScreenshotTests.swift */,
 				KCWARM21FED7965001685WS /* WarmSelectionTests.swift */,
 				PUPRF21FED7965001685PP /* PublicProfileTests.swift */,
@@ -774,6 +777,7 @@
 				RPTBLK22FED7965001685RB /* ReportBlockTests.swift in Sources */,
 				KCSPLIT22FED7965001685SP /* NotebookSplitRoutingTests.swift in Sources */,
 				KCIPAD22FED7965001685IP /* IPadNavigationTests.swift in Sources */,
+				KCSCENE2FED7965001685SC /* SceneDelegateExternalDisplayTests.swift in Sources */,
 				KCIPAD32FED7965001685IP /* IPadScreenshotTests.swift in Sources */,
 				KCWARM22FED7965001685WS /* WarmSelectionTests.swift in Sources */,
 				PUPRF22FED7965001685PP /* PublicProfileTests.swift in Sources */,
