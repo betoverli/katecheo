@@ -21,7 +21,7 @@ final class IPadChromeUITests: XCTestCase {
             NSPredicate(format: "label CONTAINS %@", "Nota UITest Caderno")
         ).firstMatch
         XCTAssertTrue(cadernoRow.waitForExistence(timeout: 8), "Seeded Caderno note row should exist")
-        cadernoRow.tap()
+        tapRow(cadernoRow)
 
         let editor = app.textViews["note.editor"]
         XCTAssertTrue(editor.waitForExistence(timeout: 10), "Caderno editor should open")
@@ -100,7 +100,7 @@ final class IPadChromeUITests: XCTestCase {
             NSPredicate(format: "label CONTAINS %@", "Nota UITest Caderno")
         ).firstMatch
         XCTAssertTrue(cadernoRow.waitForExistence(timeout: 8), "Seeded Caderno note row should exist")
-        cadernoRow.tap()
+        tapRow(cadernoRow)
 
         assertEditor(
             in: app,
@@ -121,7 +121,7 @@ final class IPadChromeUITests: XCTestCase {
             NSPredicate(format: "label CONTAINS %@", "Grupo UITest")
         ).firstMatch
         XCTAssertTrue(groupRow.waitForExistence(timeout: 8), "Seeded group row should exist")
-        groupRow.tap()
+        tapRow(groupRow)
 
         let groupNotes = app.otherElements["caderno.group.list"]
         XCTAssertTrue(groupNotes.waitForExistence(timeout: 8), "Group notes list should push in sidebar")
@@ -130,7 +130,7 @@ final class IPadChromeUITests: XCTestCase {
             NSPredicate(format: "label CONTAINS %@", "Nota UITest Grupo")
         ).firstMatch
         XCTAssertTrue(groupNoteRow.waitForExistence(timeout: 8), "Seeded group note row should exist")
-        groupNoteRow.tap()
+        tapRow(groupNoteRow)
 
         assertEditor(
             in: app,
@@ -141,6 +141,23 @@ final class IPadChromeUITests: XCTestCase {
     }
 
     // MARK: - Helpers
+
+    /// tabSidebar can leave list cells existing but not hittable; coordinate-tap the center.
+    private func tapRow(_ element: XCUIElement) {
+        if element.isHittable {
+            element.tap()
+            return
+        }
+        let deadline = Date().addingTimeInterval(3)
+        while Date() < deadline, !element.isHittable {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.15))
+        }
+        if element.isHittable {
+            element.tap()
+        } else {
+            element.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        }
+    }
 
     private func launchApp(seedNotes: Bool, openGrupos: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
