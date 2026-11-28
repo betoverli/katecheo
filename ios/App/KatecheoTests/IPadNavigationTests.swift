@@ -98,24 +98,52 @@ final class IPadNavigationTests: XCTestCase {
             "Secondary must not show the empty displayMode circle"
         )
 
-        // Actual (not preferred) mode + UIView frames must tile — this is what XCUITest sees.
+        // Tile contract: beside mode + editor leading edge to the right of the list.
+        // Prefer window frames of list/editor — UISplitViewController child VC frames
+        // often report origin 0 inside private column panels.
+        split.view.setNeedsLayout()
         split.view.layoutIfNeeded()
+        RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+        PadChrome.syncColumnAccessibilityFrames(on: split)
+
         XCTAssertEqual(
             split.preferredDisplayMode,
             .oneBesideSecondary,
             "preferredDisplayMode must stay beside after opening a note"
         )
-        XCTAssertNotEqual(split.displayMode, .oneOverSecondary)
-        XCTAssertNotEqual(split.displayMode, .secondaryOnly)
+        XCTAssertEqual(
+            split.displayMode,
+            .oneBesideSecondary,
+            "Actual displayMode must be beside (not overlay/secondaryOnly)"
+        )
+        XCTAssertGreaterThan(split.primaryColumnWidth, 200, "Primary column must have real width")
+        XCTAssertLessThan(
+            split.primaryColumnWidth,
+            split.view.bounds.width - 200,
+            "Primary must leave room for the detail column"
+        )
+
+        let listFrame = list.view.convert(list.view.bounds, to: nil)
+        let editorFrame = detail.testing_editor.convert(detail.testing_editor.bounds, to: nil)
+        XCTAssertFalse(listFrame.isEmpty, "List must have an on-screen frame")
+        XCTAssertFalse(editorFrame.isEmpty, "Editor must have an on-screen frame")
+        XCTAssertGreaterThanOrEqual(
+            editorFrame.minX,
+            listFrame.maxX - 2,
+            "Editor must start to the right of the list (not under the sidebar); editor.minX=\(editorFrame.minX) list.maxX=\(listFrame.maxX) displayMode=\(split.displayMode.rawValue) primaryWidth=\(split.primaryColumnWidth)"
+        )
+
         if let primaryView = split.viewController(for: .primary)?.view,
-           let secondaryView = split.viewController(for: .secondary)?.view
+           let secondaryView = split.viewController(for: .secondary)?.view,
+           primaryView.window != nil,
+           secondaryView.window != nil
         {
-            let primaryFrame = primaryView.convert(primaryView.bounds, to: split.view)
-            let secondaryFrame = secondaryView.convert(secondaryView.bounds, to: split.view)
+            let primaryScreen = UIAccessibility.convertToScreenCoordinates(primaryView.bounds, in: primaryView)
+            let secondaryScreen = UIAccessibility.convertToScreenCoordinates(secondaryView.bounds, in: secondaryView)
             XCTAssertGreaterThanOrEqual(
-                secondaryFrame.minX,
-                primaryFrame.maxX - 2,
-                "Detail UIView must start to the right of the list (displayMode=\(split.displayMode.rawValue))"
+                secondaryScreen.minX,
+                primaryScreen.maxX - 2,
+                "Secondary column screen frame must sit beside primary (not overlay)"
             )
         }
     }
