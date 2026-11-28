@@ -3,6 +3,7 @@ import UIKit
 /// Builds the window root. Phase 5: always native tabs — no Capacitor site host.
 /// First launch shows onboarding before tabs (and before the auth screen).
 enum AppRoot {
+    @MainActor
     static func makeRootViewController() -> UIViewController {
         if OnboardingStore.shouldShowOnLaunch {
             let onboarding = OnboardingViewController()
@@ -15,6 +16,7 @@ enum AppRoot {
         return makeMainShell()
     }
 
+    @MainActor
     static func makeMainShell() -> UIViewController {
         // iPadOS 18+: UITabBarController.tabSidebar. Older iPad: always-on menu sidebar.
         if PadChrome.isPad {
@@ -27,14 +29,17 @@ enum AppRoot {
     }
 
     /// After onboarding (or when forcing the signed-in shell), always land on tabs.
+    @MainActor
     static func applyMainShell(animated: Bool = true) {
         apply(makeMainShell(), animated: animated)
     }
 
+    @MainActor
     static func applyToKeyWindow(animated: Bool = true) {
         apply(makeRootViewController(), animated: animated)
     }
 
+    @MainActor
     private static func apply(_ next: UIViewController, animated: Bool) {
         let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
         // Only interactive application scenes — never the external-display mirroring role.
