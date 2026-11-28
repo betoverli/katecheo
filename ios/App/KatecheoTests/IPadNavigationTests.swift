@@ -97,6 +97,27 @@ final class IPadNavigationTests: XCTestCase {
             detail.navigationItem.leftBarButtonItem,
             "Secondary must not show the empty displayMode circle"
         )
+
+        // Actual (not preferred) mode + UIView frames must tile — this is what XCUITest sees.
+        split.view.layoutIfNeeded()
+        XCTAssertEqual(
+            split.preferredDisplayMode,
+            .oneBesideSecondary,
+            "preferredDisplayMode must stay beside after opening a note"
+        )
+        XCTAssertNotEqual(split.displayMode, .oneOverSecondary)
+        XCTAssertNotEqual(split.displayMode, .secondaryOnly)
+        if let primaryView = split.viewController(for: .primary)?.view,
+           let secondaryView = split.viewController(for: .secondary)?.view
+        {
+            let primaryFrame = primaryView.convert(primaryView.bounds, to: split.view)
+            let secondaryFrame = secondaryView.convert(secondaryView.bounds, to: split.view)
+            XCTAssertGreaterThanOrEqual(
+                secondaryFrame.minX,
+                primaryFrame.maxX - 2,
+                "Detail UIView must start to the right of the list (displayMode=\(split.displayMode.rawValue))"
+            )
+        }
     }
 
     func testPad_selectingGroup_pushesNotesInSidebar() throws {

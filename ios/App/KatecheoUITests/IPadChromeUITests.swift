@@ -31,6 +31,8 @@ final class IPadChromeUITests: XCTestCase {
         XCTAssertTrue(primary.waitForExistence(timeout: 5), "Caderno primary (list) column should exist")
         XCTAssertTrue(secondary.waitForExistence(timeout: 5), "Caderno secondary (detail) column should exist")
 
+        // Allow split layout to settle into .tile after opening the note.
+        waitForTile(primary: primary, secondary: secondary, timeout: 3)
         assertSecondaryRightOfPrimary(primary: primary, secondary: secondary, editor: editor, context: "portrait")
 
         XCUIDevice.shared.orientation = .landscapeLeft
@@ -38,6 +40,7 @@ final class IPadChromeUITests: XCTestCase {
         XCTAssertTrue(editor.waitForExistence(timeout: 5))
         XCTAssertTrue(primary.waitForExistence(timeout: 5))
         XCTAssertTrue(secondary.waitForExistence(timeout: 5))
+        waitForTile(primary: primary, secondary: secondary, timeout: 3)
         assertSecondaryRightOfPrimary(primary: primary, secondary: secondary, editor: editor, context: "landscape")
 
         XCUIDevice.shared.orientation = .portrait
@@ -157,6 +160,16 @@ final class IPadChromeUITests: XCTestCase {
         }
         app.launch()
         return app
+    }
+
+    private func waitForTile(primary: XCUIElement, secondary: XCUIElement, timeout: TimeInterval) {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            let p = primary.frame
+            let s = secondary.frame
+            if !p.isEmpty, !s.isEmpty, s.minX >= p.maxX - 2 { return }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.15))
+        }
     }
 
     private func assertSecondaryRightOfPrimary(

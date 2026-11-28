@@ -7,11 +7,10 @@ enum PadChrome {
         UIDevice.current.userInterfaceIdiom == .pad
     }
 
-    /// Notes-folder list column — sized so portrait + main-menu sidebar still tiles
-    /// (never overlays) the note detail.
-    static let notebookPrimaryFraction: CGFloat = 0.32
-    static let notebookPrimaryMin: CGFloat = 260
-    static let notebookPrimaryMax: CGFloat = 380
+    /// Notes-folder list column — kept modest so portrait + tabSidebar still tiles.
+    static let notebookPrimaryFraction: CGFloat = 0.28
+    static let notebookPrimaryMin: CGFloat = 220
+    static let notebookPrimaryMax: CGFloat = 320
 
     /// Horizontal reading inset inside the note editor on regular-width iPad (~Notes).
     static let editorHorizontalInset: CGFloat = 24
@@ -27,36 +26,48 @@ enum PadChrome {
         min: CGFloat = notebookPrimaryMin,
         max: CGFloat = notebookPrimaryMax
     ) {
+        if #available(iOS 16.0, *) {
+            // Tile displaces columns; `.overlay` hid note text under the list (TF 499).
+            split.preferredSplitBehavior = .tile
+        }
         split.preferredDisplayMode = .oneBesideSecondary
         split.presentsWithGesture = true
         if #available(iOS 14.5, *) {
             split.displayModeButtonVisibility = .never
         }
-        if #available(iOS 16.0, *) {
-            // Tile displaces columns; `.overlay` hid note text under the list (TF 499).
-            split.preferredSplitBehavior = .tile
-        }
         split.preferredPrimaryColumnWidthFraction = primaryFraction
         split.minimumPrimaryColumnWidth = min
         split.maximumPrimaryColumnWidth = max
+        // Keep the list column visible after detail swaps (avoids `.secondaryOnly`).
+        if !split.isCollapsed, split.view.window != nil {
+            split.show(.primary)
+        }
     }
 
-    /// If UIKit flips into overlay/over-secondary, snap back to beside.
+    /// If UIKit flips into overlay / secondary-only, snap back to beside.
     /// Only when the host is wide enough for two columns — setting
     /// `preferredDisplayMode` in a narrow XCTest window (e.g. 390pt) while
     /// UIKit keeps overlay causes an infinite layout loop / hang.
     @MainActor
     static func enforceBesideDisplayMode(on split: UISplitViewController) {
         guard !split.isCollapsed else { return }
-        let minWidthForTile = notebookPrimaryMin + 320
+        let minWidthForTile = notebookPrimaryMin + 280
         guard split.view.bounds.width >= minWidthForTile else { return }
+        let broken: Bool
         switch split.displayMode {
-        case .oneOverSecondary, .primaryOverlay:
-            if split.preferredDisplayMode != .oneBesideSecondary {
-                split.preferredDisplayMode = .oneBesideSecondary
-            }
+        case .oneOverSecondary, .primaryOverlay, .secondaryOnly:
+            broken = true
         default:
-            break
+            broken = false
+        }
+        guard broken else { return }
+        if #available(iOS 16.0, *) {
+            if split.preferredSplitBehavior != .tile {
+                split.preferredSplitBehavior = .tile
+            }
+        }
+        if split.preferredDisplayMode != .oneBesideSecondary {
+            split.preferredDisplayMode = .oneBesideSecondary
         }
     }
 

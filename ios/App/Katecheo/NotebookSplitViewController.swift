@@ -71,7 +71,9 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
         super.viewDidLoad()
         KCChrome.styleScreen(view)
         view.accessibilityIdentifier = "caderno.split"
+        primaryNav.view.isAccessibilityElement = true
         primaryNav.view.accessibilityIdentifier = "caderno.split.primary"
+        secondaryNav.view.isAccessibilityElement = true
         secondaryNav.view.accessibilityIdentifier = "caderno.split.secondary"
         showEmptyDetail(animated: false)
     }
@@ -112,6 +114,7 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
         detail.applyTabBarHidingForSplit(isCollapsed: false)
         let nav = UINavigationController(rootViewController: detail)
         KCChrome.style(navigationController: nav)
+        nav.view.isAccessibilityElement = true
         nav.view.accessibilityIdentifier = "caderno.split.secondary"
         // Do not assign displayModeButtonItem — primary already has the sidebar control.
         detail.navigationItem.leftBarButtonItem = nil
@@ -120,6 +123,8 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
         // Do not call `show(.secondary)` — on recent iPadOS it flips preferredDisplayMode
         // to `.secondaryOnly` and the list overlays / hides under the detail (TF 499).
         PadChrome.applyNotesFolderSplitChrome(to: self)
+        view.setNeedsLayout()
+        view.layoutIfNeeded()
         detail.ensureEditorContentVisible()
     }
 
@@ -130,10 +135,12 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
         let empty = NotebookEmptyDetailViewController()
         let nav = UINavigationController(rootViewController: empty)
         KCChrome.style(navigationController: nav)
+        nav.view.isAccessibilityElement = true
         nav.view.accessibilityIdentifier = "caderno.split.secondary"
         empty.navigationItem.leftBarButtonItem = nil
         secondaryNav = nav
         setViewController(nav, for: .secondary)
+        PadChrome.applyNotesFolderSplitChrome(to: self)
 
         if isCollapsed {
             primaryNav.popToRootViewController(animated: animated)

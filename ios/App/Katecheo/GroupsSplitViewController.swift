@@ -113,12 +113,15 @@ final class GroupsSplitViewController: UISplitViewController, UISplitViewControl
         detail.applyTabBarHidingForSplit(isCollapsed: false)
         let nav = UINavigationController(rootViewController: detail)
         KCChrome.style(navigationController: nav)
+        nav.view.isAccessibilityElement = true
         nav.view.accessibilityIdentifier = "grupos.split.secondary"
         detail.navigationItem.leftBarButtonItem = nil
         secondaryNav = nav
         setViewController(nav, for: .secondary)
         // Avoid `show(.secondary)` — it can force `.secondaryOnly` and break tile (TF 499).
         PadChrome.applyNotesFolderSplitChrome(to: self)
+        view.setNeedsLayout()
+        view.layoutIfNeeded()
         detail.ensureEditorContentVisible()
     }
 
@@ -128,10 +131,12 @@ final class GroupsSplitViewController: UISplitViewController, UISplitViewControl
         let empty = NotebookEmptyDetailViewController()
         let nav = UINavigationController(rootViewController: empty)
         KCChrome.style(navigationController: nav)
+        nav.view.isAccessibilityElement = true
         nav.view.accessibilityIdentifier = "grupos.split.secondary"
         empty.navigationItem.leftBarButtonItem = nil
         secondaryNav = nav
         setViewController(nav, for: .secondary)
+        PadChrome.applyNotesFolderSplitChrome(to: self)
         if isCollapsed {
             while primaryNav.topViewController is NoteDetailViewController {
                 primaryNav.popViewController(animated: animated)
