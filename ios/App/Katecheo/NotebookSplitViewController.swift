@@ -56,20 +56,8 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
         KCChrome.style(navigationController: secondaryNav)
         super.init(style: .doubleColumn)
         delegate = self
-        preferredDisplayMode = .oneBesideSecondary
-        presentsWithGesture = true
-        // One sidebar toggle only (primary column). Assigning `displayModeButtonItem` on
-        // the secondary paints an empty Liquid Glass circle with no icon — hide it.
-        if #available(iOS 14.5, *) {
-            displayModeButtonVisibility = .never
-        }
-        if #available(iOS 16.0, *) {
-            preferredSplitBehavior = .tile
-        }
-        // Apple Notes–like sidebar width (not a cramped strip).
-        preferredPrimaryColumnWidthFraction = PadChrome.notebookPrimaryFraction
-        minimumPrimaryColumnWidth = PadChrome.notebookPrimaryMin
-        maximumPrimaryColumnWidth = PadChrome.notebookPrimaryMax
+        // Tile beside — never overlay the note detail under the list (TF 499).
+        PadChrome.applyNotesFolderSplitChrome(to: self)
         setViewController(primaryNav, for: .primary)
         setViewController(secondaryNav, for: .secondary)
         // Compact column is the same primary nav so collapse can push detail there.
@@ -82,7 +70,15 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
     override func viewDidLoad() {
         super.viewDidLoad()
         KCChrome.styleScreen(view)
+        view.accessibilityIdentifier = "caderno.split"
+        stampColumnAccessibilityIds()
         showEmptyDetail(animated: false)
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        PadChrome.enforceBesideDisplayMode(on: self)
+        PadChrome.ensureSecondaryContentClearsPrimary(on: self)
     }
 
     // MARK: - Public routing
@@ -104,23 +100,16 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
             if primaryNav.topViewController is NoteDetailViewController {
                 primaryNav.popViewController(animated: false)
             }
-            // Keep secondary as empty placeholder so expand has a clean column.
-            let placeholder = UINavigationController(rootViewController: NotebookEmptyDetailViewController())
-            KCChrome.style(navigationController: placeholder)
-            secondaryNav = placeholder
-            setViewController(placeholder, for: .secondary)
+            // Keep the same secondary column host; clear it so expand has a clean detail.
+            installSecondaryRoot(NotebookEmptyDetailViewController(), animated: false)
             primaryNav.pushViewController(detail, animated: animated)
             return
         }
 
         detail.applyTabBarHidingForSplit(isCollapsed: false)
-        let nav = UINavigationController(rootViewController: detail)
-        KCChrome.style(navigationController: nav)
-        // Do not assign displayModeButtonItem — primary already has the sidebar control.
-        detail.navigationItem.leftBarButtonItem = nil
-        secondaryNav = nav
-        setViewController(nav, for: .secondary)
-        show(.secondary)
+        // Reuse the secondary column nav — replacing it with setViewController resets
+        // panel frames so the detail paints full-bleed under the list (TF 499).
+        installSecondaryRoot(detail, animated: animated)
         detail.ensureEditorContentVisible()
     }
 
@@ -128,16 +117,41 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
     func showEmptyDetail(animated: Bool) {
         selectedNoteId = nil
         listViewController.highlightSelectedNote(id: nil)
-        let empty = NotebookEmptyDetailViewController()
-        let nav = UINavigationController(rootViewController: empty)
-        KCChrome.style(navigationController: nav)
-        empty.navigationItem.leftBarButtonItem = nil
-        secondaryNav = nav
-        setViewController(nav, for: .secondary)
+        installSecondaryRoot(NotebookEmptyDetailViewController(), animated: animated)
 
         if isCollapsed {
             primaryNav.popToRootViewController(animated: animated)
         }
+    }
+
+    /// Swap the secondary column's root without recreating the column host VC.
+    private func installSecondaryRoot(_ root: UIViewController, animated: Bool) {
+        // Do not assign displayModeButtonItem — primary already has the sidebar control.
+        root.navigationItem.leftBarButtonItem = nil
+        if viewController(for: .secondary) !== secondaryNav {
+            setViewController(secondaryNav, for: .secondary)
+        }
+        // Always non-animated: an animated root replace leaves a pending transition that
+        // makes `drawHierarchy(afterScreenUpdates: true)` hang in XCTest (90m CI timeout).
+        _ = animated
+        secondaryNav.setViewControllers([root], animated: false)
+        stampColumnAccessibilityIds()
+        // Do not call `show(.secondary)` — on recent iPadOS it flips preferredDisplayMode
+        // to `.secondaryOnly` and the list overlays / hides under the detail (TF 499).
+        PadChrome.applyNotesFolderSplitChrome(to: self)
+        view.setNeedsLayout()
+        view.layoutIfNeeded()
+        PadChrome.ensureSecondaryContentClearsPrimary(on: self)
+    }
+
+    private func stampColumnAccessibilityIds() {
+        // Identifiers only — never assign accessibilityFrame. Keep
+        // isAccessibilityElement false so children (`caderno.list`, `note.editor`)
+        // stay in the XCUITest tree.
+        primaryNav.view.accessibilityIdentifier = "caderno.split.primary"
+        secondaryNav.view.accessibilityIdentifier = "caderno.split.secondary"
+        primaryNav.view.isAccessibilityElement = false
+        secondaryNav.view.isAccessibilityElement = false
     }
 
     /// After deleting the open note — empty secondary on regular; pop on compact.
@@ -214,11 +228,7 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
             selectedNoteId = detail.openedNoteId
             listViewController.highlightSelectedNote(id: detail.openedNoteId)
             detail.applyTabBarHidingForSplit(isCollapsed: false)
-            let nav = UINavigationController(rootViewController: detail)
-            KCChrome.style(navigationController: nav)
-            detail.navigationItem.leftBarButtonItem = nil
-            secondaryNav = nav
-            setViewController(nav, for: .secondary)
+            installSecondaryRoot(detail, animated: false)
             detail.ensureEditorContentVisible()
             return
         }
@@ -227,6 +237,7 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
             listViewController.highlightSelectedNote(id: detail.openedNoteId)
             detail.applyTabBarHidingForSplit(isCollapsed: false)
             detail.navigationItem.leftBarButtonItem = nil
+            stampColumnAccessibilityIds()
             detail.ensureEditorContentVisible()
             return
         }
@@ -244,10 +255,7 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
             // Move note onto primary if still sitting in secondary.
             detail.applyTabBarHidingForSplit(isCollapsed: true)
             if !(primaryNav.topViewController is NoteDetailViewController) {
-                let placeholder = UINavigationController(rootViewController: NotebookEmptyDetailViewController())
-                KCChrome.style(navigationController: placeholder)
-                secondaryNav = placeholder
-                setViewController(placeholder, for: .secondary)
+                installSecondaryRoot(NotebookEmptyDetailViewController(), animated: false)
                 primaryNav.pushViewController(detail, animated: false)
             }
         }

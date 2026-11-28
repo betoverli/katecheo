@@ -1,24 +1,131 @@
 import UIKit
 
-/// iPad-only chrome helpers: Tools/Profile sheets, column metrics, reading insets.
-/// iPhone keeps the classic 4-tab shell — never call sheet presentation paths on phone.
+/// iPad-only chrome helpers: column metrics, reading insets, split tiling.
+/// iPhone keeps the classic 4-tab shell.
 enum PadChrome {
     static var isPad: Bool {
         UIDevice.current.userInterfaceIdiom == .pad
     }
 
-    /// Notes-like Caderno primary column (~⅓–⅓+ of the window).
-    static let notebookPrimaryFraction: CGFloat = 0.35
-    static let notebookPrimaryMin: CGFloat = 320
-    static let notebookPrimaryMax: CGFloat = 420
+    /// Notes-folder list column — kept modest so portrait + tabSidebar still tiles.
+    static let notebookPrimaryFraction: CGFloat = 0.28
+    static let notebookPrimaryMin: CGFloat = 220
+    static let notebookPrimaryMax: CGFloat = 320
 
-    /// Horizontal reading inset inside the note editor on regular-width iPad (~Notes).
-    static let editorHorizontalInset: CGFloat = 24
+    /// Extra text-container inset on regular-width iPad. Column margins come from
+    /// `readableContentGuide`; keep this small so text sits near the column leading edge.
+    static let editorHorizontalInset: CGFloat = 8
 
-    /// Large form sheet for Tools / Profile on iPad.
+    /// Large form sheet size (deep-link / modal fallback only).
     static let utilitySheetSize = CGSize(width: 700, height: 800)
 
-    /// Present Tools or Profile as a large modal sheet with its own navigation stack + Done.
+    /// Apply Notes-folder split chrome: beside (tile), never overlay the detail.
+    /// Assignments are idempotent — re-setting the same preferred* values every
+    /// layout pass can keep UIKit invalidating layout (XCTest hang).
+    @MainActor
+    static func applyNotesFolderSplitChrome(
+        to split: UISplitViewController,
+        primaryFraction: CGFloat = notebookPrimaryFraction,
+        min: CGFloat = notebookPrimaryMin,
+        max: CGFloat = notebookPrimaryMax
+    ) {
+        if #available(iOS 16.0, *) {
+            // Tile displaces columns; `.overlay` hid note text under the list (TF 499).
+            if split.preferredSplitBehavior != .tile {
+                split.preferredSplitBehavior = .tile
+            }
+        }
+        if split.preferredDisplayMode != .oneBesideSecondary {
+            split.preferredDisplayMode = .oneBesideSecondary
+        }
+        if !split.presentsWithGesture {
+            split.presentsWithGesture = true
+        }
+        if #available(iOS 14.5, *) {
+            if split.displayModeButtonVisibility != .never {
+                split.displayModeButtonVisibility = .never
+            }
+        }
+        if abs(split.preferredPrimaryColumnWidthFraction - primaryFraction) > 0.0001 {
+            split.preferredPrimaryColumnWidthFraction = primaryFraction
+        }
+        if split.minimumPrimaryColumnWidth != min {
+            split.minimumPrimaryColumnWidth = min
+        }
+        if split.maximumPrimaryColumnWidth != max {
+            split.maximumPrimaryColumnWidth = max
+        }
+        // Only force-show primary when UIKit hid it (`.secondaryOnly`). Calling
+        // `show(.primary)` on every detail swap can re-layout panels full-bleed.
+        if !split.isCollapsed, split.view.window != nil, split.displayMode == .secondaryOnly {
+            split.show(.primary)
+        }
+    }
+
+    /// If UIKit flips into overlay / secondary-only, snap back to beside.
+    /// Only when the host is wide enough for two columns — setting
+    /// `preferredDisplayMode` in a narrow XCTest window (e.g. 390pt) while
+    /// UIKit keeps overlay causes an infinite layout loop / hang.
+    @MainActor
+    static func enforceBesideDisplayMode(on split: UISplitViewController) {
+        guard !split.isCollapsed else { return }
+        let minWidthForTile = notebookPrimaryMin + 280
+        guard split.view.bounds.width >= minWidthForTile else { return }
+        let broken: Bool
+        switch split.displayMode {
+        case .oneOverSecondary, .primaryOverlay, .secondaryOnly:
+            broken = true
+        default:
+            broken = false
+        }
+        guard broken else { return }
+        // Re-apply only the deltas — avoid layout thrash inside viewDidLayoutSubviews.
+        applyNotesFolderSplitChrome(to: split)
+    }
+
+    /// Real on-screen frame of a split column VC's view in window coordinates.
+    /// Uses `convert(_:to: nil)` only — never `primaryColumnWidth` or a custom
+    /// `accessibilityFrame`.
+    @MainActor
+    static func columnWindowFrame(
+        for column: UISplitViewController.Column,
+        in split: UISplitViewController
+    ) -> CGRect? {
+        guard let columnView = split.viewController(for: column)?.view, columnView.window != nil else {
+            return nil
+        }
+        return columnView.convert(columnView.bounds, to: nil)
+    }
+
+    /// Clear any leftover secondary leading safe-area inset.
+    ///
+    /// A previous inset-by-overlap hack double-counted when UIKit already tiled
+    /// the columns (child VC `convert` often reports secondary at x=0 even while
+    /// beside). Tiling is owned by `.tile` + `.oneBesideSecondary`; do **not**
+    /// invent leading insets from those unreliable frames.
+    @MainActor
+    static func ensureSecondaryContentClearsPrimary(on split: UISplitViewController) {
+        guard let secondary = split.viewController(for: .secondary) else { return }
+        if secondary.additionalSafeAreaInsets.left != 0 {
+            secondary.additionalSafeAreaInsets.left = 0
+        }
+    }
+
+    /// Leading edge of the detail column in window coordinates when tiled.
+    /// Prefers a secondary VC frame that already sits beside the primary; otherwise
+    /// uses the primary's trailing edge (child VC frames can falsely report x=0).
+    @MainActor
+    static func secondaryLeadingEdge(in split: UISplitViewController) -> CGFloat? {
+        guard let primary = columnWindowFrame(for: .primary, in: split) else { return nil }
+        if let secondary = columnWindowFrame(for: .secondary, in: split),
+           secondary.minX >= primary.maxX - 2
+        {
+            return secondary.minX
+        }
+        return primary.maxX
+    }
+
+    /// Present a utility screen as a large modal sheet (rare fallback).
     @MainActor
     static func presentUtilitySheet(
         root: UIViewController,
@@ -56,54 +163,21 @@ enum PadChrome {
 
     @MainActor
     private static func installDoneButton(on root: UIViewController, nav: UINavigationController) {
-        // `.plain` + explicit accent tint — `.done` can paint white on warm beige (invisible).
         let done = UIBarButtonItem(
             title: String(localized: "Fechar"),
-            style: .plain,
+            style: .done,
             target: nil,
             action: nil
         )
         done.primaryAction = UIAction { [weak nav] _ in
             nav?.dismiss(animated: true)
         }
-        done.tintColor = KCDesign.accent
         done.accessibilityLabel = String(localized: "Fechar")
         done.accessibilityIdentifier = "pad.sheet.done"
-        nav.navigationBar.tintColor = KCDesign.accent
-        nav.view.tintColor = KCDesign.accent
-        // Prefer left so we don't collide with Profile / Tools trailing actions.
         if root.navigationItem.leftBarButtonItem == nil {
             root.navigationItem.leftBarButtonItem = done
         } else {
             root.navigationItem.rightBarButtonItem = done
         }
-    }
-
-    /// Bar button that opens Tools (wrench) — used on Caderno / Grupos primary toolbars.
-    @MainActor
-    static func makeToolsBarButton(target: Any?, action: Selector) -> UIBarButtonItem {
-        let item = UIBarButtonItem(
-            image: UIImage(systemName: "wrench.and.screwdriver"),
-            style: .plain,
-            target: target,
-            action: action
-        )
-        item.accessibilityLabel = String(localized: "Ferramentas")
-        item.accessibilityIdentifier = "pad.toolbar.tools"
-        return item
-    }
-
-    /// Bar button that opens Profile.
-    @MainActor
-    static func makeProfileBarButton(target: Any?, action: Selector) -> UIBarButtonItem {
-        let item = UIBarButtonItem(
-            image: UIImage(systemName: "person.crop.circle"),
-            style: .plain,
-            target: target,
-            action: action
-        )
-        item.accessibilityLabel = String(localized: "Perfil")
-        item.accessibilityIdentifier = "pad.toolbar.profile"
-        return item
     }
 }

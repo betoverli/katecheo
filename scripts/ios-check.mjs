@@ -1142,10 +1142,10 @@ if (
   errors.push("Phase 2: o separador Grupos tem de usar GroupsChrome / GroupsListViewController.");
 }
 if (!rootTabs.includes("ProfileViewController") || rootTabs.includes('titleText: "Perfil"')) {
-  errors.push("Phase 3: Perfil tem de usar ProfileViewController (aba iPhone / sheet iPad).");
+  errors.push("Phase 3: Perfil tem de usar ProfileViewController (aba iPhone / iPad).");
 }
 if (!rootTabs.includes("VersesHomeViewController") || rootTabs.includes('titleText: "Versículos"')) {
-  errors.push("Phase 4: Ferramentas tem de usar VersesHomeViewController (aba iPhone / sheet iPad).");
+  errors.push("Phase 4: Ferramentas tem de usar VersesHomeViewController (aba iPhone / iPad).");
 }
 if (!rootTabs.includes("Ferramentas") || !rootTabs.includes("selectedIndex = 0")) {
   errors.push("Tab bar: Caderno default + Ferramentas (não Versículos).");
@@ -1154,22 +1154,35 @@ if (!rootTabs.includes("Ferramentas") || !rootTabs.includes("selectedIndex = 0")
 if (rootTabs.includes("ReadingHomeViewController") || /UITabBarItem\([\s\S]*Leitura/.test(rootTabs)) {
   errors.push("Remova a aba Leitura do tab bar — Leitura fica sob Ferramentas.");
 }
-// iPhone: 4 tabs. iPad: Caderno+Grupos tabs; Tools/Profile via presentToolsSheet / presentProfileSheet.
+// iPhone + iPad: 4 tabs. iPadOS 18+ uses mode = .tabSidebar (sidebar ↔ top tabs).
 if (
   !/(NotebookChrome\.makeTabRoot|Notebook(Split|List)ViewController)[\s\S]*(GroupsChrome\.makeTabRoot|GroupsListViewController)[\s\S]*VersesHomeViewController[\s\S]*ProfileViewController/.test(
     rootTabs
   )
 ) {
-  errors.push("Ordem das abas: Caderno, Grupos, Ferramentas, Perfil (iPad: Tools/Profile via sheets).");
+  errors.push("Ordem das abas: Caderno, Grupos, Ferramentas, Perfil.");
 }
-if (!rootTabs.includes("PadChrome.isPad") || !rootTabs.includes("presentToolsSheet") || !rootTabs.includes("presentProfileSheet")) {
-  errors.push("iPad: Tools/Profile têm de ser sheets (presentToolsSheet / presentProfileSheet), não abas.");
+if (!rootTabs.includes("PadChrome.isPad") || !rootTabs.includes("mode = .tabSidebar")) {
+  errors.push("iPadOS 18+: NativeRootTabBarController tem de usar mode = .tabSidebar.");
+}
+if (!rootTabs.includes("presentToolsSheet") || !rootTabs.includes("presentProfileSheet")) {
+  errors.push("Deep-link API: presentToolsSheet / presentProfileSheet têm de existir (selecionam abas).");
+}
+if (!appRoot.includes("PadLegacySidebarShell") || !appRoot.includes("PadChrome.isPad")) {
+  errors.push("AppRoot: iPad <18 tem de usar PadLegacySidebarShell; iPadOS 18+ NativeRootTabBarController.");
+}
+if (!project.includes("PadLegacySidebarShell.swift in Sources")) {
+  errors.push("PadLegacySidebarShell.swift tem de estar no target (iPad iOS 15–17 menu sidebar).");
+}
+const padChromeSrc = read("ios/App/Katecheo/PadChrome.swift");
+if (!padChromeSrc.includes("preferredSplitBehavior = .tile") || !padChromeSrc.includes("oneBesideSecondary")) {
+  errors.push("PadChrome: splits têm de usar .tile + .oneBesideSecondary (nunca overlay no detalhe).");
 }
 if (!project.includes("NotebookSplitViewController.swift in Sources")) {
   errors.push("NotebookSplitViewController.swift tem de estar no target (iPad Caderno split).");
 }
 if (!project.includes("GroupsSplitViewController.swift in Sources") || !project.includes("PadChrome.swift in Sources")) {
-  errors.push("GroupsSplitViewController + PadChrome têm de estar no target (iPad Grupos / sheets).");
+  errors.push("GroupsSplitViewController + PadChrome têm de estar no target (iPad Grupos / chrome).");
 }
 if (!rootTabs.includes("NotebookChrome.makeTabRoot")) {
   errors.push("Caderno tab tem de usar NotebookChrome.makeTabRoot (iPhone nav / iPad split).");

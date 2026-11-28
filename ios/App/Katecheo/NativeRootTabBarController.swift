@@ -2,13 +2,17 @@ import UIKit
 
 /// Root tabs.
 /// - iPhone: Caderno · Grupos · Ferramentas · Perfil (unchanged).
-/// - iPad: Caderno · Grupos only; Tools/Profile open as large form sheets.
+/// - iPadOS 18+: same four destinations with `mode = .tabSidebar` (user can toggle
+///   sidebar vs top tab bar; system persists the choice).
+/// - iPad iOS 15–17: `PadLegacySidebarShell` is the window root instead (see AppRoot).
 final class NativeRootTabBarController: UITabBarController {
     private var didScheduleSettingsGuide = false
-    private weak var presentedToolsNav: UINavigationController?
-    private weak var presentedProfileNav: UINavigationController?
-    private weak var toolsHome: VersesHomeViewController?
-    private weak var profileHome: ProfileViewController?
+    /// Apply default sidebar visibility once per process (don't fight mid-session toggles).
+    private var didApplyDefaultTabSidebarVisibility = false
+
+    /// XCUITest opt-in: expand the production tabSidebar (tiled) so landscape honesty
+    /// tests can tap a real hittable list row beside the editor.
+    static let expandTabSidebarLaunchArgument = "-katecheoUITestExpandTabSidebar"
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -20,7 +24,6 @@ final class NativeRootTabBarController: UITabBarController {
             tabBar.scrollEdgeAppearance?.backgroundColor = KCDesign.screenBackground
         }
 
-        // Caderno: iPhone = pre-#131 UINavigationController; iPad = Notes-style split.
         let notebook = NotebookChrome.makeTabRoot()
         notebook.tabBarItem = UITabBarItem(
             title: String(localized: "Caderno"),
@@ -40,37 +43,48 @@ final class NativeRootTabBarController: UITabBarController {
         groups.tabBarItem.accessibilityLabel = String(localized: "Grupos")
         groups.tabBarItem.accessibilityIdentifier = "tab.grupos"
 
-        if PadChrome.isPad {
-            // Tools + Profile are sheets on iPad — only Caderno / Grupos in the tab bar.
-            viewControllers = [notebook, groups]
-        } else {
-            let tools = UINavigationController(rootViewController: VersesHomeViewController())
-            KCChrome.style(navigationController: tools)
-            tools.tabBarItem = UITabBarItem(
-                title: String(localized: "Ferramentas"),
-                image: UIImage(systemName: "wrench.and.screwdriver"),
-                tag: 2
-            )
-            tools.tabBarItem.accessibilityLabel = String(localized: "Ferramentas")
+        let tools = UINavigationController(rootViewController: VersesHomeViewController())
+        KCChrome.style(navigationController: tools)
+        tools.tabBarItem = UITabBarItem(
+            title: String(localized: "Ferramentas"),
+            image: UIImage(systemName: "wrench.and.screwdriver"),
+            tag: 2
+        )
+        tools.tabBarItem.accessibilityLabel = String(localized: "Ferramentas")
+        tools.tabBarItem.accessibilityIdentifier = "tab.ferramentas"
 
-            let profile = UINavigationController(rootViewController: ProfileViewController())
-            KCChrome.style(navigationController: profile)
-            profile.tabBarItem = UITabBarItem(
-                title: String(localized: "Perfil"),
-                image: UIImage(systemName: "person"),
-                tag: 3
-            )
-            profile.tabBarItem.accessibilityLabel = String(localized: "Perfil")
+        let profile = UINavigationController(rootViewController: ProfileViewController())
+        KCChrome.style(navigationController: profile)
+        profile.tabBarItem = UITabBarItem(
+            title: String(localized: "Perfil"),
+            image: UIImage(systemName: "person"),
+            tag: 3
+        )
+        profile.tabBarItem.accessibilityLabel = String(localized: "Perfil")
+        profile.tabBarItem.accessibilityIdentifier = "tab.perfil"
 
-            viewControllers = [notebook, groups, tools, profile]
-        }
+        viewControllers = [notebook, groups, tools, profile]
         selectedIndex = 0
-        // UITest-only: land on Grupos without tapping the floating tab bar.
         if UITestSeed.preferGruposTab {
             selectedIndex = 1
         }
 
-        // Liquid Glass paints system chrome on iOS 26; older OS keeps classic appearances from KCChrome.
+        if PadChrome.isPad {
+            // iPadOS 18+: system sidebar ↔ top tab bar (user toggle, system-persisted).
+            // Skip under XCTest host windows — `mode = .tabSidebar` + drawHierarchy
+            // (afterScreenUpdates) hangs the iPad unit-test runner. The real app (XCUITest
+            // launch / TestFlight) still gets tabSidebar via AppRoot → this controller.
+            // Screenshot tests may opt in via `applyTabSidebarForScreenshotsIfNeeded()`.
+            if #available(iOS 18.0, *) {
+                let underXCTest = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+                if !underXCTest {
+                    applyTabSidebarAppleDefault()
+                } else {
+                    view.accessibilityIdentifier = "pad.shell.tabs"
+                }
+            }
+        }
+
         _ = KCGlassMaterial.sdkHasLiquidGlass()
 
         NotificationCenter.default.addObserver(
@@ -90,122 +104,123 @@ final class NativeRootTabBarController: UITabBarController {
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        // Re-assert Apple default once after the window/scene orientation is known.
+        if #available(iOS 18.0, *), PadChrome.isPad, mode == .tabSidebar {
+            applyDefaultTabSidebarVisibilityIfNeeded(forceExpand: false)
+        }
         presentSettingsGuideIfNeeded()
     }
 
-    // MARK: - iPad Tools / Profile sheets
+    /// iPadOS 18+ tabSidebar: tile content beside the sidebar (opaque column — no
+    /// ghosting under the system material) with Apple's portrait/landscape visibility.
+    @available(iOS 18.0, *)
+    func applyTabSidebarAppleDefault() {
+        mode = .tabSidebar
+        sidebar.preferredLayout = .tile
+        view.backgroundColor = KCDesign.screenBackground
+        view.accessibilityIdentifier = "pad.shell.tabsidebar"
+        applyDefaultTabSidebarVisibilityIfNeeded(forceExpand: false)
+    }
 
-    /// Present Ferramentas as a large form sheet (iPad). No-op path for phone tabs.
+    /// Screenshot helper: enable tabSidebar + tile even under the XCTest host.
+    /// Pass `sidebarHidden` to match Apple's portrait (true) / landscape (false) default.
+    @available(iOS 18.0, *)
+    func applyTabSidebarForScreenshotsIfNeeded(sidebarHidden: Bool? = nil) {
+        mode = .tabSidebar
+        sidebar.preferredLayout = .tile
+        view.backgroundColor = KCDesign.screenBackground
+        view.accessibilityIdentifier = "pad.shell.tabsidebar"
+        didApplyDefaultTabSidebarVisibility = true
+        if let sidebarHidden {
+            sidebar.isHidden = sidebarHidden
+        } else {
+            sidebar.isHidden = !isLandscapeInterface
+        }
+    }
+
+    @available(iOS 18.0, *)
+    private func applyDefaultTabSidebarVisibilityIfNeeded(forceExpand: Bool) {
+        guard mode == .tabSidebar, !didApplyDefaultTabSidebarVisibility else { return }
+        didApplyDefaultTabSidebarVisibility = true
+        sidebar.preferredLayout = .tile
+        view.backgroundColor = KCDesign.screenBackground
+
+        let args = ProcessInfo.processInfo.arguments
+        let expandForUITest = args.contains(Self.expandTabSidebarLaunchArgument)
+
+        // Most XCUITest launches keep the top tab bar so list rows stay hittable.
+        // Opt in with `-katecheoUITestExpandTabSidebar` for production-default honesty.
+        if !forceExpand && !expandForUITest {
+            let underUITest = args.contains {
+                $0.hasPrefix("-katecheoSkip") || $0.hasPrefix("-katecheoUITest")
+            }
+            if underUITest { return }
+        }
+
+        if forceExpand || expandForUITest {
+            sidebar.isHidden = false
+            return
+        }
+
+        // Production: Apple default — collapsed in portrait, expanded in landscape.
+        sidebar.isHidden = !isLandscapeInterface
+    }
+
+    /// True when the interface is landscape (window scene, else bounds).
+    private var isLandscapeInterface: Bool {
+        if let scene = view.window?.windowScene {
+            switch scene.interfaceOrientation {
+            case .landscapeLeft, .landscapeRight:
+                return true
+            case .portrait, .portraitUpsideDown:
+                return false
+            case .unknown:
+                break
+            @unknown default:
+                break
+            }
+        }
+        return view.bounds.width > view.bounds.height
+    }
+
+    // MARK: - Tools / Profile (tabs on iPad + iPhone; deep-link API)
+
     @MainActor
     func presentToolsSheet(
         animated: Bool = true,
         configure: ((VersesHomeViewController) -> Void)? = nil
     ) {
-        if !PadChrome.isPad {
-            selectedIndex = 2
-            if let nav = selectedViewController as? UINavigationController,
-               let home = nav.viewControllers.first as? VersesHomeViewController
-            {
-                _ = home.view
-                configure?(home)
-            }
-            return
-        }
-        if let existing = presentedToolsNav, presentedViewController === existing,
-           let home = toolsHome
+        selectedIndex = 2
+        if let nav = selectedViewController as? UINavigationController,
+           let home = nav.viewControllers.first as? VersesHomeViewController
         {
+            _ = home.view
             configure?(home)
-            return
-        }
-        let home = VersesHomeViewController()
-        toolsHome = home
-        _ = home.view
-        configure?(home)
-        presentUtilityAfterClearing(root: home, animated: animated, accessibilityId: "pad.sheet.tools") { [weak self] nav in
-            self?.presentedToolsNav = nav
-            self?.presentedProfileNav = nil
         }
     }
 
-    /// Present Perfil as a large form sheet (iPad).
     @MainActor
     func presentProfileSheet(
         animated: Bool = true,
         configure: ((ProfileViewController, UINavigationController) -> Void)? = nil
     ) {
-        if !PadChrome.isPad {
-            selectedIndex = 3
-            if let nav = selectedViewController as? UINavigationController,
-               let home = nav.viewControllers.first as? ProfileViewController
-            {
-                configure?(home, nav)
-            }
-            return
-        }
-        if let existing = presentedProfileNav, presentedViewController === existing,
-           let home = profileHome
+        selectedIndex = 3
+        if let nav = selectedViewController as? UINavigationController,
+           let home = nav.viewControllers.first as? ProfileViewController
         {
-            configure?(home, existing)
-            return
-        }
-        let home = ProfileViewController()
-        profileHome = home
-        // Force view load so header/table paint before the sheet snapshot / first frame.
-        _ = home.view
-        presentUtilityAfterClearing(root: home, animated: animated, accessibilityId: "pad.sheet.profile") { [weak self] nav in
-            self?.presentedProfileNav = nav
-            self?.presentedToolsNav = nil
             configure?(home, nav)
         }
-    }
-
-    /// Dismiss any existing sheet fully before presenting — UIKit keeps the old
-    /// `presentedViewController` until the dismiss completion runs, so a back-to-back
-    /// Tools→Profile present otherwise leaves `pad.sheet.tools` on screen.
-    @MainActor
-    private func presentUtilityAfterClearing(
-        root: UIViewController,
-        animated: Bool,
-        accessibilityId: String,
-        onPresented: @escaping (UINavigationController) -> Void
-    ) {
-        let present = { [weak self] in
-            guard let self else { return }
-            PadChrome.presentUtilitySheet(
-                root: root,
-                from: self,
-                animated: animated,
-                accessibilityId: accessibilityId
-            )
-            if let nav = self.presentedViewController as? UINavigationController {
-                onPresented(nav)
-            }
-        }
-        if presentedViewController != nil {
-            dismiss(animated: false, completion: present)
-        } else {
-            present()
-        }
-    }
-
-    @MainActor
-    private func topMostPresenter() -> UIViewController {
-        var top: UIViewController = self
-        while let presented = top.presentedViewController { top = presented }
-        return top
     }
 
     @objc private func sessionDidChange() {
         presentSettingsGuideIfNeeded(forceSchedule: true)
     }
 
-    /// Once per account/device after sign-in (also for existing TestFlight testers).
     private func presentSettingsGuideIfNeeded(forceSchedule: Bool = false) {
         guard NativeAPIClient.hasBearer else { return }
         guard OnboardingStore.shouldShowSettingsGuide else { return }
         if didScheduleSettingsGuide, !forceSchedule { return }
 
-        // Don't cover an active sign-in sheet — wait until the stack is clear.
         var top: UIViewController = self
         while let presented = top.presentedViewController { top = presented }
         if top is NativeSignInViewController { return }
@@ -215,7 +230,6 @@ final class NativeRootTabBarController: UITabBarController {
         if top is SettingsGuideViewController { return }
 
         didScheduleSettingsGuide = true
-        // Let sign-in dismiss / first layout settle before presenting.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
             self?.presentSettingsGuideNow()
         }
@@ -237,21 +251,14 @@ final class NativeRootTabBarController: UITabBarController {
     @objc private func refreshActivityDots() {
         applyDot(at: 0, on: KCActivityStore.notebookDot, label: String(localized: "Caderno com itens não lidos"))
         applyDot(at: 1, on: KCActivityStore.groupsDot, label: String(localized: "Grupos com atividade não lida"))
-        if !PadChrome.isPad {
-            applyDot(at: 2, on: KCActivityStore.toolsDot, label: String(localized: "Ferramentas com leitura pendente"))
-            applyDot(at: 3, on: KCActivityStore.profileDot, label: String(localized: "Perfil com pedidos de amizade"))
-        }
+        applyDot(at: 2, on: KCActivityStore.toolsDot, label: String(localized: "Ferramentas com leitura pendente"))
+        applyDot(at: 3, on: KCActivityStore.profileDot, label: String(localized: "Perfil com pedidos de amizade"))
     }
 
     private func applyDot(at index: Int, on: Bool, label: String) {
         guard let item = viewControllers?[index].tabBarItem else { return }
-        // Empty badgeValue renders a subtle system red dot (no count).
         item.badgeValue = on ? "" : nil
         item.badgeColor = KCDesign.accent
-        if on {
-            item.accessibilityValue = label
-        } else {
-            item.accessibilityValue = nil
-        }
+        item.accessibilityValue = on ? label : nil
     }
 }

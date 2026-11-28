@@ -2884,6 +2884,9 @@ final class NativeNoteEditorView: UIView, UITextViewDelegate {
     }
 
     /// Plain string currently in the editor (title + body) — screenshot assertions.
+    /// Real UITextView used by geometry tests (window-converted frame vs sidebar).
+    var testing_textView: UITextView { textView }
+
     var testing_plainText: String {
         textView.textStorage.string
     }

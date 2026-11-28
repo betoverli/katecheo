@@ -2,8 +2,8 @@ import XCTest
 @testable import Katecheo
 
 /// Captures iPad landscape + portrait screenshots of Caderno (note open with text),
-/// Grupos 2-column (list + after group push with note), Tools sheet, Profile sheet,
-/// plus iPhone Caderno/Grupos shots on phone destinations.
+/// Grupos 2-column, and the main-menu sidebar — plain PNGs (no burn-in).
+/// Plus iPhone Caderno/Grupos shots on phone destinations.
 @MainActor
 final class IPadScreenshotTests: XCTestCase {
     private var hostWindow: UIWindow?
@@ -54,9 +54,15 @@ final class IPadScreenshotTests: XCTestCase {
         ]
 
         for (orientation, size) in sizes {
+            let isLandscape = size.width > size.height
             let tabs = NativeRootTabBarController()
             let window = attachWindow(root: tabs, size: size)
             tabs.loadViewIfNeeded()
+            // Apple default: sidebar collapsed in portrait, expanded in landscape.
+            // preferredLayout = .tile so list/note are not under the translucent material.
+            if #available(iOS 18.0, *) {
+                tabs.applyTabSidebarForScreenshotsIfNeeded(sidebarHidden: !isLandscape)
+            }
             tabs.view.layoutIfNeeded()
 
             // 1) Caderno — paint list from cache, open via real row selection (wiring under test).
@@ -114,15 +120,65 @@ final class IPadScreenshotTests: XCTestCase {
                 accuracy: 1,
                 "Open note must not be scrolled — title/body would leave the viewport"
             )
-            // contentSize may still report a large height from the scrolling container;
-            // what matters for visible title/body is offset pinned at 0 after open.
             XCTAssertNil(detail.navigationItem.leftBarButtonItem, "No ghost displayMode button")
             XCTAssertEqual(list.testing_highlightedNoteId, titled.id, "Open note row must stay highlighted")
             XCTAssertTrue(list.testing_hasSelectedRow, "UITableView selection must survive reload")
 
-            // Plain screenshot only — no glyph burn-in (drawHierarchy may omit UITextView ink).
+            // Tile chrome (frame geometry is asserted in XCUITest against live a11y frames).
+            XCTAssertEqual(split.preferredDisplayMode, .oneBesideSecondary)
+            if #available(iOS 16.0, *) {
+                XCTAssertEqual(split.preferredSplitBehavior, .tile)
+            }
+
+            // Portrait: list + note side by side (sidebar collapsed). Landscape: sidebar + list + note.
+            list.testing_scrollToTopForLargeTitle()
+            tabs.view.layoutIfNeeded()
+            assertCadernoLargeTitleVisible(on: list, context: "\(orientation) caderno-note")
             let cadernoShot = render(tabs.view, size: size, priming: detail)
             write(cadernoShot, name: "ipad-\(orientation)-caderno-note")
+
+            if #available(iOS 18.0, *), tabs.mode == .tabSidebar {
+                if isLandscape {
+                    // Landscape sidebar-menu = same expanded state as caderno-note.
+                    write(cadernoShot, name: "ipad-\(orientation)-sidebar-menu")
+                    assertCadernoLargeTitleVisible(on: list, context: "\(orientation) sidebar-menu")
+
+                    // Top tab bar mode — large title must still show on the list.
+                    tabs.sidebar.isHidden = true
+                    list.testing_scrollToTopForLargeTitle()
+                    tabs.view.layoutIfNeeded()
+                    RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+                    assertCadernoLargeTitleVisible(on: list, context: "\(orientation) top-tabbar")
+                    write(
+                        render(tabs.view, size: size, priming: detail),
+                        name: "ipad-\(orientation)-top-tabbar"
+                    )
+                    // Restore expanded sidebar for Grupos shots.
+                    tabs.sidebar.isHidden = false
+                    tabs.view.layoutIfNeeded()
+                } else {
+                    // Portrait sidebar-menu: briefly expand to show the main menu.
+                    tabs.sidebar.isHidden = false
+                    tabs.view.layoutIfNeeded()
+                    RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+                    write(
+                        render(tabs.view, size: size, priming: detail),
+                        name: "ipad-\(orientation)-sidebar-menu"
+                    )
+                    // Collapse again (Apple portrait default) before Grupos shots.
+                    tabs.sidebar.isHidden = true
+                    tabs.view.layoutIfNeeded()
+
+                    // Portrait top-tab-bar (sidebar already collapsed).
+                    list.testing_scrollToTopForLargeTitle()
+                    write(
+                        render(tabs.view, size: size, priming: detail),
+                        name: "ipad-\(orientation)-top-tabbar"
+                    )
+                }
+            } else {
+                write(cadernoShot, name: "ipad-\(orientation)-sidebar-menu")
+            }
 
             // 2a) Grupos list (sidebar + empty detail)
             tabs.selectedIndex = 1
@@ -165,46 +221,18 @@ final class IPadScreenshotTests: XCTestCase {
             let groupShot = render(tabs.view, size: size, priming: groupDetail)
             write(groupShot, name: "ipad-\(orientation)-grupos-group-notes")
 
-            // 3) Tools sheet with visible content (Books empty-state or rows — not blank beige).
-            tabs.selectedIndex = 0
-            UserDefaults.standard.set("books", forKey: "katecheo.ferramentas.lastTool")
-            tabs.presentToolsSheet(animated: false) { home in
-                home.testing_selectToolAndLayout("books")
-            }
-            RunLoop.current.run(until: Date().addingTimeInterval(0.3))
-            let toolsNav = try XCTUnwrap(tabs.presentedViewController as? UINavigationController)
-            XCTAssertEqual(toolsNav.view.accessibilityIdentifier, "pad.sheet.tools")
-            toolsNav.view.layoutIfNeeded()
-            write(
-                render(toolsNav.view, size: PadChrome.utilitySheetSize),
-                name: "ipad-\(orientation)-tools-sheet"
-            )
-
-            // 4) Profile sheet — must be Perfil, not Caderno / leftover Tools.
-            tabs.presentProfileSheet(animated: false)
-            var profileNav: UINavigationController?
-            for _ in 0 ..< 20 {
-                RunLoop.current.run(until: Date().addingTimeInterval(0.05))
-                if let nav = tabs.presentedViewController as? UINavigationController,
-                   nav.view.accessibilityIdentifier == "pad.sheet.profile"
-                {
-                    profileNav = nav
-                    break
-                }
-            }
-            let profile = try XCTUnwrap(profileNav, "Profile sheet must replace Tools sheet")
-            XCTAssertEqual(profile.view.accessibilityIdentifier, "pad.sheet.profile")
-            XCTAssertTrue(profile.viewControllers.first is ProfileViewController)
-            profile.viewControllers.first?.loadViewIfNeeded()
-            profile.view.layoutIfNeeded()
-            write(
-                render(profile.view, size: PadChrome.utilitySheetSize),
-                name: "ipad-\(orientation)-profile-sheet"
-            )
-            tabs.dismiss(animated: false)
-            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
-
             window.isHidden = true
+            hostWindow = nil
+
+            // Legacy always-on menu (iOS 15–17 shell) — separate window to avoid
+            // unbalanced appearance transitions from swapping mid-test.
+            let legacy = PadLegacySidebarShell()
+            let legacyWindow = attachWindow(root: legacy, size: size)
+            legacy.loadViewIfNeeded()
+            legacy.view.layoutIfNeeded()
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+            write(render(legacy.view, size: size), name: "ipad-\(orientation)-sidebar-legacy")
+            legacyWindow.isHidden = true
             hostWindow = nil
         }
     }
@@ -239,6 +267,25 @@ final class IPadScreenshotTests: XCTestCase {
 
     // MARK: - Helpers
 
+    /// Large title must be expanded on the Caderno list (collapses on scroll).
+    private func assertCadernoLargeTitleVisible(on list: NotebookListViewController, context: String) {
+        list.testing_scrollToTopForLargeTitle()
+        XCTAssertTrue(
+            list.navigationController?.navigationBar.prefersLargeTitles == true,
+            "\(context): Caderno nav prefersLargeTitles"
+        )
+        XCTAssertEqual(
+            list.navigationItem.largeTitleDisplayMode,
+            .always,
+            "\(context): Caderno largeTitleDisplayMode must be .always"
+        )
+        XCTAssertGreaterThan(
+            list.testing_navigationBarHeight,
+            52,
+            "\(context): Caderno large-title nav bar must be expanded (height \(list.testing_navigationBarHeight))"
+        )
+    }
+
     private func attachWindow(root: UIViewController, size: CGSize) -> UIWindow {
         let window: UIWindow
         if let scene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first {
@@ -257,7 +304,6 @@ final class IPadScreenshotTests: XCTestCase {
         view.bounds = CGRect(origin: .zero, size: size)
         view.layoutIfNeeded()
         if let priming {
-            // Wait for layout on the normal UITextView path (no burn-in / paint overlay).
             priming.ensureEditorContentVisible()
             CATransaction.flush()
             RunLoop.current.run(until: Date().addingTimeInterval(0.25))
@@ -270,9 +316,13 @@ final class IPadScreenshotTests: XCTestCase {
         let format = UIGraphicsImageRendererFormat()
         format.scale = 2
         format.opaque = true
+        // Flush pending layout/animations first, then snapshot without waiting on
+        // afterScreenUpdates (that path hung CI for ~90m after secondary column swaps).
+        CATransaction.flush()
+        view.layoutIfNeeded()
         let renderer = UIGraphicsImageRenderer(size: size, format: format)
         return renderer.image { _ in
-            view.drawHierarchy(in: CGRect(origin: .zero, size: size), afterScreenUpdates: true)
+            view.drawHierarchy(in: CGRect(origin: .zero, size: size), afterScreenUpdates: false)
         }
     }
 

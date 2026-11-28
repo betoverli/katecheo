@@ -19,8 +19,6 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
         view.accessibilityIdentifier = "grupos.list"
         title = String(localized: "Grupos")
         navigationController?.navigationBar.prefersLargeTitles = true
-        // iPad floating tab bar sits at the top center — keep large titles but use compact
-        // trailing icons so ••• / + / “Novo grupo” never overlap Caderno/Grupos.
         navigationItem.largeTitleDisplayMode = .always
         if let nav = navigationController {
             KCChrome.style(navigationController: nav)
@@ -28,16 +26,12 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
 
         let createItem: UIBarButtonItem
         if PadChrome.isPad {
+            // Compact + only — Tools/Profile live in the main menu / tab sidebar.
             createItem = UIBarButtonItem(
                 barButtonSystemItem: .add,
                 target: self,
                 action: #selector(createGroup)
             )
-            // Tools / Profile on the leading edge, away from the floating tab bar.
-            navigationItem.leftBarButtonItems = [
-                PadChrome.makeProfileBarButton(target: self, action: #selector(openProfileSheet)),
-                PadChrome.makeToolsBarButton(target: self, action: #selector(openToolsSheet)),
-            ]
         } else {
             createItem = UIBarButtonItem(
                 title: String(localized: "Novo grupo"),
@@ -107,6 +101,8 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        navigationController?.navigationBar.prefersLargeTitles = true
+        navigationItem.largeTitleDisplayMode = .always
         Task { @MainActor in
             if !NativeAPIClient.hasBearer {
                 _ = await NativeSessionBootstrap.migrateCookieToKeychainIfNeeded()
@@ -263,14 +259,6 @@ final class GroupsListViewController: UIViewController, UITableViewDelegate, UIT
             return
         }
         tableView.selectRow(at: IndexPath(row: row, section: 0), animated: false, scrollPosition: .none)
-    }
-
-    @objc private func openToolsSheet() {
-        (tabBarController as? NativeRootTabBarController)?.presentToolsSheet()
-    }
-
-    @objc private func openProfileSheet() {
-        (tabBarController as? NativeRootTabBarController)?.presentProfileSheet()
     }
 
     /// Admin groups: pending join requests are reachable in Membros — keep a groupPending dot.
