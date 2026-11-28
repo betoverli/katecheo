@@ -112,21 +112,32 @@ final class NativeRootTabBarController: UITabBarController {
     func applyTabSidebarDefaultExpanded() {
         mode = .tabSidebar
         view.accessibilityIdentifier = "pad.shell.tabsidebar"
-        applyDefaultTabSidebarVisibilityIfNeeded()
+        applyDefaultTabSidebarVisibilityIfNeeded(forceExpand: false)
     }
 
-    /// Screenshot / test helper: enable tabSidebar even under the XCTest host.
+    /// Screenshot helper: enable tabSidebar + expand even under the XCTest host.
     @available(iOS 18.0, *)
     func applyTabSidebarForScreenshotsIfNeeded() {
-        applyTabSidebarDefaultExpanded()
+        mode = .tabSidebar
+        view.accessibilityIdentifier = "pad.shell.tabsidebar"
+        applyDefaultTabSidebarVisibilityIfNeeded(forceExpand: true)
     }
 
     @available(iOS 18.0, *)
-    private func applyDefaultTabSidebarVisibilityIfNeeded() {
+    private func applyDefaultTabSidebarVisibilityIfNeeded(forceExpand: Bool) {
         guard mode == .tabSidebar, !didApplyDefaultTabSidebarVisibility else { return }
-        // Expand the left main-menu column; user can still toggle to the top tab bar.
-        sidebar.isHidden = false
         didApplyDefaultTabSidebarVisibility = true
+        // XCUITest launches pass `-katecheoSkip*` / `-katecheoUITest*` — keep the top tab
+        // bar so list rows stay hittable. Production + screenshot captures expand the
+        // left main-menu sidebar by default (user can still toggle to the top bar).
+        if !forceExpand {
+            let args = ProcessInfo.processInfo.arguments
+            let underUITest = args.contains {
+                $0.hasPrefix("-katecheoSkip") || $0.hasPrefix("-katecheoUITest")
+            }
+            if underUITest { return }
+        }
+        sidebar.isHidden = false
     }
 
     // MARK: - Tools / Profile (tabs on iPad + iPhone; deep-link API)
