@@ -78,6 +78,7 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         PadChrome.enforceBesideDisplayMode(on: self)
+        PadChrome.ensureSecondaryContentClearsPrimary(on: self)
     }
 
     // MARK: - Public routing
@@ -140,6 +141,7 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
         PadChrome.applyNotesFolderSplitChrome(to: self)
         view.setNeedsLayout()
         view.layoutIfNeeded()
+        PadChrome.ensureSecondaryContentClearsPrimary(on: self)
     }
 
     private func stampColumnAccessibilityIds() {

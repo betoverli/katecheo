@@ -120,6 +120,9 @@ final class IPadNavigationTests: XCTestCase {
             PadChrome.columnWindowFrame(for: .primary, in: split),
             "Primary column must have a real on-screen panel frame"
         )
+        // Safe-area inset (if UIKit full-bleeds secondary) is applied in layout — flush once more.
+        PadChrome.ensureSecondaryContentClearsPrimary(on: split)
+        detail.view.layoutIfNeeded()
         let textView = detail.testing_editor.testing_textView
         textView.layoutIfNeeded()
         let textFrame = textView.convert(textView.bounds, to: nil)
@@ -128,7 +131,7 @@ final class IPadNavigationTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(
             textFrame.minX,
             primaryFrame.maxX - 2,
-            "UITextView must start to the right of the primary column (not under the sidebar); text.minX=\(textFrame.minX) primary.maxX=\(primaryFrame.maxX) displayMode=\(split.displayMode.rawValue)"
+            "UITextView must start to the right of the primary column (not under the sidebar); text.minX=\(textFrame.minX) primary.maxX=\(primaryFrame.maxX) displayMode=\(split.displayMode.rawValue) secondarySafeLeft=\(split.viewController(for: .secondary)?.additionalSafeAreaInsets.left ?? -1)"
         )
     }
 

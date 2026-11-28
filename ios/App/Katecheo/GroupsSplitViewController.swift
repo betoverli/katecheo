@@ -55,6 +55,7 @@ final class GroupsSplitViewController: UISplitViewController, UISplitViewControl
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         PadChrome.enforceBesideDisplayMode(on: self)
+        PadChrome.ensureSecondaryContentClearsPrimary(on: self)
     }
 
     // MARK: - Routing
@@ -140,6 +141,7 @@ final class GroupsSplitViewController: UISplitViewController, UISplitViewControl
         PadChrome.applyNotesFolderSplitChrome(to: self)
         view.setNeedsLayout()
         view.layoutIfNeeded()
+        PadChrome.ensureSecondaryContentClearsPrimary(on: self)
     }
 
     private func stampColumnAccessibilityIds() {

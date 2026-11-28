@@ -97,8 +97,10 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
 
         editorTopConstraint = editor.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor)
         editorBottomConstraint = editor.bottomAnchor.constraint(equalTo: view.bottomAnchor)
-        editorLeadingConstraint = editor.leadingAnchor.constraint(equalTo: view.leadingAnchor)
-        editorTrailingConstraint = editor.trailingAnchor.constraint(equalTo: view.trailingAnchor)
+        // Leading uses the safe area so PadChrome can push text clear of an overlapping
+        // primary column via additionalSafeAreaInsets (TF 499 tile/overlay edge case).
+        editorLeadingConstraint = editor.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor)
+        editorTrailingConstraint = editor.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor)
 
         NSLayoutConstraint.activate([
             editorTopConstraint!,

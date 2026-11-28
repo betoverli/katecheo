@@ -96,6 +96,33 @@ enum PadChrome {
         return columnView.convert(columnView.bounds, to: nil)
     }
 
+    /// When UIKit still paints the secondary column full-bleed under the list
+    /// (`displayMode` can report beside while child views overlap), push the
+    /// secondary's safe-area leading inset so note text clears the primary column.
+    /// No-op when columns already tile. Clears the inset when collapsed / compact.
+    @MainActor
+    static func ensureSecondaryContentClearsPrimary(on split: UISplitViewController) {
+        guard let secondary = split.viewController(for: .secondary) else { return }
+        guard !split.isCollapsed,
+              let primaryView = split.viewController(for: .primary)?.view,
+              let secondaryView = secondary.view,
+              primaryView.window != nil,
+              secondaryView.window != nil
+        else {
+            if secondary.additionalSafeAreaInsets.left != 0 {
+                secondary.additionalSafeAreaInsets.left = 0
+            }
+            return
+        }
+        let primaryFrame = primaryView.convert(primaryView.bounds, to: nil)
+        let secondaryFrame = secondaryView.convert(secondaryView.bounds, to: nil)
+        let overlap = primaryFrame.maxX - secondaryFrame.minX
+        let needed = overlap > 2 ? max(0, overlap) : 0
+        if abs(secondary.additionalSafeAreaInsets.left - needed) > 0.5 {
+            secondary.additionalSafeAreaInsets.left = needed
+        }
+    }
+
     /// Present a utility screen as a large modal sheet (rare fallback).
     @MainActor
     static func presentUtilitySheet(
