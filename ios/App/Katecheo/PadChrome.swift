@@ -19,6 +19,8 @@ enum PadChrome {
     static let utilitySheetSize = CGSize(width: 700, height: 800)
 
     /// Apply Notes-folder split chrome: beside (tile), never overlay the detail.
+    /// Assignments are idempotent — re-setting the same preferred* values every
+    /// layout pass can keep UIKit invalidating layout (XCTest hang).
     @MainActor
     static func applyNotesFolderSplitChrome(
         to split: UISplitViewController,
@@ -28,16 +30,30 @@ enum PadChrome {
     ) {
         if #available(iOS 16.0, *) {
             // Tile displaces columns; `.overlay` hid note text under the list (TF 499).
-            split.preferredSplitBehavior = .tile
+            if split.preferredSplitBehavior != .tile {
+                split.preferredSplitBehavior = .tile
+            }
         }
-        split.preferredDisplayMode = .oneBesideSecondary
-        split.presentsWithGesture = true
+        if split.preferredDisplayMode != .oneBesideSecondary {
+            split.preferredDisplayMode = .oneBesideSecondary
+        }
+        if !split.presentsWithGesture {
+            split.presentsWithGesture = true
+        }
         if #available(iOS 14.5, *) {
-            split.displayModeButtonVisibility = .never
+            if split.displayModeButtonVisibility != .never {
+                split.displayModeButtonVisibility = .never
+            }
         }
-        split.preferredPrimaryColumnWidthFraction = primaryFraction
-        split.minimumPrimaryColumnWidth = min
-        split.maximumPrimaryColumnWidth = max
+        if abs(split.preferredPrimaryColumnWidthFraction - primaryFraction) > 0.0001 {
+            split.preferredPrimaryColumnWidthFraction = primaryFraction
+        }
+        if split.minimumPrimaryColumnWidth != min {
+            split.minimumPrimaryColumnWidth = min
+        }
+        if split.maximumPrimaryColumnWidth != max {
+            split.maximumPrimaryColumnWidth = max
+        }
         // Only force-show primary when UIKit hid it (`.secondaryOnly`). Calling
         // `show(.primary)` on every detail swap can re-layout panels full-bleed.
         if !split.isCollapsed, split.view.window != nil, split.displayMode == .secondaryOnly {
@@ -62,17 +78,8 @@ enum PadChrome {
             broken = false
         }
         guard broken else { return }
-        if #available(iOS 16.0, *) {
-            if split.preferredSplitBehavior != .tile {
-                split.preferredSplitBehavior = .tile
-            }
-        }
-        if split.preferredDisplayMode != .oneBesideSecondary {
-            split.preferredDisplayMode = .oneBesideSecondary
-        }
-        if split.displayMode == .secondaryOnly {
-            split.show(.primary)
-        }
+        // Re-apply only the deltas — avoid layout thrash inside viewDidLayoutSubviews.
+        applyNotesFolderSplitChrome(to: split)
     }
 
     /// Real on-screen frame of a split column VC's view in window coordinates.

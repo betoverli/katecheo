@@ -251,9 +251,13 @@ final class IPadScreenshotTests: XCTestCase {
         let format = UIGraphicsImageRendererFormat()
         format.scale = 2
         format.opaque = true
+        // Flush pending layout/animations first, then snapshot without waiting on
+        // afterScreenUpdates (that path hung CI for ~90m after secondary column swaps).
+        CATransaction.flush()
+        view.layoutIfNeeded()
         let renderer = UIGraphicsImageRenderer(size: size, format: format)
         return renderer.image { _ in
-            view.drawHierarchy(in: CGRect(origin: .zero, size: size), afterScreenUpdates: true)
+            view.drawHierarchy(in: CGRect(origin: .zero, size: size), afterScreenUpdates: false)
         }
     }
 

@@ -132,7 +132,9 @@ final class GroupsSplitViewController: UISplitViewController, UISplitViewControl
         if viewController(for: .secondary) !== secondaryNav {
             setViewController(secondaryNav, for: .secondary)
         }
-        secondaryNav.setViewControllers([root], animated: animated)
+        // Always non-animated — animated root replace hangs XCTest drawHierarchy.
+        _ = animated
+        secondaryNav.setViewControllers([root], animated: false)
         stampColumnAccessibilityIds()
         // Avoid `show(.secondary)` — it can force `.secondaryOnly` and break tile (TF 499).
         PadChrome.applyNotesFolderSplitChrome(to: self)

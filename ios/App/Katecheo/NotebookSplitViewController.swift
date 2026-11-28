@@ -130,7 +130,10 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
         if viewController(for: .secondary) !== secondaryNav {
             setViewController(secondaryNav, for: .secondary)
         }
-        secondaryNav.setViewControllers([root], animated: animated)
+        // Always non-animated: an animated root replace leaves a pending transition that
+        // makes `drawHierarchy(afterScreenUpdates: true)` hang in XCTest (90m CI timeout).
+        _ = animated
+        secondaryNav.setViewControllers([root], animated: false)
         stampColumnAccessibilityIds()
         // Do not call `show(.secondary)` — on recent iPadOS it flips preferredDisplayMode
         // to `.secondaryOnly` and the list overlays / hides under the detail (TF 499).
