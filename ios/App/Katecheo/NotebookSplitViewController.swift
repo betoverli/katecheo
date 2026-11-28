@@ -145,13 +145,13 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
     }
 
     private func stampColumnAccessibilityIds() {
-        // Identifiers only — never assign accessibilityFrame (geometry tests must
-        // read real UIView / XCUIElement frames). isAccessibilityElement so XCUITest
-        // can resolve the column containers; editor via textViews["note.editor"].
+        // Identifiers only — never assign accessibilityFrame. Keep
+        // isAccessibilityElement false so children (`caderno.list`, `note.editor`)
+        // stay in the XCUITest tree.
         primaryNav.view.accessibilityIdentifier = "caderno.split.primary"
         secondaryNav.view.accessibilityIdentifier = "caderno.split.secondary"
-        primaryNav.view.isAccessibilityElement = true
-        secondaryNav.view.isAccessibilityElement = true
+        primaryNav.view.isAccessibilityElement = false
+        secondaryNav.view.isAccessibilityElement = false
     }
 
     /// After deleting the open note — empty secondary on regular; pop on compact.

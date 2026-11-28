@@ -26,8 +26,9 @@ final class IPadChromeUITests: XCTestCase {
         let editor = app.textViews["note.editor"]
         XCTAssertTrue(editor.waitForExistence(timeout: 10), "Caderno editor should open")
 
-        let primary = app.otherElements["caderno.split.primary"]
-        XCTAssertTrue(primary.waitForExistence(timeout: 5), "Caderno primary (list) column should exist")
+        // Sidebar = real list view (not a synthetic column a11y element).
+        let primary = app.otherElements["caderno.list"]
+        XCTAssertTrue(primary.waitForExistence(timeout: 5), "Caderno list sidebar should exist")
 
         // Real XCUIElement frames only (no computed accessibilityFrame).
         waitForEditorRightOfPrimary(editor: editor, primary: primary, timeout: 4)

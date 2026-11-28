@@ -145,11 +145,11 @@ final class GroupsSplitViewController: UISplitViewController, UISplitViewControl
     }
 
     private func stampColumnAccessibilityIds() {
-        // Identifiers only — never assign accessibilityFrame.
+        // Identifiers only — never assign accessibilityFrame; leave children visible.
         primaryNav.view.accessibilityIdentifier = "grupos.split.primary"
         secondaryNav.view.accessibilityIdentifier = "grupos.split.secondary"
-        primaryNav.view.isAccessibilityElement = true
-        secondaryNav.view.isAccessibilityElement = true
+        primaryNav.view.isAccessibilityElement = false
+        secondaryNav.view.isAccessibilityElement = false
     }
 
     func clearDetailAfterDeletingNote(id: String) {
