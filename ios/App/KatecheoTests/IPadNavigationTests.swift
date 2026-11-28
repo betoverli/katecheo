@@ -98,13 +98,11 @@ final class IPadNavigationTests: XCTestCase {
             "Secondary must not show the empty displayMode circle"
         )
 
-        // Tile contract: beside mode + editor leading edge to the right of the list.
-        // Prefer window frames of list/editor — UISplitViewController child VC frames
-        // often report origin 0 inside private column panels.
+        // Tile contract: REAL window frames — UITextView vs primary column panel.
+        // Never use accessibilityFrame / primaryColumnWidth-derived geometry here.
         split.view.setNeedsLayout()
         split.view.layoutIfNeeded()
         RunLoop.current.run(until: Date().addingTimeInterval(0.05))
-        PadChrome.syncColumnAccessibilityFrames(on: split)
 
         XCTAssertEqual(
             split.preferredDisplayMode,
@@ -116,36 +114,22 @@ final class IPadNavigationTests: XCTestCase {
             .oneBesideSecondary,
             "Actual displayMode must be beside (not overlay/secondaryOnly)"
         )
-        XCTAssertGreaterThan(split.primaryColumnWidth, 200, "Primary column must have real width")
-        XCTAssertLessThan(
-            split.primaryColumnWidth,
-            split.view.bounds.width - 200,
-            "Primary must leave room for the detail column"
-        )
+        XCTAssertFalse(split.isCollapsed, "Regular-width iPad host must keep the split expanded")
 
-        let listFrame = list.view.convert(list.view.bounds, to: nil)
-        let editorFrame = detail.testing_editor.convert(detail.testing_editor.bounds, to: nil)
-        XCTAssertFalse(listFrame.isEmpty, "List must have an on-screen frame")
-        XCTAssertFalse(editorFrame.isEmpty, "Editor must have an on-screen frame")
+        let primaryFrame = try XCTUnwrap(
+            PadChrome.columnWindowFrame(for: .primary, in: split),
+            "Primary column must have a real on-screen panel frame"
+        )
+        let textView = detail.testing_editor.testing_textView
+        textView.layoutIfNeeded()
+        let textFrame = textView.convert(textView.bounds, to: nil)
+        XCTAssertFalse(primaryFrame.isEmpty, "Primary panel frame must be non-empty")
+        XCTAssertFalse(textFrame.isEmpty, "UITextView frame must be non-empty")
         XCTAssertGreaterThanOrEqual(
-            editorFrame.minX,
-            listFrame.maxX - 2,
-            "Editor must start to the right of the list (not under the sidebar); editor.minX=\(editorFrame.minX) list.maxX=\(listFrame.maxX) displayMode=\(split.displayMode.rawValue) primaryWidth=\(split.primaryColumnWidth)"
+            textFrame.minX,
+            primaryFrame.maxX - 2,
+            "UITextView must start to the right of the primary column (not under the sidebar); text.minX=\(textFrame.minX) primary.maxX=\(primaryFrame.maxX) displayMode=\(split.displayMode.rawValue)"
         )
-
-        if let primaryView = split.viewController(for: .primary)?.view,
-           let secondaryView = split.viewController(for: .secondary)?.view,
-           primaryView.window != nil,
-           secondaryView.window != nil
-        {
-            let primaryScreen = UIAccessibility.convertToScreenCoordinates(primaryView.bounds, in: primaryView)
-            let secondaryScreen = UIAccessibility.convertToScreenCoordinates(secondaryView.bounds, in: secondaryView)
-            XCTAssertGreaterThanOrEqual(
-                secondaryScreen.minX,
-                primaryScreen.maxX - 2,
-                "Secondary column screen frame must sit beside primary (not overlay)"
-            )
-        }
     }
 
     func testPad_selectingGroup_pushesNotesInSidebar() throws {

@@ -78,8 +78,6 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         PadChrome.enforceBesideDisplayMode(on: self)
-        // Keep XCUITest column frames in screen space (UISplitViewController panels move).
-        PadChrome.syncColumnAccessibilityFrames(on: self)
     }
 
     // MARK: - Public routing
@@ -139,13 +137,12 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
         PadChrome.applyNotesFolderSplitChrome(to: self)
         view.setNeedsLayout()
         view.layoutIfNeeded()
-        PadChrome.syncColumnAccessibilityFrames(on: self)
     }
 
     private func stampColumnAccessibilityIds() {
-        // Identifiers for XCUITest column queries. isAccessibilityElement stays true so
-        // `otherElements["….primary/secondary"]` resolve; child editor probes remain
-        // reachable via textViews / explicit probe ids in the XCUITest snapshot.
+        // Identifiers only — never assign accessibilityFrame (geometry tests must
+        // read real UIView / XCUIElement frames). isAccessibilityElement so XCUITest
+        // can resolve the column containers; editor via textViews["note.editor"].
         primaryNav.view.accessibilityIdentifier = "caderno.split.primary"
         secondaryNav.view.accessibilityIdentifier = "caderno.split.secondary"
         primaryNav.view.isAccessibilityElement = true

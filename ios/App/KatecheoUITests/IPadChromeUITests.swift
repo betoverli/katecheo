@@ -27,50 +27,18 @@ final class IPadChromeUITests: XCTestCase {
         XCTAssertTrue(editor.waitForExistence(timeout: 10), "Caderno editor should open")
 
         let primary = app.otherElements["caderno.split.primary"]
-        let secondary = app.otherElements["caderno.split.secondary"]
-        let sidebar = app.otherElements["caderno.list"]
-        let titleProbe = app.otherElements["note.editor.title"]
         XCTAssertTrue(primary.waitForExistence(timeout: 5), "Caderno primary (list) column should exist")
-        XCTAssertTrue(secondary.waitForExistence(timeout: 5), "Caderno secondary (detail) column should exist")
-        XCTAssertTrue(sidebar.waitForExistence(timeout: 5), "Caderno list sidebar should exist")
 
-        // Allow split layout to settle into .tile after opening the note.
-        waitForTile(
-            primary: primary,
-            secondary: secondary,
-            sidebar: sidebar,
-            titleProbe: titleProbe,
-            timeout: 3
-        )
-        assertEditorNotCoveredBySidebar(
-            primary: primary,
-            secondary: secondary,
-            sidebar: sidebar,
-            editor: editor,
-            titleProbe: titleProbe,
-            context: "portrait"
-        )
+        // Real XCUIElement frames only (no computed accessibilityFrame).
+        waitForEditorRightOfPrimary(editor: editor, primary: primary, timeout: 4)
+        assertEditorTextViewRightOfPrimary(editor: editor, primary: primary, context: "portrait")
 
         XCUIDevice.shared.orientation = .landscapeLeft
         RunLoop.current.run(until: Date().addingTimeInterval(1.0))
         XCTAssertTrue(editor.waitForExistence(timeout: 5))
         XCTAssertTrue(primary.waitForExistence(timeout: 5))
-        XCTAssertTrue(secondary.waitForExistence(timeout: 5))
-        waitForTile(
-            primary: primary,
-            secondary: secondary,
-            sidebar: sidebar,
-            titleProbe: titleProbe,
-            timeout: 3
-        )
-        assertEditorNotCoveredBySidebar(
-            primary: primary,
-            secondary: secondary,
-            sidebar: sidebar,
-            editor: editor,
-            titleProbe: titleProbe,
-            context: "landscape"
-        )
+        waitForEditorRightOfPrimary(editor: editor, primary: primary, timeout: 4)
+        assertEditorTextViewRightOfPrimary(editor: editor, primary: primary, context: "landscape")
 
         XCUIDevice.shared.orientation = .portrait
         RunLoop.current.run(until: Date().addingTimeInterval(0.5))
@@ -191,67 +159,39 @@ final class IPadChromeUITests: XCTestCase {
         return app
     }
 
-    private func waitForTile(
+    private func waitForEditorRightOfPrimary(
+        editor: XCUIElement,
         primary: XCUIElement,
-        secondary: XCUIElement,
-        sidebar: XCUIElement,
-        titleProbe: XCUIElement,
         timeout: TimeInterval
     ) {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
-            let sidebarMax = sidebarFrameMaxX(primary: primary, sidebar: sidebar)
-            let s = secondary.frame
-            if sidebarMax > 0, !s.isEmpty, s.minX >= sidebarMax - 2 { return }
-            if titleProbe.exists, sidebarMax > 0, titleProbe.frame.minX >= sidebarMax - 2 { return }
+            let p = primary.frame
+            let e = editor.frame
+            if !p.isEmpty, !e.isEmpty, e.minX >= p.maxX - 2 { return }
             RunLoop.current.run(until: Date().addingTimeInterval(0.15))
         }
     }
 
-    private func sidebarFrameMaxX(primary: XCUIElement, sidebar: XCUIElement) -> CGFloat {
-        let list = sidebar.frame
-        if !list.isEmpty { return list.maxX }
-        let column = primary.frame
-        return column.isEmpty ? 0 : column.maxX
-    }
-
-    private func assertEditorNotCoveredBySidebar(
-        primary: XCUIElement,
-        secondary: XCUIElement,
-        sidebar: XCUIElement,
+    /// Assert real text view frame sits to the right of the real primary column frame.
+    private func assertEditorTextViewRightOfPrimary(
         editor: XCUIElement,
-        titleProbe: XCUIElement,
+        primary: XCUIElement,
         context: String
     ) {
-        let sidebarMax = sidebarFrameMaxX(primary: primary, sidebar: sidebar)
-        XCTAssertGreaterThan(sidebarMax, 0, "\(context): sidebar/primary frame must be non-empty")
-
-        let secondaryFrame = secondary.frame
-        let columnsTile = !secondaryFrame.isEmpty && secondaryFrame.minX >= sidebarMax - 2
-        if columnsTile {
-            XCTAssertGreaterThanOrEqual(
-                secondaryFrame.minX,
-                sidebarMax - 2,
-                "\(context): secondary.minX (\(secondaryFrame.minX)) must be >= sidebar.maxX (\(sidebarMax))"
-            )
-        }
-
-        // User contract: editor text leading edge is to the right of the list sidebar.
-        let editorLeading: CGFloat
-        if titleProbe.waitForExistence(timeout: 3), titleProbe.frame.minX > 1 {
-            editorLeading = titleProbe.frame.minX
-        } else if editor.frame.width > 40, editor.frame.minX > 1 {
-            editorLeading = editor.frame.minX
-        } else if columnsTile {
-            editorLeading = secondaryFrame.minX
-        } else {
-            XCTFail("\(context): could not resolve editor leading edge for tile assert")
-            return
-        }
+        let primaryFrame = primary.frame
+        let editorFrame = editor.frame
+        XCTAssertFalse(primaryFrame.isEmpty, "\(context): primary column frame must be non-empty")
+        XCTAssertFalse(editorFrame.isEmpty, "\(context): note.editor UITextView frame must be non-empty")
+        XCTAssertGreaterThan(
+            editorFrame.width,
+            40,
+            "\(context): note.editor frame should be a real text view, not a degenerate a11y box"
+        )
         XCTAssertGreaterThanOrEqual(
-            editorLeading,
-            sidebarMax - 2,
-            "\(context): editor leading edge (\(editorLeading)) must be >= sidebar.maxX (\(sidebarMax)) — detail must not sit under the list"
+            editorFrame.minX,
+            primaryFrame.maxX - 2,
+            "\(context): textView.minX (\(editorFrame.minX)) must be >= primary.maxX (\(primaryFrame.maxX)) — detail must not sit under the list"
         )
     }
 

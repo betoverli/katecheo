@@ -75,44 +75,18 @@ enum PadChrome {
         }
     }
 
-    /// Publish on-screen column frames for XCUITest (`caderno/grupos.split.*`).
-    /// Child VC `convert(_:to:)` often reports origin 0 inside private split panels;
-    /// when tiled beside, derive screen frames from `primaryColumnWidth` instead.
+    /// Real on-screen frame of a split column VC's view in window coordinates.
+    /// Uses `convert(_:to: nil)` only — never `primaryColumnWidth` or a custom
+    /// `accessibilityFrame`.
     @MainActor
-    static func syncColumnAccessibilityFrames(on split: UISplitViewController) {
-        guard !split.isCollapsed, split.view.window != nil else { return }
-        let splitScreen = UIAccessibility.convertToScreenCoordinates(split.view.bounds, in: split.view)
-        guard splitScreen.width > 0, splitScreen.height > 0 else { return }
-
-        if split.displayMode == .oneBesideSecondary || split.displayMode == .twoBesideSecondary {
-            let primaryWidth = max(split.primaryColumnWidth, 1)
-            let clampedPrimary = min(primaryWidth, splitScreen.width - 1)
-            if let primaryView = split.viewController(for: .primary)?.view {
-                primaryView.accessibilityFrame = CGRect(
-                    x: splitScreen.minX,
-                    y: splitScreen.minY,
-                    width: clampedPrimary,
-                    height: splitScreen.height
-                )
-            }
-            if let secondaryView = split.viewController(for: .secondary)?.view {
-                secondaryView.accessibilityFrame = CGRect(
-                    x: splitScreen.minX + clampedPrimary,
-                    y: splitScreen.minY,
-                    width: max(splitScreen.width - clampedPrimary, 1),
-                    height: splitScreen.height
-                )
-            }
-            return
+    static func columnWindowFrame(
+        for column: UISplitViewController.Column,
+        in split: UISplitViewController
+    ) -> CGRect? {
+        guard let columnView = split.viewController(for: column)?.view, columnView.window != nil else {
+            return nil
         }
-
-        for column in [UISplitViewController.Column.primary, .secondary] {
-            guard let columnView = split.viewController(for: column)?.view else { continue }
-            columnView.accessibilityFrame = UIAccessibility.convertToScreenCoordinates(
-                columnView.bounds,
-                in: columnView
-            )
-        }
+        return columnView.convert(columnView.bounds, to: nil)
     }
 
     /// Present a utility screen as a large modal sheet (rare fallback).
