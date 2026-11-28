@@ -1,11 +1,12 @@
 import UIKit
 
 /// Root tabs.
-/// - iPhone: Caderno · Grupos · Ferramentas · Perfil (unchanged).
-/// - iPadOS 18+: same four destinations with `mode = .tabSidebar` (user can toggle
-///   sidebar vs top tab bar; system persists the choice).
+/// - iPhone: Caderno · Grupos · Ferramentas · Perfil (unchanged push tabs).
+/// - iPadOS 18+ regular width: Caderno · Grupos stay as destinations; Ferramentas /
+///   Perfil open as formSheet panels (Caderno/Grupos stay visible behind). Compact
+///   iPad (Split View) keeps normal tabs.
 /// - iPad iOS 15–17: `PadLegacySidebarShell` is the window root instead (see AppRoot).
-final class NativeRootTabBarController: UITabBarController {
+final class NativeRootTabBarController: UITabBarController, UITabBarControllerDelegate {
     private var didScheduleSettingsGuide = false
     /// Apply default sidebar visibility once per process (don't fight mid-session toggles).
     private var didApplyDefaultTabSidebarVisibility = false
@@ -17,6 +18,7 @@ final class NativeRootTabBarController: UITabBarController {
     override func viewDidLoad() {
         super.viewDidLoad()
         KCChrome.styleScreen(view)
+        delegate = self
         tabBar.tintColor = KCDesign.accent
         tabBar.unselectedItemTintColor = .secondaryLabel
         tabBar.standardAppearance.backgroundColor = KCDesign.screenBackground
@@ -107,8 +109,16 @@ final class NativeRootTabBarController: UITabBarController {
         // Re-assert Apple default once after the window/scene orientation is known.
         if #available(iOS 18.0, *), PadChrome.isPad, mode == .tabSidebar {
             applyDefaultTabSidebarVisibilityIfNeeded(forceExpand: false)
+            paintSidebarOpaqueIfNeeded()
         }
         presentSettingsGuideIfNeeded()
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        if #available(iOS 18.0, *), PadChrome.isPad, mode == .tabSidebar {
+            paintSidebarOpaqueIfNeeded()
+        }
     }
 
     /// iPadOS 18+ tabSidebar: tile content beside the sidebar (opaque column — no
@@ -120,6 +130,7 @@ final class NativeRootTabBarController: UITabBarController {
         view.backgroundColor = KCDesign.screenBackground
         view.accessibilityIdentifier = "pad.shell.tabsidebar"
         applyDefaultTabSidebarVisibilityIfNeeded(forceExpand: false)
+        paintSidebarOpaqueIfNeeded()
     }
 
     /// Screenshot helper: enable tabSidebar + tile even under the XCTest host.
@@ -136,6 +147,7 @@ final class NativeRootTabBarController: UITabBarController {
         } else {
             sidebar.isHidden = !isLandscapeInterface
         }
+        paintSidebarOpaqueIfNeeded()
     }
 
     @available(iOS 18.0, *)
@@ -159,11 +171,48 @@ final class NativeRootTabBarController: UITabBarController {
 
         if forceExpand || expandForUITest {
             sidebar.isHidden = false
+            paintSidebarOpaqueIfNeeded()
             return
         }
 
         // Production: Apple default — collapsed in portrait, expanded in landscape.
         sidebar.isHidden = !isLandscapeInterface
+        paintSidebarOpaqueIfNeeded()
+    }
+
+    /// Make the main-menu sidebar opaque so the Caderno list never ghosts through
+    /// when the menu opens as an overlay in portrait.
+    @available(iOS 18.0, *)
+    func paintSidebarOpaqueIfNeeded() {
+        guard mode == .tabSidebar else { return }
+        sidebar.preferredLayout = .tile
+        view.backgroundColor = KCDesign.screenBackground
+        paintSidebarMaterialOpaque(in: view)
+    }
+
+    /// Replace translucent sidebar materials with a solid screen background.
+    private func paintSidebarMaterialOpaque(in root: UIView) {
+        let maxSidebarWidth = max(root.bounds.width * 0.42, 280)
+        func walk(_ view: UIView) {
+            let looksLikeSidebarChrome = view.frame.width > 40
+                && view.frame.width <= maxSidebarWidth
+                && view.frame.height > root.bounds.height * 0.5
+            if let effect = view as? UIVisualEffectView, looksLikeSidebarChrome || effect.frame.width <= maxSidebarWidth {
+                effect.effect = nil
+                effect.backgroundColor = KCDesign.screenBackground
+                effect.contentView.backgroundColor = KCDesign.screenBackground
+                effect.isOpaque = true
+            } else if looksLikeSidebarChrome {
+                if view.backgroundColor == nil || (view.backgroundColor?.cgColor.alpha ?? 1) < 0.95 {
+                    view.backgroundColor = KCDesign.screenBackground
+                }
+                view.isOpaque = true
+            }
+            for child in view.subviews {
+                walk(child)
+            }
+        }
+        walk(root)
     }
 
     /// True when the interface is landscape (window scene, else bounds).
@@ -183,20 +232,63 @@ final class NativeRootTabBarController: UITabBarController {
         return view.bounds.width > view.bounds.height
     }
 
-    // MARK: - Tools / Profile (tabs on iPad + iPhone; deep-link API)
+    // MARK: - UITabBarControllerDelegate (iPad Tools / Profile sheets)
+
+    func tabBarController(
+        _ tabBarController: UITabBarController,
+        shouldSelect viewController: UIViewController
+    ) -> Bool {
+        guard PadChrome.presentsUtilitySheets(for: traitCollection),
+              let index = viewControllers?.firstIndex(of: viewController)
+        else { return true }
+        if index == 2 {
+            presentToolsSheet(animated: true)
+            return false
+        }
+        if index == 3 {
+            presentProfileSheet(animated: true)
+            return false
+        }
+        return true
+    }
+
+    // MARK: - Tools / Profile
 
     @MainActor
     func presentToolsSheet(
         animated: Bool = true,
         configure: ((VersesHomeViewController) -> Void)? = nil
     ) {
-        selectedIndex = 2
-        if let nav = selectedViewController as? UINavigationController,
-           let home = nav.viewControllers.first as? VersesHomeViewController
+        if !PadChrome.presentsUtilitySheets(for: traitCollection) {
+            selectedIndex = 2
+            if let nav = selectedViewController as? UINavigationController,
+               let home = nav.viewControllers.first as? VersesHomeViewController
+            {
+                _ = home.view
+                configure?(home)
+            }
+            return
+        }
+        if let existing = presentedUtilityNav(id: "pad.sheet.tools"),
+           let home = existing.viewControllers.first as? VersesHomeViewController
         {
             _ = home.view
             configure?(home)
+            return
         }
+        dismissUtilitySheetIfNeeded(animated: false)
+        let home = VersesHomeViewController()
+        let nav = UINavigationController(rootViewController: home)
+        KCChrome.style(navigationController: nav)
+        nav.navigationBar.prefersLargeTitles = true
+        _ = home.view
+        configure?(home)
+        PadChrome.presentUtilitySheet(
+            root: nav,
+            from: self,
+            animated: animated,
+            accessibilityId: "pad.sheet.tools"
+        )
     }
 
     @MainActor
@@ -204,11 +296,54 @@ final class NativeRootTabBarController: UITabBarController {
         animated: Bool = true,
         configure: ((ProfileViewController, UINavigationController) -> Void)? = nil
     ) {
-        selectedIndex = 3
-        if let nav = selectedViewController as? UINavigationController,
-           let home = nav.viewControllers.first as? ProfileViewController
+        if !PadChrome.presentsUtilitySheets(for: traitCollection) {
+            selectedIndex = 3
+            if let nav = selectedViewController as? UINavigationController,
+               let home = nav.viewControllers.first as? ProfileViewController
+            {
+                configure?(home, nav)
+            }
+            return
+        }
+        if let existing = presentedUtilityNav(id: "pad.sheet.profile"),
+           let home = existing.viewControllers.first as? ProfileViewController
         {
-            configure?(home, nav)
+            configure?(home, existing)
+            return
+        }
+        dismissUtilitySheetIfNeeded(animated: false)
+        let home = ProfileViewController()
+        let nav = UINavigationController(rootViewController: home)
+        KCChrome.style(navigationController: nav)
+        nav.navigationBar.prefersLargeTitles = true
+        configure?(home, nav)
+        PadChrome.presentUtilitySheet(
+            root: nav,
+            from: self,
+            animated: animated,
+            accessibilityId: "pad.sheet.profile"
+        )
+    }
+
+    private func presentedUtilityNav(id: String) -> UINavigationController? {
+        var top: UIViewController = self
+        while let presented = top.presentedViewController {
+            if let nav = presented as? UINavigationController,
+               nav.view.accessibilityIdentifier == id
+            {
+                return nav
+            }
+            top = presented
+        }
+        return nil
+    }
+
+    private func dismissUtilitySheetIfNeeded(animated: Bool) {
+        if let nav = presentedViewController as? UINavigationController,
+           let id = nav.view.accessibilityIdentifier,
+           id.hasPrefix("pad.sheet.")
+        {
+            nav.dismiss(animated: animated)
         }
     }
 

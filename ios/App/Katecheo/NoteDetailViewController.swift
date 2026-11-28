@@ -34,6 +34,8 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
     private var editorBottomConstraint: NSLayoutConstraint?
     private var editorLeadingConstraint: NSLayoutConstraint?
     private var editorTrailingConstraint: NSLayoutConstraint?
+    /// Caps line length on very wide windows while keeping leading alignment (not centered).
+    private var editorMaxWidthConstraint: NSLayoutConstraint?
     /// Avoid re-laying out glyphs on every Auto Layout pass once the column has size.
     private var didEnsureGlyphsForCurrentBounds = false
 
@@ -97,17 +99,23 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
 
         editorTopConstraint = editor.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor)
         editorBottomConstraint = editor.bottomAnchor.constraint(equalTo: view.bottomAnchor)
-        // Readable width inside the detail column (standard ~20–40pt column margins).
-        editorLeadingConstraint = editor.leadingAnchor.constraint(equalTo: view.readableContentGuide.leadingAnchor)
-        editorTrailingConstraint = editor.trailingAnchor.constraint(equalTo: view.readableContentGuide.trailingAnchor)
+        // Leading-aligned (Apple Notes): fill the column — never center a narrow readable guide.
+        editorLeadingConstraint = editor.leadingAnchor.constraint(equalTo: view.leadingAnchor)
+        editorTrailingConstraint = editor.trailingAnchor.constraint(equalTo: view.trailingAnchor)
+        editorTrailingConstraint?.priority = .defaultHigh
+        editorMaxWidthConstraint = editor.widthAnchor.constraint(
+            lessThanOrEqualToConstant: PadChrome.editorMaxReadableWidth
+        )
+        editorMaxWidthConstraint?.priority = .required
 
         NSLayoutConstraint.activate([
             editorTopConstraint!,
             editorBottomConstraint!,
             editorLeadingConstraint!,
             editorTrailingConstraint!,
+            editorMaxWidthConstraint!,
         ])
-        // Modest text-container insets; column margins come from readableContentGuide.
+        // Text-container insets own the comfortable margins (16pt phone / ~20pt iPad).
         updateEditorReadingInsets()
 
         // Start from the full on-device catalog — never an empty note-scoped list.
@@ -235,10 +243,14 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
         }
     }
 
-    /// Editor fills the column; on regular iPad use ~24pt Notes-like text insets (no narrow max-width column).
+    /// Editor fills the column leading-aligned; regular iPad uses Notes-like text insets.
+    /// iPhone / compact keep the pre-#136 16pt inset (never the centered readable guide).
     private func updateEditorReadingInsets() {
         let padRegular = PadChrome.isPad && traitCollection.horizontalSizeClass == .regular
         editor.applyPadReadingInsets(padRegular)
+        // Width cap only matters on very wide iPad windows; phone ignores via trailing fill.
+        editorMaxWidthConstraint?.isActive = padRegular
+        editorTrailingConstraint?.priority = padRegular ? .defaultHigh : .required
     }
 
     /// Pop on compact; empty secondary column on regular split (Caderno or Grupos).

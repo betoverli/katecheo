@@ -4,15 +4,30 @@ import WebKit
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     var window: UIWindow?
 
+    /// Interactive application windows only. External-display / mirroring roles must
+    /// never get a root UI — that spawned a second fullscreen Katecheo on Beto's
+    /// monitor (often light while the iPad stayed dark) that could not be moved.
+    static func shouldBuildRootUI(for role: UISceneSession.Role) -> Bool {
+        if role == .windowApplication { return true }
+        // Deprecated mirroring role (pre–iOS 16 name) + NonInteractive (iOS 16+).
+        if role == .windowExternalDisplay { return false }
+        if #available(iOS 16.0, *) {
+            if role == .windowExternalDisplayNonInteractive { return false }
+        }
+        // Unknown roles: do not auto-create UI (Stage Manager moves the real window).
+        return false
+    }
+
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
+        // Refuse external-display / mirroring scenes — no window, no AppRoot.
+        guard Self.shouldBuildRootUI(for: session.role) else {
+            window = nil
+            return
+        }
         guard let windowScene = scene as? UIWindowScene else { return }
 
-        // Single window only. Info.plist used to also load Main.storyboard for this
-        // scene, so a naive `UIWindow(windowScene:)` here created a *second* full-screen
-        // window. The orphaned storyboard window + the programmatic one raced safe-area
-        // propagation; onboarding's bottom chrome then sat on the physical bottom edge
-        // (home indicator) with a zero bottom inset — Get started looked clipped and
-        // taps were swallowed by the system home gesture (TF 325).
+        // One window per interactive scene. Info.plist must not also load Main.storyboard
+        // (that previously created a second window racing safe-area insets — TF 325).
         let window = self.window ?? windowScene.windows.first { !$0.isHidden } ?? UIWindow(windowScene: windowScene)
         window.frame = windowScene.coordinateSpace.bounds
         window.tintColor = KCDesign.accent
@@ -90,11 +105,13 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
 
     func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
+        guard Self.shouldBuildRootUI(for: scene.session.role) else { return }
         guard let url = URLContexts.first?.url else { return }
         NativeDeepLinkRouter.open(url: url)
     }
 
     func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
+        guard Self.shouldBuildRootUI(for: scene.session.role) else { return }
         guard userActivity.activityType == NSUserActivityTypeBrowsingWeb,
               let url = userActivity.webpageURL
         else { return }
@@ -110,8 +127,11 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
 
     func sceneDidBecomeActive(_ scene: UIScene) {
+        guard Self.shouldBuildRootUI(for: scene.session.role) else { return }
         // Keep Appearance on every window (sheets / late scene windows) — TF219.
         AppAppearance.apply(to: window)
+        // Also paint every connected interactive window (external display left blank).
+        AppAppearance.apply()
         Task { @MainActor in
             await NativeOutbox.flushIfPossible()
             // Debounced unless TTL elapsed (push path forces separately).

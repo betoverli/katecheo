@@ -184,10 +184,12 @@ enum NativeDeepLinkRouter {
             shell.presentToolsSheet(animated: animated) { home in
                 home.selectHomeFilter("reading")
             }
-            // Push plan onto the tools nav (tab on iPhone + iPad).
+            // Push plan onto the tools sheet (iPad) or tools tab (iPhone).
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                 guard let shell = rootShell() else { return }
-                if let nav = shell.tabRoots?[Tab.tools.rawValue] as? UINavigationController {
+                if let nav = presentedUtilityNav(from: shell, id: "pad.sheet.tools")
+                    ?? shell.tabRoots?[Tab.tools.rawValue] as? UINavigationController
+                {
                     nav.pushViewController(ReadingPlanDetailViewController(planId: id), animated: animated)
                 }
             }
@@ -200,7 +202,9 @@ enum NativeDeepLinkRouter {
                     if NativeAPIClient.hasBearer {
                         let planId = try await NativeAPIClient.joinReadingPlanGroup(groupId: groupId)
                         guard let shell = rootShell() else { return }
-                        if let nav = shell.tabRoots?[Tab.tools.rawValue] as? UINavigationController {
+                        if let nav = presentedUtilityNav(from: shell, id: "pad.sheet.tools")
+                            ?? shell.tabRoots?[Tab.tools.rawValue] as? UINavigationController
+                        {
                             nav.pushViewController(ReadingPlanDetailViewController(planId: planId), animated: animated)
                         }
                     } else {
@@ -238,13 +242,32 @@ enum NativeDeepLinkRouter {
     @MainActor
     private static func rootShell() -> KatecheoRootShell? {
         let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-        let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+        // Prefer interactive application scenes (skip external-display / mirroring).
+        let interactive = scenes.filter { SceneDelegate.shouldBuildRootUI(for: $0.session.role) }
+        let scene = interactive.first { $0.activationState == .foregroundActive }
+            ?? interactive.first
+            ?? scenes.first
         let window = scene?.windows.first(where: { $0.isKeyWindow }) ?? scene?.windows.first
         if let tabs = window?.rootViewController as? NativeRootTabBarController {
             return tabs
         }
         if let legacy = window?.rootViewController as? PadLegacySidebarShell {
             return legacy
+        }
+        return nil
+    }
+
+    @MainActor
+    private static func presentedUtilityNav(from shell: KatecheoRootShell, id: String) -> UINavigationController? {
+        guard let host = shell as? UIViewController else { return nil }
+        var top: UIViewController = host
+        while let presented = top.presentedViewController {
+            if let nav = presented as? UINavigationController,
+               nav.view.accessibilityIdentifier == id
+            {
+                return nav
+            }
+            top = presented
         }
         return nil
     }

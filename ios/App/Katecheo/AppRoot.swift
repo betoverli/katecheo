@@ -37,7 +37,11 @@ enum AppRoot {
 
     private static func apply(_ next: UIViewController, animated: Bool) {
         let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-        let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+        // Only interactive application scenes — never the external-display mirroring role.
+        let interactive = scenes.filter { SceneDelegate.shouldBuildRootUI(for: $0.session.role) }
+        let scene = interactive.first { $0.activationState == .foregroundActive }
+            ?? interactive.first
+            ?? scenes.first
         guard let window = scene?.windows.first(where: { $0.isKeyWindow }) ?? scene?.windows.first else {
             return
         }
@@ -48,5 +52,6 @@ enum AppRoot {
         } else {
             window.rootViewController = next
         }
+        AppAppearance.apply(to: window)
     }
 }

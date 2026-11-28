@@ -148,5 +148,9 @@ final class NativeNoteEditorAccessoryBarTests: XCTestCase {
             editor.testing_isFormattingToolbarVisible(),
             "toolbar appears once the caret is in the note body"
         )
+        XCTAssertTrue(
+            editor.testing_inputAssistantBarButtonGroupsAreEmpty(),
+            "system inputAssistantItem groups must stay empty while our toolbar is active"
+        )
     }
 }

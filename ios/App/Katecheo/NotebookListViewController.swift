@@ -70,11 +70,26 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
 
     /// Scrolls the list to the top so the large title is expanded (screenshot / a11y asserts).
     func testing_scrollToTopForLargeTitle() {
-        navigationController?.navigationBar.prefersLargeTitles = true
-        navigationItem.largeTitleDisplayMode = .always
+        assertLargeTitleChrome()
         tableView.setContentOffset(.zero, animated: false)
         tableView.layoutIfNeeded()
+        navigationController?.navigationBar.setNeedsLayout()
         navigationController?.navigationBar.layoutIfNeeded()
+        view.layoutIfNeeded()
+    }
+
+    /// Caderno list column: large title must show (and collapse on scroll) in every
+    /// orientation — sidebar-expanded and top-tab-bar landscape included.
+    func assertLargeTitleChrome() {
+        guard let nav = navigationController else { return }
+        nav.navigationBar.prefersLargeTitles = true
+        navigationItem.largeTitleDisplayMode = .always
+        // Opaque scroll-edge appearance keeps the large title painted in split columns.
+        KCChrome.applyNavigationBarAppearance(to: nav.navigationBar)
+        // Primary column only — never let a detail VC leave prefersLargeTitles off here.
+        if nav.viewControllers.first === self {
+            nav.navigationBar.prefersLargeTitles = true
+        }
     }
 
     /// Expanded large-title nav bar height (0 if missing).
@@ -346,8 +361,8 @@ final class NotebookListViewController: UIViewController, UITableViewDelegate, U
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         // Keep large titles consistent with Grupos / Ferramentas / Perfil (TF 499).
-        navigationController?.navigationBar.prefersLargeTitles = true
-        navigationItem.largeTitleDisplayMode = .always
+        // Re-assert every appear — landscape list column was dropping the large title.
+        assertLargeTitleChrome()
         refreshNotificationsBadge()
         // Paint the full disk/memory list immediately so popping the editor never flashes
         // a truncated intermediate state while a refetch is in flight.

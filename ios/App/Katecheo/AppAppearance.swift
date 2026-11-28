@@ -89,6 +89,8 @@ enum AppAppearance {
         }
         for scene in UIApplication.shared.connectedScenes {
             guard let windowScene = scene as? UIWindowScene else { continue }
+            // Never paint / imply UI for external-display mirroring scenes.
+            guard SceneDelegate.shouldBuildRootUI(for: windowScene.session.role) else { continue }
             for w in windowScene.windows {
                 paint(w)
             }

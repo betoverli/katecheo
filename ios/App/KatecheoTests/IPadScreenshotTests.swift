@@ -137,6 +137,21 @@ final class IPadScreenshotTests: XCTestCase {
             let cadernoShot = render(tabs.view, size: size, priming: detail)
             write(cadernoShot, name: "ipad-\(orientation)-caderno-note")
 
+            // Edit mode with Katecheo format toolbar (docked hardware-keyboard path).
+            if isLandscape {
+                detail.testing_editor.testing_forcePadDockedToolbar()
+                RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+                tabs.view.layoutIfNeeded()
+                XCTAssertTrue(
+                    detail.testing_editor.testing_isFormattingToolbarVisible(),
+                    "iPad edit screenshot must show Katecheo format toolbar"
+                )
+                write(
+                    render(tabs.view, size: size, priming: detail),
+                    name: "ipad-\(orientation)-note-edit-toolbar"
+                )
+            }
+
             if #available(iOS 18.0, *), tabs.mode == .tabSidebar {
                 if isLandscape {
                     // Landscape sidebar-menu = same expanded state as caderno-note.
@@ -155,12 +170,18 @@ final class IPadScreenshotTests: XCTestCase {
                     )
                     // Restore expanded sidebar for Grupos shots.
                     tabs.sidebar.isHidden = false
+                    tabs.paintSidebarOpaqueIfNeeded()
                     tabs.view.layoutIfNeeded()
                 } else {
-                    // Portrait sidebar-menu: briefly expand to show the main menu.
+                    // Portrait sidebar overlay: expand + paint opaque (no list ghosting).
                     tabs.sidebar.isHidden = false
+                    tabs.paintSidebarOpaqueIfNeeded()
                     tabs.view.layoutIfNeeded()
                     RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+                    write(
+                        render(tabs.view, size: size, priming: detail),
+                        name: "ipad-\(orientation)-sidebar-overlay"
+                    )
                     write(
                         render(tabs.view, size: size, priming: detail),
                         name: "ipad-\(orientation)-sidebar-menu"
@@ -178,6 +199,24 @@ final class IPadScreenshotTests: XCTestCase {
                 }
             } else {
                 write(cadernoShot, name: "ipad-\(orientation)-sidebar-menu")
+            }
+
+            // Profile + Tools panels (regular-width iPad form sheets).
+            if isLandscape {
+                tabs.presentToolsSheet(animated: false)
+                RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+                if let sheet = tabs.presentedViewController?.view {
+                    write(render(tabs.view, size: size), name: "ipad-\(orientation)-tools-panel")
+                    _ = sheet
+                }
+                tabs.presentedViewController?.dismiss(animated: false)
+                RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+
+                tabs.presentProfileSheet(animated: false)
+                RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+                write(render(tabs.view, size: size), name: "ipad-\(orientation)-profile-panel")
+                tabs.presentedViewController?.dismiss(animated: false)
+                RunLoop.current.run(until: Date().addingTimeInterval(0.1))
             }
 
             // 2a) Grupos list (sidebar + empty detail)
@@ -251,6 +290,28 @@ final class IPadScreenshotTests: XCTestCase {
         tabs.loadViewIfNeeded()
         tabs.view.layoutIfNeeded()
         write(render(tabs.view, size: size), name: "iphone-caderno")
+
+        // Note editor — pre-#136 horizontal margins (also harvested into ipad-chrome artifact).
+        if let nav = tabs.viewControllers?.first as? UINavigationController,
+           let list = nav.viewControllers.first as? NotebookListViewController
+        {
+            list.loadViewIfNeeded()
+            list.viewWillAppear(false)
+            list.view.layoutIfNeeded()
+            if list.testing_filteredRowCount > 0 {
+                list.testing_selectRow(at: 0)
+                RunLoop.current.run(until: Date().addingTimeInterval(0.35))
+                tabs.view.layoutIfNeeded()
+                if let detail = nav.topViewController as? NoteDetailViewController {
+                    detail.ensureEditorContentVisible()
+                    let inset = detail.testing_editor.testing_textView.textContainerInset.left
+                    XCTAssertEqual(inset, PadChrome.phoneEditorHorizontalInset, accuracy: 0.5)
+                    write(render(tabs.view, size: size, priming: detail), name: "iphone-note-editor")
+                    // Also under the ipad-chrome artifact name pattern requested for the PR.
+                    write(render(tabs.view, size: size, priming: detail), name: "ipad-iphone-note-editor")
+                }
+            }
+        }
 
         tabs.selectedIndex = 1
         if let nav = tabs.viewControllers?[1] as? UINavigationController,

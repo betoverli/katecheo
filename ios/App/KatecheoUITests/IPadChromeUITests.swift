@@ -265,10 +265,65 @@ final class IPadChromeUITests: XCTestCase {
             "\(context): textView.minX (\(editorFrame.minX)) must be >= primary.maxX (\(primaryFrame.maxX)) — detail must not sit under the list"
         )
         // List trailing edge ≈ detail column leading edge when tiled.
+        // Leading-aligned Notes margins — within ~40pt of the detail column.
         XCTAssertLessThanOrEqual(
             editorFrame.minX,
-            primaryFrame.maxX + 60,
-            "\(context): textView.minX (\(editorFrame.minX)) must be within 60pt of the detail column leading edge (primary.maxX=\(primaryFrame.maxX)) — no huge empty gap"
+            primaryFrame.maxX + 40,
+            "\(context): textView.minX (\(editorFrame.minX)) must be within ~40pt of the detail column leading edge (primary.maxX=\(primaryFrame.maxX)) — no centered narrow column"
+        )
+    }
+
+    /// Profile / Tools open as formSheet panels on iPad; Caderno stays behind.
+    func testIPad_profileAndTools_presentAsSheets() throws {
+        let app = launchApp(seedNotes: false)
+
+        XCTAssertTrue(
+            app.otherElements["caderno.list"].waitForExistence(timeout: 15)
+                || app.navigationBars.element.waitForExistence(timeout: 5),
+            "Main shell should appear"
+        )
+
+        tapDestination(
+            in: app,
+            index: 2,
+            labels: ["Ferramentas", "Tools", "Herramientas"],
+            identifier: "tab.ferramentas"
+        )
+        let toolsSheet = app.otherElements["pad.sheet.tools"]
+        XCTAssertTrue(
+            toolsSheet.waitForExistence(timeout: 6)
+                || app.navigationBars.matching(
+                    NSPredicate(format: "label CONTAINS[c] %@ OR label CONTAINS[c] %@ OR label CONTAINS[c] %@", "Ferramentas", "Tools", "Herramientas")
+                ).firstMatch.waitForExistence(timeout: 4),
+            "Tools should present as a modal panel on iPad"
+        )
+        // Caderno list remains in the hierarchy behind the sheet.
+        XCTAssertTrue(
+            app.otherElements["caderno.list"].exists
+                || app.otherElements["caderno.split"].exists,
+            "Caderno should stay visible behind the Tools panel"
+        )
+        let done = app.buttons["pad.sheet.done"].firstMatch
+        if done.waitForExistence(timeout: 2), done.isHittable {
+            done.tap()
+        } else {
+            app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@ OR label CONTAINS[c] %@", "Fechar", "Done")).firstMatch.tap()
+        }
+        RunLoop.current.run(until: Date().addingTimeInterval(0.4))
+
+        tapDestination(
+            in: app,
+            index: 3,
+            labels: ["Perfil", "Profile"],
+            identifier: "tab.perfil"
+        )
+        let profileSheet = app.otherElements["pad.sheet.profile"]
+        XCTAssertTrue(
+            profileSheet.waitForExistence(timeout: 6)
+                || app.navigationBars.matching(
+                    NSPredicate(format: "label CONTAINS[c] %@ OR label CONTAINS[c] %@", "Perfil", "Profile")
+                ).firstMatch.waitForExistence(timeout: 4),
+            "Profile should present as a modal panel on iPad"
         )
     }
 

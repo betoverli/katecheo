@@ -1,6 +1,6 @@
 import UIKit
 
-/// iPad-only chrome helpers: column metrics, reading insets, split tiling.
+/// iPad-only chrome helpers: column metrics, reading insets, split tiling, utility sheets.
 /// iPhone keeps the classic 4-tab shell.
 enum PadChrome {
     static var isPad: Bool {
@@ -12,12 +12,23 @@ enum PadChrome {
     static let notebookPrimaryMin: CGFloat = 220
     static let notebookPrimaryMax: CGFloat = 320
 
-    /// Extra text-container inset on regular-width iPad. Column margins come from
-    /// `readableContentGuide`; keep this small so text sits near the column leading edge.
-    static let editorHorizontalInset: CGFloat = 8
+    /// Horizontal text-container inset on regular-width iPad (Notes-like leading margin).
+    /// Editor pins to the column leading edge — not a centered readable column.
+    static let editorHorizontalInset: CGFloat = 20
 
-    /// Large form sheet size (deep-link / modal fallback only).
-    static let utilitySheetSize = CGSize(width: 700, height: 800)
+    /// Pre-#136 iPhone / compact text-container inset (`KCDesign.Space.md`).
+    static let phoneEditorHorizontalInset: CGFloat = 16
+
+    /// Cap line length only on very wide Stage Manager windows; keep leading alignment.
+    static let editorMaxReadableWidth: CGFloat = 720
+
+    /// Large form sheet size (Profile / Tools) — App Store account–like panel.
+    static let utilitySheetSize = CGSize(width: 540, height: 720)
+
+    /// True when Tools/Profile should open as a modal panel (regular-width iPad).
+    static func presentsUtilitySheets(for traits: UITraitCollection) -> Bool {
+        isPad && traits.horizontalSizeClass == .regular
+    }
 
     /// Apply Notes-folder split chrome: beside (tile), never overlay the detail.
     /// Assignments are idempotent — re-setting the same preferred* values every
@@ -125,7 +136,7 @@ enum PadChrome {
         return primary.maxX
     }
 
-    /// Present a utility screen as a large modal sheet (rare fallback).
+    /// Present Tools or Profile as a large modal sheet (regular-width iPad).
     @MainActor
     static func presentUtilitySheet(
         root: UIViewController,
@@ -158,7 +169,9 @@ enum PadChrome {
                 sheet.prefersEdgeAttachedInCompactHeight = true
             }
         }
-        host.present(nav, animated: animated)
+        var top = host
+        while let presented = top.presentedViewController { top = presented }
+        top.present(nav, animated: animated)
     }
 
     @MainActor

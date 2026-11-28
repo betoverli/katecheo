@@ -59,7 +59,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                      options: UIScene.ConnectionOptions) -> UISceneConfiguration {
         let config = UISceneConfiguration(name: "Default Configuration",
                                           sessionRole: connectingSceneSession.role)
-        config.delegateClass = SceneDelegate.self
+        // Interactive application scenes only. External-display / mirroring sessions
+        // get no delegate so Katecheo never auto-opens a second fullscreen copy.
+        if SceneDelegate.shouldBuildRootUI(for: connectingSceneSession.role) {
+            config.delegateClass = SceneDelegate.self
+        } else {
+            config.delegateClass = nil
+        }
         // Explicitly no storyboard — SceneDelegate creates/reuses one window.
         config.storyboard = nil
         return config

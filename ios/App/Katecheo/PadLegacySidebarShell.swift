@@ -52,7 +52,18 @@ final class PadLegacySidebarShell: UISplitViewController, UISplitViewControllerD
         setViewController(notebook, for: .secondary)
         setViewController(menuNav, for: .compact)
         menu.onSelect = { [weak self] index in
-            self?.selectedIndex = index
+            guard let self else { return }
+            // Regular iPad: Tools/Profile are panels — keep Caderno/Grupos selected behind.
+            if PadChrome.presentsUtilitySheets(for: self.traitCollection), index >= 2 {
+                if index == 2 {
+                    self.presentToolsSheet(animated: true)
+                } else {
+                    self.presentProfileSheet(animated: true)
+                }
+                self.menu.selectedIndex = self.selectedIndex
+                return
+            }
+            self.selectedIndex = index
         }
         menu.selectedIndex = 0
     }
@@ -89,13 +100,28 @@ final class PadLegacySidebarShell: UISplitViewController, UISplitViewControllerD
         animated: Bool = true,
         configure: ((VersesHomeViewController) -> Void)? = nil
     ) {
-        selectedIndex = 2
-        if let nav = destinations[2] as? UINavigationController,
-           let home = nav.viewControllers.first as? VersesHomeViewController
-        {
-            _ = home.view
-            configure?(home)
+        if !PadChrome.presentsUtilitySheets(for: traitCollection) {
+            selectedIndex = 2
+            if let nav = destinations[2] as? UINavigationController,
+               let home = nav.viewControllers.first as? VersesHomeViewController
+            {
+                _ = home.view
+                configure?(home)
+            }
+            return
         }
+        let home = VersesHomeViewController()
+        let nav = UINavigationController(rootViewController: home)
+        KCChrome.style(navigationController: nav)
+        nav.navigationBar.prefersLargeTitles = true
+        _ = home.view
+        configure?(home)
+        PadChrome.presentUtilitySheet(
+            root: nav,
+            from: self,
+            animated: animated,
+            accessibilityId: "pad.sheet.tools"
+        )
     }
 
     @MainActor
@@ -103,12 +129,26 @@ final class PadLegacySidebarShell: UISplitViewController, UISplitViewControllerD
         animated: Bool = true,
         configure: ((ProfileViewController, UINavigationController) -> Void)? = nil
     ) {
-        selectedIndex = 3
-        if let nav = destinations[3] as? UINavigationController,
-           let home = nav.viewControllers.first as? ProfileViewController
-        {
-            configure?(home, nav)
+        if !PadChrome.presentsUtilitySheets(for: traitCollection) {
+            selectedIndex = 3
+            if let nav = destinations[3] as? UINavigationController,
+               let home = nav.viewControllers.first as? ProfileViewController
+            {
+                configure?(home, nav)
+            }
+            return
         }
+        let home = ProfileViewController()
+        let nav = UINavigationController(rootViewController: home)
+        KCChrome.style(navigationController: nav)
+        nav.navigationBar.prefersLargeTitles = true
+        configure?(home, nav)
+        PadChrome.presentUtilitySheet(
+            root: nav,
+            from: self,
+            animated: animated,
+            accessibilityId: "pad.sheet.profile"
+        )
     }
 
     var viewControllersForTabs: [UIViewController] { destinations }
@@ -149,6 +189,9 @@ final class PadMainMenuViewController: UIViewController, UITableViewDelegate, UI
         tableView.dataSource = self
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "menu")
         tableView.backgroundColor = KCDesign.screenBackground
+        view.backgroundColor = KCDesign.screenBackground
+        tableView.isOpaque = true
+        view.isOpaque = true
         tableView.separatorInset = UIEdgeInsets(top: 0, left: 16, bottom: 0, right: 0)
         view.addSubview(tableView)
         NSLayoutConstraint.activate([
