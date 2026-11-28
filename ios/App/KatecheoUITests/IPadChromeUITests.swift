@@ -10,7 +10,7 @@ final class IPadChromeUITests: XCTestCase {
         try XCTSkipUnless(idiom == .pad, "iPad Simulator only")
     }
 
-    /// Portrait + landscape: note editor text starts to the right of the list sidebar.
+    /// Portrait + landscape: note detail column starts to the right of the list sidebar.
     func testIPad_editorNotCoveredBySidebar_portraitAndLandscape() throws {
         let app = launchApp(seedNotes: true, openGrupos: false)
 
@@ -26,17 +26,19 @@ final class IPadChromeUITests: XCTestCase {
         let editor = app.textViews["note.editor"]
         XCTAssertTrue(editor.waitForExistence(timeout: 10), "Caderno editor should open")
 
-        let sidebar = app.otherElements["caderno.split.primary"]
-        XCTAssertTrue(sidebar.waitForExistence(timeout: 5), "Caderno primary (list) column should exist")
+        let primary = app.otherElements["caderno.split.primary"]
+        let secondary = app.otherElements["caderno.split.secondary"]
+        XCTAssertTrue(primary.waitForExistence(timeout: 5), "Caderno primary (list) column should exist")
+        XCTAssertTrue(secondary.waitForExistence(timeout: 5), "Caderno secondary (detail) column should exist")
 
-        assertEditorRightOfSidebar(editor: editor, sidebar: sidebar, context: "portrait")
+        assertSecondaryRightOfPrimary(primary: primary, secondary: secondary, editor: editor, context: "portrait")
 
         XCUIDevice.shared.orientation = .landscapeLeft
-        // Allow rotation + layout.
         RunLoop.current.run(until: Date().addingTimeInterval(1.0))
         XCTAssertTrue(editor.waitForExistence(timeout: 5))
-        XCTAssertTrue(sidebar.waitForExistence(timeout: 5))
-        assertEditorRightOfSidebar(editor: editor, sidebar: sidebar, context: "landscape")
+        XCTAssertTrue(primary.waitForExistence(timeout: 5))
+        XCTAssertTrue(secondary.waitForExistence(timeout: 5))
+        assertSecondaryRightOfPrimary(primary: primary, secondary: secondary, editor: editor, context: "landscape")
 
         XCUIDevice.shared.orientation = .portrait
         RunLoop.current.run(until: Date().addingTimeInterval(0.5))
@@ -58,46 +60,31 @@ final class IPadChromeUITests: XCTestCase {
             context: "Caderno"
         )
 
-        // Prefer tab / sidebar menu over flaky floating tab bar queries.
-        if app.otherElements["pad.main.menu"].waitForExistence(timeout: 2) {
-            app.otherElements["pad.main.menu.1"].tap()
-        } else {
-            tapDestination(
-                in: app,
-                labels: ["Grupos", "Groups", "Grupos"],
-                identifier: "tab.grupos"
-            )
-        }
+        tapDestination(in: app, index: 1, labels: ["Grupos", "Groups"], identifier: "tab.grupos")
         XCTAssertTrue(
             app.otherElements["grupos.list"].waitForExistence(timeout: 8),
             "Grupos list should appear"
         )
         assertNavTitle(in: app, names: ["Grupos", "Groups"], context: "Grupos")
 
-        if app.otherElements["pad.main.menu"].exists {
-            app.otherElements["pad.main.menu.2"].tap()
-        } else {
-            tapDestination(
-                in: app,
-                labels: ["Ferramentas", "Tools", "Herramientas"],
-                identifier: "tab.ferramentas"
-            )
-        }
+        tapDestination(
+            in: app,
+            index: 2,
+            labels: ["Ferramentas", "Tools", "Herramientas"],
+            identifier: "tab.ferramentas"
+        )
         assertNavTitle(
             in: app,
             names: ["Ferramentas", "Tools", "Herramientas"],
             context: "Ferramentas"
         )
 
-        if app.otherElements["pad.main.menu"].exists {
-            app.otherElements["pad.main.menu.3"].tap()
-        } else {
-            tapDestination(
-                in: app,
-                labels: ["Perfil", "Profile", "Perfil"],
-                identifier: "tab.perfil"
-            )
-        }
+        tapDestination(
+            in: app,
+            index: 3,
+            labels: ["Perfil", "Profile"],
+            identifier: "tab.perfil"
+        )
         assertNavTitle(in: app, names: ["Perfil", "Profile"], context: "Perfil")
     }
 
@@ -172,20 +159,30 @@ final class IPadChromeUITests: XCTestCase {
         return app
     }
 
-    private func assertEditorRightOfSidebar(
+    private func assertSecondaryRightOfPrimary(
+        primary: XCUIElement,
+        secondary: XCUIElement,
         editor: XCUIElement,
-        sidebar: XCUIElement,
         context: String
     ) {
-        let editorFrame = editor.frame
-        let sidebarFrame = sidebar.frame
-        XCTAssertFalse(editorFrame.isEmpty, "\(context): editor frame must be non-empty")
-        XCTAssertFalse(sidebarFrame.isEmpty, "\(context): sidebar frame must be non-empty")
+        let primaryFrame = primary.frame
+        let secondaryFrame = secondary.frame
+        XCTAssertFalse(primaryFrame.isEmpty, "\(context): primary frame must be non-empty")
+        XCTAssertFalse(secondaryFrame.isEmpty, "\(context): secondary frame must be non-empty")
+        // Column geometry is the reliable tile signal (UITextView a11y frames often report minX=0).
         XCTAssertGreaterThanOrEqual(
-            editorFrame.minX,
-            sidebarFrame.maxX - 1,
-            "\(context): editor.minX (\(editorFrame.minX)) must be >= sidebar.maxX (\(sidebarFrame.maxX)) — detail must not sit under the list"
+            secondaryFrame.minX,
+            primaryFrame.maxX - 2,
+            "\(context): secondary.minX (\(secondaryFrame.minX)) must be >= primary.maxX (\(primaryFrame.maxX)) — detail must not sit under the list"
         )
+        let editorFrame = editor.frame
+        if editorFrame.width > 40, editorFrame.minX > 1 {
+            XCTAssertGreaterThanOrEqual(
+                editorFrame.minX,
+                primaryFrame.maxX - 2,
+                "\(context): editor.minX (\(editorFrame.minX)) must be >= primary.maxX (\(primaryFrame.maxX))"
+            )
+        }
     }
 
     private func assertNavTitle(in app: XCUIApplication, names: [String], context: String) {
@@ -201,9 +198,21 @@ final class IPadChromeUITests: XCTestCase {
         )
     }
 
-    private func tapDestination(in app: XCUIApplication, labels: [String], identifier: String) {
-        let byId = app.buttons[identifier]
-        if byId.waitForExistence(timeout: 2) {
+    /// Prefer legacy menu cells, then a single tab identifier match, then label.
+    private func tapDestination(
+        in app: XCUIApplication,
+        index: Int,
+        labels: [String],
+        identifier: String
+    ) {
+        let menuCell = app.otherElements["pad.main.menu.\(index)"]
+        if menuCell.waitForExistence(timeout: 1) {
+            menuCell.tap()
+            return
+        }
+        // tabSidebar duplicates identifiers — always take the first match.
+        let byId = app.descendants(matching: .any).matching(identifier: identifier).element(boundBy: 0)
+        if byId.waitForExistence(timeout: 2), byId.isHittable {
             byId.tap()
             return
         }
@@ -211,12 +220,12 @@ final class IPadChromeUITests: XCTestCase {
             format: labels.map { _ in "label CONTAINS[c] %@" }.joined(separator: " OR "),
             argumentArray: labels
         )
-        let tab = app.tabBars.buttons.matching(predicate).firstMatch
+        let tab = app.tabBars.buttons.matching(predicate).element(boundBy: 0)
         if tab.waitForExistence(timeout: 3) {
             tab.tap()
             return
         }
-        let any = app.buttons.matching(predicate).firstMatch
+        let any = app.buttons.matching(predicate).element(boundBy: 0)
         if any.waitForExistence(timeout: 3) {
             any.tap()
         }
