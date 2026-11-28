@@ -33,19 +33,8 @@ final class GroupsSplitViewController: UISplitViewController, UISplitViewControl
         KCChrome.style(navigationController: secondaryNav)
         super.init(style: .doubleColumn)
         delegate = self
-        preferredDisplayMode = .oneBesideSecondary
-        presentsWithGesture = true
-        // Match Caderno: one sidebar toggle on the primary column only.
-        if #available(iOS 14.5, *) {
-            displayModeButtonVisibility = .never
-        }
-        if #available(iOS 16.0, *) {
-            preferredSplitBehavior = .tile
-        }
-        // Same Notes-like sidebar width as Caderno.
-        preferredPrimaryColumnWidthFraction = PadChrome.notebookPrimaryFraction
-        minimumPrimaryColumnWidth = PadChrome.notebookPrimaryMin
-        maximumPrimaryColumnWidth = PadChrome.notebookPrimaryMax
+        // Tile beside — never overlay the note detail under the list (TF 499).
+        PadChrome.applyNotesFolderSplitChrome(to: self)
 
         setViewController(primaryNav, for: .primary)
         setViewController(secondaryNav, for: .secondary)
@@ -58,7 +47,15 @@ final class GroupsSplitViewController: UISplitViewController, UISplitViewControl
     override func viewDidLoad() {
         super.viewDidLoad()
         KCChrome.styleScreen(view)
+        view.accessibilityIdentifier = "grupos.split"
+        primaryNav.view.accessibilityIdentifier = "grupos.split.primary"
+        secondaryNav.view.accessibilityIdentifier = "grupos.split.secondary"
         showEmptyDetail(animated: false)
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        PadChrome.enforceBesideDisplayMode(on: self)
     }
 
     // MARK: - Routing

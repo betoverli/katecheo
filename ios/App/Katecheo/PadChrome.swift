@@ -1,24 +1,59 @@
 import UIKit
 
-/// iPad-only chrome helpers: Tools/Profile sheets, column metrics, reading insets.
-/// iPhone keeps the classic 4-tab shell — never call sheet presentation paths on phone.
+/// iPad-only chrome helpers: column metrics, reading insets, split tiling.
+/// iPhone keeps the classic 4-tab shell.
 enum PadChrome {
     static var isPad: Bool {
         UIDevice.current.userInterfaceIdiom == .pad
     }
 
-    /// Notes-like Caderno primary column (~⅓–⅓+ of the window).
-    static let notebookPrimaryFraction: CGFloat = 0.35
-    static let notebookPrimaryMin: CGFloat = 320
-    static let notebookPrimaryMax: CGFloat = 420
+    /// Notes-folder list column — sized so portrait + main-menu sidebar still tiles
+    /// (never overlays) the note detail.
+    static let notebookPrimaryFraction: CGFloat = 0.32
+    static let notebookPrimaryMin: CGFloat = 260
+    static let notebookPrimaryMax: CGFloat = 380
 
     /// Horizontal reading inset inside the note editor on regular-width iPad (~Notes).
     static let editorHorizontalInset: CGFloat = 24
 
-    /// Large form sheet for Tools / Profile on iPad.
+    /// Large form sheet size (deep-link / modal fallback only).
     static let utilitySheetSize = CGSize(width: 700, height: 800)
 
-    /// Present Tools or Profile as a large modal sheet with its own navigation stack + Done.
+    /// Apply Notes-folder split chrome: beside (tile), never overlay the detail.
+    @MainActor
+    static func applyNotesFolderSplitChrome(
+        to split: UISplitViewController,
+        primaryFraction: CGFloat = notebookPrimaryFraction,
+        min: CGFloat = notebookPrimaryMin,
+        max: CGFloat = notebookPrimaryMax
+    ) {
+        split.preferredDisplayMode = .oneBesideSecondary
+        split.presentsWithGesture = true
+        if #available(iOS 14.5, *) {
+            split.displayModeButtonVisibility = .never
+        }
+        if #available(iOS 16.0, *) {
+            // Tile displaces columns; `.overlay` hid note text under the list (TF 499).
+            split.preferredSplitBehavior = .tile
+        }
+        split.preferredPrimaryColumnWidthFraction = primaryFraction
+        split.minimumPrimaryColumnWidth = min
+        split.maximumPrimaryColumnWidth = max
+    }
+
+    /// If UIKit flips into overlay/over-secondary, snap back to beside.
+    @MainActor
+    static func enforceBesideDisplayMode(on split: UISplitViewController) {
+        guard !split.isCollapsed else { return }
+        switch split.displayMode {
+        case .oneOverSecondary, .primaryOverlay:
+            split.preferredDisplayMode = .oneBesideSecondary
+        default:
+            break
+        }
+    }
+
+    /// Present a utility screen as a large modal sheet (rare fallback).
     @MainActor
     static func presentUtilitySheet(
         root: UIViewController,
@@ -56,54 +91,21 @@ enum PadChrome {
 
     @MainActor
     private static func installDoneButton(on root: UIViewController, nav: UINavigationController) {
-        // `.plain` + explicit accent tint — `.done` can paint white on warm beige (invisible).
         let done = UIBarButtonItem(
             title: String(localized: "Fechar"),
-            style: .plain,
+            style: .done,
             target: nil,
             action: nil
         )
         done.primaryAction = UIAction { [weak nav] _ in
             nav?.dismiss(animated: true)
         }
-        done.tintColor = KCDesign.accent
         done.accessibilityLabel = String(localized: "Fechar")
         done.accessibilityIdentifier = "pad.sheet.done"
-        nav.navigationBar.tintColor = KCDesign.accent
-        nav.view.tintColor = KCDesign.accent
-        // Prefer left so we don't collide with Profile / Tools trailing actions.
         if root.navigationItem.leftBarButtonItem == nil {
             root.navigationItem.leftBarButtonItem = done
         } else {
             root.navigationItem.rightBarButtonItem = done
         }
-    }
-
-    /// Bar button that opens Tools (wrench) — used on Caderno / Grupos primary toolbars.
-    @MainActor
-    static func makeToolsBarButton(target: Any?, action: Selector) -> UIBarButtonItem {
-        let item = UIBarButtonItem(
-            image: UIImage(systemName: "wrench.and.screwdriver"),
-            style: .plain,
-            target: target,
-            action: action
-        )
-        item.accessibilityLabel = String(localized: "Ferramentas")
-        item.accessibilityIdentifier = "pad.toolbar.tools"
-        return item
-    }
-
-    /// Bar button that opens Profile.
-    @MainActor
-    static func makeProfileBarButton(target: Any?, action: Selector) -> UIBarButtonItem {
-        let item = UIBarButtonItem(
-            image: UIImage(systemName: "person.crop.circle"),
-            style: .plain,
-            target: target,
-            action: action
-        )
-        item.accessibilityLabel = String(localized: "Perfil")
-        item.accessibilityIdentifier = "pad.toolbar.profile"
-        return item
     }
 }

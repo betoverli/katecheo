@@ -2,7 +2,7 @@ import XCTest
 @testable import Katecheo
 
 /// iPad navigation contracts: note opens in detail, group pushes notes in sidebar,
-/// Tools/Profile sheets. iPhone keeps 4 tabs.
+/// 4-tab / tabSidebar shell, tile split chrome. iPhone keeps 4 tabs.
 @MainActor
 final class IPadNavigationTests: XCTestCase {
     private var hostWindow: UIWindow?
@@ -32,13 +32,19 @@ final class IPadNavigationTests: XCTestCase {
         return window
     }
 
-    func testPad_rootTabs_onlyCadernoAndGrupos() throws {
+    func testPad_rootTabs_hasFourDestinations() throws {
         try XCTSkipUnless(isPad, "iPad-only tab chrome")
         let tabs = NativeRootTabBarController()
         tabs.loadViewIfNeeded()
-        XCTAssertEqual(tabs.viewControllers?.count, 2)
+        XCTAssertEqual(tabs.viewControllers?.count, 4)
         XCTAssertTrue(tabs.viewControllers?[0] is NotebookSplitViewController)
         XCTAssertTrue(tabs.viewControllers?[1] is GroupsSplitViewController)
+        XCTAssertTrue(tabs.viewControllers?[2] is UINavigationController)
+        XCTAssertTrue(tabs.viewControllers?[3] is UINavigationController)
+        if #available(iOS 18.0, *) {
+            XCTAssertEqual(tabs.mode, .tabSidebar)
+            XCTAssertEqual(tabs.view.accessibilityIdentifier, "pad.shell.tabsidebar")
+        }
     }
 
     func testPad_selectingNote_opensInSecondaryColumn() throws {
@@ -123,48 +129,45 @@ final class IPadNavigationTests: XCTestCase {
         XCTAssertEqual(split.openGroupNotesList?.testing_groupId, group.id)
     }
 
-    func testPad_toolsButton_presentsToolsSheet() throws {
-        try XCTSkipUnless(isPad, "iPad-only Tools sheet")
+    func testPad_toolsAndProfile_areTabsNotSheets() throws {
+        try XCTSkipUnless(isPad, "iPad-only Tools/Profile tabs")
 
         let tabs = NativeRootTabBarController()
         _ = makePadWindow(root: tabs)
         tabs.loadViewIfNeeded()
 
         tabs.presentToolsSheet(animated: false)
-        RunLoop.current.run(until: Date().addingTimeInterval(0.15))
-
-        let presented = try XCTUnwrap(tabs.presentedViewController as? UINavigationController)
-        XCTAssertEqual(presented.view.accessibilityIdentifier, "pad.sheet.tools")
-        XCTAssertTrue(presented.viewControllers.first is VersesHomeViewController)
-        XCTAssertEqual(presented.modalPresentationStyle, .formSheet)
-        let done = presented.viewControllers.first?.navigationItem.leftBarButtonItem
-        XCTAssertEqual(done?.accessibilityIdentifier, "pad.sheet.done")
-        XCTAssertEqual(done?.tintColor, KCDesign.accent)
-    }
-
-    func testPad_profileButton_presentsProfileSheet() throws {
-        try XCTSkipUnless(isPad, "iPad-only Profile sheet")
-
-        let tabs = NativeRootTabBarController()
-        _ = makePadWindow(root: tabs)
-        tabs.loadViewIfNeeded()
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        XCTAssertEqual(tabs.selectedIndex, 2)
+        XCTAssertNil(tabs.presentedViewController, "Tools is a tab, not a modal sheet")
+        XCTAssertTrue(
+            (tabs.selectedViewController as? UINavigationController)?.viewControllers.first is VersesHomeViewController
+        )
 
         tabs.presentProfileSheet(animated: false)
-        RunLoop.current.run(until: Date().addingTimeInterval(0.15))
-
-        let presented = try XCTUnwrap(tabs.presentedViewController as? UINavigationController)
-        XCTAssertEqual(presented.view.accessibilityIdentifier, "pad.sheet.profile")
-        XCTAssertTrue(presented.viewControllers.first is ProfileViewController)
-        XCTAssertEqual(presented.modalPresentationStyle, .formSheet)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        XCTAssertEqual(tabs.selectedIndex, 3)
+        XCTAssertNil(tabs.presentedViewController, "Profile is a tab, not a modal sheet")
+        XCTAssertTrue(
+            (tabs.selectedViewController as? UINavigationController)?.viewControllers.first is ProfileViewController
+        )
     }
 
-    func testPad_notebookSplit_usesNotesLikePrimaryWidth() throws {
+    func testPad_notebookSplit_tilesBesideNeverOverlay() throws {
         try XCTSkipUnless(isPad, "iPad-only column metrics")
         let split = NotebookSplitViewController()
+        _ = makePadWindow(root: split)
         _ = split.view
+        split.view.layoutIfNeeded()
         XCTAssertEqual(split.preferredPrimaryColumnWidthFraction, PadChrome.notebookPrimaryFraction, accuracy: 0.001)
         XCTAssertEqual(split.minimumPrimaryColumnWidth, PadChrome.notebookPrimaryMin)
         XCTAssertEqual(split.maximumPrimaryColumnWidth, PadChrome.notebookPrimaryMax)
+        XCTAssertEqual(split.preferredDisplayMode, .oneBesideSecondary)
+        if #available(iOS 16.0, *) {
+            XCTAssertEqual(split.preferredSplitBehavior, .tile)
+        }
+        XCTAssertNotEqual(split.displayMode, .oneOverSecondary)
+        XCTAssertNotEqual(split.displayMode, .primaryOverlay)
     }
 
     func testPad_groupsSplit_isDoubleColumn() throws {
@@ -173,6 +176,30 @@ final class IPadNavigationTests: XCTestCase {
         _ = split.view
         XCTAssertEqual(split.style, .doubleColumn)
         XCTAssertEqual(split.preferredPrimaryColumnWidthFraction, PadChrome.notebookPrimaryFraction, accuracy: 0.001)
+        if #available(iOS 16.0, *) {
+            XCTAssertEqual(split.preferredSplitBehavior, .tile)
+        }
+    }
+
+    func testPad_listRoots_preferLargeTitles() throws {
+        try XCTSkipUnless(isPad, "iPad list title chrome")
+        let caderno = NotebookListViewController()
+        let grupos = GroupsListViewController()
+        let tools = VersesHomeViewController()
+        let profile = ProfileViewController()
+        for root in [caderno as UIViewController, grupos, tools, profile] {
+            let nav = UINavigationController(rootViewController: root)
+            KCChrome.style(navigationController: nav)
+            _ = makePadWindow(root: nav)
+            root.loadViewIfNeeded()
+            root.viewWillAppear(false)
+            XCTAssertTrue(nav.navigationBar.prefersLargeTitles, "\(type(of: root)) nav prefers large titles")
+            XCTAssertEqual(
+                root.navigationItem.largeTitleDisplayMode,
+                .always,
+                "\(type(of: root)) largeTitleDisplayMode must be .always"
+            )
+        }
     }
 
     func testPhone_stillHasFourTabs() throws {

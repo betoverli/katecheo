@@ -1,9 +1,8 @@
 import UIKit
 import XCTest
 
-/// iPad XCUITest: Tools/Profile sheets via toolbar (not tabs), plus Caderno/Grupos
-/// detail editor title/body via accessibility value (real TextKit content — not screenshots).
-/// Skips automatically on iPhone destinations.
+/// iPad XCUITest: editor not covered by list sidebar (tile geometry), large titles on
+/// list roots, Caderno/Grupos detail editor content. Skips on iPhone destinations.
 final class IPadChromeUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
@@ -11,62 +10,98 @@ final class IPadChromeUITests: XCTestCase {
         try XCTSkipUnless(idiom == .pad, "iPad Simulator only")
     }
 
-    func testIPad_toolsAndProfileButtons_presentSheets() throws {
-        let app = launchApp(seedNotes: false)
+    /// Portrait + landscape: note editor text starts to the right of the list sidebar.
+    func testIPad_editorNotCoveredBySidebar_portraitAndLandscape() throws {
+        let app = launchApp(seedNotes: true, openGrupos: false)
 
-        // Prefer content identifiers over tabBars — iOS 18+ floating tab bar is flaky in queries.
         let caderno = app.otherElements["caderno.list"]
-        let toolsButton = app.buttons["pad.toolbar.tools"]
-        let profileButton = app.buttons["pad.toolbar.profile"]
+        XCTAssertTrue(caderno.waitForExistence(timeout: 15), "Caderno list should appear")
 
-        let shellVisible =
-            caderno.waitForExistence(timeout: 15)
-            || toolsButton.waitForExistence(timeout: 2)
-            || app.otherElements["grupos.list"].waitForExistence(timeout: 2)
-        XCTAssertTrue(shellVisible, "iPad main shell should appear after skipping onboarding/sign-in")
-
-        // iPad must NOT show Tools/Profile as tabs (when tab bar is queryable).
-        let toolsTab = app.tabBars.buttons.matching(
-            NSPredicate(format: "label CONTAINS[c] %@ OR label CONTAINS[c] %@ OR label CONTAINS[c] %@",
-                        "Ferramentas", "Tools", "Herramientas")
+        let cadernoRow = app.cells.matching(
+            NSPredicate(format: "label CONTAINS %@", "Nota UITest Caderno")
         ).firstMatch
-        XCTAssertFalse(toolsTab.exists, "Tools must not be a tab on iPad")
+        XCTAssertTrue(cadernoRow.waitForExistence(timeout: 8), "Seeded Caderno note row should exist")
+        cadernoRow.tap()
 
-        XCTAssertTrue(toolsButton.waitForExistence(timeout: 8), "Tools toolbar button should exist on Caderno/Grupos")
-        XCTAssertTrue(profileButton.exists, "Profile toolbar button should exist")
+        let editor = app.textViews["note.editor"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 10), "Caderno editor should open")
 
-        toolsButton.tap()
-        let toolsSheet = app.otherElements["pad.sheet.tools"]
-        let toolsNav = app.navigationBars.matching(
-            NSPredicate(format: "label CONTAINS[c] %@ OR label CONTAINS[c] %@ OR label CONTAINS[c] %@",
-                        "Ferramentas", "Tools", "Herramientas")
-        ).firstMatch
-        XCTAssertTrue(
-            toolsSheet.waitForExistence(timeout: 5) || toolsNav.waitForExistence(timeout: 5),
-            "Tools sheet should present"
-        )
+        let sidebar = app.otherElements["caderno.split.primary"]
+        XCTAssertTrue(sidebar.waitForExistence(timeout: 5), "Caderno primary (list) column should exist")
 
-        let done = app.buttons["pad.sheet.done"]
-        if done.waitForExistence(timeout: 3) {
-            done.tap()
-        } else {
-            app.swipeDown()
-        }
+        assertEditorRightOfSidebar(editor: editor, sidebar: sidebar, context: "portrait")
 
-        XCTAssertTrue(profileButton.waitForExistence(timeout: 5))
-        profileButton.tap()
-        let profileSheet = app.otherElements["pad.sheet.profile"]
-        let profileNav = app.navigationBars.matching(
-            NSPredicate(format: "label CONTAINS[c] %@ OR label CONTAINS[c] %@",
-                        "Perfil", "Profile")
-        ).firstMatch
-        XCTAssertTrue(
-            profileSheet.waitForExistence(timeout: 5) || profileNav.waitForExistence(timeout: 5),
-            "Profile sheet should present"
-        )
+        XCUIDevice.shared.orientation = .landscapeLeft
+        // Allow rotation + layout.
+        RunLoop.current.run(until: Date().addingTimeInterval(1.0))
+        XCTAssertTrue(editor.waitForExistence(timeout: 5))
+        XCTAssertTrue(sidebar.waitForExistence(timeout: 5))
+        assertEditorRightOfSidebar(editor: editor, sidebar: sidebar, context: "landscape")
+
+        XCUIDevice.shared.orientation = .portrait
+        RunLoop.current.run(until: Date().addingTimeInterval(0.5))
     }
 
-    /// Caderno detail: seeded note title/body via accessibility (separate launch — no tab switch).
+    /// List roots show a large / navigation title (Caderno, Grupos, Ferramentas, Perfil).
+    func testIPad_listRoots_showLargeTitles() throws {
+        let app = launchApp(seedNotes: false)
+
+        XCTAssertTrue(
+            app.otherElements["caderno.list"].waitForExistence(timeout: 15)
+                || app.navigationBars.element.waitForExistence(timeout: 5),
+            "Main shell should appear"
+        )
+
+        assertNavTitle(
+            in: app,
+            names: ["Caderno", "Notebook", "Cuaderno"],
+            context: "Caderno"
+        )
+
+        // Prefer tab / sidebar menu over flaky floating tab bar queries.
+        if app.otherElements["pad.main.menu"].waitForExistence(timeout: 2) {
+            app.otherElements["pad.main.menu.1"].tap()
+        } else {
+            tapDestination(
+                in: app,
+                labels: ["Grupos", "Groups", "Grupos"],
+                identifier: "tab.grupos"
+            )
+        }
+        XCTAssertTrue(
+            app.otherElements["grupos.list"].waitForExistence(timeout: 8),
+            "Grupos list should appear"
+        )
+        assertNavTitle(in: app, names: ["Grupos", "Groups"], context: "Grupos")
+
+        if app.otherElements["pad.main.menu"].exists {
+            app.otherElements["pad.main.menu.2"].tap()
+        } else {
+            tapDestination(
+                in: app,
+                labels: ["Ferramentas", "Tools", "Herramientas"],
+                identifier: "tab.ferramentas"
+            )
+        }
+        assertNavTitle(
+            in: app,
+            names: ["Ferramentas", "Tools", "Herramientas"],
+            context: "Ferramentas"
+        )
+
+        if app.otherElements["pad.main.menu"].exists {
+            app.otherElements["pad.main.menu.3"].tap()
+        } else {
+            tapDestination(
+                in: app,
+                labels: ["Perfil", "Profile", "Perfil"],
+                identifier: "tab.perfil"
+            )
+        }
+        assertNavTitle(in: app, names: ["Perfil", "Profile"], context: "Perfil")
+    }
+
+    /// Caderno detail: seeded note title/body via accessibility.
     func testIPad_cadernoNote_detailEditorShowsTitleAndBody() throws {
         let app = launchApp(seedNotes: true, openGrupos: false)
 
@@ -87,7 +122,7 @@ final class IPadChromeUITests: XCTestCase {
         )
     }
 
-    /// Grupos detail: launch directly on Grupos tab, open group → note, assert title/body a11y.
+    /// Grupos detail: launch on Grupos, open group → note, assert title/body a11y.
     func testIPad_groupNote_detailEditorShowsTitleAndBody() throws {
         let app = launchApp(seedNotes: true, openGrupos: true)
 
@@ -137,6 +172,56 @@ final class IPadChromeUITests: XCTestCase {
         return app
     }
 
+    private func assertEditorRightOfSidebar(
+        editor: XCUIElement,
+        sidebar: XCUIElement,
+        context: String
+    ) {
+        let editorFrame = editor.frame
+        let sidebarFrame = sidebar.frame
+        XCTAssertFalse(editorFrame.isEmpty, "\(context): editor frame must be non-empty")
+        XCTAssertFalse(sidebarFrame.isEmpty, "\(context): sidebar frame must be non-empty")
+        XCTAssertGreaterThanOrEqual(
+            editorFrame.minX,
+            sidebarFrame.maxX - 1,
+            "\(context): editor.minX (\(editorFrame.minX)) must be >= sidebar.maxX (\(sidebarFrame.maxX)) — detail must not sit under the list"
+        )
+    }
+
+    private func assertNavTitle(in app: XCUIApplication, names: [String], context: String) {
+        let predicate = NSPredicate(
+            format: names.map { _ in "label CONTAINS[c] %@" }.joined(separator: " OR "),
+            argumentArray: names
+        )
+        let bar = app.navigationBars.matching(predicate).firstMatch
+        let staticTitle = app.staticTexts.matching(predicate).firstMatch
+        XCTAssertTrue(
+            bar.waitForExistence(timeout: 6) || staticTitle.waitForExistence(timeout: 2),
+            "\(context): large/navigation title should exist (\(names.joined(separator: "/")))"
+        )
+    }
+
+    private func tapDestination(in app: XCUIApplication, labels: [String], identifier: String) {
+        let byId = app.buttons[identifier]
+        if byId.waitForExistence(timeout: 2) {
+            byId.tap()
+            return
+        }
+        let predicate = NSPredicate(
+            format: labels.map { _ in "label CONTAINS[c] %@" }.joined(separator: " OR "),
+            argumentArray: labels
+        )
+        let tab = app.tabBars.buttons.matching(predicate).firstMatch
+        if tab.waitForExistence(timeout: 3) {
+            tab.tap()
+            return
+        }
+        let any = app.buttons.matching(predicate).firstMatch
+        if any.waitForExistence(timeout: 3) {
+            any.tap()
+        }
+    }
+
     private func assertEditor(
         in app: XCUIApplication,
         title: String,
@@ -147,7 +232,6 @@ final class IPadChromeUITests: XCTestCase {
         let bodyField = app.otherElements["note.editor.body"]
         let editor = app.textViews["note.editor"]
 
-        // Prefer the live UITextView — probes are best-effort extras for title vs body.
         XCTAssertTrue(
             editor.waitForExistence(timeout: 10)
                 || titleField.waitForExistence(timeout: 2),

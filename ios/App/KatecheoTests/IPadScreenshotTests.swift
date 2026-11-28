@@ -2,8 +2,8 @@ import XCTest
 @testable import Katecheo
 
 /// Captures iPad landscape + portrait screenshots of Caderno (note open with text),
-/// Grupos 2-column (list + after group push with note), Tools sheet, Profile sheet,
-/// plus iPhone Caderno/Grupos shots on phone destinations.
+/// Grupos 2-column, and the main-menu sidebar — plain PNGs (no burn-in).
+/// Plus iPhone Caderno/Grupos shots on phone destinations.
 @MainActor
 final class IPadScreenshotTests: XCTestCase {
     private var hostWindow: UIWindow?
@@ -114,13 +114,23 @@ final class IPadScreenshotTests: XCTestCase {
                 accuracy: 1,
                 "Open note must not be scrolled — title/body would leave the viewport"
             )
-            // contentSize may still report a large height from the scrolling container;
-            // what matters for visible title/body is offset pinned at 0 after open.
             XCTAssertNil(detail.navigationItem.leftBarButtonItem, "No ghost displayMode button")
             XCTAssertEqual(list.testing_highlightedNoteId, titled.id, "Open note row must stay highlighted")
             XCTAssertTrue(list.testing_hasSelectedRow, "UITableView selection must survive reload")
 
-            // Plain screenshot only — no glyph burn-in (drawHierarchy may omit UITextView ink).
+            // Geometry: editor must sit to the right of the list column (tile, not overlay).
+            let primary = try XCTUnwrap(split.viewController(for: .primary)?.view)
+            primary.layoutIfNeeded()
+            detail.view.layoutIfNeeded()
+            let editorFrame = detail.testing_editor.convert(detail.testing_editor.bounds, to: nil)
+            let primaryFrame = primary.convert(primary.bounds, to: nil)
+            XCTAssertGreaterThanOrEqual(
+                editorFrame.minX,
+                primaryFrame.maxX - 1,
+                "Editor must not sit under the list sidebar (\(orientation))"
+            )
+
+            // Plain screenshot only — no glyph burn-in.
             let cadernoShot = render(tabs.view, size: size, priming: detail)
             write(cadernoShot, name: "ipad-\(orientation)-caderno-note")
 
@@ -165,44 +175,20 @@ final class IPadScreenshotTests: XCTestCase {
             let groupShot = render(tabs.view, size: size, priming: groupDetail)
             write(groupShot, name: "ipad-\(orientation)-grupos-group-notes")
 
-            // 3) Tools sheet with visible content (Books empty-state or rows — not blank beige).
-            tabs.selectedIndex = 0
-            UserDefaults.standard.set("books", forKey: "katecheo.ferramentas.lastTool")
-            tabs.presentToolsSheet(animated: false) { home in
-                home.testing_selectToolAndLayout("books")
+            // 3) Main-menu sidebar (legacy shell on iOS 15–17; tabSidebar chrome on 18+).
+            if #available(iOS 18.0, *) {
+                // Capture tab bar / sidebar destinations visible with Tools selected.
+                tabs.selectedIndex = 2
+                tabs.view.layoutIfNeeded()
+                write(render(tabs.view, size: size), name: "ipad-\(orientation)-sidebar-menu")
+            } else {
+                let legacy = PadLegacySidebarShell()
+                window.rootViewController = legacy
+                legacy.loadViewIfNeeded()
+                legacy.view.layoutIfNeeded()
+                RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+                write(render(legacy.view, size: size), name: "ipad-\(orientation)-sidebar-menu")
             }
-            RunLoop.current.run(until: Date().addingTimeInterval(0.3))
-            let toolsNav = try XCTUnwrap(tabs.presentedViewController as? UINavigationController)
-            XCTAssertEqual(toolsNav.view.accessibilityIdentifier, "pad.sheet.tools")
-            toolsNav.view.layoutIfNeeded()
-            write(
-                render(toolsNav.view, size: PadChrome.utilitySheetSize),
-                name: "ipad-\(orientation)-tools-sheet"
-            )
-
-            // 4) Profile sheet — must be Perfil, not Caderno / leftover Tools.
-            tabs.presentProfileSheet(animated: false)
-            var profileNav: UINavigationController?
-            for _ in 0 ..< 20 {
-                RunLoop.current.run(until: Date().addingTimeInterval(0.05))
-                if let nav = tabs.presentedViewController as? UINavigationController,
-                   nav.view.accessibilityIdentifier == "pad.sheet.profile"
-                {
-                    profileNav = nav
-                    break
-                }
-            }
-            let profile = try XCTUnwrap(profileNav, "Profile sheet must replace Tools sheet")
-            XCTAssertEqual(profile.view.accessibilityIdentifier, "pad.sheet.profile")
-            XCTAssertTrue(profile.viewControllers.first is ProfileViewController)
-            profile.viewControllers.first?.loadViewIfNeeded()
-            profile.view.layoutIfNeeded()
-            write(
-                render(profile.view, size: PadChrome.utilitySheetSize),
-                name: "ipad-\(orientation)-profile-sheet"
-            )
-            tabs.dismiss(animated: false)
-            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
 
             window.isHidden = true
             hostWindow = nil
@@ -257,7 +243,6 @@ final class IPadScreenshotTests: XCTestCase {
         view.bounds = CGRect(origin: .zero, size: size)
         view.layoutIfNeeded()
         if let priming {
-            // Wait for layout on the normal UITextView path (no burn-in / paint overlay).
             priming.ensureEditorContentVisible()
             CATransaction.flush()
             RunLoop.current.run(until: Date().addingTimeInterval(0.25))

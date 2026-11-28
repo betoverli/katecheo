@@ -96,7 +96,7 @@ enum NativeDeepLinkRouter {
         return .unknown
     }
 
-    /// Tab indices: 0 Caderno · 1 Grupos · (iPhone) 2 Ferramentas · 3 Perfil
+    /// Tab indices: 0 Caderno · 1 Grupos · 2 Ferramentas · 3 Perfil
     private enum Tab: Int {
         case notebook = 0
         case groups = 1
@@ -107,7 +107,7 @@ enum NativeDeepLinkRouter {
     @MainActor
     static func open(_ destination: Destination, animated: Bool = true) {
         guard destination != .unknown else { return }
-        guard let tabs = rootTabBar() else {
+        guard let shell = rootShell() else {
             // Root not ready yet (cold start) — retry shortly.
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                 open(destination, animated: animated)
@@ -117,7 +117,7 @@ enum NativeDeepLinkRouter {
 
         switch destination {
         case .verses, .themes, .reading:
-            tabs.presentToolsSheet(animated: animated) { home in
+            shell.presentToolsSheet(animated: animated) { home in
                 switch destination {
                 case .themes:
                     home.selectHomeFilter("themes")
@@ -128,20 +128,20 @@ enum NativeDeepLinkRouter {
                 }
             }
         case .groups, .group, .groupInvite:
-            tabs.selectedIndex = Tab.groups.rawValue
+            shell.selectedIndex = Tab.groups.rawValue
             if case .groupInvite(let inviteId) = destination {
                 if !NativeAPIClient.hasBearer {
                     NotificationCenter.default.post(name: .nativeOpenSignIn, object: nil)
                     return
                 }
-                if let split = tabs.selectedViewController as? GroupsSplitViewController {
+                if let split = shell.selectedViewController as? GroupsSplitViewController {
                     // Present invite over the groups split.
                     let invite = GroupInviteDetailViewController(inviteId: inviteId)
                     let nav = UINavigationController(rootViewController: invite)
                     KCChrome.style(navigationController: nav)
                     nav.modalPresentationStyle = PadChrome.isPad ? .formSheet : .pageSheet
                     split.present(nav, animated: animated)
-                } else if let nav = tabs.selectedViewController as? UINavigationController {
+                } else if let nav = shell.selectedViewController as? UINavigationController {
                     nav.popToRootViewController(animated: false)
                     nav.pushViewController(GroupInviteDetailViewController(inviteId: inviteId), animated: animated)
                 }
@@ -151,9 +151,9 @@ enum NativeDeepLinkRouter {
                 Task { @MainActor in
                     do {
                         let group = try await NativeAPIClient.getGroup(id: id)
-                        if let split = tabs.selectedViewController as? GroupsSplitViewController {
+                        if let split = shell.selectedViewController as? GroupsSplitViewController {
                             split.showGroup(group, animated: animated)
-                        } else if let nav = tabs.selectedViewController as? UINavigationController {
+                        } else if let nav = shell.selectedViewController as? UINavigationController {
                             nav.popToRootViewController(animated: false)
                             nav.pushViewController(NotebookChrome.makeGroupCaderno(group: group), animated: animated)
                         }
@@ -163,56 +163,44 @@ enum NativeDeepLinkRouter {
                 }
             }
         case .notebook, .note:
-            tabs.selectedIndex = Tab.notebook.rawValue
+            shell.selectedIndex = Tab.notebook.rawValue
             if case .note(let id) = destination {
                 let cached = LocalNoteCache.loadNotes().first { $0.id == id }
                 let detail = NoteDetailViewController(noteId: id, initial: cached)
-                if let split = tabs.selectedViewController as? NotebookSplitViewController {
+                if let split = shell.selectedViewController as? NotebookSplitViewController {
                     split.popToListRoot(animated: false)
                     split.showNote(detail, animated: animated)
-                } else if let nav = tabs.selectedViewController as? UINavigationController {
+                } else if let nav = shell.selectedViewController as? UINavigationController {
                     nav.popToRootViewController(animated: false)
                     detail.hidesBottomBarWhenPushed = true
                     nav.pushViewController(detail, animated: animated)
                 }
-            } else if let split = tabs.selectedViewController as? NotebookSplitViewController {
+            } else if let split = shell.selectedViewController as? NotebookSplitViewController {
                 split.popToListRoot(animated: animated)
-            } else if let nav = tabs.selectedViewController as? UINavigationController {
+            } else if let nav = shell.selectedViewController as? UINavigationController {
                 nav.popToRootViewController(animated: animated)
             }
         case .readingPlan(let id):
-            tabs.presentToolsSheet(animated: animated) { home in
+            shell.presentToolsSheet(animated: animated) { home in
                 home.selectHomeFilter("reading")
             }
-            // Push plan onto the tools nav (sheet on iPad, tab on iPhone).
+            // Push plan onto the tools nav (tab on iPhone + iPad).
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                guard let tabs = rootTabBar() else { return }
-                if PadChrome.isPad {
-                    var top: UIViewController = tabs
-                    while let presented = top.presentedViewController { top = presented }
-                    if let nav = top as? UINavigationController {
-                        nav.pushViewController(ReadingPlanDetailViewController(planId: id), animated: animated)
-                    }
-                } else if let nav = tabs.viewControllers?[Tab.tools.rawValue] as? UINavigationController {
+                guard let shell = rootShell() else { return }
+                if let nav = shell.tabRoots?[Tab.tools.rawValue] as? UINavigationController {
                     nav.pushViewController(ReadingPlanDetailViewController(planId: id), animated: animated)
                 }
             }
         case .readingInvite(let groupId):
-            tabs.presentToolsSheet(animated: animated) { home in
+            shell.presentToolsSheet(animated: animated) { home in
                 home.selectHomeFilter("reading")
             }
             Task { @MainActor in
                 do {
                     if NativeAPIClient.hasBearer {
                         let planId = try await NativeAPIClient.joinReadingPlanGroup(groupId: groupId)
-                        guard let tabs = rootTabBar() else { return }
-                        if PadChrome.isPad {
-                            var top: UIViewController = tabs
-                            while let presented = top.presentedViewController { top = presented }
-                            if let nav = top as? UINavigationController {
-                                nav.pushViewController(ReadingPlanDetailViewController(planId: planId), animated: animated)
-                            }
-                        } else if let nav = tabs.viewControllers?[Tab.tools.rawValue] as? UINavigationController {
+                        guard let shell = rootShell() else { return }
+                        if let nav = shell.tabRoots?[Tab.tools.rawValue] as? UINavigationController {
                             nav.pushViewController(ReadingPlanDetailViewController(planId: planId), animated: animated)
                         }
                     } else {
@@ -223,12 +211,12 @@ enum NativeDeepLinkRouter {
                 }
             }
         case .friends:
-            tabs.presentProfileSheet(animated: animated) { _, nav in
+            shell.presentProfileSheet(animated: animated) { _, nav in
                 if nav.topViewController is FriendsActivityViewController { return }
                 nav.pushViewController(FriendsActivityViewController(), animated: animated)
             }
         case .profile, .signIn:
-            tabs.presentProfileSheet(animated: animated)
+            shell.presentProfileSheet(animated: animated, configure: nil)
             if destination == .signIn, !NativeAPIClient.hasBearer {
                 NotificationCenter.default.post(name: .nativeOpenSignIn, object: nil)
             }
@@ -248,15 +236,48 @@ enum NativeDeepLinkRouter {
     }
 
     @MainActor
-    private static func rootTabBar() -> NativeRootTabBarController? {
+    private static func rootShell() -> KatecheoRootShell? {
         let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
         let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
         let window = scene?.windows.first(where: { $0.isKeyWindow }) ?? scene?.windows.first
         if let tabs = window?.rootViewController as? NativeRootTabBarController {
             return tabs
         }
+        if let legacy = window?.rootViewController as? PadLegacySidebarShell {
+            return legacy
+        }
         return nil
     }
+}
+
+/// Shared shell API for `NativeRootTabBarController` and `PadLegacySidebarShell`.
+@MainActor
+protocol KatecheoRootShell: AnyObject {
+    var selectedIndex: Int { get set }
+    var selectedViewController: UIViewController? { get }
+    var tabRoots: [UIViewController]? { get }
+    func presentToolsSheet(
+        animated: Bool,
+        configure: ((VersesHomeViewController) -> Void)?
+    )
+    func presentProfileSheet(
+        animated: Bool,
+        configure: ((ProfileViewController, UINavigationController) -> Void)?
+    )
+}
+
+extension NativeRootTabBarController: KatecheoRootShell {
+    var tabRoots: [UIViewController]? { viewControllers }
+}
+
+extension PadLegacySidebarShell: KatecheoRootShell {
+    var selectedViewController: UIViewController? {
+        let roots = viewControllersForTabs
+        let idx = min(max(0, selectedIndex), roots.count - 1)
+        return roots.isEmpty ? nil : roots[idx]
+    }
+
+    var tabRoots: [UIViewController]? { viewControllersForTabs }
 }
 
 extension Notification.Name {

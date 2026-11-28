@@ -56,20 +56,8 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
         KCChrome.style(navigationController: secondaryNav)
         super.init(style: .doubleColumn)
         delegate = self
-        preferredDisplayMode = .oneBesideSecondary
-        presentsWithGesture = true
-        // One sidebar toggle only (primary column). Assigning `displayModeButtonItem` on
-        // the secondary paints an empty Liquid Glass circle with no icon — hide it.
-        if #available(iOS 14.5, *) {
-            displayModeButtonVisibility = .never
-        }
-        if #available(iOS 16.0, *) {
-            preferredSplitBehavior = .tile
-        }
-        // Apple Notes–like sidebar width (not a cramped strip).
-        preferredPrimaryColumnWidthFraction = PadChrome.notebookPrimaryFraction
-        minimumPrimaryColumnWidth = PadChrome.notebookPrimaryMin
-        maximumPrimaryColumnWidth = PadChrome.notebookPrimaryMax
+        // Tile beside — never overlay the note detail under the list (TF 499).
+        PadChrome.applyNotesFolderSplitChrome(to: self)
         setViewController(primaryNav, for: .primary)
         setViewController(secondaryNav, for: .secondary)
         // Compact column is the same primary nav so collapse can push detail there.
@@ -82,7 +70,15 @@ final class NotebookSplitViewController: UISplitViewController, UISplitViewContr
     override func viewDidLoad() {
         super.viewDidLoad()
         KCChrome.styleScreen(view)
+        view.accessibilityIdentifier = "caderno.split"
+        primaryNav.view.accessibilityIdentifier = "caderno.split.primary"
+        secondaryNav.view.accessibilityIdentifier = "caderno.split.secondary"
         showEmptyDetail(animated: false)
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        PadChrome.enforceBesideDisplayMode(on: self)
     }
 
     // MARK: - Public routing

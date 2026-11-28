@@ -10,6 +10,7 @@
 		KCSPLIT12FED7965001685SP /* NotebookSplitViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCSPLIT11FED7965001685SP /* NotebookSplitViewController.swift */; };
 		KCSPLIT22FED7965001685SP /* NotebookSplitRoutingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCSPLIT21FED7965001685SP /* NotebookSplitRoutingTests.swift */; };
 		KCPAD12FED7965001685PD /* PadChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCPAD11FED7965001685PD /* PadChrome.swift */; };
+		KCPAD22FED7965001685PD /* PadLegacySidebarShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCPAD21FED7965001685PD /* PadLegacySidebarShell.swift */; };
 		KCGSPL12FED7965001685GS /* GroupsSplitViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCGSPL11FED7965001685GS /* GroupsSplitViewController.swift */; };
 		KCIPAD22FED7965001685IP /* IPadNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCIPAD21FED7965001685IP /* IPadNavigationTests.swift */; };
 		KCIPAD32FED7965001685IP /* IPadScreenshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCIPAD31FED7965001685IP /* IPadScreenshotTests.swift */; };
@@ -269,6 +270,7 @@
 		KCSPLIT11FED7965001685SP /* NotebookSplitViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotebookSplitViewController.swift; sourceTree = "<group>"; };
 		KCSPLIT21FED7965001685SP /* NotebookSplitRoutingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotebookSplitRoutingTests.swift; sourceTree = "<group>"; };
 		KCPAD11FED7965001685PD /* PadChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PadChrome.swift; sourceTree = "<group>"; };
+		KCPAD21FED7965001685PD /* PadLegacySidebarShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PadLegacySidebarShell.swift; sourceTree = "<group>"; };
 		KCGSPL11FED7965001685GS /* GroupsSplitViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupsSplitViewController.swift; sourceTree = "<group>"; };
 		KCIPAD21FED7965001685IP /* IPadNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IPadNavigationTests.swift; sourceTree = "<group>"; };
 		KCIPAD31FED7965001685IP /* IPadScreenshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IPadScreenshotTests.swift; sourceTree = "<group>"; };
@@ -375,6 +377,7 @@
 				E4F1A0192FED796500168550 /* NotebookListViewController.swift */,
 				KCSPLIT11FED7965001685SP /* NotebookSplitViewController.swift */,
 				KCPAD11FED7965001685PD /* PadChrome.swift */,
+				KCPAD21FED7965001685PD /* PadLegacySidebarShell.swift */,
 				KCGSPL11FED7965001685GS /* GroupsSplitViewController.swift */,
 				NBFILT11FED7965001685NF /* NotebookNoteFilter.swift */,
 				NBFILS11FED7965001685NF /* NotebookFilterMultiSelectSheet.swift */,
@@ -696,6 +699,7 @@
 				E4F1A0182FED796500168550 /* NotebookListViewController.swift in Sources */,
 				KCSPLIT12FED7965001685SP /* NotebookSplitViewController.swift in Sources */,
 				KCPAD12FED7965001685PD /* PadChrome.swift in Sources */,
+				KCPAD22FED7965001685PD /* PadLegacySidebarShell.swift in Sources */,
 				KCGSPL12FED7965001685GS /* GroupsSplitViewController.swift in Sources */,
 				NBFILT12FED7965001685NF /* NotebookNoteFilter.swift in Sources */,
 				NBFILS12FED7965001685NF /* NotebookFilterMultiSelectSheet.swift in Sources */,

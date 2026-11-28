@@ -16,7 +16,14 @@ enum AppRoot {
     }
 
     static func makeMainShell() -> UIViewController {
-        NativeRootTabBarController()
+        // iPadOS 18+: UITabBarController.tabSidebar. Older iPad: always-on menu sidebar.
+        if PadChrome.isPad {
+            if #available(iOS 18.0, *) {
+                return NativeRootTabBarController()
+            }
+            return PadLegacySidebarShell()
+        }
+        return NativeRootTabBarController()
     }
 
     /// After onboarding (or when forcing the signed-in shell), always land on tabs.
