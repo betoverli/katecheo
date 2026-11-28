@@ -102,7 +102,7 @@ final class NativeRootTabBarController: UITabBarController {
         super.viewDidAppear(animated)
         // System defaults to hiding the sidebar in portrait — re-assert expanded once.
         if #available(iOS 18.0, *), PadChrome.isPad, mode == .tabSidebar {
-            applyDefaultTabSidebarVisibilityIfNeeded()
+            applyDefaultTabSidebarVisibilityIfNeeded(forceExpand: false)
         }
         presentSettingsGuideIfNeeded()
     }
