@@ -57,6 +57,11 @@ final class IPadScreenshotTests: XCTestCase {
             let tabs = NativeRootTabBarController()
             let window = attachWindow(root: tabs, size: size)
             tabs.loadViewIfNeeded()
+            // iPadOS 18+: force tabSidebar expanded for sidebar+list+note screenshots
+            // (afterScreenUpdates:false snapshot path avoids the prior hang).
+            if #available(iOS 18.0, *) {
+                tabs.applyTabSidebarForScreenshotsIfNeeded()
+            }
             tabs.view.layoutIfNeeded()
 
             // 1) Caderno — paint list from cache, open via real row selection (wiring under test).
@@ -124,9 +129,23 @@ final class IPadScreenshotTests: XCTestCase {
                 XCTAssertEqual(split.preferredSplitBehavior, .tile)
             }
 
-            // Plain screenshot only — no glyph burn-in.
+            // Plain screenshot — main-menu sidebar + list + note (default expanded).
             let cadernoShot = render(tabs.view, size: size, priming: detail)
             write(cadernoShot, name: "ipad-\(orientation)-caderno-note")
+            write(cadernoShot, name: "ipad-\(orientation)-sidebar-menu")
+
+            // Toggle to the top tab bar (system control) and capture again.
+            if #available(iOS 18.0, *), tabs.mode == .tabSidebar {
+                tabs.sidebar.isHidden = true
+                tabs.view.layoutIfNeeded()
+                RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+                write(
+                    render(tabs.view, size: size, priming: detail),
+                    name: "ipad-\(orientation)-top-tabbar"
+                )
+                tabs.sidebar.isHidden = false
+                tabs.view.layoutIfNeeded()
+            }
 
             // 2a) Grupos list (sidebar + empty detail)
             tabs.selectedIndex = 1
@@ -168,12 +187,6 @@ final class IPadScreenshotTests: XCTestCase {
 
             let groupShot = render(tabs.view, size: size, priming: groupDetail)
             write(groupShot, name: "ipad-\(orientation)-grupos-group-notes")
-
-            // 3) Main-menu destinations (4 tabs). Under XCTest we avoid `.tabSidebar`
-            // (hangs drawHierarchy); capture the tab shell with Tools selected.
-            tabs.selectedIndex = 2
-            tabs.view.layoutIfNeeded()
-            write(render(tabs.view, size: size), name: "ipad-\(orientation)-sidebar-menu")
 
             window.isHidden = true
             hostWindow = nil

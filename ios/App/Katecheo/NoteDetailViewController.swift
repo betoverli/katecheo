@@ -97,10 +97,9 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
 
         editorTopConstraint = editor.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor)
         editorBottomConstraint = editor.bottomAnchor.constraint(equalTo: view.bottomAnchor)
-        // Leading uses the safe area so PadChrome can push text clear of an overlapping
-        // primary column via additionalSafeAreaInsets (TF 499 tile/overlay edge case).
-        editorLeadingConstraint = editor.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor)
-        editorTrailingConstraint = editor.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor)
+        // Readable width inside the detail column (standard ~20–40pt column margins).
+        editorLeadingConstraint = editor.leadingAnchor.constraint(equalTo: view.readableContentGuide.leadingAnchor)
+        editorTrailingConstraint = editor.trailingAnchor.constraint(equalTo: view.readableContentGuide.trailingAnchor)
 
         NSLayoutConstraint.activate([
             editorTopConstraint!,
@@ -108,7 +107,7 @@ final class NoteDetailViewController: UIViewController, NativeNoteEditorViewDele
             editorLeadingConstraint!,
             editorTrailingConstraint!,
         ])
-        // Fill the secondary column; Notes-like horizontal insets live in the editor text container.
+        // Modest text-container insets; column margins come from readableContentGuide.
         updateEditorReadingInsets()
 
         // Start from the full on-device catalog — never an empty note-scoped list.

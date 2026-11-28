@@ -120,18 +120,33 @@ final class IPadNavigationTests: XCTestCase {
             PadChrome.columnWindowFrame(for: .primary, in: split),
             "Primary column must have a real on-screen panel frame"
         )
-        // Safe-area inset (if UIKit full-bleeds secondary) is applied in layout — flush once more.
         PadChrome.ensureSecondaryContentClearsPrimary(on: split)
+        detail.view.setNeedsLayout()
         detail.view.layoutIfNeeded()
         let textView = detail.testing_editor.testing_textView
         textView.layoutIfNeeded()
         let textFrame = textView.convert(textView.bounds, to: nil)
+        let secondaryLeading = try XCTUnwrap(
+            PadChrome.secondaryLeadingEdge(in: split),
+            "Secondary leading edge must resolve"
+        )
         XCTAssertFalse(primaryFrame.isEmpty, "Primary panel frame must be non-empty")
         XCTAssertFalse(textFrame.isEmpty, "UITextView frame must be non-empty")
+        XCTAssertEqual(
+            split.viewController(for: .secondary)?.additionalSafeAreaInsets.left ?? -1,
+            0,
+            accuracy: 0.5,
+            "Must not invent a leading safe-area inset when columns already tile"
+        )
         XCTAssertGreaterThanOrEqual(
             textFrame.minX,
             primaryFrame.maxX - 2,
-            "UITextView must start to the right of the primary column (not under the sidebar); text.minX=\(textFrame.minX) primary.maxX=\(primaryFrame.maxX) displayMode=\(split.displayMode.rawValue) secondarySafeLeft=\(split.viewController(for: .secondary)?.additionalSafeAreaInsets.left ?? -1)"
+            "UITextView must start to the right of the primary column (not under the sidebar); text.minX=\(textFrame.minX) primary.maxX=\(primaryFrame.maxX) displayMode=\(split.displayMode.rawValue)"
+        )
+        XCTAssertLessThanOrEqual(
+            textFrame.minX,
+            secondaryLeading + 60,
+            "Editor text must sit near the detail column leading edge (readable margin), not a huge empty gap; text.minX=\(textFrame.minX) secondaryLeading=\(secondaryLeading)"
         )
     }
 

@@ -7,6 +7,8 @@ import UIKit
 /// - iPad iOS 15–17: `PadLegacySidebarShell` is the window root instead (see AppRoot).
 final class NativeRootTabBarController: UITabBarController {
     private var didScheduleSettingsGuide = false
+    /// Apply default sidebar-expanded once per process (don't fight mid-session toggles).
+    private var didApplyDefaultTabSidebarVisibility = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -68,11 +70,11 @@ final class NativeRootTabBarController: UITabBarController {
             // Skip under XCTest host windows — `mode = .tabSidebar` + drawHierarchy
             // (afterScreenUpdates) hangs the iPad unit-test runner. The real app (XCUITest
             // launch / TestFlight) still gets tabSidebar via AppRoot → this controller.
+            // Screenshot tests may opt in via `applyTabSidebarForScreenshotsIfNeeded()`.
             if #available(iOS 18.0, *) {
                 let underXCTest = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
                 if !underXCTest {
-                    mode = .tabSidebar
-                    view.accessibilityIdentifier = "pad.shell.tabsidebar"
+                    applyTabSidebarDefaultExpanded()
                 } else {
                     view.accessibilityIdentifier = "pad.shell.tabs"
                 }
@@ -98,7 +100,33 @@ final class NativeRootTabBarController: UITabBarController {
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        // System defaults to hiding the sidebar in portrait — re-assert expanded once.
+        if #available(iOS 18.0, *), PadChrome.isPad, mode == .tabSidebar {
+            applyDefaultTabSidebarVisibilityIfNeeded()
+        }
         presentSettingsGuideIfNeeded()
+    }
+
+    /// iPadOS 18+ tabSidebar with the main-menu sidebar visible by default.
+    @available(iOS 18.0, *)
+    func applyTabSidebarDefaultExpanded() {
+        mode = .tabSidebar
+        view.accessibilityIdentifier = "pad.shell.tabsidebar"
+        applyDefaultTabSidebarVisibilityIfNeeded()
+    }
+
+    /// Screenshot / test helper: enable tabSidebar even under the XCTest host.
+    @available(iOS 18.0, *)
+    func applyTabSidebarForScreenshotsIfNeeded() {
+        applyTabSidebarDefaultExpanded()
+    }
+
+    @available(iOS 18.0, *)
+    private func applyDefaultTabSidebarVisibilityIfNeeded() {
+        guard mode == .tabSidebar, !didApplyDefaultTabSidebarVisibility else { return }
+        // Expand the left main-menu column; user can still toggle to the top tab bar.
+        sidebar.isHidden = false
+        didApplyDefaultTabSidebarVisibility = true
     }
 
     // MARK: - Tools / Profile (tabs on iPad + iPhone; deep-link API)

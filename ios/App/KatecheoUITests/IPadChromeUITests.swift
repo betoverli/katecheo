@@ -174,7 +174,8 @@ final class IPadChromeUITests: XCTestCase {
         }
     }
 
-    /// Assert real text view frame sits to the right of the real primary column frame.
+    /// Assert real text view frame sits to the right of the list, within a readable margin
+    /// of the detail column leading edge (no huge empty left gap).
     private func assertEditorTextViewRightOfPrimary(
         editor: XCUIElement,
         primary: XCUIElement,
@@ -193,6 +194,12 @@ final class IPadChromeUITests: XCTestCase {
             editorFrame.minX,
             primaryFrame.maxX - 2,
             "\(context): textView.minX (\(editorFrame.minX)) must be >= primary.maxX (\(primaryFrame.maxX)) — detail must not sit under the list"
+        )
+        // List trailing edge ≈ detail column leading edge when tiled.
+        XCTAssertLessThanOrEqual(
+            editorFrame.minX,
+            primaryFrame.maxX + 60,
+            "\(context): textView.minX (\(editorFrame.minX)) must be within 60pt of the detail column leading edge (primary.maxX=\(primaryFrame.maxX)) — no huge empty gap"
         )
     }
 

@@ -12,8 +12,9 @@ enum PadChrome {
     static let notebookPrimaryMin: CGFloat = 220
     static let notebookPrimaryMax: CGFloat = 320
 
-    /// Horizontal reading inset inside the note editor on regular-width iPad (~Notes).
-    static let editorHorizontalInset: CGFloat = 24
+    /// Extra text-container inset on regular-width iPad. Column margins come from
+    /// `readableContentGuide`; keep this small so text sits near the column leading edge.
+    static let editorHorizontalInset: CGFloat = 8
 
     /// Large form sheet size (deep-link / modal fallback only).
     static let utilitySheetSize = CGSize(width: 700, height: 800)
@@ -96,31 +97,32 @@ enum PadChrome {
         return columnView.convert(columnView.bounds, to: nil)
     }
 
-    /// When UIKit still paints the secondary column full-bleed under the list
-    /// (`displayMode` can report beside while child views overlap), push the
-    /// secondary's safe-area leading inset so note text clears the primary column.
-    /// No-op when columns already tile. Clears the inset when collapsed / compact.
+    /// Clear any leftover secondary leading safe-area inset.
+    ///
+    /// A previous inset-by-overlap hack double-counted when UIKit already tiled
+    /// the columns (child VC `convert` often reports secondary at x=0 even while
+    /// beside). Tiling is owned by `.tile` + `.oneBesideSecondary`; do **not**
+    /// invent leading insets from those unreliable frames.
     @MainActor
     static func ensureSecondaryContentClearsPrimary(on split: UISplitViewController) {
         guard let secondary = split.viewController(for: .secondary) else { return }
-        guard !split.isCollapsed,
-              let primaryView = split.viewController(for: .primary)?.view,
-              let secondaryView = secondary.view,
-              primaryView.window != nil,
-              secondaryView.window != nil
-        else {
-            if secondary.additionalSafeAreaInsets.left != 0 {
-                secondary.additionalSafeAreaInsets.left = 0
-            }
-            return
+        if secondary.additionalSafeAreaInsets.left != 0 {
+            secondary.additionalSafeAreaInsets.left = 0
         }
-        let primaryFrame = primaryView.convert(primaryView.bounds, to: nil)
-        let secondaryFrame = secondaryView.convert(secondaryView.bounds, to: nil)
-        let overlap = primaryFrame.maxX - secondaryFrame.minX
-        let needed = overlap > 2 ? max(0, overlap) : 0
-        if abs(secondary.additionalSafeAreaInsets.left - needed) > 0.5 {
-            secondary.additionalSafeAreaInsets.left = needed
+    }
+
+    /// Leading edge of the detail column in window coordinates when tiled.
+    /// Prefers a secondary VC frame that already sits beside the primary; otherwise
+    /// uses the primary's trailing edge (child VC frames can falsely report x=0).
+    @MainActor
+    static func secondaryLeadingEdge(in split: UISplitViewController) -> CGFloat? {
+        guard let primary = columnWindowFrame(for: .primary, in: split) else { return nil }
+        if let secondary = columnWindowFrame(for: .secondary, in: split),
+           secondary.minX >= primary.maxX - 2
+        {
+            return secondary.minX
         }
+        return primary.maxX
     }
 
     /// Present a utility screen as a large modal sheet (rare fallback).
